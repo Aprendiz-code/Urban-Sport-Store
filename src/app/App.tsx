@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ShoppingCart, Search, Menu, X, Star, ChevronRight, Package,
   Users, TrendingUp, AlertTriangle, Check, Eye, EyeOff,
@@ -11,6 +11,8 @@ import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
 } from "recharts";
+import { fetchProductsFromSupabase, type ProductRecord } from "../lib/supabase-store";
+import { signInWithEmail, signUpWithEmail } from "../lib/supabase-auth";
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 
@@ -36,9 +38,32 @@ interface CartItem {
   product: Product; qty: number; selectedSize: string; selectedColor: string;
 }
 
+const mapProductRecordToAppProduct = (record: ProductRecord): Product => ({
+  id: record.id,
+  name: record.name,
+  brand: record.brand,
+  price: record.price,
+  originalPrice: record.original_price ?? undefined,
+  discount: record.discount ?? undefined,
+  rating: record.rating ?? 0,
+  reviews: record.reviews ?? 0,
+  image: record.image,
+  category: record.category as Category,
+  subcategory: record.subcategory ?? "",
+  stock: record.stock ?? 0,
+  sku: record.sku ?? record.id,
+  description: record.description ?? "Producto cargado desde Supabase",
+  colors: record.colors ?? [],
+  sizes: record.sizes ?? [],
+  gender: record.gender as Product["gender"],
+  isNew: record.is_new ?? false,
+  isFeatured: record.is_featured ?? false,
+  specs: record.specs ?? [],
+});
+
 // ─── DATA ────────────────────────────────────────────────────────────────────
 
-const PRODUCTS: Product[] = [
+let PRODUCTS: Product[] = [
   {
     id: "1", name: "Nike Air Zoom Pegasus 40", brand: "Nike", price: 449900,
     originalPrice: 529900, discount: 15, rating: 4.8, reviews: 1842,
@@ -1486,11 +1511,34 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
 }) {
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => { setLoading(false); onLogin(); onNavigate("home"); }, 1500);
+    setError(null);
+
+    try {
+      if (isRegister) {
+        const { data, error: signUpError } = await signUpWithEmail(email, password, { name });
+        if (signUpError) throw signUpError;
+        if (!data.user) throw new Error("No se pudo crear la cuenta.");
+      } else {
+        const { data, error: signInError } = await signInWithEmail(email, password);
+        if (signInError) throw signInError;
+        if (!data.user) throw new Error("No se pudo iniciar sesión.");
+      }
+
+      onLogin();
+      onNavigate("home");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Ocurrió un error inesperado.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -1540,7 +1588,7 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
             )}
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">Correo electrónico</label>
-              <input type="email" placeholder="diego@email.com" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#1d4ed8]/50 transition-colors" />
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="diego@email.com" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#1d4ed8]/50 transition-colors" />
             </div>
             <div>
               <div className="flex justify-between mb-1.5">
@@ -1548,7 +1596,7 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
                 {!isRegister && <button type="button" className="text-xs text-[#1d4ed8] hover:underline">¿Olvidaste tu contraseña?</button>}
               </div>
               <div className="relative">
-                <input type={showPass ? "text" : "password"} placeholder="••••••••"
+                <input type={showPass ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••"
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#1d4ed8]/50 transition-colors" />
                 <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                   {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
@@ -1561,6 +1609,7 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
                 <span className="text-xs text-slate-500">Acepto los <a href="#" className="text-[#1d4ed8] hover:underline">Términos</a> y la <a href="#" className="text-[#1d4ed8] hover:underline">Política de privacidad</a>.</span>
               </label>
             )}
+            {error && <p className="text-sm text-red-600">{error}</p>}
             <button type="submit" disabled={loading}
               className="w-full py-3.5 rounded-xl bg-[#1d4ed8] text-white font-extrabold text-sm hover:bg-[#1e40af] disabled:opacity-60 shadow-lg shadow-blue-200 transition-all flex items-center justify-center gap-2">
               {loading ? <><RefreshCw size={15} className="animate-spin" /> Procesando…</> : isRegister ? "Crear cuenta" : "Iniciar sesión"}
@@ -1906,6 +1955,31 @@ function AdminDashboard({ onNavigate }: { onNavigate: (v: View) => void }) {
 
 export default function App() {
   const [view, setView] = useState<View>("home");
+  useEffect(() => {
+    let isActive = true;
+
+    const loadProducts = async () => {
+      const url = import.meta.env.VITE_SUPABASE_URL;
+      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+      if (!url || !anonKey) return;
+
+      try {
+        const data = await fetchProductsFromSupabase(12);
+        if (!isActive) return;
+        if (data.length > 0) {
+          PRODUCTS = data.map(mapProductRecordToAppProduct);
+        }
+      } catch (error) {
+        console.warn("No se pudo cargar productos desde Supabase; se mantendrán los datos locales.", error);
+      }
+    };
+
+    void loadProducts();
+    return () => {
+      isActive = false;
+    };
+  }, []);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [filterCategory, setFilterCategory] = useState<Category | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
