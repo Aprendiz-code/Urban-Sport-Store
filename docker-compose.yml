@@ -1,0 +1,26 @@
+version: '3.9'
+services:
+  api:
+    build:
+      context: ./api
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/urbansportstore
+      NODE_ENV: development
+      PORT: 4000
+    ports:
+      - '4000:4000'
+    depends_on:
+      - db
+    command: sh -c "npm run db:deploy && npm run db:seed && npm run start"
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: urbansportstore
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+volumes:
+  postgres-data:

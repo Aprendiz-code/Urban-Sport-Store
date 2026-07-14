@@ -1,0 +1,708 @@
+Actúa como un Product Designer Senior, UX/UI Designer, especialista en diseño de e-commerce, sistemas de diseño, accesibilidad, responsive design y handoff para equipos de desarrollo.
+
+Debes crear en Figma el diseño completo, moderno, accesible y profesional de un e-commerce llamado “Urban Sport Store”.
+
+No generes una explicación general ni una sola pantalla aislada. Diseña un archivo Figma organizado, con sistema de diseño, componentes reutilizables, prototipos navegables, variantes, diseño responsive y documentación de handoff para un equipo de desarrollo React + TypeScript.
+
+El producto es una tienda online moderna de tecnología, accesorios y dispositivos inteligentes. La arquitectura debe permitir que el mismo diseño se adapte después a otros nichos como moda, hogar, belleza o deportes.
+
+## Objetivo visual
+
+Diseña una experiencia:
+
+- Moderna.
+- Limpia.
+- Confiable.
+- Premium pero accesible.
+- Rápida de comprender.
+- Orientada a conversión.
+- Mobile first.
+- Accesible.
+- Preparada para e-commerce real.
+- Adecuada para clientes y administradores.
+
+El diseño debe equilibrar una estética tecnológica elegante con claridad comercial. Evita interfaces recargadas, gradientes excesivos, sombras pesadas, bloques enormes de texto, botones ambiguos y elementos decorativos que no aporten a la compra.
+
+## Organización del archivo Figma
+
+Organiza el archivo con estas páginas:
+
+1. `00 - Cover`
+2. `01 - Foundations`
+3. `02 - Components`
+4. `03 - Public Desktop`
+5. `04 - Public Mobile`
+6. `05 - Authentication`
+7. `06 - Account`
+8. `07 - Checkout`
+9. `08 - Admin Dashboard`
+10. `09 - Admin Management`
+11. `10 - Prototype`
+12. `11 - Handoff Notes`
+
+Usa nombres claros, consistentes y profesionales en capas, frames, componentes, variantes y estilos.
+
+## Producto y usuarios
+
+Diseña para estos roles:
+
+### Visitante
+
+- Explora productos.
+- Busca.
+- Filtra.
+- Consulta categorías.
+- Agrega productos al carrito.
+- Se registra o inicia sesión.
+
+### Cliente autenticado
+
+- Administra perfil.
+- Administra direcciones.
+- Usa carrito.
+- Realiza checkout.
+- Consulta pedidos.
+- Ve detalle y estado de pedido.
+- Usa cupones.
+- Solicita recuperación de contraseña.
+
+### Administrador
+
+- Consulta métricas.
+- Gestiona productos.
+- Gestiona categorías, marcas, inventario, pedidos y cupones.
+- Consulta reportes.
+- Identifica inventario bajo.
+- Actualiza estados de pedido.
+
+## Sistema visual
+
+Crea un sistema de diseño completo.
+
+### Colores
+
+Crea tokens con nombres semánticos, no solo colores físicos.
+
+Propuesta de estilo:
+
+- Primario: azul eléctrico o azul profundo moderno para CTAs.
+- Secundario: violeta o cyan sutil para estados complementarios.
+- Neutrales: escala de grises fría, clara y profesional.
+- Fondo principal claro.
+- Superficies blancas.
+- Texto principal oscuro y legible.
+- Texto secundario con contraste adecuado.
+- Colores semánticos: éxito, error, advertencia, información.
+- Estados: hover, focus, pressed, disabled.
+- Colores de descuento y stock bajo sin depender únicamente del color para transmitir significado.
+
+Crea escalas de color y tokens como:
+
+- `color/brand/primary`
+- `color/surface/default`
+- `color/text/primary`
+- `color/text/secondary`
+- `color/border/default`
+- `color/feedback/success`
+- `color/feedback/error`
+- `color/feedback/warning`
+- `color/action/disabled`
+
+Garantiza contraste visual suficiente para texto, controles y estados.
+
+### Tipografía
+
+Usa una combinación moderna y legible, por ejemplo:
+
+- Inter, Manrope, DM Sans o una fuente sans-serif equivalente.
+
+Define estilos tipográficos:
+
+- Display.
+- H1.
+- H2.
+- H3.
+- H4.
+- Body large.
+- Body.
+- Body small.
+- Label.
+- Caption.
+- Overline.
+- Price large.
+- Price regular.
+
+Define pesos, tamaños, line height y espaciados consistentes. Mantén legibilidad en dispositivos móviles.
+
+### Espaciado y layout
+
+Crea una escala de espaciado de 4 u 8 puntos:
+
+- 4, 8, 12, 16, 20, 24, 32, 40, 48, 64, 80, 96.
+
+Define:
+
+- Grid desktop de 12 columnas.
+- Grid tablet de 8 columnas.
+- Grid mobile de 4 columnas.
+- Márgenes y gutters consistentes.
+- Máximo ancho de contenido para escritorio.
+- Breakpoints para mobile, tablet, laptop y desktop.
+
+### Forma y elevación
+
+Define:
+
+- Radios: pequeño, medio, grande y circular.
+- Bordes.
+- Sombras: sutil, media y elevada.
+- Estados de foco visibles.
+- Separadores.
+- Superficies para cards, modales, drawers y tablas.
+
+## Componentes reutilizables
+
+Crea componentes con Auto Layout, estilos y variantes.
+
+### Navegación
+
+- Navbar desktop.
+- Navbar mobile.
+- Logo.
+- Buscador.
+- Menú de categorías.
+- Icono de cuenta.
+- Icono de favoritos opcional.
+- Icono de carrito con badge.
+- Menú de usuario.
+- Breadcrumbs.
+- Footer desktop y mobile.
+- Sidebar de cuenta.
+- Sidebar de administración.
+- Tabs.
+- Pagination.
+- Stepper de checkout.
+
+### Botones
+
+Crea variantes:
+
+- Primary.
+- Secondary.
+- Tertiary / Ghost.
+- Danger.
+- Icon button.
+- Link button.
+
+Cada variante debe tener:
+
+- Default.
+- Hover.
+- Focus.
+- Pressed.
+- Disabled.
+- Loading.
+- Tamaño small, medium y large.
+- Icono izquierda, derecha o sin icono.
+
+### Formularios
+
+Crea:
+
+- Input de texto.
+- Input de email.
+- Input de contraseña con mostrar/ocultar.
+- Input numérico.
+- Input de búsqueda.
+- Textarea.
+- Select.
+- Combobox.
+- Checkbox.
+- Radio group.
+- Switch.
+- Date picker visual.
+- Campo de cupón.
+- Selector de cantidad.
+- File upload para imágenes de producto.
+- Tags de variantes.
+
+Estados:
+
+- Default.
+- Hover.
+- Focus.
+- Filled.
+- Error.
+- Success.
+- Disabled.
+- Read only.
+- Loading si aplica.
+
+Incluye label, texto de ayuda, indicador obligatorio, mensaje de error e ícono de estado. No utilices placeholders como reemplazo de labels.
+
+### Feedback
+
+Crea:
+
+- Toast success.
+- Toast error.
+- Toast warning.
+- Toast info.
+- Alert inline.
+- Banner.
+- Empty state.
+- Error state.
+- Loading skeleton.
+- Spinner.
+- Modal de confirmación.
+- Drawer.
+- Tooltip.
+- Badge.
+- Chip.
+- Tag.
+- Estado de stock.
+- Estado de pedido.
+- Estado de cupón.
+
+### E-commerce
+
+Crea:
+
+- Product card.
+- Product card horizontal.
+- Product card compacta.
+- Product image gallery.
+- Price block.
+- Rating.
+- Discount badge.
+- Stock badge.
+- Category card.
+- Brand card.
+- Filter group.
+- Price range filter.
+- Product quantity selector.
+- Cart item.
+- Order summary.
+- Coupon input.
+- Shipping option card.
+- Address card.
+- Order status timeline.
+- Order item.
+- Review card opcional.
+- Product recommendation card.
+
+### Administración
+
+Crea:
+
+- Metric card.
+- Chart container.
+- Data table.
+- Table toolbar.
+- Filtros de tabla.
+- Search input.
+- Bulk actions.
+- Status badge.
+- Inventory alert card.
+- Product form.
+- Category form.
+- Coupon form.
+- Order status selector.
+- Confirm delete modal.
+- Activity log item.
+
+## Pantallas públicas desktop
+
+Diseña en 1440 px de ancho, utilizando grid de 12 columnas.
+
+### 1. Inicio
+
+Incluye:
+
+- Navbar.
+- Hero con CTA “Explorar catálogo”.
+- Categorías destacadas.
+- Productos destacados.
+- Banner promocional.
+- Productos nuevos.
+- Productos con descuento.
+- Beneficios: envío, compra segura, soporte y devoluciones.
+- Newsletter opcional.
+- Footer.
+
+### 2. Catálogo
+
+Incluye:
+
+- Breadcrumbs.
+- Título y cantidad de productos.
+- Buscador.
+- Filtros laterales.
+- Chips de filtros activos.
+- Botón limpiar filtros.
+- Selector de ordenamiento.
+- Grid de productos.
+- Paginación.
+- Estado sin resultados.
+- Skeleton de carga.
+- Vista de error.
+
+### 3. Resultado de búsqueda
+
+Incluye:
+
+- Consulta visible.
+- Sugerencias.
+- Filtros.
+- Productos.
+- Estado sin resultados y recomendaciones.
+
+### 4. Categoría
+
+Incluye:
+
+- Hero o banner de categoría.
+- Subcategorías.
+- Filtros.
+- Productos.
+- Información breve de categoría opcional.
+
+### 5. Detalle de producto
+
+Incluye:
+
+- Breadcrumbs.
+- Galería de imágenes.
+- Nombre.
+- Marca.
+- SKU.
+- Rating.
+- Precio actual.
+- Precio anterior.
+- Descuento.
+- Stock.
+- Variantes.
+- Cantidad.
+- CTA principal “Agregar al carrito”.
+- CTA secundaria “Comprar ahora”.
+- Mensajes de envío y devolución.
+- Descripción.
+- Especificaciones.
+- Productos relacionados.
+- Reseñas opcionales.
+- Estados de producto sin stock y producto con descuento.
+
+### 6. Carrito
+
+Incluye:
+
+- Lista de productos.
+- Selector de cantidad.
+- Eliminar.
+- Guardar para después opcional.
+- Campo de cupón.
+- Resumen: subtotal, descuento, envío, impuestos y total.
+- CTA “Continuar al checkout”.
+- Recomendaciones.
+- Estado carrito vacío.
+
+### 7. Login y registro
+
+Incluye:
+
+- Layout limpio.
+- Marca.
+- Formulario.
+- Enlaces de recuperación y registro.
+- Inicio con proveedor social como opción visual, no obligatorio.
+- Estados de error, loading y éxito.
+- Área de confianza: compra segura, soporte, protección de datos.
+
+### 8. Recuperación y restablecimiento
+
+Incluye:
+
+- Solicitud de email.
+- Confirmación de envío.
+- Restablecimiento de contraseña.
+- Indicador de requisitos de contraseña.
+- Estados de error y éxito.
+
+## Pantallas públicas mobile
+
+Diseña las mismas experiencias clave en 390 px de ancho:
+
+- Inicio.
+- Catálogo.
+- Filtros mediante drawer.
+- Detalle de producto.
+- Carrito.
+- Login.
+- Registro.
+- Checkout.
+- Pedidos.
+- Perfil.
+
+Asegura:
+
+- Menú móvil accesible.
+- Barra inferior opcional para Inicio, Buscar, Carrito y Cuenta.
+- Controles táctiles de mínimo tamaño cómodo.
+- Textos legibles.
+- CTA principal visible.
+- Filtros y carrito fáciles de cerrar.
+- No saturar la pantalla.
+- Jerarquía clara y scroll natural.
+
+## Cuenta de usuario
+
+Diseña:
+
+### Perfil
+
+- Datos personales.
+- Editar perfil.
+- Cambio de contraseña opcional.
+- Estados de guardado.
+
+### Direcciones
+
+- Lista de tarjetas de dirección.
+- Dirección predeterminada.
+- Agregar.
+- Editar.
+- Eliminar con confirmación.
+- Empty state.
+
+### Pedidos
+
+- Lista de pedidos.
+- Número de pedido.
+- Fecha.
+- Estado.
+- Total.
+- Productos resumidos.
+- Botón ver detalle.
+
+### Detalle de pedido
+
+- Estado visual en timeline.
+- Dirección.
+- Método de envío.
+- Productos.
+- Resumen de pago.
+- Descuentos.
+- Total.
+- Acciones disponibles: cancelar si aplica, descargar comprobante opcional, contactar soporte.
+
+## Checkout
+
+Diseña un checkout claro, confiable y de baja fricción.
+
+Incluye:
+
+- Header simplificado.
+- Stepper: Dirección, Envío, Pago, Confirmación.
+- Dirección existente o crear nueva.
+- Opciones de envío.
+- Campo de cupón.
+- Resumen de compra persistente.
+- Indicadores de seguridad.
+- Mensajes claros de validación.
+- Botón de pago o confirmación.
+- Pantalla de compra exitosa con resumen, número de pedido y CTA para ver pedidos o seguir comprando.
+
+No diseñes formularios extensos innecesarios. Pide solo la información necesaria para completar una compra. Los formularios accesibles deben incluir labels, instrucciones, validación, mensajes y confirmaciones claras. [web:151][web:147]
+
+## Panel administrativo
+
+Diseña una experiencia administrativa de escritorio en 1440 px y una versión responsive simplificada.
+
+### Dashboard
+
+Incluye:
+
+- Sidebar.
+- Header.
+- Selector de período.
+- Tarjetas: ventas, pedidos, clientes, productos e inventario bajo.
+- Gráfica de ventas.
+- Productos más vendidos.
+- Pedidos recientes.
+- Alertas de inventario bajo.
+- Actividad administrativa reciente.
+
+### Productos
+
+Incluye:
+
+- Tabla de productos.
+- Búsqueda.
+- Filtros.
+- Ordenamiento.
+- Paginación.
+- Acciones.
+- Estado activo/inactivo.
+- Stock.
+- Precio.
+- Categoría.
+- Marca.
+- Imagen.
+- Botón crear producto.
+
+### Crear y editar producto
+
+Diseña formulario por secciones:
+
+- Información general.
+- Categoría y marca.
+- Precios y descuentos.
+- Inventario.
+- Variantes.
+- Imágenes.
+- SEO.
+- Estado del producto.
+
+Incluye validaciones, ayuda contextual, vista previa y botones guardar borrador/publicar.
+
+### Categorías y marcas
+
+Incluye:
+
+- Tablas.
+- Formularios en modal o página.
+- Búsqueda.
+- Estado.
+- Acciones.
+- Confirmación de eliminación.
+
+### Inventario
+
+Incluye:
+
+- Tabla de stock.
+- Alertas de inventario bajo.
+- Movimientos de inventario.
+- Filtros.
+- Ajuste manual de stock con motivo y confirmación.
+
+### Pedidos
+
+Incluye:
+
+- Tabla.
+- Filtros por estado y fecha.
+- Búsqueda por usuario o número.
+- Detalle lateral o página.
+- Timeline.
+- Cambio de estado con advertencia y confirmación.
+
+### Cupones
+
+Incluye:
+
+- Tabla.
+- Estado.
+- Tipo.
+- Vigencia.
+- Uso.
+- Crear/editar cupón.
+- Validaciones visuales.
+
+### Reportes
+
+Incluye:
+
+- Ventas por período.
+- Ventas por categoría.
+- Productos más vendidos.
+- Inventario bajo.
+- Filtros.
+- Exportación visual opcional.
+
+## Prototipo navegable
+
+Crea conexiones de prototipo para estos flujos:
+
+### Flujo 1: Compra como visitante
+
+Inicio -> Catálogo -> Detalle de producto -> Agregar al carrito -> Carrito -> Login/Registro -> Checkout -> Confirmación -> Detalle de pedido.
+
+### Flujo 2: Compra como cliente
+
+Inicio -> Búsqueda -> Detalle -> Carrito -> Checkout -> Seleccionar dirección -> Envío -> Confirmación -> Historial de pedidos.
+
+### Flujo 3: Recuperación de contraseña
+
+Login -> Olvidé mi contraseña -> Confirmación de correo -> Restablecer contraseña -> Login.
+
+### Flujo 4: Administración de producto
+
+Login admin -> Dashboard -> Productos -> Crear producto -> Validación de formulario -> Guardar -> Tabla de productos -> Editar producto.
+
+### Flujo 5: Gestión de pedidos
+
+Dashboard admin -> Pedidos -> Detalle -> Cambiar estado -> Confirmación -> Estado actualizado.
+
+## Estados obligatorios
+
+Para las pantallas relevantes, diseña variantes de:
+
+- Carga.
+- Error de red.
+- Error de validación.
+- Sin resultados.
+- Carrito vacío.
+- Sin pedidos.
+- Sin direcciones.
+- Sin productos.
+- Inventario bajo.
+- Producto agotado.
+- Producto en descuento.
+- Usuario sin permiso.
+- Página no encontrada.
+- Acción exitosa.
+- Acción con confirmación.
+- Botón cargando.
+- Formulario deshabilitado.
+
+## Handoff y documentación
+
+En la página `11 - Handoff Notes`, documenta:
+
+- Tokens de color.
+- Tipografía.
+- Espaciado.
+- Breakpoints.
+- Reglas de grid.
+- Uso de componentes.
+- Estados de componentes.
+- Accesibilidad.
+- Nombres de íconos.
+- Reglas responsive.
+- Especificación de interacciones.
+- Notas de comportamiento para desarrollo frontend.
+- Mapeo de pantallas a rutas sugeridas.
+- Mapeo de componentes a dominios: catálogo, carrito, auth, checkout, cuenta y admin.
+
+Utiliza Auto Layout, constraints y componentes con variantes para que el archivo sea escalable y fácil de implementar en React.
+
+## Entregable esperado
+
+Al terminar, el archivo Figma debe incluir:
+
+- Cover con resumen del proyecto.
+- Design system completo.
+- Componentes y variantes reutilizables.
+- Pantallas desktop.
+- Pantallas mobile.
+- Flujos de autenticación.
+- Flujos de checkout.
+- Área de cuenta.
+- Panel administrativo.
+- Prototipo navegable.
+- Estados de error, carga y vacío.
+- Notas de handoff.
+- Diseño listo para implementar en React + TypeScript.
+
+No dejes pantallas como wireframes grises. Aplica diseño visual final con contenido realista, jerarquía clara, componentes consistentes y textos en español.

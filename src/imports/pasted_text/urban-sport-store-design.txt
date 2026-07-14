@@ -1,0 +1,664 @@
+Actúa como un Senior Product Designer, UX/UI Designer y especialista en e-commerce de moda, deporte y accesorios premium.
+
+Diseña en Figma una tienda online moderna, profesional, responsive y accesible llamada **“UrbanSport Store”**.
+
+La tienda vende:
+
+- Zapatos deportivos para running, gimnasio, fútbol, baloncesto, training y uso casual.
+- Ropa deportiva y casual para hombre.
+- Ropa deportiva y casual para mujer.
+- Perfumes para hombre y mujer.
+- Relojes deportivos, inteligentes y casuales.
+- Gafas deportivas para running, ciclismo, gimnasio y outdoor.
+
+El diseño debe sentirse como una marca moderna de lifestyle deportivo: premium, energética, urbana, confiable y fácil de usar. Combina el mundo del deporte, la moda urbana y los accesorios de alto valor, sin copiar visualmente ninguna marca existente.
+
+No generes únicamente una pantalla de inicio. Crea un sistema de diseño completo, pantallas desktop y mobile, componentes reutilizables, estados de interfaz y un prototipo navegable.
+
+## Dirección visual
+
+Crea una estética:
+
+- Moderna y minimalista.
+- Deportiva y urbana.
+- Elegante, pero no lujosa en exceso.
+- Con fondos claros y superficies blancas.
+- Con alto contraste para buena legibilidad.
+- Con un color principal azul eléctrico o azul profundo.
+- Con color de acento verde lima, naranja energético o rojo coral usado de forma moderada para ofertas y llamados a la acción.
+- Con tonos neutros: negro grafito, gris oscuro, gris medio, gris claro y blanco.
+- Con fotografías de producto limpias, fondos neutros y composición editorial.
+- Con tipografía sans-serif moderna, como Inter, Manrope, DM Sans o similar.
+- Con tarjetas de producto limpias, espacios amplios, bordes suaves y sombras sutiles.
+- Sin exceso de gradientes, efectos 3D, neón o elementos decorativos innecesarios.
+
+## Organización del archivo Figma
+
+Organiza el archivo con estas páginas:
+
+1. `00 - Portada`
+2. `01 - Design System`
+3. `02 - Componentes`
+4. `03 - Tienda Desktop`
+5. `04 - Tienda Mobile`
+6. `05 - Autenticación`
+7. `06 - Cuenta del Cliente`
+8. `07 - Checkout`
+9. `08 - Administración`
+10. `09 - Prototipo`
+11. `10 - Handoff`
+
+Usa nombres claros y profesionales para frames, capas, componentes, variantes y estilos.
+
+## Sistema de diseño
+
+### Colores
+
+Crea estilos y variables semánticas:
+
+- `Brand / Primary`
+- `Brand / Primary Hover`
+- `Brand / Accent`
+- `Surface / Background`
+- `Surface / Card`
+- `Surface / Elevated`
+- `Text / Primary`
+- `Text / Secondary`
+- `Text / Inverse`
+- `Border / Default`
+- `Feedback / Success`
+- `Feedback / Error`
+- `Feedback / Warning`
+- `Feedback / Info`
+- `Action / Disabled`
+
+Incluye estados de oferta, descuento, producto nuevo, stock bajo, agotado, envío gratis y compra segura.
+
+### Tipografía
+
+Define estilos:
+
+- Display Hero.
+- H1.
+- H2.
+- H3.
+- H4.
+- Body Large.
+- Body Regular.
+- Body Small.
+- Label.
+- Caption.
+- Precio grande.
+- Precio regular.
+- Precio anterior tachado.
+- Badge de descuento.
+
+### Espaciado y grid
+
+Usa una escala de espaciado de 4 u 8 puntos:
+
+- 4, 8, 12, 16, 20, 24, 32, 40, 48, 64, 80 y 96.
+
+Define:
+
+- Desktop de 1440 px con grid de 12 columnas.
+- Tablet con grid de 8 columnas.
+- Mobile de 390 px con grid de 4 columnas.
+- Márgenes, columnas y gutters consistentes.
+- Auto Layout en todos los componentes relevantes.
+- Breakpoints documentados.
+
+### Componentes
+
+Diseña componentes reutilizables con variantes y estados.
+
+#### Navegación
+
+- Navbar desktop.
+- Navbar mobile.
+- Logo de UrbanSport Store.
+- Buscador.
+- Menú de categorías.
+- Botón de cuenta.
+- Botón de favoritos opcional.
+- Botón de carrito con contador.
+- Menú de usuario.
+- Breadcrumbs.
+- Footer.
+- Menú lateral móvil.
+- Barra inferior móvil opcional con Inicio, Buscar, Carrito y Cuenta.
+
+#### Botones
+
+Crea variantes:
+
+- Primario.
+- Secundario.
+- Outline.
+- Ghost.
+- Danger.
+- Ícono.
+- Enlace.
+
+Incluye estados:
+
+- Default.
+- Hover.
+- Focus.
+- Pressed.
+- Disabled.
+- Loading.
+
+Crea tamaños small, medium y large.
+
+#### Formularios
+
+- Input de texto.
+- Input de email.
+- Input de contraseña.
+- Input de búsqueda.
+- Selector.
+- Checkbox.
+- Radio button.
+- Selector de talla.
+- Selector de color.
+- Selector de cantidad.
+- Campo de cupón.
+- Campo de rango de precio.
+- Formulario de dirección.
+- Formulario de pago visual.
+
+Incluye estados default, focus, filled, error, success, disabled y loading.
+
+#### Componentes e-commerce
+
+- Tarjeta de producto vertical.
+- Tarjeta de producto horizontal.
+- Tarjeta compacta.
+- Tarjeta de categoría.
+- Tarjeta de marca.
+- Galería de imágenes.
+- Bloque de precio.
+- Rating.
+- Badge de descuento.
+- Badge de nuevo.
+- Badge de stock.
+- Selector de tallas.
+- Selector de colores.
+- Selector de cantidad.
+- Producto relacionado.
+- Item de carrito.
+- Resumen de pedido.
+- Aplicar cupón.
+- Tarjeta de dirección.
+- Tarjeta de método de envío.
+- Tarjeta de método de pago.
+- Timeline de pedido.
+- Estado de pedido.
+- Toast.
+- Modal de confirmación.
+- Drawer de carrito.
+- Filtro de categoría.
+- Filtro de marca.
+- Filtro de precio.
+- Filtro de talla.
+- Filtro de color.
+- Skeleton loader.
+- Empty state.
+- Error state.
+
+## Categorías principales
+
+Crea navegación y diseños específicos para estas categorías:
+
+1. **Zapatos deportivos**
+   - Running.
+   - Gym y training.
+   - Fútbol.
+   - Baloncesto.
+   - Outdoor.
+   - Urbanos y casuales.
+   - Hombre.
+   - Mujer.
+   - Niños opcional.
+
+2. **Ropa Hombre**
+   - Camisetas.
+   - Buzos y hoodies.
+   - Chaquetas.
+   - Pantalones.
+   - Shorts.
+   - Conjuntos deportivos.
+   - Ropa casual.
+   - Accesorios.
+
+3. **Ropa Mujer**
+   - Tops.
+   - Leggings.
+   - Camisetas.
+   - Chaquetas.
+   - Buzos.
+   - Shorts.
+   - Conjuntos deportivos.
+   - Ropa casual.
+   - Accesorios.
+
+4. **Perfumes**
+   - Hombre.
+   - Mujer.
+   - Unisex.
+   - Aromas frescos.
+   - Aromas dulces.
+   - Aromas amaderados.
+   - Kits y regalos.
+
+5. **Relojes**
+   - Smartwatches.
+   - Deportivos.
+   - Casual.
+   - Running.
+   - Outdoor.
+   - Correas y accesorios.
+
+6. **Gafas deportivas**
+   - Running.
+   - Ciclismo.
+   - Outdoor.
+   - Training.
+   - Lentes polarizados.
+   - Accesorios y estuches.
+
+## Pantallas desktop obligatorias
+
+Diseña todas en 1440 px.
+
+### 1. Inicio
+
+Incluye:
+
+- Header completo.
+- Barra de anuncio: “Envío gratis en compras superiores a $250.000 COP”.
+- Hero principal con modelo usando ropa deportiva y zapatos running.
+- Título: “Tu ritmo. Tu estilo. Tu mejor versión.”
+- CTA principal: “Comprar ahora”.
+- CTA secundario: “Ver novedades”.
+- Categorías destacadas en tarjetas visuales.
+- Sección “Lo más buscado”.
+- Carrusel o grid de zapatos deportivos.
+- Banner promocional de ropa hombre y ropa mujer.
+- Sección de perfumes y relojes.
+- Sección de gafas deportivas y outdoor.
+- Productos nuevos.
+- Productos con descuento.
+- Beneficios: envío rápido, pagos seguros, cambios fáciles, soporte.
+- Newsletter.
+- Footer completo.
+
+### 2. Catálogo general
+
+Incluye:
+
+- Breadcrumbs.
+- Título “Todos los productos”.
+- Cantidad de resultados.
+- Buscador.
+- Filtros laterales.
+- Chips de filtros activos.
+- Botón “Limpiar filtros”.
+- Ordenar por: relevancia, novedades, precio menor a mayor, precio mayor a menor, más vendidos.
+- Grid de productos.
+- Paginación.
+- Estado de carga.
+- Estado sin resultados.
+- Estado de error.
+
+### 3. Categoría Zapatos deportivos
+
+Incluye:
+
+- Hero visual de running y training.
+- Subcategorías.
+- Filtros: deporte, talla, color, marca, precio, descuento, disponibilidad, género.
+- Grid de productos.
+- Tarjetas con talla disponible, descuento, color y stock.
+- Banner de colección destacada.
+
+### 4. Categoría Ropa Hombre
+
+Incluye:
+
+- Hero urbano-deportivo.
+- Filtros por talla, tipo de prenda, color, precio y marca.
+- Grid de ropa.
+- Recomendaciones de outfits.
+- Banner promocional de temporada.
+
+### 5. Categoría Ropa Mujer
+
+Incluye:
+
+- Hero dinámico y deportivo.
+- Filtros por talla, tipo de prenda, color, precio y marca.
+- Grid de ropa.
+- Sección de conjuntos recomendados.
+- Banner promocional.
+
+### 6. Categoría Perfumes
+
+Incluye:
+
+- Hero más elegante y editorial.
+- Filtros por género, aroma, tamaño, marca y precio.
+- Tarjetas de perfume con notas olfativas, presentación y descuento.
+- Sección “Encuentra tu aroma”.
+- Kits de regalo.
+
+### 7. Categoría Relojes
+
+Incluye:
+
+- Hero de smartwatch y reloj deportivo.
+- Filtros por tipo, compatibilidad, deporte, batería, color y precio.
+- Tarjetas con métricas: GPS, resistencia al agua, batería, monitor cardíaco.
+- Comparación visual de productos opcional.
+
+### 8. Categoría Gafas deportivas
+
+Incluye:
+
+- Hero outdoor, running o ciclismo.
+- Filtros por deporte, tipo de lente, polarizado, color y precio.
+- Tarjetas con características de protección UV, polarización y tipo de lente.
+- Banner de colección ciclismo.
+
+### 9. Detalle de producto
+
+Diseña un detalle reutilizable que se adapte a zapatos, ropa, perfumes, relojes y gafas.
+
+Incluye:
+
+- Breadcrumbs.
+- Galería de imágenes.
+- Nombre del producto.
+- Marca.
+- SKU.
+- Rating.
+- Precio actual.
+- Precio anterior.
+- Porcentaje de descuento.
+- Método de pago o cuotas visuales.
+- Indicador de stock.
+- Selector de talla para zapatos o ropa.
+- Selector de color para ropa, zapatos, relojes o gafas.
+- Selector de presentación para perfumes.
+- Selector de cantidad.
+- Botón “Agregar al carrito”.
+- Botón “Comprar ahora”.
+- Información de envío.
+- Información de devoluciones.
+- Información de compra segura.
+- Descripción.
+- Especificaciones.
+- Tabla de tallas para ropa y calzado.
+- Notas olfativas para perfumes.
+- Características técnicas para relojes.
+- Protección y tipo de lente para gafas.
+- Productos relacionados.
+- Productos vistos recientemente.
+- Reseñas opcionales.
+
+### 10. Carrito
+
+Incluye:
+
+- Productos agregados.
+- Imagen, nombre, variante, talla, color, precio y cantidad.
+- Eliminar producto.
+- Campo de cupón.
+- Subtotal.
+- Descuento.
+- Envío.
+- Impuestos.
+- Total.
+- CTA “Continuar al pago”.
+- Beneficios de compra segura.
+- Productos recomendados.
+- Estado de carrito vacío.
+
+### 11. Login y registro
+
+Incluye:
+
+- Diseño limpio.
+- Logo.
+- Formulario de login.
+- Recuperar contraseña.
+- Registro.
+- Inicio social opcional visual.
+- Mensajes de error.
+- Estado loading.
+- Mensaje de seguridad y protección de datos.
+- Imagen editorial de deporte y lifestyle.
+
+### 12. Cuenta del cliente
+
+Incluye:
+
+- Dashboard de cuenta.
+- Perfil.
+- Direcciones.
+- Pedidos.
+- Favoritos opcional.
+- Detalle de pedido.
+- Timeline de envío.
+- Estado de pedido.
+- Recompra.
+- Estado sin pedidos.
+
+### 13. Checkout
+
+Incluye:
+
+- Header simplificado.
+- Stepper: Dirección, Envío, Pago, Confirmación.
+- Dirección guardada o nueva.
+- Métodos de envío.
+- Campo de cupón.
+- Resumen de compra fijo.
+- Indicadores de pago seguro.
+- Botón de confirmación.
+- Pantalla de pedido exitoso con número de pedido y CTA para continuar comprando.
+
+## Pantallas mobile obligatorias
+
+Diseña las versiones mobile a 390 px de:
+
+- Inicio.
+- Catálogo.
+- Drawer de filtros.
+- Detalle de producto.
+- Carrito.
+- Login.
+- Registro.
+- Cuenta.
+- Checkout.
+- Pedidos.
+- Detalle de pedido.
+
+En móvil:
+
+- Usa menú hamburguesa accesible.
+- Usa un filtro dentro de drawer.
+- Mantén el CTA de compra visible en el detalle de producto.
+- Muestra tarjetas de producto en una o dos columnas según convenga.
+- Usa una barra inferior de navegación opcional.
+- Evita saturar la pantalla.
+- Mantén texto legible y controles táctiles cómodos.
+
+## Panel administrativo
+
+Diseña un panel administrativo moderno en desktop y versión responsive básica.
+
+Incluye:
+
+### Dashboard
+
+- Sidebar.
+- Header.
+- Selector de fechas.
+- Ventas totales.
+- Pedidos.
+- Clientes.
+- Productos.
+- Inventario bajo.
+- Gráfica de ventas.
+- Productos más vendidos.
+- Pedidos recientes.
+- Alertas de inventario.
+- Actividad reciente.
+
+### Gestión de productos
+
+- Tabla de productos.
+- Imagen.
+- SKU.
+- Nombre.
+- Categoría.
+- Marca.
+- Precio.
+- Stock.
+- Estado.
+- Acciones.
+- Buscar.
+- Filtrar.
+- Ordenar.
+- Paginación.
+- Botón “Agregar producto”.
+
+### Crear y editar producto
+
+Incluye secciones:
+
+- Información general.
+- Categoría y marca.
+- Precio y descuento.
+- Stock.
+- Tallas, colores y variantes.
+- Imágenes.
+- Especificaciones.
+- SEO.
+- Estado.
+- Vista previa.
+- Guardar borrador.
+- Publicar producto.
+
+### Gestión de pedidos
+
+- Tabla de pedidos.
+- Estados.
+- Filtros.
+- Detalle de pedido.
+- Timeline.
+- Cambio de estado.
+- Confirmación de acción.
+
+### Inventario
+
+- Productos con bajo stock.
+- Movimientos de inventario.
+- Ajuste de stock.
+- Motivo del movimiento.
+- Alertas.
+
+### Cupones
+
+- Tabla de cupones.
+- Código.
+- Descuento.
+- Fecha de inicio.
+- Fecha de vencimiento.
+- Usos.
+- Estado.
+- Crear cupón.
+- Editar cupón.
+
+### Reportes
+
+- Ventas por fecha.
+- Ventas por categoría.
+- Productos más vendidos.
+- Inventario bajo.
+- Filtros de fecha.
+- Exportación visual opcional.
+
+## Prototipo navegable
+
+Crea conexiones de prototipo para estos flujos:
+
+1. Inicio -> Categoría Zapatos -> Detalle de producto -> Agregar al carrito -> Carrito -> Checkout -> Confirmación.
+2. Inicio -> Ropa Mujer -> Filtrar por talla y color -> Detalle -> Carrito.
+3. Catálogo -> Buscar perfume -> Detalle de perfume -> Carrito.
+4. Inicio -> Relojes -> Detalle smartwatch -> Agregar al carrito.
+5. Login -> Recuperar contraseña -> Restablecer contraseña -> Login.
+6. Cuenta -> Pedidos -> Detalle de pedido.
+7. Login administrador -> Dashboard -> Productos -> Crear producto -> Guardar -> Lista de productos.
+8. Dashboard administrador -> Pedidos -> Detalle -> Cambiar estado -> Confirmación.
+
+## Estados y accesibilidad
+
+Diseña variantes de:
+
+- Loading.
+- Error.
+- Empty state.
+- Producto agotado.
+- Producto en oferta.
+- Carrito vacío.
+- Sin resultados.
+- Formulario inválido.
+- Formulario enviado correctamente.
+- Usuario sin permisos.
+- Página no encontrada.
+- Inventario bajo.
+- Pedido cancelado.
+- Pedido entregado.
+
+Asegura:
+
+- Contraste alto.
+- Foco visible.
+- Jerarquía clara de títulos.
+- Labels reales para formularios.
+- Mensajes de error claros.
+- Estados que no dependan únicamente del color.
+- Botones e íconos con nombres accesibles.
+- Navegación coherente para teclado.
+- Tamaños cómodos para interacción táctil.
+
+## Handoff
+
+En la página `10 - Handoff`, agrega:
+
+- Paleta de colores.
+- Tipografía.
+- Escala de espaciado.
+- Grid y breakpoints.
+- Estados de componentes.
+- Reglas de responsive design.
+- Comportamiento de menú, filtros, carrito y modales.
+- Especificación de componentes.
+- Notas para React + TypeScript.
+- Mapeo de pantallas a rutas:
+  - `/`
+  - `/catalog`
+  - `/category/:slug`
+  - `/product/:slug`
+  - `/cart`
+  - `/login`
+  - `/register`
+  - `/account`
+  - `/checkout`
+  - `/admin`
+- Recomendaciones de imágenes, iconos y tamaños.
+
+Usa Auto Layout, componentes, variantes y constraints de Figma para que el diseño sea escalable, responsive y sencillo de implementar.
