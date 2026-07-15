@@ -1820,13 +1820,14 @@ function AccountPage({ onNavigate }: { onNavigate: (v: View) => void }) {
 
 // ─── ADMIN DASHBOARD ──────────────────────────────────────────────────────────
 
-function AdminDashboard({ onNavigate, products, createProduct, updateProduct, deleteProduct, adjustStock }: {
+function AdminDashboard({ onNavigate, products, createProduct, updateProduct, deleteProduct, adjustStock, productRefresh }: {
   onNavigate: (v: View) => void;
   products: Product[];
   createProduct: (product: Omit<Product, "id">) => void;
   updateProduct: (productId: string, updates: Partial<Product>) => void;
   deleteProduct: (productId: string) => void;
   adjustStock: (productId: string, delta: number) => void;
+  productRefresh: number;
 }) {
   const [adminSection, setAdminSection] = useState("dashboard");
   const [searchTerm, setSearchTerm] = useState("");
@@ -2555,6 +2556,7 @@ export default function App() {
           updateProduct={updateProduct}
           deleteProduct={deleteProduct}
           adjustStock={adjustStock}
+          productRefresh={productRefresh}
         />
       )}
       {view === "admin" && !isAdmin && <LoginPage isRegister={false} onNavigate={navigate} onLogin={handleAuthSuccess} />}
