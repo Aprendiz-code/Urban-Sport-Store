@@ -29,7 +29,7 @@ export default function PromoCarousel({ messages, intervalMs = 2000, className =
 
   return (
     <div
-      className={`relative bg-[#1d4ed8] text-white text-center py-1.5 text-sm font-semibold tracking-wide ${className}`}
+      className={`relative bg-[#1d4ed8] text-white text-center py-1 text-sm font-semibold tracking-wide ${className}`}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       tabIndex={0}
@@ -40,7 +40,7 @@ export default function PromoCarousel({ messages, intervalMs = 2000, className =
       aria-live="polite"
     >
       {variant === "marquee" ? (
-        <div className="relative overflow-hidden h-10">
+        <div className="relative overflow-hidden h-8">
           <style>{`
             @keyframes promo-marquee {
               0% { transform: translate(-50%, -50%) translateX(100%); }
