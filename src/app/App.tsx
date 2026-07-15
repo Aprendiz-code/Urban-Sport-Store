@@ -389,10 +389,10 @@ function ProductCard({ product, onSelect, onAddToCart }: {
   return (
     <div
       onClick={() => onSelect(product)}
-      className="group bg-white rounded-2xl overflow-hidden cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all duration-300 border border-slate-100"
+      className="group relative bg-white rounded-[30px] overflow-hidden cursor-pointer border border-slate-200/80 shadow-[0_15px_40px_-28px_rgba(15,23,42,0.35)] hover:-translate-y-1 hover:shadow-[0_20px_60px_-30px_rgba(15,23,42,0.45)] transition-all duration-300"
     >
       {/* Image */}
-      <div className="relative h-52 bg-slate-50 overflow-hidden">
+      <div className="relative h-56 bg-slate-100 overflow-hidden">
         <img src={product.image} alt={product.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
@@ -405,24 +405,23 @@ function ProductCard({ product, onSelect, onAddToCart }: {
         {/* Wishlist */}
         <button
           onClick={(e) => { e.stopPropagation(); setWished(!wished); }}
-          className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow hover:bg-white transition-colors"
+          className="absolute top-3 right-3 w-10 h-10 rounded-full bg-white/95 backdrop-blur flex items-center justify-center shadow-md hover:bg-white transition-colors"
         >
           <Heart size={15} className={wished ? "fill-red-500 text-red-500" : "text-slate-400"} />
         </button>
       </div>
 
       {/* Info */}
-      <div className="p-4 space-y-3">
+      <div className="p-5 space-y-4">
         <div>
-          <p className="text-[11px] font-bold text-[#1d4ed8] uppercase tracking-widest mb-0.5">{product.brand}</p>
-          <h3 className="text-sm font-bold text-slate-800 line-clamp-2 leading-snug">{product.name}</h3>
-          <p className="text-xs text-slate-400 mt-0.5">{product.subcategory}{product.gender ? ` · ${product.gender}` : ""}</p>
+          <p className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-[#1d4ed8] mb-2">{product.brand}</p>
+          <h3 className="text-base font-extrabold text-slate-900 line-clamp-2 leading-snug">{product.name}</h3>
+          <p className="text-sm text-slate-500 mt-1">{product.subcategory}{product.gender ? ` · ${product.gender}` : ""}</p>
         </div>
         <StarRating rating={product.rating} reviews={product.reviews} />
 
-        {/* Colors dots */}
         {product.colors.length > 0 && (
-          <div className="flex gap-1.5">
+          <div className="flex gap-2">
             {product.colors.slice(0, 4).map((c) => (
               <div key={c.name} className="w-4 h-4 rounded-full border border-slate-200" style={{ backgroundColor: c.hex }} title={c.name} />
             ))}
@@ -430,9 +429,8 @@ function ProductCard({ product, onSelect, onAddToCart }: {
           </div>
         )}
 
-        {/* Price */}
-        <div className="flex items-baseline gap-2">
-          <span className="text-base font-extrabold text-slate-900">{fmt(product.price)}</span>
+        <div className="flex items-baseline gap-3">
+          <span className="text-lg font-extrabold text-slate-900">{fmt(product.price)}</span>
           {product.originalPrice && (
             <span className="text-xs text-slate-400 line-through">{fmt(product.originalPrice)}</span>
           )}
@@ -441,7 +439,7 @@ function ProductCard({ product, onSelect, onAddToCart }: {
 
         <button
           onClick={(e) => { e.stopPropagation(); onAddToCart(product, defaultSize, defaultColor); }}
-          className="w-full py-2.5 rounded-xl text-sm font-bold bg-slate-100 text-slate-700 hover:bg-[#1d4ed8] hover:text-white transition-all duration-200 flex items-center justify-center gap-1.5"
+          className="w-full py-3 rounded-full text-sm font-bold bg-[#1d4ed8] text-white hover:bg-[#1e40af] transition-all duration-200 flex items-center justify-center gap-2 shadow-sm shadow-slate-200"
         >
           <ShoppingCart size={14} /> Agregar al carrito
         </button>
@@ -803,29 +801,29 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect }
       <section className="py-8 max-w-7xl mx-auto px-4 sm:px-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           {/* Hombre */}
-          <div className="relative rounded-2xl overflow-hidden h-56 bg-slate-900">
+          <div className="relative rounded-[32px] overflow-hidden h-56 bg-slate-900 shadow-[0_20px_60px_-35px_rgba(15,23,42,0.45)]">
             <img src="https://images.unsplash.com/photo-1556821840-3a63f15732ce?w=700&h=450&fit=crop&auto=format"
               alt="Ropa Hombre" className="absolute inset-0 w-full h-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-r from-slate-900/80 to-slate-900/20" />
+            <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 to-slate-900/15" />
             <div className="absolute inset-0 p-8 flex flex-col justify-end">
-              <p className="text-xs font-bold text-[#f97316] uppercase tracking-widest mb-1.5">Temporada 2026</p>
-              <h3 className="text-2xl font-extrabold text-white mb-3">Ropa Hombre</h3>
+              <p className="text-xs font-semibold text-[#fbbf24] uppercase tracking-[0.3em] mb-1.5">Temporada 2026</p>
+              <h3 className="text-3xl font-extrabold text-white mb-3">Ropa Hombre</h3>
               <button onClick={() => onCategorySelect("Ropa Hombre")}
-                className="inline-flex items-center gap-2 text-sm font-bold text-white border border-white/50 px-4 py-2 rounded-xl hover:bg-white hover:text-slate-900 transition-all w-fit">
+                className="inline-flex items-center gap-2 text-sm font-bold text-slate-900 bg-white px-5 py-3 rounded-full hover:bg-slate-100 transition-all w-fit">
                 Explorar <ArrowRight size={14} />
               </button>
             </div>
           </div>
           {/* Mujer */}
-          <div className="relative rounded-2xl overflow-hidden h-56 bg-slate-100">
+          <div className="relative rounded-[32px] overflow-hidden h-56 bg-slate-100 shadow-[0_20px_60px_-35px_rgba(15,23,42,0.12)]">
             <img src="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=700&h=450&fit=crop&auto=format"
               alt="Ropa Mujer" className="absolute inset-0 w-full h-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-r from-white/80 to-transparent" />
             <div className="absolute inset-0 p-8 flex flex-col justify-end">
-              <p className="text-xs font-bold text-[#1d4ed8] uppercase tracking-widest mb-1.5">Colección nueva</p>
-              <h3 className="text-2xl font-extrabold text-slate-900 mb-3">Ropa Mujer</h3>
+              <p className="text-xs font-semibold text-[#1d4ed8] uppercase tracking-[0.3em] mb-1.5">Colección nueva</p>
+              <h3 className="text-3xl font-extrabold text-slate-900 mb-3">Ropa Mujer</h3>
               <button onClick={() => onCategorySelect("Ropa Mujer")}
-                className="inline-flex items-center gap-2 text-sm font-bold text-white bg-[#1d4ed8] px-4 py-2 rounded-xl hover:bg-[#1e40af] transition-all w-fit">
+                className="inline-flex items-center gap-2 text-sm font-bold text-white bg-[#1d4ed8] px-5 py-3 rounded-full hover:bg-[#1e40af] transition-all w-fit">
                 Explorar <ArrowRight size={14} />
               </button>
             </div>
@@ -879,7 +877,7 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect }
               { icon: <RefreshCw size={22} />, color: "bg-orange-100 text-orange-600", title: "30 días devolución", desc: "Sin preguntas, sin complicaciones" },
               { icon: <Bell size={22} />, color: "bg-purple-100 text-purple-600", title: "Soporte 24/7", desc: "Chat, email y teléfono" },
             ].map((b) => (
-              <div key={b.title} className="flex flex-col items-center text-center p-5 rounded-2xl bg-white border border-slate-100 shadow-sm">
+              <div key={b.title} className="flex flex-col items-center text-center p-5 rounded-[30px] bg-white/95 border border-slate-200/80 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.18)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_24px_70px_-45px_rgba(15,23,42,0.22)]">
                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-3 ${b.color}`}>
                   {b.icon}
                 </div>
@@ -1158,7 +1156,7 @@ function ProductDetailPage({ product, onBack, onAddToCart, onNavigate }: {
           </div>
 
           {/* Price */}
-          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+          <div className="p-4 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_45px_-35px_rgba(15,23,42,0.12)]">
             <div className="flex items-baseline gap-3 flex-wrap">
               <span className="text-3xl font-extrabold text-slate-900">{fmt(product.price)}</span>
               {product.originalPrice && (
@@ -1268,7 +1266,7 @@ function ProductDetailPage({ product, onBack, onAddToCart, onNavigate }: {
       {tab === "specs" && product.specs && (
         <div className="max-w-2xl grid grid-cols-1 sm:grid-cols-2 gap-3">
           {product.specs.map((spec, i) => (
-            <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-white border border-slate-100 shadow-sm">
+            <div key={i} className="flex items-start gap-3 p-4 rounded-[28px] bg-white/95 border border-slate-200/80 shadow-[0_18px_48px_-40px_rgba(15,23,42,0.15)]">
               <Check size={14} className="text-[#1d4ed8] mt-0.5 shrink-0" />
               <span className="text-sm text-slate-600">{spec}</span>
             </div>
@@ -1283,7 +1281,7 @@ function ProductDetailPage({ product, onBack, onAddToCart, onNavigate }: {
             { name: "Camila R.", rating: 4, date: "5 Jul 2026", text: "Muy buena calidad. El empaque llegó perfecto y en el tiempo prometido. Solo le doy 4 estrellas porque el color era un poco diferente al de la foto." },
             { name: "Santiago M.", rating: 5, date: "28 Jun 2026", text: "Ya es mi segunda compra en UrbanSport y siempre quedé satisfecho. El servicio al cliente también es excelente." },
           ].map((r) => (
-            <div key={r.name} className="p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
+            <div key={r.name} className="p-4 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_18px_48px_-40px_rgba(15,23,42,0.16)]">
               <div className="flex items-start justify-between mb-2">
                 <div>
                   <p className="text-sm font-bold text-slate-800">{r.name}</p>
@@ -1335,7 +1333,7 @@ function CheckoutPage({ cart, onNavigate }: { cart: CartItem[]; onNavigate: (v: 
           <h2 className="text-2xl font-extrabold text-slate-900 mb-2">¡Pedido confirmado!</h2>
           <p className="text-slate-500">Tu pedido <span className="text-[#1d4ed8] font-bold">#US-3195</span> fue recibido correctamente.</p>
         </div>
-        <div className="p-5 bg-white rounded-2xl border border-slate-100 shadow-sm text-left space-y-2">
+        <div className="p-5 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_22px_60px_-42px_rgba(15,23,42,0.18)] text-left space-y-2">
           <div className="flex justify-between text-sm"><span className="text-slate-500">Total pagado</span><span className="font-bold text-slate-900">{fmt(total)} COP</span></div>
           <div className="flex justify-between text-sm"><span className="text-slate-500">Envío</span><span className="font-semibold text-slate-700">{SHIP[selectedShip].name}</span></div>
           <div className="flex justify-between text-sm"><span className="text-slate-500">Entrega estimada</span><span className="font-semibold text-slate-700">{SHIP[selectedShip].desc}</span></div>
@@ -1426,7 +1424,7 @@ function CheckoutPage({ cart, onNavigate }: { cart: CartItem[]; onNavigate: (v: 
           {step === 2 && (
             <div className="space-y-5">
               <h3 className="text-lg font-extrabold text-slate-900 mb-4">Datos de pago</h3>
-              <div className="p-5 bg-white rounded-2xl border border-slate-100 shadow-sm space-y-4">
+              <div className="p-5 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.18)] space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">Titular</label>
                   <input defaultValue="Valentina Torres" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#1d4ed8]/50" />
@@ -1471,7 +1469,7 @@ function CheckoutPage({ cart, onNavigate }: { cart: CartItem[]; onNavigate: (v: 
 
         {/* Summary */}
         <div className="lg:col-span-1">
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 sticky top-[152px] space-y-4">
+          <div className="bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_22px_60px_-42px_rgba(15,23,42,0.18)] p-5 sticky top-[152px] space-y-4">
             <h3 className="text-sm font-extrabold text-slate-800">Resumen del pedido</h3>
             <div className="space-y-3 max-h-52 overflow-y-auto">
               {cart.map((item) => (
@@ -1655,7 +1653,7 @@ function AccountPage({ onNavigate }: { onNavigate: (v: View) => void }) {
     <main className="pt-[132px] min-h-screen max-w-5xl mx-auto px-4 sm:px-6 py-8">
       <div className="flex gap-8">
         <aside className="hidden sm:block w-56 shrink-0">
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+          <div className="bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.18)] overflow-hidden">
             <div className="p-4 border-b border-slate-100 bg-gradient-to-br from-[#1d4ed8] to-[#1e40af]">
               <div className="w-12 h-12 rounded-full bg-white/20 border-2 border-white/30 flex items-center justify-center text-xl font-extrabold text-white mb-2">V</div>
               <p className="text-sm font-extrabold text-white">Valentina Torres</p>
@@ -1685,7 +1683,7 @@ function AccountPage({ onNavigate }: { onNavigate: (v: View) => void }) {
             <div className="space-y-4">
               <h2 className="text-xl font-extrabold text-slate-900 mb-6">Mis pedidos</h2>
               {ORDERS.map((order) => (
-                <div key={order.id} className="p-5 bg-white rounded-2xl border border-slate-100 shadow-sm hover:border-slate-200 transition-colors">
+                <div key={order.id} className="p-5 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_18px_48px_-40px_rgba(15,23,42,0.16)] hover:-translate-y-0.5 transition-all duration-200">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <div className="flex items-center gap-3 mb-1.5">
@@ -1739,7 +1737,7 @@ function AccountPage({ onNavigate }: { onNavigate: (v: View) => void }) {
                   { label: "Casa (Predeterminada)", addr: "Cra 15 #82-56, Chapinero, Bogotá DC, 110221", default: true },
                   { label: "Oficina", addr: "Av. El Dorado #68B-31, Modelia, Bogotá DC, 111071", default: false },
                 ].map((a) => (
-                  <div key={a.label} className="p-4 bg-white rounded-2xl border border-slate-100 shadow-sm flex items-start justify-between gap-4">
+                  <div key={a.label} className="p-4 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_18px_48px_-40px_rgba(15,23,42,0.16)] flex items-start justify-between gap-4">
                     <div>
                       <div className="flex items-center gap-2 mb-1">
                         <MapPin size={14} className="text-[#1d4ed8]" />
@@ -1839,7 +1837,7 @@ function AdminDashboard({ onNavigate }: { onNavigate: (v: View) => void }) {
         {/* Metrics */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mb-8">
           {METRICS.map((m) => (
-            <div key={m.label} className="p-5 bg-white rounded-2xl border border-slate-100 shadow-sm">
+            <div key={m.label} className="p-5 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)]">
               <div className="flex items-center justify-between mb-3">
                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${m.up ? "bg-blue-50 text-[#1d4ed8]" : "bg-amber-50 text-amber-600"}`}>
                   {m.icon}
@@ -1854,7 +1852,7 @@ function AdminDashboard({ onNavigate }: { onNavigate: (v: View) => void }) {
 
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          <div className="lg:col-span-2 p-5 bg-white rounded-2xl border border-slate-100 shadow-sm">
+          <div className="lg:col-span-2 p-5 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)]">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-sm font-extrabold text-slate-800">Ventas últimos 7 días (COP)</h2>
               <span className="text-xs text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full">↑ 21.3% vs semana anterior</span>
@@ -1879,7 +1877,7 @@ function AdminDashboard({ onNavigate }: { onNavigate: (v: View) => void }) {
             </ResponsiveContainer>
           </div>
 
-          <div className="p-5 bg-white rounded-2xl border border-slate-100 shadow-sm">
+          <div className="p-5 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)]">
             <h2 className="text-sm font-extrabold text-slate-800 mb-5">Ventas por categoría</h2>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={CAT_DATA} margin={{ top: 0, right: 0, left: -28, bottom: 0 }} layout="vertical">
@@ -1898,7 +1896,7 @@ function AdminDashboard({ onNavigate }: { onNavigate: (v: View) => void }) {
 
         {/* Recent orders + Low stock */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+          <div className="lg:col-span-2 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] overflow-hidden">
             <div className="flex items-center justify-between p-5 border-b border-slate-50">
               <h2 className="text-sm font-extrabold text-slate-800">Pedidos recientes</h2>
               <button className="text-xs text-[#1d4ed8] hover:underline flex items-center gap-1">Ver todos <ChevronRight size={11} /></button>
@@ -1929,7 +1927,7 @@ function AdminDashboard({ onNavigate }: { onNavigate: (v: View) => void }) {
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+          <div className="bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] overflow-hidden">
             <div className="flex items-center gap-2 p-5 border-b border-slate-50">
               <AlertTriangle size={15} className="text-amber-500" />
               <h2 className="text-sm font-extrabold text-slate-800">Inventario bajo</h2>
