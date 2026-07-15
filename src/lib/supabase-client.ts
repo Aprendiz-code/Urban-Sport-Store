@@ -3,8 +3,10 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+export const isSupabaseEnabled = () => Boolean(supabaseUrl && supabaseAnonKey);
+
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('Supabase no está configurado. Define VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY.');
+  console.warn('Supabase no está configurado. Define VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY para la integración final.');
 }
 
 export const supabase = supabaseUrl && supabaseAnonKey

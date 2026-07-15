@@ -38,6 +38,13 @@ pnpm install
 pnpm dev # or npm run dev (depends on your setup)
 ```
 
+> Si no tienes Supabase configurado todavía, puedes usar el admin local con `VITE_ADMIN_EMAIL` y `VITE_ADMIN_PASSWORD`.
+>
+> - Email: `admin@urbansportstore.dev`
+> - Contraseña: `Admin123!`
+> 
+> Esto mostrará el panel admin localmente sin requerir Supabase.
+
 2. Start frontend (root):
 
 ```pwsh

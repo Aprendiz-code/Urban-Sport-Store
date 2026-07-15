@@ -2274,9 +2274,6 @@ export default function App() {
   const [productRefresh, setProductRefresh] = useState(0);
 
   useEffect(() => {
-    const hasSupabase = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
-    if (!hasSupabase) return;
-
     let subscription: { unsubscribe: () => void } | null = null;
 
     const syncSession = async () => {
@@ -2286,7 +2283,7 @@ export default function App() {
         setIsLoggedIn(Boolean(user));
         setIsAdmin(isAdminUser(user));
       } catch (error) {
-        console.warn("No se pudo cargar la sesión de Supabase.", error);
+        console.warn("No se pudo cargar la sesión de usuario.", error);
       }
     };
 
