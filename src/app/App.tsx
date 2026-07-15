@@ -466,6 +466,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, onToggleLogin, onCat
     <div className="fixed top-0 left-0 right-0 z-50">
       {/* Announce Bar (carousel) */}
       <PromoCarousel
+        variant="slide"
         messages={[
           "Envío gratis en compras superiores a $250.000 COP · Devoluciones gratuitas en 30 días",
           "Pagos 100% seguros · Aceptamos tarjetas y transferencias",

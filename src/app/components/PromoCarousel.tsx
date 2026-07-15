@@ -5,12 +5,14 @@ interface PromoCarouselProps {
   messages: string[];
   intervalMs?: number;
   className?: string;
+  variant?: "fade" | "slide";
 }
 
-export default function PromoCarousel({ messages, intervalMs = 3500, className = "" }: PromoCarouselProps) {
+export default function PromoCarousel({ messages, intervalMs = 3500, className = "", variant = "fade" }: PromoCarouselProps) {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const timerRef = useRef<number | null>(null);
+  const isSlide = variant === "slide";
 
   useEffect(() => {
     if (!messages || messages.length <= 1) return;
@@ -38,19 +40,34 @@ export default function PromoCarousel({ messages, intervalMs = 3500, className =
       }}
       aria-live="polite"
     >
-      <div className="relative h-5 flex items-center justify-center overflow-hidden">
-        {messages.map((m, i) => (
-          <span
-            key={i}
-            className={`absolute inset-0 flex items-center justify-center transition-opacity duration-700 ease-in-out px-4 whitespace-nowrap ${
-              i === index ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-1"
-            }`}
-            aria-hidden={i === index ? "false" : "true"}
+      {isSlide ? (
+        <div className="overflow-hidden">
+          <div
+            className="flex transition-transform duration-700 ease-in-out"
+            style={{ width: `${messages.length * 100}%`, transform: `translateX(-${index * (100 / messages.length)}%)` }}
           >
-            {m}
-          </span>
-        ))}
-      </div>
+            {messages.map((m, i) => (
+              <div key={i} className="flex-shrink-0 w-full flex items-center justify-center px-4 whitespace-nowrap">
+                {m}
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="relative h-5 flex items-center justify-center overflow-hidden">
+          {messages.map((m, i) => (
+            <span
+              key={i}
+              className={`absolute inset-0 flex items-center justify-center transition-opacity duration-700 ease-in-out px-4 whitespace-nowrap ${
+                i === index ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-1"
+              }`}
+              aria-hidden={i === index ? "false" : "true"}
+            >
+              {m}
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* Controls */}
       <div className="absolute inset-y-0 left-2 flex items-center">
