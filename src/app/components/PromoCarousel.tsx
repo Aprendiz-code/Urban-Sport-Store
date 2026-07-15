@@ -4,7 +4,7 @@ interface PromoCarouselProps {
   messages: string[];
   intervalMs?: number;
   className?: string;
-  variant?: "fade" | "slide";
+  variant?: "fade" | "slide" | "marquee";
 }
 
 export default function PromoCarousel({ messages, intervalMs = 2000, className = "", variant = "fade" }: PromoCarouselProps) {
