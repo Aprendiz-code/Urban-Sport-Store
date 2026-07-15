@@ -26,6 +26,46 @@ export default function PromoCarousel({ messages, intervalMs = 2000, className =
   const next = () => setIndex((i) => (i + 1) % messages.length);
   const toggle = () => setPaused((p) => !p);
 
+  // Marquee (left-to-right) implementation: animate each message across the bar
+  const [marqueePos, setMarqueePos] = useState("-100%");
+  const marqueeRef = useRef<HTMLSpanElement | null>(null);
+  useEffect(() => {
+    if (variant !== "marquee") return;
+    if (!messages || messages.length === 0) return;
+    if (paused) return;
+
+    let cancelled = false;
+
+    const run = async () => {
+      // show current message starting off-screen left
+      setMarqueePos("-100%");
+      // force reflow
+      // wait a tick then animate to right
+      await new Promise((r) => setTimeout(r, 50));
+      if (cancelled) return;
+      if (marqueeRef.current) {
+        marqueeRef.current.style.transition = `transform ${intervalMs}ms linear`;
+      }
+      setMarqueePos("100%");
+      // wait until animation ends
+      await new Promise((r) => setTimeout(r, intervalMs));
+      if (cancelled) return;
+      // advance index and repeat
+      setIndex((i) => (i + 1) % messages.length);
+      if (marqueeRef.current) marqueeRef.current.style.transition = "none";
+      // short pause before next
+      await new Promise((r) => setTimeout(r, 120));
+      if (cancelled) return;
+      run();
+    };
+
+    run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [variant, messages, intervalMs, paused]);
+
   return (
     <div
       className={`relative bg-[#1d4ed8] text-white text-center py-3 text-sm font-semibold tracking-wide ${className}`}
@@ -38,7 +78,17 @@ export default function PromoCarousel({ messages, intervalMs = 2000, className =
       }}
       aria-live="polite"
     >
-      {isSlide ? (
+      {variant === "marquee" ? (
+        <div className="relative overflow-hidden">
+          <span
+            ref={marqueeRef}
+            className="inline-block whitespace-nowrap px-6"
+            style={{ transform: `translateX(${marqueePos})` }}
+          >
+            {messages[index]}
+          </span>
+        </div>
+      ) : isSlide ? (
         <div className="overflow-hidden">
           <div
             className="flex transition-transform duration-500 ease-in-out"
