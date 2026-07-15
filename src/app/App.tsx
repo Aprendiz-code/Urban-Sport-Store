@@ -470,7 +470,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, onToggleLogin, onCat
         intervalMs={7800}
         messages={[
           "Envíos gratis a toda Colombia por compras superiores a $250.000",
-          "Aceptamos todos los medios de pago: Tarjeta de crédito, débito, PSE y Efecty. ¡Compra 100% segura!",
+          "Aceptamos todos los medios de pago: Tarjeta de crédito, débito y PSE. ¡Compra 100% segura!",
           "Soporte y atención al cliente las 24 horas",
         ]}
       />
