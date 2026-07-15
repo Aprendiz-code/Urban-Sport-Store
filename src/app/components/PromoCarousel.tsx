@@ -27,7 +27,7 @@ export default function PromoCarousel({ messages, intervalMs = 2000, className =
   const toggle = () => setPaused((p) => !p);
 
   // Marquee (left-to-right) implementation: animate each message across the bar
-  const [marqueePos, setMarqueePos] = useState("-100%");
+  const [marqueePos, setMarqueePos] = useState("100%");
   const marqueeRef = useRef<HTMLSpanElement | null>(null);
   useEffect(() => {
     if (variant !== "marquee") return;
@@ -36,25 +36,25 @@ export default function PromoCarousel({ messages, intervalMs = 2000, className =
 
     let cancelled = false;
 
+    const pauseMs = 600; // small pause between messages
+
     const run = async () => {
-      // show current message starting off-screen left
-      setMarqueePos("-100%");
-      // force reflow
-      // wait a tick then animate to right
+      // start off-screen right
+      setMarqueePos("100%");
       await new Promise((r) => setTimeout(r, 50));
       if (cancelled) return;
       if (marqueeRef.current) {
         marqueeRef.current.style.transition = `transform ${intervalMs}ms linear`;
       }
-      setMarqueePos("100%");
-      // wait until animation ends
+      // animate to off-screen left
+      setMarqueePos("-100%");
       await new Promise((r) => setTimeout(r, intervalMs));
       if (cancelled) return;
-      // advance index and repeat
+      // advance index
       setIndex((i) => (i + 1) % messages.length);
       if (marqueeRef.current) marqueeRef.current.style.transition = "none";
-      // short pause before next
-      await new Promise((r) => setTimeout(r, 120));
+      // short pause before next message
+      await new Promise((r) => setTimeout(r, pauseMs));
       if (cancelled) return;
       run();
     };
