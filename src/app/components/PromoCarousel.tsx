@@ -44,8 +44,8 @@ export default function PromoCarousel({ messages, intervalMs = 2000, className =
           <style>{`
             @keyframes promo-marquee {
               0% { transform: translate(-50%, -50%) translateX(100%); }
-              30% { transform: translate(-50%, -50%) translateX(0%); }
-              65% { transform: translate(-50%, -50%) translateX(0%); }
+              15% { transform: translate(-50%, -50%) translateX(0%); }
+              75% { transform: translate(-50%, -50%) translateX(0%); }
               100% { transform: translate(-50%, -50%) translateX(-100%); }
             }
           `}</style>
