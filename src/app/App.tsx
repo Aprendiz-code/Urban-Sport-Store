@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import type { User } from '@supabase/supabase-js';
 import {
   ShoppingCart, Search, Menu, X, Star, ChevronRight, Package,
   Users, TrendingUp, AlertTriangle, Check, Eye, EyeOff,
@@ -13,7 +14,21 @@ import {
   Tooltip, ResponsiveContainer,
 } from "recharts";
 import { fetchProductsFromSupabase, type ProductRecord } from "../lib/supabase-store";
-import { signInWithEmail, signUpWithEmail } from "../lib/supabase-auth";
+import {
+  signInWithEmail,
+  signUpWithEmail,
+  signOut,
+  getCurrentUser,
+  onAuthStateChange,
+  isAdminUser,
+} from "../lib/supabase-auth";
+
+import adminApi from "../lib/admin-api";
+import { uploadProductImage, getPublicUrl } from "../lib/supabase-store";
+import { recordAction } from "../lib/audit";
+import { productSchema } from '../lib/schemas';
+import { Toaster } from './components/ui/sonner';
+import { toast } from 'sonner';
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 
@@ -450,9 +465,10 @@ function ProductCard({ product, onSelect, onAddToCart }: {
 
 // ─── NAVBAR ──────────────────────────────────────────────────────────────────
 
-function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, onToggleLogin, onCategorySelect }: {
+function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, onLoginClick, onLogout, onCategorySelect }: {
   cart: CartItem[]; onNavigate: (v: View) => void;
-  onCartOpen: () => void; isLoggedIn: boolean; onToggleLogin: () => void;
+  onCartOpen: () => void; isLoggedIn: boolean; isAdmin: boolean;
+  authUser: User | null; onLoginClick: () => void; onLogout: () => void;
   onCategorySelect: (c: Category) => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -522,19 +538,21 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, onToggleLogin, onCat
                   {isLoggedIn ? (
                     <>
                       <div className="px-4 py-2.5 border-b border-slate-100 mb-1">
-                        <p className="text-sm font-bold text-slate-800">Valentina Torres</p>
-                        <p className="text-xs text-slate-400">valentina@email.com</p>
+                        <p className="text-sm font-bold text-slate-800">{authUser?.user_metadata?.full_name ?? authUser?.email ?? 'Usuario'}</p>
+                        <p className="text-xs text-slate-400">{authUser?.email ?? 'email@dominio.com'}</p>
                       </div>
                       <button onClick={() => { onNavigate("account"); setUserOpen(false); }}
                         className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
                         <Package size={14} /> Mis pedidos
                       </button>
-                      <button onClick={() => { onNavigate("admin"); setUserOpen(false); }}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
-                        <BarChart2 size={14} /> Panel admin
-                      </button>
+                      {isAdmin && (
+                        <button onClick={() => { onNavigate("admin"); setUserOpen(false); }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+                          <BarChart2 size={14} /> Panel admin
+                        </button>
+                      )}
                       <div className="border-t border-slate-100 mt-1 pt-1">
-                        <button onClick={() => { onToggleLogin(); setUserOpen(false); }}
+                        <button onClick={() => { onLogout(); setUserOpen(false); }}
                           className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors">
                           <LogOut size={14} /> Cerrar sesión
                         </button>
@@ -1512,7 +1530,8 @@ function CheckoutPage({ cart, onNavigate }: { cart: CartItem[]; onNavigate: (v: 
 // ─── LOGIN PAGE ───────────────────────────────────────────────────────────────
 
 function LoginPage({ isRegister, onNavigate, onLogin }: {
-  isRegister: boolean; onNavigate: (v: View) => void; onLogin: () => void;
+  isRegister: boolean; onNavigate: (v: View) => void;
+  onLogin: (user: User | null, isAdmin: boolean) => void;
 }) {
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -1527,18 +1546,23 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
     setError(null);
 
     try {
+      let user = null;
+      let adminStatus = false;
       if (isRegister) {
         const { data, error: signUpError } = await signUpWithEmail(email, password, { name });
         if (signUpError) throw signUpError;
         if (!data.user) throw new Error("No se pudo crear la cuenta.");
+        user = data.user;
       } else {
         const { data, error: signInError } = await signInWithEmail(email, password);
         if (signInError) throw signInError;
         if (!data.user) throw new Error("No se pudo iniciar sesión.");
+        user = data.user;
       }
 
-      onLogin();
-      onNavigate("home");
+      adminStatus = isAdminUser(user);
+      onLogin(user, adminStatus);
+      onNavigate(adminStatus ? "admin" : "home");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ocurrió un error inesperado.");
     } finally {
@@ -1729,6 +1753,24 @@ function AccountPage({ onNavigate }: { onNavigate: (v: View) => void }) {
             </div>
           )}
 
+          {section === "activity" && (
+            <div>
+              <h2 className="text-xl font-extrabold text-slate-900 mb-6">Actividad reciente</h2>
+              <div className="space-y-3">
+                {auditEntries.length === 0 && <p className="text-sm text-slate-500">Sin actividad registrada.</p>}
+                {auditEntries.map((a) => (
+                  <div key={a.id} className="p-3 bg-white/95 rounded-xl border border-slate-100 flex items-start justify-between">
+                    <div>
+                      <div className="text-sm font-bold text-slate-800">{a.action}</div>
+                      <div className="text-xs text-slate-500">{new Date(a.ts).toLocaleString()}</div>
+                      {a.meta && <pre className="text-xs mt-2 text-slate-600 whitespace-pre-wrap">{JSON.stringify(a.meta)}</pre>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {section === "addresses" && (
             <div>
               <h2 className="text-xl font-extrabold text-slate-900 mb-6">Mis direcciones</h2>
@@ -1766,8 +1808,24 @@ function AccountPage({ onNavigate }: { onNavigate: (v: View) => void }) {
 
 // ─── ADMIN DASHBOARD ──────────────────────────────────────────────────────────
 
-function AdminDashboard({ onNavigate }: { onNavigate: (v: View) => void }) {
+function AdminDashboard({ onNavigate, products, createProduct, updateProduct, deleteProduct, adjustStock }: {
+  onNavigate: (v: View) => void;
+  products: Product[];
+  createProduct: (product: Omit<Product, "id">) => void;
+  updateProduct: (productId: string, updates: Partial<Product>) => void;
+  deleteProduct: (productId: string) => void;
+  adjustStock: (productId: string, delta: number) => void;
+}) {
   const [adminSection, setAdminSection] = useState("dashboard");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [formMode, setFormMode] = useState<"create" | "edit">("create");
+  const [activeProduct, setActiveProduct] = useState<Product | null>(null);
+  const [productForm, setProductForm] = useState<Omit<Product, "id">>({
+    name: "", brand: "", price: 0, originalPrice: undefined, discount: undefined,
+    rating: 0, reviews: 0, image: "", category: "Zapatos", subcategory: "",
+    stock: 0, sku: "", description: "", colors: [], sizes: [], gender: "Unisex",
+    isNew: false, isFeatured: false, specs: [],
+  });
 
   const METRICS = [
     { label: "Ventas totales", value: "$40.200.000", change: "+14.2%", up: true, icon: <TrendingUp size={18} /> },
@@ -1783,14 +1841,145 @@ function AdminDashboard({ onNavigate }: { onNavigate: (v: View) => void }) {
     { id: "inventory", icon: <Layers size={16} />, label: "Inventario" },
     { id: "coupons", icon: <Award size={16} />, label: "Cupones" },
     { id: "reports", icon: <BarChart2 size={16} />, label: "Reportes" },
+    { id: "activity", icon: <Grid3X3 size={16} />, label: "Actividad" },
     { id: "settings", icon: <Settings size={16} />, label: "Ajustes" },
   ];
 
-  const LOW_STOCK = [
-    { name: "Garmin Forerunner 265", stock: 9, sku: "GRM-FR265" },
-    { name: "Nike Air Zoom Pegasus 40", stock: 6, sku: "NK-AZP40-H" },
-    { name: "Sauvage Dior EDT 100ml", stock: 8, sku: "DR-SVG-100" },
-  ];
+  const LOW_STOCK = products.filter((product) => product.stock <= 10).map((product) => ({
+    name: product.name, stock: product.stock, sku: product.sku,
+  }));
+
+  const filteredProducts = products.filter((product) =>
+    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product.sku.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const [page, setPage] = useState(1);
+  const perPage = 12;
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / perPage));
+  const paginatedProducts = filteredProducts.slice((page - 1) * perPage, page * perPage);
+
+  const resetForm = () => {
+    setFormMode("create");
+    setActiveProduct(null);
+    setProductForm({
+      name: "", brand: "", price: 0, originalPrice: undefined, discount: undefined,
+      rating: 0, reviews: 0, image: "", category: "Zapatos", subcategory: "",
+      stock: 0, sku: "", description: "", colors: [], sizes: [], gender: "Unisex",
+      isNew: false, isFeatured: false, specs: [],
+    });
+  };
+
+  const [auditEntries, setAuditEntries] = useState<{ id: string; ts: number; action: string; meta?: Record<string, any> }[]>([]);
+  const refreshAudit = () => {
+    (async () => {
+      // prefer server logs when available
+      try {
+        if (isAdmin) {
+          const srv = await adminApi.fetchAuditLogs(200);
+          if (srv?.data) { setAuditEntries(srv.data); return; }
+        }
+      } catch (e) {
+        // fallback to local
+      }
+      try {
+        // lazy-load to avoid SSR issues
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const { getAudit } = require('../lib/audit');
+        setAuditEntries(getAudit(200));
+      } catch (e) {
+        setAuditEntries([]);
+      }
+    })();
+  };
+
+  const handleEditProduct = (product: Product) => {
+    setActiveProduct(product);
+    setFormMode("edit");
+    setProductForm({
+      name: product.name,
+      brand: product.brand,
+      price: product.price,
+      originalPrice: product.originalPrice,
+      discount: product.discount,
+      rating: product.rating,
+      reviews: product.reviews,
+      image: product.image,
+      category: product.category,
+      subcategory: product.subcategory,
+      stock: product.stock,
+      sku: product.sku,
+      description: product.description,
+      colors: product.colors,
+      sizes: product.sizes,
+      gender: product.gender ?? "Unisex",
+      isNew: product.isNew ?? false,
+      isFeatured: product.isFeatured ?? false,
+      specs: product.specs ?? [],
+    });
+  };
+
+  const handleFormSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const payload: Omit<Product, "id"> = {
+      ...productForm,
+      colors: productForm.colors.map((color) => ({ name: color.name, hex: color.hex })),
+      sizes: productForm.sizes,
+      rating: Number(productForm.rating) || 0,
+      reviews: Number(productForm.reviews) || 0,
+      price: Number(productForm.price) || 0,
+      stock: Number(productForm.stock) || 0,
+      originalPrice: productForm.originalPrice ? Number(productForm.originalPrice) : undefined,
+      discount: productForm.discount ? Number(productForm.discount) : undefined,
+    };
+
+    // Zod validation
+    try {
+      productSchema.parse(payload as any);
+    } catch (err: any) {
+      const message = err?.errors?.[0]?.message ?? 'Datos de producto inválidos';
+      toast.error(String(message));
+      return;
+    }
+    if (!payload.sku) payload.sku = `SKU-${Date.now().toString().slice(-6)}`;
+
+    if (formMode === "edit" && activeProduct) {
+      void updateProduct(activeProduct.id, payload);
+    } else {
+      void createProduct(payload);
+    }
+
+    resetForm();
+  };
+
+  const handleDeleteProduct = (productId: string) => {
+    deleteProduct(productId);
+    if (activeProduct?.id === productId) resetForm();
+  };
+
+  useEffect(() => { refreshAudit(); }, [productRefresh]);
+
+  const updateField = <K extends keyof Omit<Product, "id">>(field: K, value: Omit<Product, "id">[K]) => {
+    setProductForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const data = await uploadProductImage(file);
+      const path = (data as any)?.path ?? (data as any)?.Key ?? null;
+      if (path) {
+        const bucket = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET ?? 'products';
+        const publicUrl = getPublicUrl(bucket, path);
+        updateField('image', publicUrl as any);
+      }
+    } catch (err) {
+      console.warn('Image upload failed', err);
+    }
+  };
 
   return (
     <div className="flex pt-[88px] min-h-screen bg-slate-50">
@@ -1894,6 +2083,96 @@ function AdminDashboard({ onNavigate }: { onNavigate: (v: View) => void }) {
           </div>
         </div>
 
+        {/* Products management */}
+        {adminSection === "products" && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <div className="lg:col-span-2 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] p-5">
+              <div className="flex items-center justify-between gap-4 mb-4">
+                <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar productos por nombre, marca o SKU"
+                  className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none" />
+                <button onClick={() => { resetForm(); setFormMode('create'); }}
+                  className="ml-3 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#1d4ed8] text-white font-semibold hover:bg-[#1e40af]">
+                  <Plus size={14} /> Nuevo producto
+                </button>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-slate-50">
+                      {['Imagen', 'Nombre', 'Marca', 'Precio', 'Stock', 'Acciones'].map((h) => (
+                        <th key={h} className="text-left px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wide">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginatedProducts.map((p) => (
+                      <tr key={p.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                        <td className="px-4 py-3"><img src={p.image} alt={p.name} className="w-12 h-12 object-cover rounded-lg" /></td>
+                        <td className="px-4 py-3 text-sm font-semibold text-slate-800">{p.name}</td>
+                        <td className="px-4 py-3 text-sm text-slate-600">{p.brand}</td>
+                        <td className="px-4 py-3 text-sm font-extrabold text-slate-900">{fmt(p.price)}</td>
+                        <td className="px-4 py-3 text-sm text-slate-700">{p.stock}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex gap-2">
+                            <button onClick={() => handleEditProduct(p)} className="px-3 py-1.5 rounded-lg bg-blue-50 text-[#1d4ed8] font-semibold">Editar</button>
+                            <button onClick={() => { if (confirm(`Eliminar ${p.name}? Esta acción no es reversible.`)) handleDeleteProduct(p.id); }} className="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 font-semibold">Eliminar</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="flex items-center justify-between mt-3">
+                <div className="text-sm text-slate-500">Mostrando {(page - 1) * perPage + 1} - {Math.min(page * perPage, filteredProducts.length)} de {filteredProducts.length}</div>
+                <div className="flex items-center gap-2">
+                  <button disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} className="px-3 py-1 rounded-md bg-slate-100">Anterior</button>
+                  <div className="text-sm text-slate-600">{page} / {totalPages}</div>
+                  <button disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))} className="px-3 py-1 rounded-md bg-slate-100">Siguiente</button>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] p-5">
+              <h3 className="text-lg font-extrabold text-slate-900 mb-3">{formMode === 'edit' ? 'Editar producto' : 'Crear producto'}</h3>
+              <form onSubmit={handleFormSubmit} className="space-y-3">
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase">Nombre</label>
+                  <input value={productForm.name} onChange={(e) => updateField('name', e.target.value)} className="w-full px-3 py-2 mt-1 rounded-lg border border-slate-200 bg-slate-50" />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase">Marca</label>
+                  <input value={productForm.brand} onChange={(e) => updateField('brand', e.target.value)} className="w-full px-3 py-2 mt-1 rounded-lg border border-slate-200 bg-slate-50" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 uppercase">Precio</label>
+                    <input type="number" value={productForm.price as any} onChange={(e) => updateField('price', Number(e.target.value))} className="w-full px-3 py-2 mt-1 rounded-lg border border-slate-200 bg-slate-50" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 uppercase">Stock</label>
+                    <input type="number" value={productForm.stock as any} onChange={(e) => updateField('stock', Number(e.target.value))} className="w-full px-3 py-2 mt-1 rounded-lg border border-slate-200 bg-slate-50" />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase">SKU</label>
+                  <input value={productForm.sku} onChange={(e) => updateField('sku', e.target.value)} className="w-full px-3 py-2 mt-1 rounded-lg border border-slate-200 bg-slate-50" />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase">Imagen (archivo o URL)</label>
+                  <input type="file" accept="image/*" onChange={handleImageFileChange} className="w-full px-3 py-2 mt-1 rounded-lg border border-slate-200 bg-slate-50" />
+                  <input value={productForm.image} onChange={(e) => updateField('image', e.target.value)} placeholder="O pega una URL pública" className="w-full px-3 py-2 mt-2 rounded-lg border border-slate-200 bg-slate-50" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <button type="submit" className="px-4 py-2 rounded-xl bg-[#1d4ed8] text-white font-semibold">{formMode === 'edit' ? 'Guardar cambios' : 'Crear'}</button>
+                  <button type="button" onClick={() => resetForm()} className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700">Cancelar</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
         {/* Recent orders + Low stock */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] overflow-hidden">
@@ -1990,6 +2269,152 @@ export default function App() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [authUser, setAuthUser] = useState<User | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [productRefresh, setProductRefresh] = useState(0);
+
+  useEffect(() => {
+    const hasSupabase = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
+    if (!hasSupabase) return;
+
+    let subscription: { unsubscribe: () => void } | null = null;
+
+    const syncSession = async () => {
+      try {
+        const user = await getCurrentUser();
+        setAuthUser(user);
+        setIsLoggedIn(Boolean(user));
+        setIsAdmin(isAdminUser(user));
+      } catch (error) {
+        console.warn("No se pudo cargar la sesión de Supabase.", error);
+      }
+    };
+
+    void syncSession();
+    subscription = onAuthStateChange((_event, session) => {
+      const user = session?.user ?? null;
+      setAuthUser(user);
+      setIsLoggedIn(Boolean(user));
+      setIsAdmin(isAdminUser(user));
+    });
+
+    return () => subscription?.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (view === "admin" && !isAdmin) {
+      navigate("login");
+    }
+  }, [view, isAdmin]);
+
+  const handleAuthSuccess = (user: User | null, adminStatus: boolean) => {
+    setAuthUser(user);
+    setIsLoggedIn(Boolean(user) || adminStatus);
+    setIsAdmin(adminStatus);
+  };
+
+  const handleLogout = async () => {
+    const hasSupabase = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
+    if (hasSupabase) {
+      try {
+        await signOut();
+      } catch (error) {
+        console.warn("Error al cerrar sesión.", error);
+      }
+    }
+
+    setAuthUser(null);
+    setIsLoggedIn(false);
+    setIsAdmin(false);
+    navigate("home");
+  };
+
+  const refreshProducts = () => setProductRefresh((value) => value + 1);
+
+  const createProduct = async (product: Omit<Product, "id">) => {
+    try {
+      const created = await adminApi.createProductApi(product as any);
+      if (created?.id) {
+        PRODUCTS = [created as Product, ...PRODUCTS];
+        refreshProducts();
+        try { recordAction('create_product', { id: created.id, name: created.name }); } catch (e) { }
+        return;
+      }
+    } catch (err) {
+      console.warn("Backend create product failed, falling back to local:", err);
+    }
+
+    const newProduct = { ...product, id: crypto.randomUUID() };
+    PRODUCTS = [newProduct, ...PRODUCTS];
+    refreshProducts();
+    try { recordAction('create_product_local', { id: newProduct.id, name: newProduct.name }); } catch (e) { }
+  };
+
+  const updateProduct = async (productId: string, updates: Partial<Product>) => {
+    try {
+      const updated = await adminApi.updateProductApi(productId, updates as any);
+      if (updated?.id) {
+        PRODUCTS = PRODUCTS.map((p) => p.id === productId ? updated as Product : p);
+        refreshProducts();
+        try { recordAction('update_product', { id: updated.id, name: updated.name }); } catch (e) { }
+        return;
+      }
+    } catch (err) {
+      console.warn("Backend update failed, falling back to local:", err);
+    }
+
+    PRODUCTS = PRODUCTS.map((product) => product.id === productId ? { ...product, ...updates } : product);
+    refreshProducts();
+    try { recordAction('update_product_local', { id: productId, updates }); } catch (e) { }
+  };
+
+  const deleteProduct = async (productId: string) => {
+    try {
+      await adminApi.deleteProductApi(productId);
+      PRODUCTS = PRODUCTS.filter((product) => product.id !== productId);
+      refreshProducts();
+      try { recordAction('delete_product', { id: productId }); } catch (e) { }
+      return;
+    } catch (err) {
+      console.warn("Backend delete failed, falling back to local:", err);
+    }
+
+    PRODUCTS = PRODUCTS.filter((product) => product.id !== productId);
+    refreshProducts();
+    try { recordAction('delete_product_local', { id: productId }); } catch (e) { }
+  };
+
+  const adjustStock = async (productId: string, delta: number) => {
+    try {
+      await adminApi.createInventoryMovement(productId, delta, 'adjustment');
+      PRODUCTS = PRODUCTS.map((product) => product.id === productId ? { ...product, stock: Math.max(0, product.stock + delta) } : product);
+      const updated = PRODUCTS.find((p) => p.id === productId);
+      refreshProducts();
+      try { recordAction('inventory_movement', { id: productId, delta }); } catch (e) { }
+      try {
+        if (updated && updated.stock <= 5) {
+          // simple notification for low stock
+          // later replace with Toaster/sonner
+          // eslint-disable-next-line no-alert
+          alert(`Stock bajo: ${updated.name} tiene ${updated.stock} unidades`);
+        }
+      } catch (e) { /* ignore */ }
+      return;
+      return;
+    } catch (err) {
+      console.warn('Backend inventory movement failed, falling back to local adjust:', err);
+    }
+
+    PRODUCTS = PRODUCTS.map((product) => product.id === productId ? { ...product, stock: Math.max(0, product.stock + delta) } : product);
+    const updated = PRODUCTS.find((p) => p.id === productId);
+    refreshProducts();
+    try {
+      if (updated && updated.stock <= 5) {
+        // notification for low stock
+        toast(`Stock bajo: ${updated.name} tiene ${updated.stock} unidades`);
+      }
+    } catch (e) { /* ignore */ }
+  };
 
   const navigate = (v: View) => {
     setView(v);
@@ -2037,17 +2462,19 @@ export default function App() {
     navigate("checkout");
   };
 
-  const isAdmin = view === "admin";
-
   return (
     <div className="min-h-screen bg-[#f4f5f7] text-slate-900" style={{ fontFamily: "'Manrope', system-ui, sans-serif" }}>
       <Navbar
         cart={cart} onNavigate={navigate}
         onCartOpen={() => setCartOpen(true)}
         isLoggedIn={isLoggedIn}
-        onToggleLogin={() => setIsLoggedIn(!isLoggedIn)}
+        isAdmin={isAdmin}
+        authUser={authUser}
+        onLoginClick={() => navigate("login")}
+        onLogout={handleLogout}
         onCategorySelect={handleCategorySelect}
       />
+      <Toaster />
 
       {view === "home" && (
         <HomePage
@@ -2070,10 +2497,20 @@ export default function App() {
         />
       )}
       {view === "checkout" && <CheckoutPage cart={cart} onNavigate={navigate} />}
-      {view === "login" && <LoginPage isRegister={false} onNavigate={navigate} onLogin={() => setIsLoggedIn(true)} />}
-      {view === "register" && <LoginPage isRegister={true} onNavigate={navigate} onLogin={() => setIsLoggedIn(true)} />}
+      {view === "login" && <LoginPage isRegister={false} onNavigate={navigate} onLogin={handleAuthSuccess} />}
+      {view === "register" && <LoginPage isRegister={true} onNavigate={navigate} onLogin={handleAuthSuccess} />}
       {view === "account" && <AccountPage onNavigate={navigate} />}
-      {view === "admin" && <AdminDashboard onNavigate={navigate} />}
+      {view === "admin" && isAdmin && (
+        <AdminDashboard
+          onNavigate={navigate}
+          products={PRODUCTS}
+          createProduct={createProduct}
+          updateProduct={updateProduct}
+          deleteProduct={deleteProduct}
+          adjustStock={adjustStock}
+        />
+      )}
+      {view === "admin" && !isAdmin && <LoginPage isRegister={false} onNavigate={navigate} onLogin={handleAuthSuccess} />}
 
       {cartOpen && (
         <CartDrawer

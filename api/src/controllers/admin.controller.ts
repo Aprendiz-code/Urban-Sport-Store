@@ -21,6 +21,8 @@ export const adminDashboard = async (_req: Request, res: Response, next: NextFun
 export const createProduct = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const product = await productService.create(req.body);
+    // record audit
+    try { await prisma.auditLog.create({ data: { actorId: req.user?.id ?? undefined, action: 'create_product', entity: 'product', entityId: product.id, changes: product } }); } catch (e) { /* ignore */ }
     res.status(201).json(successResponse(product));
   } catch (error) {
     next(error);
@@ -31,6 +33,7 @@ export const updateProduct = async (req: Request, res: Response, next: NextFunct
   try {
     const productId = Array.isArray(req.params.productId) ? req.params.productId[0] : req.params.productId;
     const product = await productService.update(productId, req.body);
+    try { await prisma.auditLog.create({ data: { actorId: req.user?.id ?? undefined, action: 'update_product', entity: 'product', entityId: product.id, changes: req.body } }); } catch (e) { }
     res.status(200).json(successResponse(product));
   } catch (error) {
     next(error);
@@ -41,6 +44,7 @@ export const deleteProduct = async (req: Request, res: Response, next: NextFunct
   try {
     const productId = Array.isArray(req.params.productId) ? req.params.productId[0] : req.params.productId;
     const product = await productService.remove(productId);
+    try { await prisma.auditLog.create({ data: { actorId: req.user?.id ?? undefined, action: 'delete_product', entity: 'product', entityId: productId, changes: { deletedAt: new Date() } } }); } catch (e) { }
     res.status(200).json(successResponse(product));
   } catch (error) {
     next(error);
@@ -98,6 +102,7 @@ export const updateBrand = async (req: Request, res: Response, next: NextFunctio
 export const createInventoryMovement = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const movement = await prisma.inventoryMovement.create({ data: req.body });
+    try { await prisma.auditLog.create({ data: { actorId: req.user?.id ?? undefined, action: 'inventory_movement', entity: 'product', entityId: (req.body as any).productId, changes: req.body } }); } catch (e) { }
     res.status(201).json(successResponse(movement));
   } catch (error) {
     next(error);
@@ -165,6 +170,16 @@ export const inventoryReport = async (_req: Request, res: Response, next: NextFu
   try {
     const products = await prisma.product.findMany({ where: { deletedAt: null } });
     res.status(200).json(successResponse(products));
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getAuditLogs = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const limit = Number((_req.query.limit as any) ?? 50);
+    const logs = await prisma.auditLog.findMany({ orderBy: { createdAt: 'desc' }, take: Math.min(200, limit) });
+    res.status(200).json(successResponse(logs));
   } catch (error) {
     next(error);
   }

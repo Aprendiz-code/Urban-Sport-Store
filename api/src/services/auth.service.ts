@@ -95,4 +95,25 @@ export class AuthService {
 
     return { ok: true };
   }
+
+  async exchangeSupabaseToken(accessToken: string) {
+    // call Supabase auth user endpoint to validate token
+    const supabaseUrl = process.env.SUPABASE_URL || '';
+    if (!supabaseUrl) throw new Error('SUPABASE_URL not configured');
+    const resp = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!resp.ok) throw new HttpError(401, 'INVALID_SUPABASE_TOKEN', 'Invalid Supabase token');
+    const userInfo = await resp.json();
+    const email = userInfo?.email;
+    if (!email) throw new HttpError(401, 'INVALID_SUPABASE_TOKEN', 'Invalid Supabase token');
+
+    const user = await prisma.user.findUnique({ where: { email }, include: { userRoles: { include: { role: true } } } });
+    if (!user) throw new HttpError(401, 'USER_NOT_FOUND', 'User not found in backend');
+    if (!user.isActive) throw new HttpError(403, 'USER_INACTIVE', 'User inactive');
+
+    const token = generateAccessToken({ id: user.id, email: user.email, name: user.name, roles: user.userRoles.map(({ role }) => role.name as 'CUSTOMER' | 'ADMIN') });
+    return { user: { id: user.id, email: user.email, name: user.name }, token };
+  }
 }

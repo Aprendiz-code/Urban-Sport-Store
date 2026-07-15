@@ -36,6 +36,7 @@ router.post('/brands', requireAuth, requireRole('ADMIN'), validateBody(brandSche
 router.patch('/brands/:brandId', requireAuth, requireRole('ADMIN'), validateParams(z.object({ brandId: z.string().uuid() })), validateBody(brandSchema.partial()), updateBrand);
 router.post('/inventory/movements', requireAuth, requireRole('ADMIN'), validateBody(inventorySchema), createInventoryMovement);
 router.get('/inventory/low-stock', requireAuth, requireRole('ADMIN'), getLowStockProducts);
+router.get('/audit', requireAuth, requireRole('ADMIN'), (req, res, next) => { return require('../controllers/admin.controller.js').getAuditLogs(req, res, next); });
 router.patch('/orders/:orderId/status', requireAuth, requireRole('ADMIN'), validateParams(z.object({ orderId: z.string().uuid() })), validateBody(orderStatusSchema), updateOrderStatus);
 router.post('/coupons', requireAuth, requireRole('ADMIN'), validateBody(couponSchema), createCoupon);
 router.patch('/coupons/:couponId', requireAuth, requireRole('ADMIN'), validateParams(z.object({ couponId: z.string().uuid() })), validateBody(couponSchema.partial()), updateCoupon);

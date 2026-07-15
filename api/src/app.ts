@@ -12,6 +12,7 @@ import couponRoutes from './routes/coupon.routes.js';
 import orderRoutes from './routes/order.routes.js';
 import paymentRoutes from './routes/payment.routes.js';
 import adminRoutes from './routes/admin.routes.js';
+import testRoutes from './routes/test.routes.js';
 import { env } from './config/env.js';
 import { logger } from './config/logger.js';
 import { errorHandler } from './middlewares/error-handler.js';
@@ -63,6 +64,7 @@ app.use('/api/v1/coupons', couponRoutes);
 app.use('/api/v1/orders', orderRoutes);
 app.use('/api/v1/payments', paymentRoutes);
 app.use('/api/v1/admin', adminRoutes);
+app.use('/api/v1/test', testRoutes);
 
 app.use(errorHandler);
 

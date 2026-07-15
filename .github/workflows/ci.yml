@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: urbansportstore
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d urbansportstore"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - name: Install root deps
+        run: pnpm install
+      - name: Install api deps
+        run: |
+          cd api
+          pnpm install
+      - name: Generate Prisma client
+        run: |
+          cd api
+          pnpm prisma generate
+      - name: Run migrations
+        run: |
+          cd api
+          pnpm db:migrate
+      - name: Seed DB
+        run: |
+          cd api
+          pnpm db:seed
+      - name: Build frontend
+        run: pnpm build
+      - name: Run tests (backend unit)
+        run: |
+          cd api
+          pnpm test
+      - name: Run E2E (Playwright)
+        run: |
+          pnpm add -D @playwright/test
+          npx playwright install --with-deps
+          pnpm e2e
+        env:
+          E2E_BASE_URL: http://localhost:5173
+          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+          E2E_SECRET: ${{ secrets.E2E_SECRET }}
+*** End Patch

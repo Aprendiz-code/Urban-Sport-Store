@@ -31,4 +31,6 @@ export const env = {
   seedAdminPassword: getEnv('SEED_ADMIN_PASSWORD', 'ChangeMe123!'),
   seedAdminName: getEnv('SEED_ADMIN_NAME', 'Admin Urban Sport Store'),
   secureCookies: parseBoolean(getEnv('SECURE_COOKIES', 'false'), false),
+  supabaseUrl: getEnv('SUPABASE_URL', ''),
+  e2eSecret: getEnv('E2E_SECRET', ''),
 };

@@ -52,3 +52,17 @@ export const me = async (req: Request, res: Response, next: NextFunction): Promi
     next(error);
   }
 };
+
+export const bridge = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const token = req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization!.slice(7) : req.body?.access_token;
+    if (!token) {
+      res.status(400).json({ ok: false, error: 'MISSING_TOKEN' });
+      return;
+    }
+    const data = await authService.exchangeSupabaseToken(token);
+    res.status(200).json(successResponse(data));
+  } catch (error) {
+    next(error);
+  }
+};
