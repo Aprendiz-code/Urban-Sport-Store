@@ -467,7 +467,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, onToggleLogin, onCat
       {/* Announce Bar (carousel) */}
       <PromoCarousel
         variant="marquee"
-        intervalMs={3800}
+        intervalMs={4800}
         messages={[
           "Envíos gratis a toda Colombia por compras superiores a $250.000",
           "Aceptamos todos los medios de pago: Tarjeta de crédito, débito, PSE y Efecty. ¡Compra 100% segura!",

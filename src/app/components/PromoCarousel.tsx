@@ -27,11 +27,9 @@ export default function PromoCarousel({ messages, intervalMs = 2000, className =
   const next = () => setIndex((i) => (i + 1) % messages.length);
   const toggle = () => setPaused((p) => !p);
 
-  const pauseMs = 600;
-
   return (
     <div
-      className={`relative bg-[#1d4ed8] text-white text-center py-2 text-sm font-semibold tracking-wide ${className}`}
+      className={`relative bg-[#1d4ed8] text-white text-center py-1.5 text-sm font-semibold tracking-wide ${className}`}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       tabIndex={0}
@@ -42,12 +40,12 @@ export default function PromoCarousel({ messages, intervalMs = 2000, className =
       aria-live="polite"
     >
       {variant === "marquee" ? (
-        <div className="relative overflow-hidden h-9">
+        <div className="relative overflow-hidden h-8">
           <style>{`
             @keyframes promo-marquee {
               0% { transform: translateY(-50%) translateX(100%); }
-              30% { transform: translateY(-50%) translateX(0%); }
-              65% { transform: translateY(-50%) translateX(0%); }
+              20% { transform: translateY(-50%) translateX(0%); }
+              70% { transform: translateY(-50%) translateX(0%); }
               100% { transform: translateY(-50%) translateX(-100%); }
             }
           `}</style>
