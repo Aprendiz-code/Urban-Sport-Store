@@ -480,9 +480,9 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, onToggleLogin, onCat
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-4">
           {/* Logo */}
           <button onClick={() => onNavigate("home")} className="flex items-center gap-2 shrink-0">
-            <span className="text-base font-extrabold text-slate-900 hidden sm:block tracking-tight leading-none">
+            <span className="text-lg font-extrabold text-slate-900 hidden sm:block tracking-tight leading-none">
               Urban<span className="text-[#1d4ed8]">Sport</span>
-              <span className="block text-[10px] font-semibold text-slate-400 tracking-widest uppercase">Store</span>
+              <span className="block text-[11px] font-semibold text-slate-400 tracking-widest uppercase">Store</span>
             </span>
           </button>
 
