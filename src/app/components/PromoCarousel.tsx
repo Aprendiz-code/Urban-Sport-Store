@@ -7,7 +7,7 @@ interface PromoCarouselProps {
   variant?: "fade" | "slide";
 }
 
-export default function PromoCarousel({ messages, intervalMs = 3500, className = "", variant = "fade" }: PromoCarouselProps) {
+export default function PromoCarousel({ messages, intervalMs = 2000, className = "", variant = "fade" }: PromoCarouselProps) {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const timerRef = useRef<number | null>(null);
@@ -41,7 +41,7 @@ export default function PromoCarousel({ messages, intervalMs = 3500, className =
       {isSlide ? (
         <div className="overflow-hidden">
           <div
-            className="flex transition-transform duration-700 ease-in-out"
+            className="flex transition-transform duration-500 ease-in-out"
             style={{ width: `${messages.length * 100}%`, transform: `translateX(-${index * (100 / messages.length)}%)` }}
           >
             {messages.map((m, i) => (
@@ -52,11 +52,11 @@ export default function PromoCarousel({ messages, intervalMs = 3500, className =
           </div>
         </div>
       ) : (
-        <div className="relative h-8 flex items-center justify-center overflow-hidden text-sm">
+          <div className="relative h-8 flex items-center justify-center overflow-hidden text-sm">
           {messages.map((m, i) => (
             <span
               key={i}
-              className={`absolute inset-0 flex items-center justify-center transition-opacity duration-700 ease-in-out px-6 whitespace-nowrap ${
+                className={`absolute inset-0 flex items-center justify-center transition-opacity duration-500 ease-in-out px-6 whitespace-nowrap ${
                 i === index ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-1"
               }`}
               aria-hidden={i === index ? "false" : "true"}
