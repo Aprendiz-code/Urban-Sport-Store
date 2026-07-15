@@ -1889,18 +1889,14 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
     (async () => {
       // prefer server logs when available
       try {
-        if (isAdmin) {
-          const srv = await adminApi.fetchAuditLogs(200);
-          if (srv?.data) { setAuditEntries(srv.data); return; }
-        }
+        const srv = await adminApi.fetchAuditLogs(200);
+        if (srv?.data) { setAuditEntries(srv.data); return; }
       } catch (e) {
         // fallback to local
       }
       try {
-        // lazy-load to avoid SSR issues
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const { getAudit } = require('../lib/audit');
-        setAuditEntries(getAudit(200));
+        const module = await import('../lib/audit');
+        setAuditEntries(module.getAudit(200));
       } catch (e) {
         setAuditEntries([]);
       }
