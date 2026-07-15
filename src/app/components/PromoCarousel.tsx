@@ -31,7 +31,7 @@ export default function PromoCarousel({ messages, intervalMs = 2000, className =
 
   return (
     <div
-      className={`relative bg-[#1d4ed8] text-white text-center py-3 text-sm font-semibold tracking-wide ${className}`}
+      className={`relative bg-[#1d4ed8] text-white text-center py-2 text-sm font-semibold tracking-wide ${className}`}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       tabIndex={0}
@@ -42,16 +42,21 @@ export default function PromoCarousel({ messages, intervalMs = 2000, className =
       aria-live="polite"
     >
       {variant === "marquee" ? (
-        <div className="relative overflow-hidden h-10">
+        <div className="relative overflow-hidden h-9">
           <style>{`
-            @keyframes promo-marquee { 0% { transform: translateY(-50%) translateX(100%); } 90% { transform: translateY(-50%) translateX(-100%); } 100% { transform: translateY(-50%) translateX(-100%); } }
+            @keyframes promo-marquee {
+              0% { transform: translateY(-50%) translateX(100%); }
+              30% { transform: translateY(-50%) translateX(0%); }
+              60% { transform: translateY(-50%) translateX(0%); }
+              100% { transform: translateY(-50%) translateX(-100%); }
+            }
           `}</style>
           <span
             key={index}
             className="absolute left-0 top-1/2 whitespace-nowrap px-6 text-sm"
             style={{
               animationName: "promo-marquee",
-              animationDuration: `${intervalMs + pauseMs}ms`,
+              animationDuration: `${intervalMs}ms`,
               animationTimingFunction: "linear",
               animationFillMode: "forwards",
               animationPlayState: paused ? "paused" : "running",
