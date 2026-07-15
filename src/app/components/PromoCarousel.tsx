@@ -43,15 +43,15 @@ export default function PromoCarousel({ messages, intervalMs = 2000, className =
         <div className="relative overflow-hidden h-8">
           <style>{`
             @keyframes promo-marquee {
-              0% { transform: translateY(-50%) translateX(100%); }
-              20% { transform: translateY(-50%) translateX(0%); }
-              70% { transform: translateY(-50%) translateX(0%); }
-              100% { transform: translateY(-50%) translateX(-100%); }
+              0% { transform: translate(-50%, -50%) translateX(100%); }
+              30% { transform: translate(-50%, -50%) translateX(0%); }
+              65% { transform: translate(-50%, -50%) translateX(0%); }
+              100% { transform: translate(-50%, -50%) translateX(-100%); }
             }
           `}</style>
           <span
             key={index}
-            className="absolute left-0 top-1/2 whitespace-nowrap px-6 text-sm"
+            className="absolute left-1/2 top-1/2 whitespace-nowrap px-6 text-sm"
             style={{
               animationName: "promo-marquee",
               animationDuration: `${intervalMs}ms`,
