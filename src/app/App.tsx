@@ -469,9 +469,9 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, onToggleLogin, onCat
         variant="marquee"
         intervalMs={1800}
         messages={[
-          "Envío gratis en compras superiores a $250.000 COP · Devoluciones gratuitas en 30 días",
-          "Pagos 100% seguros · Aceptamos tarjetas y transferencias",
-          "Soporte 24/7 · Productos 100% originales y garantía",
+          "Envíos gratis a partir de $250.000 COP",
+          "Recibimos todas las tarjetas de pago y transferencias",
+          "Soporte 24/7 · Atención al cliente disponible 24 horas",
         ]}
       />
 
