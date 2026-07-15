@@ -2015,19 +2015,61 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
       <main className="flex-1 md:ml-56 px-4 sm:px-6 py-8 overflow-x-hidden">
         <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-xl font-extrabold text-slate-900 capitalize">{adminSection === "dashboard" ? "Dashboard" : adminSection}</h1>
-            <p className="text-sm text-slate-400">Lunes, 14 de julio de 2026</p>
+            <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 capitalize">{adminSection === "dashboard" ? "Panel de administrador" : `${adminSection.charAt(0).toUpperCase()}${adminSection.slice(1)}`}</h1>
+            <p className="text-sm text-slate-500 mt-2">Bienvenido al espacio administrativo de Urban Sport Store.</p>
           </div>
           <div className="flex items-center gap-3">
-            <select className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none cursor-pointer shadow-sm">
-              <option>Últimos 7 días</option>
-              <option>Últimos 30 días</option>
-              <option>Este mes</option>
-            </select>
-            <button className="w-9 h-9 rounded-xl bg-white border border-slate-200 shadow-sm flex items-center justify-center text-slate-500 hover:text-slate-800 transition-colors relative">
-              <Bell size={16} />
-              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-[#f97316] text-white text-[8px] font-bold flex items-center justify-center">3</span>
+            <div className="rounded-2xl bg-slate-100 px-4 py-2 text-sm text-slate-700">Modo administrador</div>
+            <button className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#1d4ed8] text-white hover:bg-[#1e40af] transition-colors">
+              <BarChart2 size={16} /> Ver estadísticas
             </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 mb-8">
+          <div className="xl:col-span-2 p-8 rounded-[30px] bg-slate-950 text-white shadow-[0_20px_60px_-40px_rgba(15,23,42,0.36)]">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className="uppercase text-xs tracking-[0.26em] text-slate-400 font-semibold mb-3">Administrador</p>
+                <h2 className="text-3xl sm:text-4xl font-extrabold">Control total de la tienda</h2>
+                <p className="mt-3 max-w-2xl text-sm text-slate-300">Administra pedidos, productos, inventarios y reportes desde un panel unificado y seguro.</p>
+              </div>
+              <div className="rounded-full border border-white/10 bg-white/10 px-4 py-3 text-xs uppercase tracking-[0.22em] font-semibold text-slate-100">Acceso rápido</div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8">
+              {[
+                { title: 'Pedidos', subtitle: 'Revisa todos los pedidos recientes.', action: () => setAdminSection('orders'), icon: <Tag size={18} /> },
+                { title: 'Productos', subtitle: 'Gestiona el catálogo y precios.', action: () => { resetForm(); setAdminSection('products'); }, icon: <Package size={18} /> },
+                { title: 'Inventario', subtitle: 'Controla stock crítico.', action: () => setAdminSection('inventory'), icon: <Layers size={18} /> },
+                { title: 'Reportes', subtitle: 'Analiza rendimiento rápido.', action: () => setAdminSection('reports'), icon: <BarChart2 size={18} /> },
+              ].map((item) => (
+                <button key={item.title} onClick={item.action} className="group rounded-[26px] border border-white/10 bg-white/10 p-5 text-left transition hover:bg-white/20">
+                  <div className="inline-flex items-center justify-center w-11 h-11 rounded-2xl bg-white/15 text-white mb-4 group-hover:bg-white/20">
+                    {item.icon}
+                  </div>
+                  <p className="text-base font-semibold">{item.title}</p>
+                  <p className="mt-2 text-sm text-slate-300">{item.subtitle}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="p-6 rounded-[30px] bg-white/95 border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)]">
+            <p className="text-xs uppercase tracking-[0.24em] text-slate-400 font-semibold mb-4">Resumen rápido</p>
+            <div className="space-y-3">
+              <div className="rounded-3xl bg-slate-50 p-4">
+                <p className="text-sm text-slate-500">Usuarios activos hoy</p>
+                <p className="text-2xl font-extrabold text-slate-900">1.250</p>
+              </div>
+              <div className="rounded-3xl bg-slate-50 p-4">
+                <p className="text-sm text-slate-500">Pedidos pendientes</p>
+                <p className="text-2xl font-extrabold text-slate-900">28</p>
+              </div>
+              <div className="rounded-3xl bg-slate-50 p-4">
+                <p className="text-sm text-slate-500">Nuevo ingreso de productos</p>
+                <p className="text-2xl font-extrabold text-slate-900">12</p>
+              </div>
+            </div>
           </div>
         </div>
 
