@@ -465,9 +465,15 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, onToggleLogin, onCat
   return (
     <div className="fixed top-0 left-0 right-0 z-50">
       {/* Announce Bar (carousel) */}
-      <div className="bg-[#1d4ed8] text-white text-center py-3 text-sm font-semibold tracking-wide">
-        Envíos gratis a partir de $250.000 COP
-      </div>
+      <PromoCarousel
+        variant="marquee"
+        intervalMs={1800}
+        messages={[
+          "Envíos gratis a toda Colombia por compras superiores a $250.000",
+          "Aceptamos todos los medios de pago: Tarjeta de crédito, débito, PSE y Efecty. ¡Compra 100% segura!",
+          "Soporte y atención al cliente las 24 horas",
+        ]}
+      />
 
       {/* Main Navbar */}
       <nav className="bg-white border-b border-slate-100 shadow-sm">
