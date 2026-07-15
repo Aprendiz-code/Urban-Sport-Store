@@ -7,6 +7,7 @@ import {
   BarChart2, Home, Settings, Tag, Layers, Edit,
   RefreshCw, Award, Grid3X3
 } from "lucide-react";
+import PromoCarousel from "./components/PromoCarousel";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
@@ -463,10 +464,14 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, onToggleLogin, onCat
 
   return (
     <div className="fixed top-0 left-0 right-0 z-50">
-      {/* Announce Bar */}
-      <div className="bg-[#1d4ed8] text-white text-center py-2 text-xs font-semibold tracking-wide">
-        Envío gratis en compras superiores a $250.000 COP · Devoluciones gratuitas en 30 días
-      </div>
+      {/* Announce Bar (carousel) */}
+      <PromoCarousel
+        messages={[
+          "Envío gratis en compras superiores a $250.000 COP · Devoluciones gratuitas en 30 días",
+          "Pagos 100% seguros · Aceptamos tarjetas y transferencias",
+          "Soporte 24/7 · Productos 100% originales y garantía",
+        ]}
+      />
 
       {/* Main Navbar */}
       <nav className="bg-white border-b border-slate-100 shadow-sm">
