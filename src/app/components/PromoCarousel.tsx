@@ -48,16 +48,16 @@ export default function PromoCarousel({ messages, intervalMs = 2000, className =
       aria-live="polite"
     >
       {variant === "marquee" ? (
-        <div className="relative overflow-hidden">
+        <div className="relative overflow-hidden h-10">
           <style>{`
-            @keyframes promo-marquee { from { transform: translateX(100%); } to { transform: translateX(-100%); } }
+            @keyframes promo-marquee { from { transform: translateY(-50%) translateX(100%); } to { transform: translateY(-50%) translateX(-100%); } }
           `}</style>
           <span
             key={animKey}
             ref={marqueeRef}
-            className="inline-block whitespace-nowrap px-6"
+            className="absolute left-0 top-1/2 whitespace-nowrap px-6 text-sm"
             style={{
-              display: "inline-block",
+              transform: "translateY(-50%) translateX(100%)",
               animationName: "promo-marquee",
               animationDuration: `${intervalMs}ms`,
               animationTimingFunction: "linear",
