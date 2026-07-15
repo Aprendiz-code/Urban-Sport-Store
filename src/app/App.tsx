@@ -1540,6 +1540,10 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
 
+  const isLocalAuthFallback = !import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY;
+  const adminHintEmail = import.meta.env.VITE_ADMIN_EMAIL ?? 'admin@urbansportstore.dev';
+  const adminHintPassword = import.meta.env.VITE_ADMIN_PASSWORD ?? 'Admin123!';
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -1632,6 +1636,14 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
                 </button>
               </div>
             </div>
+            {isLocalAuthFallback && !isRegister && (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                <p className="font-semibold text-slate-900 mb-2">Login admin local</p>
+                <p className="text-slate-600">Usa estas credenciales para entrar al panel admin:</p>
+                <p className="mt-2 text-xs text-slate-500">Correo: <span className="font-medium text-slate-800">{adminHintEmail}</span></p>
+                <p className="text-xs text-slate-500">Contraseña: <span className="font-medium text-slate-800">{adminHintPassword}</span></p>
+              </div>
+            )}
             {isRegister && (
               <label className="flex items-start gap-2.5 cursor-pointer">
                 <input type="checkbox" className="mt-0.5 accent-[#1d4ed8]" />
