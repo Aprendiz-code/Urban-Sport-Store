@@ -14,26 +14,20 @@ export default function PromoCarousel({ messages, intervalMs = 2000, className =
   const isSlide = variant === "slide";
 
   useEffect(() => {
+    if (variant === "marquee") return;
     if (!messages || messages.length <= 1) return;
     if (paused) return;
     timerRef.current = window.setInterval(() => setIndex((i) => (i + 1) % messages.length), intervalMs);
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [messages, intervalMs, paused]);
+  }, [messages, intervalMs, paused, variant]);
 
   const prev = () => setIndex((i) => (i - 1 + messages.length) % messages.length);
   const next = () => setIndex((i) => (i + 1) % messages.length);
   const toggle = () => setPaused((p) => !p);
 
-  // Marquee (left-to-right) implementation: animate each message across the bar
-  const marqueeRef = useRef<HTMLSpanElement | null>(null);
-  const [animKey, setAnimKey] = useState(0);
-  useEffect(() => {
-    // reset animKey when index changes so animation restarts
-    setAnimKey((k) => k + 1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [index]);
+  const pauseMs = 600;
 
   return (
     <div
@@ -50,23 +44,20 @@ export default function PromoCarousel({ messages, intervalMs = 2000, className =
       {variant === "marquee" ? (
         <div className="relative overflow-hidden h-10">
           <style>{`
-            @keyframes promo-marquee { from { transform: translateY(-50%) translateX(100%); } to { transform: translateY(-50%) translateX(-100%); } }
+            @keyframes promo-marquee { 0% { transform: translateY(-50%) translateX(100%); } 90% { transform: translateY(-50%) translateX(-100%); } 100% { transform: translateY(-50%) translateX(-100%); } }
           `}</style>
           <span
-            key={animKey}
-            ref={marqueeRef}
+            key={index}
             className="absolute left-0 top-1/2 whitespace-nowrap px-6 text-sm"
             style={{
-              transform: "translateY(-50%) translateX(100%)",
               animationName: "promo-marquee",
-              animationDuration: `${intervalMs}ms`,
+              animationDuration: `${intervalMs + pauseMs}ms`,
               animationTimingFunction: "linear",
               animationFillMode: "forwards",
               animationPlayState: paused ? "paused" : "running",
             }}
             onAnimationEnd={() => {
-              const pauseMs = 600;
-              setTimeout(() => setIndex((i) => (i + 1) % messages.length), pauseMs);
+              if (!paused) setIndex((i) => (i + 1) % messages.length);
             }}
           >
             {messages[index]}
