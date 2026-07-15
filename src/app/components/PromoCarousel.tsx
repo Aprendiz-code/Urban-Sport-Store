@@ -27,44 +27,13 @@ export default function PromoCarousel({ messages, intervalMs = 2000, className =
   const toggle = () => setPaused((p) => !p);
 
   // Marquee (left-to-right) implementation: animate each message across the bar
-  const [marqueePos, setMarqueePos] = useState("100%");
   const marqueeRef = useRef<HTMLSpanElement | null>(null);
+  const [animKey, setAnimKey] = useState(0);
   useEffect(() => {
-    if (variant !== "marquee") return;
-    if (!messages || messages.length === 0) return;
-    if (paused) return;
-
-    let cancelled = false;
-
-    const pauseMs = 600; // small pause between messages
-
-    const run = async () => {
-      // start off-screen right
-      setMarqueePos("100%");
-      await new Promise((r) => setTimeout(r, 50));
-      if (cancelled) return;
-      if (marqueeRef.current) {
-        marqueeRef.current.style.transition = `transform ${intervalMs}ms linear`;
-      }
-      // animate to off-screen left
-      setMarqueePos("-100%");
-      await new Promise((r) => setTimeout(r, intervalMs));
-      if (cancelled) return;
-      // advance index
-      setIndex((i) => (i + 1) % messages.length);
-      if (marqueeRef.current) marqueeRef.current.style.transition = "none";
-      // short pause before next message
-      await new Promise((r) => setTimeout(r, pauseMs));
-      if (cancelled) return;
-      run();
-    };
-
-    run();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [variant, messages, intervalMs, paused]);
+    // reset animKey when index changes so animation restarts
+    setAnimKey((k) => k + 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index]);
 
   return (
     <div
@@ -80,10 +49,25 @@ export default function PromoCarousel({ messages, intervalMs = 2000, className =
     >
       {variant === "marquee" ? (
         <div className="relative overflow-hidden">
+          <style>{`
+            @keyframes promo-marquee { from { transform: translateX(100%); } to { transform: translateX(-100%); } }
+          `}</style>
           <span
+            key={animKey}
             ref={marqueeRef}
             className="inline-block whitespace-nowrap px-6"
-            style={{ transform: `translateX(${marqueePos})` }}
+            style={{
+              display: "inline-block",
+              animationName: "promo-marquee",
+              animationDuration: `${intervalMs}ms`,
+              animationTimingFunction: "linear",
+              animationFillMode: "forwards",
+              animationPlayState: paused ? "paused" : "running",
+            }}
+            onAnimationEnd={() => {
+              const pauseMs = 600;
+              setTimeout(() => setIndex((i) => (i + 1) % messages.length), pauseMs);
+            }}
           >
             {messages[index]}
           </span>
