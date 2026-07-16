@@ -2796,17 +2796,29 @@ export default function App() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+
     const params = new URLSearchParams(window.location.search);
     const paramView = params.get("view");
     const paramSection = params.get("adminSection");
 
-    if (paramView === "admin") {
+    if (paramView === "admin" && isAdmin) {
       setView("admin");
+      if (paramSection) {
+        setInitialAdminSection(paramSection);
+      }
+      return;
     }
-    if (paramSection) {
-      setInitialAdminSection(paramSection);
+
+    if (paramView === "admin" && !isAdmin) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("view");
+      url.searchParams.delete("adminSection");
+      window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
     }
-  }, []);
+
+    setView("home");
+    setInitialAdminSection(undefined);
+  }, [isAdmin]);
 
   useEffect(() => {
     let isActive = true;
@@ -2915,10 +2927,6 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (isAdmin && view !== "admin") {
-      navigate("admin");
-      return;
-    }
     if (!isAdmin && view === "admin") {
       navigate("login");
       return;
@@ -3040,6 +3048,18 @@ export default function App() {
 
   const navigate = (v: View) => {
     setView(v);
+
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      if (v === "admin") {
+        url.searchParams.set("view", "admin");
+      } else {
+        url.searchParams.delete("view");
+        url.searchParams.delete("adminSection");
+      }
+      window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    }
+
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
