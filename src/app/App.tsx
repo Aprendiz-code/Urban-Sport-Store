@@ -788,13 +788,13 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
         </div>
       </nav>
 
-      <div className="w-full h-16 sm:h-18 md:h-20 overflow-hidden">
+      <div className="w-full h-16 sm:h-20 md:h-24 lg:h-28 overflow-hidden">
         <button
           type="button"
           onClick={() => onNavigate("catalog")}
           aria-label="Ver promociones y productos con descuento"
           className={[
-            'block w-full h-full overflow-hidden transition-all duration-700 ease-out',
+            'block w-full h-full overflow-hidden bg-white transition-all duration-700 ease-out',
             'motion-reduce:transform-none motion-reduce:transition-none motion-reduce:animate-none',
             promoEntered
               ? 'opacity-100 translate-y-0 animate-[promo-pulse_3s_ease-in-out_infinite]'
