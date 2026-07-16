@@ -2915,10 +2915,6 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (isAdmin && view !== "admin") {
-      navigate("admin");
-      return;
-    }
     if (!isAdmin && view === "admin") {
       navigate("login");
       return;
