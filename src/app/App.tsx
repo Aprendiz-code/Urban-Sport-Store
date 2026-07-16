@@ -962,20 +962,20 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
   return (
     <main className="pt-[132px]">
       {/* Hero */}
-      <section className="relative min-h-[88vh] flex items-center overflow-hidden bg-slate-900">
+      <section className="relative min-h-screen md:min-h-[88vh] flex items-center overflow-hidden bg-slate-900">
         <img
-          src="https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=1600&h=900&fit=crop&auto=format"
-          alt="Atleta en acción" className="absolute inset-0 w-full h-full object-cover object-top"
+          src="/images/hero-bg.jpg"
+          alt="Zapatillas deportivas" className="absolute inset-0 w-full h-full object-cover object-center"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-slate-900/95 via-slate-900/60 to-slate-900/20" />
 
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-24 w-full">
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-24 w-full">
           <div className="max-w-lg">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#f97316]/20 border border-[#f97316]/30 text-[#f97316] text-xs font-bold tracking-widest uppercase mb-6">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#f97316]/20 border border-[#f97316]/30 text-[#f97316] text-xs font-bold tracking-widest uppercase mb-4">
               <Award size={12} /> Colección 2026
             </div>
-            <h1 className="text-5xl sm:text-6xl font-extrabold text-white leading-[1.05] tracking-tight mb-5">{content.heroTitle}</h1>
-            <p className="text-lg text-slate-300 leading-relaxed mb-8 max-w-md">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold text-white leading-tight tracking-tight mb-4">{content.heroTitle}</h1>
+            <p className="text-base sm:text-lg text-slate-300 leading-relaxed mb-6 max-w-md">
               {content.heroSubtitle}
             </p>
             <div className="flex flex-wrap gap-3">
