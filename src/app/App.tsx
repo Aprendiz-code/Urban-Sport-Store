@@ -921,12 +921,12 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
             <h2 className="text-2xl font-extrabold text-slate-900">{content.categorySectionTitle}</h2>
           </div>
         </div>
-        <div className="overflow-x-auto -mx-4 px-4 sm:px-0 pb-4">
-          <div className="flex flex-nowrap gap-4">
-            {HOME_CATEGORIES.map((cat) => (
-              <button key={cat.name}
+        <AutoScrollCarousel>
+          {HOME_CATEGORIES.map((cat) => (
+            <div key={cat.name} className="min-w-[13rem] sm:min-w-[14rem] lg:min-w-[14.5rem] flex-shrink-0">
+              <button
                 onClick={() => onCategorySelect(cat.name as Category)}
-                className="group relative rounded-3xl overflow-hidden aspect-[4/3] min-w-[13rem] sm:min-w-[14rem] lg:min-w-[14.5rem] bg-slate-200 hover:shadow-lg transition-all duration-300">
+                className="group relative rounded-3xl overflow-hidden aspect-[4/3] w-full bg-slate-200 hover:shadow-lg transition-all duration-300">
                 <img src={cat.image} alt={cat.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent" />
                 <div className="absolute bottom-0 left-0 right-0 p-3">
@@ -934,9 +934,9 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
                   <p className="text-[9px] text-slate-300">{cat.sub}</p>
                 </div>
               </button>
-            ))}
-          </div>
-        </div>
+            </div>
+          ))}
+        </AutoScrollCarousel>
       </section>
 
       {/* Featured */}
