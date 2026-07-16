@@ -668,7 +668,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
 
         {/* Categories Bar */}
         {(currentView === "home" || currentView === "catalog") && (
-          <div className="hidden md:flex border-t border-slate-100 overflow-x-auto">
+          <div className="hidden md:flex border-t border-slate-100 overflow-x-auto mt-3">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center gap-1 h-11">
               {NAV_CATEGORIES.map((cat) => (
                 <button key={cat.name}
@@ -683,7 +683,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
 
         {/* Mobile menu */}
         {(currentView === "home" || currentView === "catalog") && menuOpen && (
-          <div className="md:hidden border-t border-slate-100 bg-white px-4 py-3 space-y-1">
+          <div className="md:hidden border-t border-slate-100 bg-white px-4 py-3 space-y-1 mt-3">
             <div className="relative mb-3">
               <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input placeholder="Buscar…" className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none" />
