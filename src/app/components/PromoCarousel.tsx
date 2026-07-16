@@ -51,7 +51,7 @@ export default function PromoCarousel({ messages, intervalMs = 2000, className =
           `}</style>
           <span
             key={index}
-            className="absolute left-0 top-1/2 whitespace-nowrap px-4 text-sm leading-none -translate-y-1/2"
+            className="absolute left-0 top-1/2 whitespace-nowrap px-3 text-sm leading-none -translate-y-1/2"
             style={{
               animationName: "promo-marquee",
               animationDuration: `${intervalMs}ms`,
@@ -73,7 +73,7 @@ export default function PromoCarousel({ messages, intervalMs = 2000, className =
             style={{ width: `${messages.length * 100}%`, transform: `translateX(-${index * (100 / messages.length)}%)` }}
           >
             {messages.map((m, i) => (
-              <div key={i} className="flex-shrink-0 w-full h-full flex items-center justify-center px-4 whitespace-nowrap text-sm leading-none">
+              <div key={i} className="flex-shrink-0 w-full h-full flex items-center justify-center px-3 whitespace-nowrap text-sm leading-none">
                 {m}
               </div>
             ))}
@@ -84,7 +84,7 @@ export default function PromoCarousel({ messages, intervalMs = 2000, className =
           {messages.map((m, i) => (
             <span
               key={i}
-              className={`absolute inset-0 flex items-center justify-center transition-opacity duration-500 ease-in-out px-4 whitespace-nowrap leading-none ${
+              className={`absolute inset-0 flex items-center justify-center transition-opacity duration-500 ease-in-out px-3 whitespace-nowrap leading-none ${
                 i === index ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-1"
               }`}
               aria-hidden={i === index ? "false" : "true"}
