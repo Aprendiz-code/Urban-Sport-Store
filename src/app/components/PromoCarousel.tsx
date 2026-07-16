@@ -29,7 +29,8 @@ export default function PromoCarousel({ messages, intervalMs = 2000, className =
 
   return (
     <div
-      className={`relative bg-black text-white text-center md:h-7 h-auto text-xs md:text-xs text-sm font-semibold tracking-wide ${className}`}
+      className={`relative bg-black text-white text-center h-11 md:h-7 text-xs md:text-xs text-sm font-semibold tracking-wide ${className}`}
+      style={{ minHeight: 44 }}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       tabIndex={0}
