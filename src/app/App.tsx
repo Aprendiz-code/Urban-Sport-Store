@@ -82,6 +82,12 @@ interface HomePageContent {
   featuredSectionImage?: string;
   newArrivalsSectionImage?: string;
   saleSectionImage?: string;
+  featuredSectionSubtitle?: string;
+  featuredSectionDiscount?: string;
+  newArrivalsSectionSubtitle?: string;
+  newArrivalsSectionDiscount?: string;
+  saleSectionSubtitle?: string;
+  saleSectionDiscount?: string;
 }
 
 const LOCAL_ADDRESS_STORAGE = "urbansport_addresses";
@@ -2214,6 +2220,12 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
     featuredSectionLabel: "Lo más buscado",
     newArrivalsLabel: "Recién llegados",
     saleSectionLabel: "Oferta especial",
+    featuredSectionSubtitle: "Los productos más buscados por nuestros clientes.",
+    featuredSectionDiscount: "",
+    newArrivalsSectionSubtitle: "Novedades directamente desde las marcas.",
+    newArrivalsSectionDiscount: "",
+    saleSectionSubtitle: "Promociones y descuentos por tiempo limitado.",
+    saleSectionDiscount: "",
     categorySectionImage: "",
     featuredSectionImage: "",
     newArrivalsSectionImage: "",
@@ -2659,58 +2671,12 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                     <textarea value={homeContent.heroSubtitle} onChange={(e) => updateHomeContentField("heroSubtitle", e.target.value)} rows={3} className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
                   </div>
 
-                  {/* Sections in requested order: label then title */}
                   <div className="space-y-4 mt-2">
-                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                      <p className="text-sm font-semibold mb-2">Explorar</p>
-                      <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Etiqueta</label>
+                    <div>
+                      <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Categoría - Etiqueta</label>
                       <input value={homeContent.categorySectionLabel} onChange={(e) => updateHomeContentField("categorySectionLabel", e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 mb-3" />
-                      <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Título</label>
+                      <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Categoría - Título</label>
                       <input value={homeContent.categorySectionTitle} onChange={(e) => updateHomeContentField("categorySectionTitle", e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900" />
-                      <label className="block text-xs font-bold uppercase text-slate-500 mb-1 mt-3">Imagen de sección (opcional)</label>
-                      <div className="flex items-center gap-3">
-                        <input type="file" accept="image/*" onChange={(e) => handleSectionImageFileChange("categorySectionImage" as keyof HomePageContent, e)} />
-                        <input value={homeContent.categorySectionImage ?? ""} onChange={(e) => updateHomeContentField("categorySectionImage", e.target.value)} placeholder="URL de imagen (opcional)" className="flex-1 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900" />
-                      </div>
-                    </div>
-
-                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                      <p className="text-sm font-semibold mb-2">Lo más buscado</p>
-                      <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Etiqueta</label>
-                      <input value={homeContent.featuredSectionLabel} onChange={(e) => updateHomeContentField("featuredSectionLabel", e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 mb-3" />
-                      <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Título</label>
-                      <input value={homeContent.featuredSectionTitle} onChange={(e) => updateHomeContentField("featuredSectionTitle", e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900" />
-                        <label className="block text-xs font-bold uppercase text-slate-500 mb-1 mt-3">Imagen de sección (opcional)</label>
-                        <div className="flex items-center gap-3">
-                          <input type="file" accept="image/*" onChange={(e) => handleSectionImageFileChange("featuredSectionImage" as keyof HomePageContent, e)} />
-                          <input value={homeContent.featuredSectionImage ?? ""} onChange={(e) => updateHomeContentField("featuredSectionImage", e.target.value)} placeholder="URL de imagen (opcional)" className="flex-1 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900" />
-                        </div>
-                    </div>
-
-                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                      <p className="text-sm font-semibold mb-2">Recién llegados</p>
-                      <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Etiqueta</label>
-                      <input value={homeContent.newArrivalsLabel} onChange={(e) => updateHomeContentField("newArrivalsLabel", e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 mb-3" />
-                      <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Título</label>
-                      <input value={homeContent.newArrivalsSectionTitle} onChange={(e) => updateHomeContentField("newArrivalsSectionTitle", e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900" />
-                        <label className="block text-xs font-bold uppercase text-slate-500 mb-1 mt-3">Imagen de sección (opcional)</label>
-                        <div className="flex items-center gap-3">
-                          <input type="file" accept="image/*" onChange={(e) => handleSectionImageFileChange("newArrivalsSectionImage" as keyof HomePageContent, e)} />
-                          <input value={homeContent.newArrivalsSectionImage ?? ""} onChange={(e) => updateHomeContentField("newArrivalsSectionImage", e.target.value)} placeholder="URL de imagen (opcional)" className="flex-1 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900" />
-                        </div>
-                    </div>
-
-                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                      <p className="text-sm font-semibold mb-2">Oferta especial</p>
-                      <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Etiqueta</label>
-                      <input value={homeContent.saleSectionLabel} onChange={(e) => updateHomeContentField("saleSectionLabel", e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 mb-3" />
-                      <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Título</label>
-                      <input value={homeContent.saleSectionTitle} onChange={(e) => updateHomeContentField("saleSectionTitle", e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900" />
-                        <label className="block text-xs font-bold uppercase text-slate-500 mb-1 mt-3">Imagen de sección (opcional)</label>
-                        <div className="flex items-center gap-3">
-                          <input type="file" accept="image/*" onChange={(e) => handleSectionImageFileChange("saleSectionImage" as keyof HomePageContent, e)} />
-                          <input value={homeContent.saleSectionImage ?? ""} onChange={(e) => updateHomeContentField("saleSectionImage", e.target.value)} placeholder="URL de imagen (opcional)" className="flex-1 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900" />
-                        </div>
                     </div>
                   </div>
                 </div>
@@ -2768,8 +2734,44 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                     </div>
                     <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">{section.selected.length}/4</span>
                   </div>
-
                   <div className="space-y-3">
+                    <div className="grid gap-3 mb-2">
+                      <label className="text-xs font-bold uppercase text-slate-500">Etiqueta (sección)</label>
+                      <input
+                        value={section.id === 'preview' ? homeContent.featuredSectionLabel : section.id === 'newArrivals' ? homeContent.newArrivalsLabel : homeContent.saleSectionLabel}
+                        onChange={(e) => updateHomeContentField(section.id === 'preview' ? 'featuredSectionLabel' : section.id === 'newArrivals' ? 'newArrivalsLabel' : 'saleSectionLabel', e.target.value)}
+                        className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
+                      />
+                      <label className="text-xs font-bold uppercase text-slate-500">Título</label>
+                      <input
+                        value={section.id === 'preview' ? homeContent.featuredSectionTitle : section.id === 'newArrivals' ? homeContent.newArrivalsSectionTitle : homeContent.saleSectionTitle}
+                        onChange={(e) => updateHomeContentField(section.id === 'preview' ? 'featuredSectionTitle' : section.id === 'newArrivals' ? 'newArrivalsSectionTitle' : 'saleSectionTitle', e.target.value)}
+                        className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
+                      />
+                      <label className="text-xs font-bold uppercase text-slate-500">Subtítulo (opcional)</label>
+                      <input
+                        value={section.id === 'preview' ? homeContent.featuredSectionSubtitle ?? '' : section.id === 'newArrivals' ? homeContent.newArrivalsSectionSubtitle ?? '' : homeContent.saleSectionSubtitle ?? ''}
+                        onChange={(e) => updateHomeContentField(section.id === 'preview' ? 'featuredSectionSubtitle' : section.id === 'newArrivals' ? 'newArrivalsSectionSubtitle' : 'saleSectionSubtitle', e.target.value)}
+                        className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
+                      />
+                      <label className="text-xs font-bold uppercase text-slate-500">Texto de descuento (opcional)</label>
+                      <input
+                        value={section.id === 'preview' ? homeContent.featuredSectionDiscount ?? '' : section.id === 'newArrivals' ? homeContent.newArrivalsSectionDiscount ?? '' : homeContent.saleSectionDiscount ?? ''}
+                        onChange={(e) => updateHomeContentField(section.id === 'preview' ? 'featuredSectionDiscount' : section.id === 'newArrivals' ? 'newArrivalsSectionDiscount' : 'saleSectionDiscount', e.target.value)}
+                        className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
+                      />
+                      <label className="text-xs font-bold uppercase text-slate-500">Imagen de sección (opcional)</label>
+                      <div className="flex items-center gap-3">
+                        <input type="file" accept="image/*" onChange={(e) => handleSectionImageFileChange(section.id === 'preview' ? ('featuredSectionImage' as keyof HomePageContent) : section.id === 'newArrivals' ? ('newArrivalsSectionImage' as keyof HomePageContent) : ('saleSectionImage' as keyof HomePageContent), e)} />
+                        <input
+                          value={section.id === 'preview' ? homeContent.featuredSectionImage ?? '' : section.id === 'newArrivals' ? homeContent.newArrivalsSectionImage ?? '' : homeContent.saleSectionImage ?? ''}
+                          onChange={(e) => updateHomeContentField(section.id === 'preview' ? 'featuredSectionImage' : section.id === 'newArrivals' ? 'newArrivalsSectionImage' : 'saleSectionImage', e.target.value)}
+                          placeholder="URL de imagen (opcional)"
+                          className="flex-1 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
+                        />
+                      </div>
+                    </div>
+
                     <div>
                       <p className="text-xs uppercase tracking-[0.24em] text-slate-400 mb-3">Productos disponibles</p>
                       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -3305,6 +3307,12 @@ export default function App() {
     featuredSectionImage: "",
     newArrivalsSectionImage: "",
     saleSectionImage: "",
+    featuredSectionSubtitle: "Los productos más buscados por nuestros clientes.",
+    featuredSectionDiscount: "",
+    newArrivalsSectionSubtitle: "Novedades directamente desde las marcas.",
+    newArrivalsSectionDiscount: "",
+    saleSectionSubtitle: "Promociones y descuentos por tiempo limitado.",
+    saleSectionDiscount: "",
   });
   const [homePreviewProducts, setHomePreviewProducts] = useState<Product[]>(PRODUCTS.slice(0, 4));
   const [homeSaleProducts, setHomeSaleProducts] = useState<Product[]>(PRODUCTS.filter((p) => p.discount).slice(0, 4));
