@@ -2135,16 +2135,16 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
 
   const pageTitle = SECTION_TITLES[adminSection] ?? "Panel de administración";
 
-  const openAdminSectionWindow = (section: string) => {
+  const updateAdminSectionUrl = (section: string) => {
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
     url.searchParams.set("view", "admin");
     url.searchParams.set("adminSection", section);
-    window.open(url.toString(), "_blank", "noopener,noreferrer");
+    window.history.replaceState({}, "", url.pathname + url.search);
   };
 
   const handleSidebarClick = (section: string) => {
-    openAdminSectionWindow(section);
+    updateAdminSectionUrl(section);
     setAdminSection(section);
   };
 
@@ -2915,6 +2915,10 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (isAdmin && view !== "admin") {
+      navigate("admin");
+      return;
+    }
     if (!isAdmin && view === "admin") {
       navigate("login");
       return;
@@ -3036,14 +3040,6 @@ export default function App() {
 
   const navigate = (v: View) => {
     setView(v);
-    if (typeof window !== "undefined") {
-      if (v !== "admin") {
-        const url = new URL(window.location.href);
-        url.searchParams.delete("view");
-        url.searchParams.delete("adminSection");
-        window.history.replaceState({}, "", url.pathname + url.search);
-      }
-    }
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
