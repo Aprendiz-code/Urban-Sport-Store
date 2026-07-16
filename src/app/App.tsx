@@ -3211,6 +3211,23 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [authUser, setAuthUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  // Dev helper: force admin session when visiting URL with ?forceAdmin=1
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('forceAdmin') === '1') {
+        const adminEmail = import.meta.env.VITE_ADMIN_EMAIL ?? 'admin@urbansportstore.dev';
+        const localUser = { id: 'local-admin', email: adminEmail, user_metadata: { full_name: 'Administrador local', role: 'ADMIN', isAdmin: true } } as unknown as User;
+        setAuthUser(localUser);
+        setIsAdmin(true);
+        setView('admin');
+        setInitialAdminSection('homepage');
+      }
+    } catch (e) {
+      // no-op
+    }
+  }, []);
   const [homeContent, setHomeContent] = useState<HomePageContent>({
     heroTitle: "Tu ritmo. Tu estilo. Tu mejor versión.",
     heroSubtitle: "Zapatillas, ropa deportiva, perfumes y accesorios premium. Todo lo que necesitas para rendir al máximo y lucir increíble.",
