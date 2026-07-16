@@ -3687,35 +3687,7 @@ export default function App() {
         />
       )}
 
-      {/* Mobile bottom nav */}
-      {view !== "admin" && (
-        <div className="fixed bottom-0 left-0 right-0 md:hidden bg-white border-t border-slate-200 z-40 flex">
-        {[
-          { label: "Inicio", icon: <Home size={20} />, view: "home" as View },
-          { label: "Buscar", icon: <Search size={20} />, view: "catalog" as View },
-          { label: "Carrito", icon: <ShoppingCart size={20} />, action: () => setCartOpen(true) },
-          { label: "Cuenta", icon: <Users size={20} />, view: isLoggedIn ? "account" as View : "login" as View },
-        ].map((item) => (
-          <button
-            key={item.label}
-            onClick={item.action ?? (() => navigate(item.view!))}
-            className={`flex-1 flex flex-col items-center justify-center py-2.5 gap-1 text-[10px] font-bold transition-colors ${
-              !item.action && view === item.view ? "text-[#1d4ed8]" : "text-slate-400"
-            }`}
-          >
-            <div className="relative">
-              {item.icon}
-              {item.label === "Carrito" && cart.reduce((s, i) => s + i.qty, 0) > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-[#f97316] text-white text-[8px] font-bold flex items-center justify-center">
-                  {cart.reduce((s, i) => s + i.qty, 0)}
-                </span>
-              )}
-            </div>
-            {item.label}
-          </button>
-        ))}
-      </div>
-      )}
+      {/* Mobile bottom nav removed for web-style layout */}
     </div>
   );
 }
