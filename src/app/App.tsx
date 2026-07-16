@@ -805,6 +805,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
             src={promoRibbon}
             alt="Rebajas UrbanSport Store: 10% de descuento en tu primera compra"
             className="block w-full h-full object-cover object-center"
+            style={{ objectPosition: '50% 45%' }}
           />
         </button>
       </div>
