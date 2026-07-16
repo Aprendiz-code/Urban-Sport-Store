@@ -607,7 +607,6 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
   onCategorySelect: (c: Category) => void;
   onSelectProduct: (p: Product) => void;
 }) {
-  const [menuOpen, setMenuOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
   const [searchVal, setSearchVal] = useState("");
   const [suggestions, setSuggestions] = useState<Product[]>([]);
@@ -780,21 +779,17 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
               )}
             </div>
 
-            <button onClick={() => setMenuOpen(!menuOpen)}
-              className="md:hidden w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-colors">
-              {menuOpen ? <X size={19} /> : <Menu size={19} />}
-            </button>
           </div>
         </div>
       </nav>
 
-      <div className="w-full h-20 sm:h-24 md:h-28 lg:h-32 overflow-hidden">
+      <div className="w-full overflow-hidden bg-white">
         <button
           type="button"
           onClick={() => onNavigate("catalog")}
           aria-label="Ver promociones y productos con descuento"
           className={[
-            'block w-full h-full overflow-hidden bg-white transition-all duration-700 ease-out',
+            'block w-full overflow-hidden transition-all duration-700 ease-out',
             'motion-reduce:transform-none motion-reduce:transition-none motion-reduce:animate-none',
             promoEntered
               ? 'opacity-100 translate-y-0 animate-[promo-pulse_3s_ease-in-out_infinite]'
@@ -804,7 +799,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
           <img
             src={promoRibbon}
             alt="Rebajas UrbanSport Store: 10% de descuento en tu primera compra"
-            className="block w-full h-full object-contain object-center"
+            className="mx-auto block w-auto max-w-full h-[4.5rem] sm:h-[5.5rem] md:h-[6.5rem] lg:h-[7.5rem] xl:h-[8.5rem] object-contain object-center"
           />
         </button>
       </div>
@@ -839,15 +834,6 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
           </div>
         )}
 
-        {/* Mobile menu */}
-        {menuOpen && (
-          <div className="md:hidden border-t border-slate-100 bg-white px-4 py-3 mt-3">
-            <div className="relative mb-3">
-              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input placeholder="Buscar…" className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none" />
-            </div>
-          </div>
-        )}
       </nav>
     </div>
   );
