@@ -9,6 +9,7 @@ import {
   RefreshCw, Award, Grid3X3
 } from "lucide-react";
 import PromoCarousel from "./components/PromoCarousel";
+import promoRibbon from "../../10%/cinta 10% descuento.PNG";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
@@ -780,6 +781,21 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
           </div>
         </div>
 
+
+        <div className="w-full overflow-hidden h-11 sm:h-12 md:h-16 lg:h-20 promo-ribbon-entry">
+          <button
+            type="button"
+            onClick={() => onNavigate("catalog")}
+            className="w-full h-full"
+            aria-label="Promoción: 10% de descuento en tu primera compra"
+          >
+            <img
+              src={promoRibbon}
+              alt="Promoción: 10% de descuento en tu primera compra"
+              className="w-full h-full object-cover object-center"
+            />
+          </button>
+        </div>
 
         {/* Categories Bar */}
         {(currentView === "home" || currentView === "catalog") && (
