@@ -780,19 +780,17 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
           </div>
         </div>
 
-        {/* Promo ribbon above category buttons */}
+        {/* Promo text above category buttons */}
         {(currentView === "home" || currentView === "catalog") && (
           <div className="mt-4 mb-2 px-4 sm:px-6">
-            <div className="relative mx-auto w-full max-w-xl">
-              <div className="promo-ribbon-bg overflow-hidden shadow-xl rounded-full border border-amber-100/40">
-                <div className="promo-ribbon-scroll flex items-center justify-center min-w-[180%] px-6 py-2 text-[11px] sm:text-[12px] md:text-sm font-bold uppercase tracking-[0.2em] text-white shadow-inner">
-                  <span className="inline-flex items-center gap-3 whitespace-nowrap">
-                    <span>URBAN</span>
-                    <span className="text-amber-100">SPORT</span>
-                    <span>STORE</span>
-                    <span className="text-white/90">10% DE DESCUENTO EN TU PRIMERA COMPRA</span>
-                  </span>
-                </div>
+            <div className="relative mx-auto w-full max-w-xl bg-white shadow-sm rounded-full">
+              <div className="flex items-center justify-center px-6 py-2 text-[11px] sm:text-[12px] md:text-sm font-bold uppercase tracking-[0.2em] text-slate-900">
+                <span className="inline-flex items-center gap-3 whitespace-nowrap">
+                  <span>URBAN</span>
+                  <span className="text-slate-700">SPORT</span>
+                  <span>STORE</span>
+                  <span className="text-slate-600">10% de descuento en tu primera compra</span>
+                </span>
               </div>
             </div>
           </div>
