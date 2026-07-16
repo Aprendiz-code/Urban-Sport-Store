@@ -10,26 +10,38 @@
 
 .promo-ribbon-entry {
   opacity: 0;
-  transform: translateY(-0.75rem);
+  transform: translateY(-0.5rem);
   animation: promoRibbonFadeIn 700ms ease-out forwards;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .promo-ribbon-entry {
-    animation: none;
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 @keyframes promoRibbonFadeIn {
   from {
     opacity: 0;
-    transform: translateY(-0.75rem);
+    transform: translateY(-0.5rem);
   }
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes promo-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.82;
+    transform: scale(1.01);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .promo-ribbon-entry,
+  .promo-ribbon-entry button {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
   }
 }
 

@@ -615,6 +615,12 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
   const suggestTimer = useRef<number | null>(null);
   const cartCount = cart.reduce((s, i) => s + i.qty, 0);
   const showCustomerOrders = !isAdmin && !isAdminUser(authUser);
+  const [promoEntered, setPromoEntered] = useState(false);
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setPromoEntered(true));
+    return () => cancelAnimationFrame(frame);
+  }, []);
 
   // suggestions effect
   useEffect(() => {
@@ -781,18 +787,23 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
           </div>
         </div>
 
-
-        <div className="w-full overflow-hidden h-11 sm:h-12 md:h-16 lg:h-20 promo-ribbon-entry">
+        <div className="w-full overflow-hidden">
           <button
             type="button"
             onClick={() => onNavigate("catalog")}
-            className="w-full h-full"
-            aria-label="Promoción: 10% de descuento en tu primera compra"
+            aria-label="Ver promociones y productos con descuento"
+            className={[
+              'block w-full overflow-hidden transition-all duration-700 ease-out',
+              'motion-reduce:transform-none motion-reduce:transition-none motion-reduce:animate-none',
+              promoEntered
+                ? 'opacity-100 translate-y-0 animate-[promo-pulse_3s_ease-in-out_infinite]'
+                : 'opacity-0 -translate-y-2',
+            ].join(' ')}
           >
             <img
               src={promoRibbon}
-              alt="Promoción: 10% de descuento en tu primera compra"
-              className="w-full h-full object-cover object-center"
+              alt="Rebajas UrbanSport Store: 10% de descuento en tu primera compra"
+              className="block w-full h-auto object-contain"
             />
           </button>
         </div>
