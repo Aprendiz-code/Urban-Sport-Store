@@ -888,11 +888,11 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
             <h2 className="text-2xl font-extrabold text-slate-900">{content.categorySectionTitle}</h2>
           </div>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {HOME_CATEGORIES.map((cat) => (
             <button key={cat.name}
               onClick={() => onCategorySelect(cat.name as Category)}
-              className="group relative rounded-2xl overflow-hidden aspect-[3/2] bg-slate-200 hover:shadow-lg transition-all duration-300">
+              className="group relative rounded-3xl overflow-hidden aspect-[4/3] bg-slate-200 hover:shadow-lg transition-all duration-300">
               <img src={cat.image} alt={cat.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
               <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent" />
               <div className="absolute bottom-0 left-0 right-0 p-3">
