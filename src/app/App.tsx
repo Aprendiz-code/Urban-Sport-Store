@@ -784,25 +784,26 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
       </nav>
 
       <div className="w-full overflow-hidden bg-white">
-        <button
-          type="button"
-          onClick={() => onNavigate("catalog")}
-          aria-label="Ver promociones y productos con descuento"
-          className={[
-            'block w-full overflow-hidden transition-all duration-700 ease-out',
-            'motion-reduce:transform-none motion-reduce:transition-none motion-reduce:animate-none',
-            promoEntered
-              ? 'opacity-100 translate-y-0 animate-[promo-pulse_3s_ease-in-out_infinite]'
-              : 'opacity-0 -translate-y-2',
-          ].join(' ')}
-        >
-          <img
-            src={promoRibbon}
-            alt="Rebajas UrbanSport Store: 10% de descuento en tu primera compra"
-            className="mx-auto block w-auto max-w-full h-[4.5rem] sm:h-[5.5rem] md:h-[6.5rem] lg:h-[7.5rem] xl:h-[8.5rem] object-contain object-center"
-          />
-        </button>
-      </div>
+  <button
+    type="button"
+    onClick={() => onNavigate('catalog')}
+    aria-label="Ver promociones y productos con descuento"
+    className={[
+      'block w-full overflow-hidden bg-white',
+      'transition-all duration-700 ease-out',
+      'motion-reduce:transform-none motion-reduce:transition-none motion-reduce:animate-none',
+      promoEntered
+        ? 'opacity-100 translate-y-0 animate-[promo-pulse_3s_ease-in-out_infinite]'
+        : 'opacity-0 -translate-y-2',
+    ].join(' ')}
+  >
+    <img
+      src={promoRibbon}
+      alt="Rebajas UrbanSport Store 10% de descuento en tu primera compra"
+      className="block w-full h-auto"
+    />
+  </button>
+</div>
 
       {/* Categories Bar */}
         {(currentView === "home" || currentView === "catalog") && (
