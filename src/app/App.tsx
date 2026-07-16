@@ -1944,12 +1944,25 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
       {/* Right panel */}
       <div className="flex-1 flex items-center justify-center px-4 py-16 bg-white">
         <div className="w-full max-w-md space-y-6">
-          <div>
-            <h1 className="text-2xl font-extrabold text-slate-900">{isRegister ? "Crear cuenta" : "Bienvenido de vuelta"}</h1>
-            <p className="text-sm text-slate-500 mt-1">{isRegister ? "Únete a UrbanSport Store" : "Ingresa a tu cuenta para continuar"}</p>
+          {/* Mobile banner above form */}
+          <div className="md:hidden w-full mb-2">
+            <div className="relative rounded-2xl overflow-hidden h-40">
+              <img src="/images/login-bg3.jpg" alt="Ropa deportiva" className="absolute inset-0 w-full h-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent" />
+              <div className="absolute inset-0 p-4 flex flex-col justify-end">
+                <h2 className="text-lg font-extrabold text-white">Tu mejor versión</h2>
+                <p className="text-xs text-slate-200">Ropa, zapatillas y accesorios premium</p>
+              </div>
+            </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="bg-white rounded-2xl shadow-lg p-5">
+            <div>
+              <h1 className="text-2xl font-extrabold text-slate-900">{isRegister ? "Crear cuenta" : "Bienvenido de vuelta"}</h1>
+              <p className="text-sm text-slate-500 mt-1">{isRegister ? "Únete a UrbanSport Store" : "Ingresa a tu cuenta para continuar"}</p>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
             {isRegister && (
               <div className="grid grid-cols-2 gap-4">
                 {[["Nombre", "Diego"], ["Apellido", "Martínez"]].map(([lbl, ph]) => (
@@ -1962,7 +1975,7 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
             )}
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">Correo electrónico</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="diego@email.com" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#1d4ed8]/50 transition-colors" />
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="diego@email.com" className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-xl text-base text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#1d4ed8]/50 transition-colors" />
             </div>
             <div>
               <div className="flex justify-between mb-1.5">
@@ -1972,7 +1985,7 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
               </div>
               <div className="relative">
                 <input type={showPass ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••"
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#1d4ed8]/50 transition-colors" />
+                  className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-xl text-base text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#1d4ed8]/50 transition-colors" />
                 <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                   {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
@@ -1987,10 +2000,11 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
             )}
             {error && <p className="text-sm text-red-600">{error}</p>}
             <button type="submit" disabled={loading}
-              className="w-full py-3.5 rounded-xl bg-[#1d4ed8] text-white font-extrabold text-sm hover:bg-[#1e40af] disabled:opacity-60 shadow-lg shadow-blue-200 transition-all flex items-center justify-center gap-2">
+              className="w-full py-4 rounded-xl bg-[#1d4ed8] text-white font-extrabold text-base hover:bg-[#1e40af] disabled:opacity-60 shadow-lg shadow-blue-200 transition-all flex items-center justify-center gap-2">
               {loading ? <><RefreshCw size={15} className="animate-spin" /> Procesando…</> : isRegister ? "Crear cuenta" : "Iniciar sesión"}
             </button>
           </form>
+          </div>
 
           <div className="relative flex items-center gap-3">
             <div className="flex-1 h-px bg-slate-200" />
