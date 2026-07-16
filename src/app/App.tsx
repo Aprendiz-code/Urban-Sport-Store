@@ -1882,7 +1882,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
   ];
 
   const SIDEBAR_LINKS = [
-    { id: "dashboard", icon: <Home size={16} />, label: "Dashboard" },
+    { id: "dashboard", icon: <Home size={16} />, label: "Inicio" },
     { id: "products", icon: <Package size={16} />, label: "Productos" },
     { id: "orders", icon: <Tag size={16} />, label: "Pedidos" },
     { id: "inventory", icon: <Layers size={16} />, label: "Inventario" },
@@ -1891,6 +1891,19 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
     { id: "activity", icon: <Grid3X3 size={16} />, label: "Actividad" },
     { id: "settings", icon: <Settings size={16} />, label: "Ajustes" },
   ];
+
+  const SECTION_TITLES: Record<string, string> = {
+    dashboard: "Panel de administración",
+    products: "Productos",
+    orders: "Pedidos",
+    inventory: "Inventario",
+    coupons: "Cupones",
+    reports: "Reportes",
+    activity: "Actividad",
+    settings: "Ajustes",
+  };
+
+  const pageTitle = SECTION_TITLES[adminSection] ?? "Panel de administración";
 
   const LOW_STOCK = products.filter((product) => product.stock <= 10).map((product) => ({
     name: product.name, stock: product.stock, sku: product.sku,
@@ -2029,7 +2042,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
       {/* Admin Sidebar — colored blue */}
       <aside className="w-56 shrink-0 bg-[#1e3a8a] fixed top-[88px] bottom-0 left-0 flex flex-col hidden md:flex z-40">
         <div className="p-4 border-b border-white/10">
-          <p className="text-[10px] font-bold text-blue-200 uppercase tracking-widest">Panel Admin</p>
+          <p className="text-[10px] font-bold text-blue-200 uppercase tracking-widest">Panel de administración</p>
         </div>
         <nav className="p-2 flex-1 overflow-y-auto space-y-0.5">
           {SIDEBAR_LINKS.map((l) => (
@@ -2050,7 +2063,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
       <main className="flex-1 min-w-0 md:pl-56 px-4 sm:px-6 py-8 overflow-x-hidden">
         <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 capitalize">{adminSection === "dashboard" ? "Panel de administrador" : `${adminSection.charAt(0).toUpperCase()}${adminSection.slice(1)}`}</h1>
+            <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900">{pageTitle}</h1>
             <p className="text-sm text-slate-500 mt-2">Bienvenido al espacio administrativo de Urban Sport Store.</p>
           </div>
           <div className="flex items-center gap-3">
