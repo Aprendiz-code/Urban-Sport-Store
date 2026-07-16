@@ -1029,7 +1029,7 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
               <img src="https://images.unsplash.com/photo-1556821840-3a63f15732ce?w=1200&h=800&fit=crop&auto=format"
                 alt="Ropa Hombre" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
             </picture>
-            <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 to-slate-900/15" />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/30 to-slate-900/10" />
             <div className="absolute inset-0 p-6 sm:p-8 flex flex-col justify-end">
               <p className="text-xs font-semibold text-[#fbbf24] uppercase tracking-[0.3em] mb-1.5">Temporada 2026</p>
               <h3 className="text-2xl sm:text-3xl font-extrabold text-white mb-3">Ropa Hombre</h3>
