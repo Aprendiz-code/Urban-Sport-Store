@@ -294,6 +294,15 @@ const NAV_CATEGORIES: { name: Category }[] = [
   { name: "Gafas" },
 ];
 
+const CATEGORY_SUBCATEGORIES: Record<Category, string[]> = {
+  Zapatos: ["Running", "Casual", "Gym y training", "Training", "Trail"],
+  "Ropa Hombre": ["Buzos y hoodies", "Pantalones", "Camisetas", "Shorts"],
+  "Ropa Mujer": ["Leggings", "Tops", "Sudaderas", "Shorts"],
+  Perfumes: ["Hombre", "Mujer", "Unisex"],
+  Relojes: ["Smartwatch Running", "Deportivo", "Casual"],
+  Gafas: ["Running", "Ciclismo", "Outdoor", "Casual"],
+};
+
 const HOME_CATEGORIES = [
   { name: "Zapatos", sub: "Running · Training · Casual", image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500&h=380&fit=crop&auto=format" },
   { name: "Ropa Hombre", sub: "Camisetas · Buzos · Pantalones", image: "https://images.unsplash.com/photo-1556821840-3a63f15732ce?w=500&h=380&fit=crop&auto=format" },
@@ -2090,7 +2099,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
   const [activeProduct, setActiveProduct] = useState<Product | null>(null);
   const [productForm, setProductForm] = useState<Omit<Product, "id">>({
     name: "", brand: "", price: 0, originalPrice: undefined, discount: undefined,
-    rating: 0, reviews: 0, image: "", category: "Zapatos", subcategory: "",
+    rating: 0, reviews: 0, image: "", category: "Zapatos", subcategory: "Running",
     stock: 0, sku: "", description: "", colors: [], sizes: [], gender: "Unisex",
     isNew: false, isFeatured: false, specs: [],
   });
@@ -2160,7 +2169,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
     setActiveProduct(null);
     setProductForm({
       name: "", brand: "", price: 0, originalPrice: undefined, discount: undefined,
-      rating: 0, reviews: 0, image: "", category: "Zapatos", subcategory: "",
+      rating: 0, reviews: 0, image: "", category: "Zapatos", subcategory: "Running",
       stock: 0, sku: "", description: "", colors: [], sizes: [], gender: "Unisex",
       isNew: false, isFeatured: false, specs: [],
     });
@@ -2495,6 +2504,31 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                   <div>
                     <label className="text-xs font-bold text-slate-500 uppercase">Stock</label>
                     <input type="number" value={productForm.stock as any} onChange={(e) => updateField('stock', Number(e.target.value))} className="w-full px-3 py-2 mt-1 rounded-lg border border-slate-200 bg-slate-50" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 uppercase">Categoría</label>
+                    <select value={productForm.category} onChange={(e) => {
+                      const category = e.target.value as Category;
+                      updateField('category', category);
+                      const [defaultSubcategory] = CATEGORY_SUBCATEGORIES[category] || [''];
+                      if (!CATEGORY_SUBCATEGORIES[category].includes(productForm.subcategory)) {
+                        updateField('subcategory', defaultSubcategory);
+                      }
+                    }} className="w-full px-3 py-2 mt-1 rounded-lg border border-slate-200 bg-slate-50 text-slate-700">
+                      {Object.keys(CATEGORY_SUBCATEGORIES).map((cat) => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 uppercase">Subcategoría</label>
+                    <select value={productForm.subcategory} onChange={(e) => updateField('subcategory', e.target.value)} className="w-full px-3 py-2 mt-1 rounded-lg border border-slate-200 bg-slate-50 text-slate-700">
+                      {(CATEGORY_SUBCATEGORIES[productForm.category] || []).map((subcat) => (
+                        <option key={subcat} value={subcat}>{subcat}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
                 <div>
@@ -3006,6 +3040,14 @@ export default function App() {
 
   const navigate = (v: View) => {
     setView(v);
+    if (typeof window !== "undefined") {
+      if (v !== "admin") {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("view");
+        url.searchParams.delete("adminSection");
+        window.history.replaceState({}, "", url.pathname + url.search);
+      }
+    }
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
