@@ -67,6 +67,14 @@ interface Address {
   isDefault?: boolean;
 }
 
+interface HomePageContent {
+  heroTitle: string;
+  heroSubtitle: string;
+  featuredSectionTitle: string;
+  newArrivalsSectionTitle: string;
+  saleSectionTitle: string;
+}
+
 const LOCAL_ADDRESS_STORAGE = "urbansport_addresses";
 
 const DEFAULT_ADDRESSES: Address[] = [
@@ -803,14 +811,18 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
 
 // ─── HOME PAGE ────────────────────────────────────────────────────────────────
 
-function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect }: {
+function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, content, featuredProducts, newArrivalsProducts, saleProducts }: {
   onNavigate: (v: View) => void; onSelectProduct: (p: Product) => void;
   onAddToCart: (p: Product, size: string, color: string) => void;
   onCategorySelect: (c: Category) => void;
+  content: HomePageContent;
+  featuredProducts: Product[];
+  newArrivalsProducts: Product[];
+  saleProducts: Product[];
 }) {
-  const featured = PRODUCTS.filter((p) => p.isFeatured);
-  const newArrivals = PRODUCTS.filter((p) => p.isNew);
-  const onSale = PRODUCTS.filter((p) => p.discount);
+  const featured = featuredProducts;
+  const newArrivals = newArrivalsProducts;
+  const onSale = saleProducts;
 
   return (
     <main className="pt-[132px]">
@@ -827,13 +839,9 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect }
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#f97316]/20 border border-[#f97316]/30 text-[#f97316] text-xs font-bold tracking-widest uppercase mb-6">
               <Award size={12} /> Colección 2026
             </div>
-            <h1 className="text-5xl sm:text-6xl font-extrabold text-white leading-[1.05] tracking-tight mb-5">
-              Tu ritmo.{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#f97316] to-[#fbbf24]">Tu estilo.</span>
-              <br />Tu mejor versión.
-            </h1>
+            <h1 className="text-5xl sm:text-6xl font-extrabold text-white leading-[1.05] tracking-tight mb-5">{content.heroTitle}</h1>
             <p className="text-lg text-slate-300 leading-relaxed mb-8 max-w-md">
-              Zapatillas, ropa deportiva, perfumes y accesorios premium. Todo lo que necesitas para rendir al máximo y lucir increíble.
+              {content.heroSubtitle}
             </p>
             <div className="flex flex-wrap gap-3">
               <Btn variant="primary" size="lg" onClick={() => onNavigate("catalog")}>
@@ -878,7 +886,7 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect }
         <div className="flex items-end justify-between mb-8">
           <div>
             <p className="text-xs font-bold text-[#1d4ed8] tracking-widest uppercase mb-1.5">Lo más buscado</p>
-            <h2 className="text-2xl font-extrabold text-slate-900">Productos destacados</h2>
+            <h2 className="text-2xl font-extrabold text-slate-900">{content.featuredSectionTitle}</h2>
           </div>
           <Btn variant="ghost" onClick={() => onNavigate("catalog")}>Ver todos <ChevronRight size={14} /></Btn>
         </div>
@@ -929,7 +937,7 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect }
           <div className="flex items-end justify-between mb-8">
             <div>
               <p className="text-xs font-bold text-emerald-600 tracking-widest uppercase mb-1.5">Recién llegados</p>
-              <h2 className="text-2xl font-extrabold text-slate-900">Novedades</h2>
+              <h2 className="text-2xl font-extrabold text-slate-900">{content.newArrivalsSectionTitle}</h2>
             </div>
             <Btn variant="ghost" onClick={() => onNavigate("catalog")}>Ver todos <ChevronRight size={14} /></Btn>
           </div>
@@ -947,7 +955,7 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect }
           <div className="flex items-end justify-between mb-8">
             <div>
               <p className="text-xs font-bold text-[#f97316] tracking-widest uppercase mb-1.5">Oferta especial</p>
-              <h2 className="text-2xl font-extrabold text-slate-900">En descuento ahora</h2>
+              <h2 className="text-2xl font-extrabold text-slate-900">{content.saleSectionTitle}</h2>
             </div>
             <Btn variant="ghost" onClick={() => onNavigate("catalog")}>Ver todos <ChevronRight size={14} /></Btn>
           </div>
@@ -2116,7 +2124,7 @@ function AccountPage({ onNavigate, onLogout, addresses, onCreateAddress, onUpdat
 
 // ─── ADMIN DASHBOARD ──────────────────────────────────────────────────────────
 
-function AdminDashboard({ onNavigate, products, createProduct, updateProduct, deleteProduct, adjustStock, productRefresh, initialSection }: {
+function AdminDashboard({ onNavigate, products, createProduct, updateProduct, deleteProduct, adjustStock, productRefresh, initialSection, homeContent, setHomeContent, homePreviewProducts, setHomePreviewProducts, homeSaleProducts, setHomeSaleProducts, homeNewArrivals, setHomeNewArrivals }: {
   onNavigate: (v: View) => void;
   products: Product[];
   createProduct: (product: Omit<Product, "id">) => void;
@@ -2125,6 +2133,14 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
   adjustStock: (productId: string, delta: number) => void;
   productRefresh: number;
   initialSection?: string;
+  homeContent: HomePageContent;
+  setHomeContent: React.Dispatch<React.SetStateAction<HomePageContent>>;
+  homePreviewProducts: Product[];
+  setHomePreviewProducts: React.Dispatch<React.SetStateAction<Product[]>>;
+  homeSaleProducts: Product[];
+  setHomeSaleProducts: React.Dispatch<React.SetStateAction<Product[]>>;
+  homeNewArrivals: Product[];
+  setHomeNewArrivals: React.Dispatch<React.SetStateAction<Product[]>>;
 }) {
   const [adminSection, setAdminSection] = useState(initialSection ?? "dashboard");
   const [searchTerm, setSearchTerm] = useState("");
@@ -2146,6 +2162,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
 
   const SIDEBAR_LINKS = [
     { id: "dashboard", icon: <Home size={16} />, label: "Inicio" },
+    { id: "homepage", icon: <Home size={16} />, label: "Página principal" },
     { id: "products", icon: <Package size={16} />, label: "Productos" },
     { id: "orders", icon: <Tag size={16} />, label: "Pedidos" },
     { id: "inventory", icon: <Layers size={16} />, label: "Inventario" },
@@ -2157,6 +2174,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
 
   const SECTION_TITLES: Record<string, string> = {
     dashboard: "Panel de administración",
+    homepage: "Página principal",
     products: "Productos",
     orders: "Pedidos",
     inventory: "Inventario",
@@ -2175,6 +2193,65 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
     url.searchParams.set("adminSection", section);
     window.history.replaceState({}, "", url.pathname + url.search);
   };
+
+  const HOME_CONTENT_FIELDS = {
+    heroTitle: "Tu ritmo. Tu estilo. Tu mejor versión.",
+    heroSubtitle: "Zapatillas, ropa deportiva, perfumes y accesorios premium. Todo lo que necesitas para rendir al máximo y lucir increíble.",
+    featuredSectionTitle: "Productos destacados",
+    newArrivalsSectionTitle: "Novedades",
+    saleSectionTitle: "En descuento ahora",
+  } as const;
+
+  const updateHomeContentField = (field: keyof HomePageContent, value: string) => {
+    setHomeContent((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const toggleHomeProductSelection = (section: "preview" | "sale" | "newArrivals", product: Product) => {
+    const toggle = (items: Product[], setter: React.Dispatch<React.SetStateAction<Product[]>>) => {
+      const alreadySelected = items.some((item) => item.id === product.id);
+      if (alreadySelected) {
+        setter(items.filter((item) => item.id !== product.id));
+        return;
+      }
+      setter(items.length >= 4 ? [product, ...items.slice(0, 3)] : [product, ...items]);
+    };
+
+    if (section === "preview") {
+      toggle(homePreviewProducts, setHomePreviewProducts);
+      return;
+    }
+    if (section === "sale") {
+      toggle(homeSaleProducts, setHomeSaleProducts);
+      return;
+    }
+    if (section === "newArrivals") {
+      toggle(homeNewArrivals, setHomeNewArrivals);
+    }
+  };
+
+  const HOME_SECTION_OPTIONS = [
+    {
+      id: "preview" as const,
+      title: "Productos destacados",
+      selected: homePreviewProducts,
+      options: products.filter((p) => p.isFeatured || p.rating >= 4.5).slice(0, 8),
+      description: "Selecciona hasta 4 productos que aparecerán en la sección destacada.",
+    },
+    {
+      id: "newArrivals" as const,
+      title: "Novedades",
+      selected: homeNewArrivals,
+      options: products.filter((p) => p.isNew).slice(0, 8),
+      description: "Selecciona los lanzamientos recientes que quieras mostrar.",
+    },
+    {
+      id: "sale" as const,
+      title: "En descuento ahora",
+      selected: homeSaleProducts,
+      options: products.filter((p) => p.discount).slice(0, 8),
+      description: "Elige los mejores productos con descuento para destacar en la home.",
+    },
+  ];
 
   const handleSidebarClick = (section: string) => {
     updateAdminSectionUrl(section);
@@ -2520,6 +2597,119 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
               </div>
             </div>
           </>
+        );
+
+      case "homepage":
+        return (
+          <div className="space-y-6 mb-6">
+            <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+              <div className="bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] p-6">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.24em] text-slate-400 font-semibold mb-2">Página principal</p>
+                    <h2 className="text-2xl font-extrabold text-slate-900">Editar secciones de la home</h2>
+                    <p className="text-sm text-slate-500 mt-1">Actualiza el texto y las colecciones que se muestran en la tienda.</p>
+                  </div>
+                  <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-xs font-semibold text-slate-600">Vista previa en vivo</span>
+                </div>
+
+                <div className="grid gap-4">
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Título hero</label>
+                    <input value={homeContent.heroTitle} onChange={(e) => updateHomeContentField("heroTitle", e.target.value)} className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Subtítulo hero</label>
+                    <textarea value={homeContent.heroSubtitle} onChange={(e) => updateHomeContentField("heroSubtitle", e.target.value)} rows={3} className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
+                  </div>
+                  <div className="grid gap-4 lg:grid-cols-3">
+                    <div>
+                      <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Título destacados</label>
+                      <input value={homeContent.featuredSectionTitle} onChange={(e) => updateHomeContentField("featuredSectionTitle", e.target.value)} className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Título novedades</label>
+                      <input value={homeContent.newArrivalsSectionTitle} onChange={(e) => updateHomeContentField("newArrivalsSectionTitle", e.target.value)} className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Título oferta</label>
+                      <input value={homeContent.saleSectionTitle} onChange={(e) => updateHomeContentField("saleSectionTitle", e.target.value)} className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-[30px] bg-[#0f172a] p-6 text-white shadow-[0_20px_60px_-40px_rgba(15,23,42,0.36)]">
+                <p className="text-xs uppercase tracking-[0.24em] text-slate-400 font-semibold mb-4">Vista previa</p>
+                <div className="space-y-6">
+                  <div className="rounded-[28px] border border-white/10 bg-slate-950 p-5">
+                    <p className="text-xs uppercase text-slate-400 tracking-[0.24em] mb-2">Hero</p>
+                    <h3 className="text-2xl font-extrabold text-white">{homeContent.heroTitle}</h3>
+                    <p className="mt-3 text-sm text-slate-300 leading-relaxed">{homeContent.heroSubtitle}</p>
+                  </div>
+                  <div className="rounded-[28px] border border-white/10 bg-slate-950 p-5">
+                    <p className="text-xs uppercase text-slate-400 tracking-[0.24em] mb-2">Secciones</p>
+                    <div className="space-y-3 text-sm">
+                      <p><span className="font-bold">{homeContent.featuredSectionTitle}</span></p>
+                      <p><span className="font-bold">{homeContent.newArrivalsSectionTitle}</span></p>
+                      <p><span className="font-bold">{homeContent.saleSectionTitle}</span></p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-6 xl:grid-cols-3">
+              {HOME_SECTION_OPTIONS.map((section) => (
+                <div key={section.id} className="bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-extrabold text-slate-900">{section.title}</h3>
+                      <p className="text-sm text-slate-500">{section.description}</p>
+                    </div>
+                    <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">{section.selected.length}/4</span>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.24em] text-slate-400 mb-3">Productos disponibles</p>
+                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                        {section.options.map((product) => {
+                          const selected = section.selected.some((item) => item.id === product.id);
+                          return (
+                            <button key={product.id} type="button" onClick={() => toggleHomeProductSelection(section.id, product)}
+                              className={`rounded-3xl border p-3 text-left transition ${selected ? "border-black bg-slate-900 text-white" : "border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300"}`}>
+                              <p className="text-sm font-semibold leading-tight">{product.name}</p>
+                              <p className="text-xs text-slate-500 mt-1">{product.brand}</p>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="rounded-3xl bg-slate-50 p-4">
+                      <p className="text-xs uppercase tracking-[0.24em] text-slate-400 mb-3">Productos seleccionados</p>
+                      {section.selected.length === 0 ? (
+                        <p className="text-sm text-slate-500">Selecciona hasta 4 productos para mostrar.</p>
+                      ) : (
+                        <ul className="space-y-2">
+                          {section.selected.map((product) => (
+                            <li key={product.id} className="flex items-center justify-between rounded-2xl bg-white border border-slate-200 px-4 py-3">
+                              <div>
+                                <p className="text-sm font-semibold text-slate-900">{product.name}</p>
+                                <p className="text-xs text-slate-500">{product.brand}</p>
+                              </div>
+                              <button type="button" onClick={() => toggleHomeProductSelection(section.id, product)} className="text-xs font-semibold text-[#1d4ed8]">Quitar</button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         );
 
       case "products":
@@ -2982,6 +3172,16 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [authUser, setAuthUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [homeContent, setHomeContent] = useState<HomePageContent>({
+    heroTitle: "Tu ritmo. Tu estilo. Tu mejor versión.",
+    heroSubtitle: "Zapatillas, ropa deportiva, perfumes y accesorios premium. Todo lo que necesitas para rendir al máximo y lucir increíble.",
+    featuredSectionTitle: "Productos destacados",
+    newArrivalsSectionTitle: "Novedades",
+    saleSectionTitle: "En descuento ahora",
+  });
+  const [homePreviewProducts, setHomePreviewProducts] = useState<Product[]>(PRODUCTS.slice(0, 4));
+  const [homeSaleProducts, setHomeSaleProducts] = useState<Product[]>(PRODUCTS.filter((p) => p.discount).slice(0, 4));
+  const [homeNewArrivals, setHomeNewArrivals] = useState<Product[]>(PRODUCTS.filter((p) => p.isNew).slice(0, 4));
   const [productRefresh, setProductRefresh] = useState(0);
 
   useEffect(() => {
@@ -3277,6 +3477,10 @@ export default function App() {
         <HomePage
           onNavigate={navigate} onSelectProduct={handleSelectProduct}
           onAddToCart={handleAddToCart} onCategorySelect={handleCategorySelect}
+          content={homeContent}
+          featuredProducts={homePreviewProducts}
+          newArrivalsProducts={homeNewArrivals}
+          saleProducts={homeSaleProducts}
         />
       )}
       {view === "catalog" && (
@@ -3327,6 +3531,14 @@ export default function App() {
           adjustStock={adjustStock}
           productRefresh={productRefresh}
           initialSection={initialAdminSection}
+          homeContent={homeContent}
+          setHomeContent={setHomeContent}
+          homePreviewProducts={homePreviewProducts}
+          setHomePreviewProducts={setHomePreviewProducts}
+          homeSaleProducts={homeSaleProducts}
+          setHomeSaleProducts={setHomeSaleProducts}
+          homeNewArrivals={homeNewArrivals}
+          setHomeNewArrivals={setHomeNewArrivals}
         />
       )}
       {view === "admin" && !isAdmin && <LoginPage isRegister={false} onNavigate={navigate} onLogin={handleAuthSuccess} />}
