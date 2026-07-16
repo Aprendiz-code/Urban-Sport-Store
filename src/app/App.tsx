@@ -2060,7 +2060,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
         </div>
       </aside>
 
-      <main className="flex-1 min-w-0 md:pl-72 px-5 sm:px-8 lg:px-10 py-8 overflow-x-hidden">
+      <main className="flex-1 min-w-0 md:ml-56 px-6 sm:px-8 lg:px-10 py-8 overflow-x-hidden">
         <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
           <div>
             <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900">{pageTitle}</h1>
