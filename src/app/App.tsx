@@ -949,7 +949,7 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
           <Btn variant="ghost" onClick={() => onNavigate("catalog")}>Ver todos <ChevronRight size={14} /></Btn>
         </div>
         <AutoScrollCarousel>
-          {featured.slice(0, 8).map((p) => (
+            {featured.slice(0, 9).map((p) => (
             <div key={p.id} className="min-w-[15rem] sm:min-w-[16rem] lg:min-w-[18rem] flex-shrink-0">
               <ProductCard product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
             </div>
@@ -1002,7 +1002,7 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
             <Btn variant="ghost" onClick={() => onNavigate("catalog")}>Ver todos <ChevronRight size={14} /></Btn>
           </div>
           <AutoScrollCarousel>
-            {newArrivals.slice(0, 8).map((p) => (
+              {newArrivals.slice(0, 9).map((p) => (
               <div key={p.id} className="min-w-[15rem] sm:min-w-[16rem] lg:min-w-[18rem] flex-shrink-0">
                 <ProductCard product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
               </div>
@@ -1022,7 +1022,7 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
             <Btn variant="ghost" onClick={() => onNavigate("catalog")}>Ver todos <ChevronRight size={14} /></Btn>
           </div>
           <AutoScrollCarousel>
-            {onSale.slice(0, 8).map((p) => (
+              {onSale.slice(0, 9).map((p) => (
               <div key={p.id} className="min-w-[15rem] sm:min-w-[16rem] lg:min-w-[18rem] flex-shrink-0">
                 <ProductCard product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
               </div>
@@ -2311,7 +2311,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
         setter(items.filter((item) => item.id !== product.id));
         return;
       }
-      setter(items.length >= 8 ? [product, ...items.slice(0, 7)] : [product, ...items]);
+      setter(items.length >= 9 ? [product, ...items.slice(0, 8)] : [product, ...items]);
     };
 
     if (section === "preview") {
@@ -2332,22 +2332,22 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
       id: "preview" as const,
       title: "Productos destacados",
       selected: homePreviewProducts,
-      options: products.filter((p) => p.isFeatured || p.rating >= 4.5).slice(0, 8),
-      description: "Selecciona hasta 4 productos que aparecerán en la sección destacada.",
+      options: products.filter((p) => p.isFeatured || p.rating >= 4.5).slice(0, 9),
+      description: "Selecciona hasta 9 productos que aparecerán en la sección destacada.",
     },
     {
       id: "newArrivals" as const,
       title: "Novedades",
       selected: homeNewArrivals,
-      options: products.filter((p) => p.isNew).slice(0, 8),
-      description: "Selecciona los lanzamientos recientes que quieras mostrar.",
+      options: products.filter((p) => p.isNew).slice(0, 9),
+      description: "Selecciona hasta 9 lanzamientos recientes que quieras mostrar.",
     },
     {
       id: "sale" as const,
       title: "En descuento ahora",
       selected: homeSaleProducts,
-      options: products.filter((p) => p.discount).slice(0, 8),
-      description: "Elige los mejores productos con descuento para destacar en la home.",
+      options: products.filter((p) => p.discount).slice(0, 9),
+      description: "Selecciona hasta 9 productos en descuento para destacar en la home.",
     },
   ];
 
@@ -2765,7 +2765,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                       <h3 className="text-lg font-extrabold text-slate-900">{section.title}</h3>
                       <p className="text-sm text-slate-500">{section.description}</p>
                     </div>
-                    <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">{section.selected.length}/8</span>
+                    <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">{section.selected.length}/9</span>
                   </div>
                   <div className="space-y-3">
                     <div className="grid gap-3 mb-2">
@@ -3347,9 +3347,9 @@ export default function App() {
     saleSectionSubtitle: "Promociones y descuentos por tiempo limitado.",
     saleSectionDiscount: "",
   });
-  const [homePreviewProducts, setHomePreviewProducts] = useState<Product[]>(PRODUCTS.slice(0, 8));
-  const [homeSaleProducts, setHomeSaleProducts] = useState<Product[]>(PRODUCTS.filter((p) => p.discount).slice(0, 8));
-  const [homeNewArrivals, setHomeNewArrivals] = useState<Product[]>(PRODUCTS.filter((p) => p.isNew).slice(0, 8));
+  const [homePreviewProducts, setHomePreviewProducts] = useState<Product[]>(PRODUCTS.slice(0, 9));
+  const [homeSaleProducts, setHomeSaleProducts] = useState<Product[]>(PRODUCTS.filter((p) => p.discount).slice(0, 9));
+  const [homeNewArrivals, setHomeNewArrivals] = useState<Product[]>(PRODUCTS.filter((p) => p.isNew).slice(0, 9));
   const [productRefresh, setProductRefresh] = useState(0);
 
   useEffect(() => {
