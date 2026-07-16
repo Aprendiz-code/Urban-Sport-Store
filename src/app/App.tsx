@@ -787,13 +787,13 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
           </div>
         </div>
 
-        <div className="w-full overflow-hidden">
+        <div className="w-full h-12 sm:h-14 md:h-16 overflow-hidden">
           <button
             type="button"
             onClick={() => onNavigate("catalog")}
             aria-label="Ver promociones y productos con descuento"
             className={[
-              'block w-full overflow-hidden transition-all duration-700 ease-out',
+              'block w-full h-full overflow-hidden transition-all duration-700 ease-out',
               'motion-reduce:transform-none motion-reduce:transition-none motion-reduce:animate-none',
               promoEntered
                 ? 'opacity-100 translate-y-0 animate-[promo-pulse_3s_ease-in-out_infinite]'
@@ -803,7 +803,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
             <img
               src={promoRibbon}
               alt="Rebajas UrbanSport Store: 10% de descuento en tu primera compra"
-              className="block w-full h-auto max-h-[160px] object-contain"
+              className="block w-full h-full object-cover object-center"
             />
           </button>
         </div>
