@@ -782,10 +782,10 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
 
         {/* Promo ribbon above category buttons */}
         {(currentView === "home" || currentView === "catalog") && (
-          <div className="mt-4 mb-2 px-0">
-            <div className="relative w-full">
-              <div className="overflow-hidden w-full bg-gradient-to-r from-red-600 via-red-500 to-rose-600 shadow-lg">
-                <div className="promo-ribbon-scroll flex items-center justify-center w-full px-4 py-2 text-[11px] sm:text-xs md:text-sm font-semibold uppercase tracking-[0.18em] text-white transform rotate-[1.2deg]">
+          <div className="mt-4 mb-2 px-4 sm:px-6">
+            <div className="relative mx-auto w-full max-w-2xl">
+              <div className="promo-ribbon-bg overflow-hidden shadow-lg rounded-full border border-white/20">
+                <div className="promo-ribbon-scroll flex items-center justify-center min-w-[110%] px-6 py-1.5 text-[10px] sm:text-[11px] md:text-sm font-semibold uppercase tracking-[0.18em] text-white transform -skew-x-6 shadow-inner">
                   <span className="inline-flex items-center gap-2">
                     <span>Urban</span>
                     <span className="text-sky-300">Sport</span>
