@@ -2679,8 +2679,21 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                     <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Subtítulo hero</label>
                     <textarea value={homeContent.heroSubtitle} onChange={(e) => updateHomeContentField("heroSubtitle", e.target.value)} rows={3} className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
                   </div>
-
-                  
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Etiqueta sección categorías</label>
+                    <input value={homeContent.categorySectionLabel} onChange={(e) => updateHomeContentField("categorySectionLabel", e.target.value)} className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Título sección categorías</label>
+                    <input value={homeContent.categorySectionTitle} onChange={(e) => updateHomeContentField("categorySectionTitle", e.target.value)} className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Imagen sección categorías (opcional)</label>
+                    <div className="flex flex-col gap-3">
+                      <input type="file" accept="image/*" onChange={(e) => handleSectionImageFileChange("categorySectionImage", e)} className="text-sm text-slate-700" />
+                      <input value={homeContent.categorySectionImage ?? ""} onChange={(e) => updateHomeContentField("categorySectionImage", e.target.value)} placeholder="URL de imagen (opcional)" className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -2698,29 +2711,6 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                           <img src={homeContent.categorySectionImage} alt="Category" className="mt-3 w-full max-h-36 object-cover rounded-md" />
                         ) : null}
                       </div>
-                  </div>
-                  <div className="rounded-[28px] border border-white/10 bg-slate-950 p-5">
-                    <p className="text-xs uppercase text-slate-400 tracking-[0.24em] mb-2">Secciones</p>
-                    <div className="space-y-3 text-sm">
-                      <div>
-                        <p className="font-bold">{homeContent.featuredSectionLabel} — {homeContent.featuredSectionTitle}</p>
-                        {homeContent.featuredSectionImage ? (
-                          <img src={homeContent.featuredSectionImage} alt="Featured" className="mt-2 w-full max-h-28 object-cover rounded-md" />
-                        ) : null}
-                      </div>
-                      <div>
-                        <p className="font-bold">{homeContent.newArrivalsLabel} — {homeContent.newArrivalsSectionTitle}</p>
-                        {homeContent.newArrivalsSectionImage ? (
-                          <img src={homeContent.newArrivalsSectionImage} alt="New arrivals" className="mt-2 w-full max-h-28 object-cover rounded-md" />
-                        ) : null}
-                      </div>
-                      <div>
-                        <p className="font-bold">{homeContent.saleSectionLabel} — {homeContent.saleSectionTitle}</p>
-                        {homeContent.saleSectionImage ? (
-                          <img src={homeContent.saleSectionImage} alt="Sale" className="mt-2 w-full max-h-28 object-cover rounded-md" />
-                        ) : null}
-                      </div>
-                    </div>
                   </div>
                 </div>
               </div>
