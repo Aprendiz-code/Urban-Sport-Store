@@ -2632,43 +2632,39 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                     <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Subtítulo hero</label>
                     <textarea value={homeContent.heroSubtitle} onChange={(e) => updateHomeContentField("heroSubtitle", e.target.value)} rows={3} className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
                   </div>
-                  <div className="grid gap-4 lg:grid-cols-3">
-                    <div>
-                      <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Etiqueta de categoría</label>
-                      <input value={homeContent.categorySectionLabel} onChange={(e) => updateHomeContentField("categorySectionLabel", e.target.value)} className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
+
+                  {/* Sections in requested order: label then title */}
+                  <div className="space-y-4 mt-2">
+                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                      <p className="text-sm font-semibold mb-2">Explorar</p>
+                      <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Etiqueta</label>
+                      <input value={homeContent.categorySectionLabel} onChange={(e) => updateHomeContentField("categorySectionLabel", e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 mb-3" />
+                      <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Título</label>
+                      <input value={homeContent.categorySectionTitle} onChange={(e) => updateHomeContentField("categorySectionTitle", e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900" />
                     </div>
-                    <div>
-                      <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Título de categorías</label>
-                      <input value={homeContent.categorySectionTitle} onChange={(e) => updateHomeContentField("categorySectionTitle", e.target.value)} className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
+
+                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                      <p className="text-sm font-semibold mb-2">Lo más buscado</p>
+                      <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Etiqueta</label>
+                      <input value={homeContent.featuredSectionLabel} onChange={(e) => updateHomeContentField("featuredSectionLabel", e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 mb-3" />
+                      <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Título</label>
+                      <input value={homeContent.featuredSectionTitle} onChange={(e) => updateHomeContentField("featuredSectionTitle", e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900" />
                     </div>
-                    <div>
-                      <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Etiqueta destacados</label>
-                      <input value={homeContent.featuredSectionLabel} onChange={(e) => updateHomeContentField("featuredSectionLabel", e.target.value)} className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
+
+                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                      <p className="text-sm font-semibold mb-2">Recién llegados</p>
+                      <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Etiqueta</label>
+                      <input value={homeContent.newArrivalsLabel} onChange={(e) => updateHomeContentField("newArrivalsLabel", e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 mb-3" />
+                      <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Título</label>
+                      <input value={homeContent.newArrivalsSectionTitle} onChange={(e) => updateHomeContentField("newArrivalsSectionTitle", e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900" />
                     </div>
-                  </div>
-                  <div className="grid gap-4 lg:grid-cols-3">
-                    <div>
-                      <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Etiqueta novedades</label>
-                      <input value={homeContent.newArrivalsLabel} onChange={(e) => updateHomeContentField("newArrivalsLabel", e.target.value)} className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Etiqueta oferta</label>
-                      <input value={homeContent.saleSectionLabel} onChange={(e) => updateHomeContentField("saleSectionLabel", e.target.value)} className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
-                    </div>
-                    <div className="hidden lg:block" />
-                  </div>
-                  <div className="grid gap-4 lg:grid-cols-3">
-                    <div>
-                      <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Título destacados</label>
-                      <input value={homeContent.featuredSectionTitle} onChange={(e) => updateHomeContentField("featuredSectionTitle", e.target.value)} className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Título novedades</label>
-                      <input value={homeContent.newArrivalsSectionTitle} onChange={(e) => updateHomeContentField("newArrivalsSectionTitle", e.target.value)} className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Título oferta</label>
-                      <input value={homeContent.saleSectionTitle} onChange={(e) => updateHomeContentField("saleSectionTitle", e.target.value)} className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
+
+                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                      <p className="text-sm font-semibold mb-2">Oferta especial</p>
+                      <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Etiqueta</label>
+                      <input value={homeContent.saleSectionLabel} onChange={(e) => updateHomeContentField("saleSectionLabel", e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 mb-3" />
+                      <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Título</label>
+                      <input value={homeContent.saleSectionTitle} onChange={(e) => updateHomeContentField("saleSectionTitle", e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900" />
                     </div>
                   </div>
                 </div>
