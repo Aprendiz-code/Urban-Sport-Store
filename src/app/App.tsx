@@ -495,13 +495,13 @@ function AutoScrollCarousel({ children }: { children: React.ReactNode }) {
       const maxScroll = carousel.scrollWidth - carousel.clientWidth;
       if (maxScroll <= 0) return;
 
-      if (carousel.scrollLeft >= maxScroll) {
-        direction.current = -1;
-      } else if (carousel.scrollLeft <= 0) {
-        direction.current = 1;
+      const step = 260; // pixels per tick
+      const next = carousel.scrollLeft + step;
+      if (next >= maxScroll) {
+        carousel.scrollTo({ left: 0, behavior: "smooth" });
+      } else {
+        carousel.scrollBy({ left: step, behavior: "smooth" });
       }
-
-      carousel.scrollLeft += direction.current * 250;
     }, 2500);
 
     return () => clearInterval(interval);
