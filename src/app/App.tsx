@@ -1912,23 +1912,28 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
 
   return (
     <main className="pt-[132px] min-h-screen flex">
-      {/* Left panel */}
-      <div className="hidden lg:flex flex-col justify-between w-1/2 relative overflow-hidden bg-slate-900">
+      {/* Left panel (visible from md and up) */}
+      <div className="hidden md:flex flex-col justify-between md:w-1/2 lg:w-1/2 relative overflow-hidden bg-slate-900">
         <img src="/images/login-bg3.jpg"
-          alt="Zapatillas deportivas - fondo claro" className="absolute inset-0 w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-b from-slate-900/70 via-slate-900/40 to-slate-900/80" />
-        <div className="relative z-10 p-10">
+          alt="Zapatillas deportivas - fondo claro" className="absolute inset-0 w-full h-full object-cover object-center md:object-top" />
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-900/80 via-slate-900/40 to-slate-900/80" />
+        <div className="relative z-10 p-6 sm:p-8 md:p-10">
           <div className="flex items-center gap-2">
             <span className="font-extrabold text-white text-sm">Urban<span className="text-[#f97316]">Sport</span><span className="block text-[10px] font-semibold text-slate-300 tracking-widest uppercase">Store</span></span>
           </div>
         </div>
-        <div className="relative z-10 p-10">
-          <h2 className="text-3xl font-extrabold text-white mb-4 leading-tight">
+        <div className="relative z-10 p-6 sm:p-8 md:p-10">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-white mb-4 leading-tight">
             Tu mejor versión<br />empieza aquí.
           </h2>
           <div className="space-y-3">
-            {["Envío gratis en pedidos +$250.000 COP", "30 días de devolución garantizados", "Productos 100% originales", "Soporte 24/7 en español"].map((t) => (
-              <div key={t} className="flex items-center gap-3 text-sm text-slate-200">
+            {[
+              "Envío gratis en pedidos +$250.000 COP",
+              "30 días de devolución garantizados",
+              "Productos 100% originales",
+              "Soporte 24/7 en español",
+            ].map((t) => (
+              <div key={t} className="flex items-center gap-3 text-sm sm:text-sm md:text-base text-slate-200">
                 <Check size={15} className="text-[#f97316] shrink-0" /> {t}
               </div>
             ))}
