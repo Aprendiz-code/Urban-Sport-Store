@@ -29,7 +29,7 @@ export default function PromoCarousel({ messages, intervalMs = 2000, className =
 
   return (
     <div
-      className={`relative bg-black text-white text-center h-7 text-xs font-semibold tracking-wide ${className}`}
+      className={`relative bg-black text-white text-center md:h-7 h-auto text-xs md:text-xs text-sm font-semibold tracking-wide ${className}`}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       tabIndex={0}
@@ -51,7 +51,7 @@ export default function PromoCarousel({ messages, intervalMs = 2000, className =
           `}</style>
           <span
             key={index}
-            className="whitespace-nowrap px-3 text-sm leading-none inline-block"
+            className="md:whitespace-nowrap whitespace-normal px-3 text-sm leading-tight inline-block"
             style={{
               animationName: "promo-marquee",
               animationDuration: `${intervalMs}ms`,
@@ -73,18 +73,18 @@ export default function PromoCarousel({ messages, intervalMs = 2000, className =
             style={{ width: `${messages.length * 100}%`, transform: `translateX(-${index * (100 / messages.length)}%)` }}
           >
             {messages.map((m, i) => (
-              <div key={i} className="flex-shrink-0 w-full h-full flex items-center justify-center px-3 whitespace-nowrap text-sm leading-none">
+              <div key={i} className="flex-shrink-0 w-full h-full flex items-center justify-center px-3 md:whitespace-nowrap whitespace-normal text-sm leading-tight">
                 {m}
               </div>
             ))}
           </div>
         </div>
       ) : (
-        <div className="relative h-full flex items-center justify-center overflow-hidden text-sm">
+        <div className="relative h-full flex items-center justify-center overflow-hidden text-sm px-2">
           {messages.map((m, i) => (
             <span
               key={i}
-              className={`absolute inset-0 flex items-center justify-center transition-opacity duration-500 ease-in-out px-3 whitespace-nowrap leading-none ${
+              className={`absolute inset-0 flex items-center justify-center transition-opacity duration-500 ease-in-out px-3 md:whitespace-nowrap whitespace-normal leading-tight ${
                 i === index ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-1"
               }`}
               aria-hidden={i === index ? "false" : "true"}
