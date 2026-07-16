@@ -1914,7 +1914,7 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
     <main className="pt-[132px] min-h-screen flex">
       {/* Left panel */}
       <div className="hidden lg:flex flex-col justify-between w-1/2 relative overflow-hidden bg-slate-900">
-        <img src="https://images.unsplash.com/photo-1519744792095-2f2205e87b6f?w=1600&auto=format&q=80"
+        <img src="/images/login-bg.jpg"
           alt="Tenis deportivos y ropa deportiva" className="absolute inset-0 w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-b from-slate-900/70 via-slate-900/40 to-slate-900/80" />
         <div className="relative z-10 p-10">
