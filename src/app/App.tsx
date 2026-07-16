@@ -1879,8 +1879,6 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
   const [error, setError] = useState<string | null>(null);
 
   const isLocalAuthFallback = !import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY;
-  const adminHintEmail = import.meta.env.VITE_ADMIN_EMAIL ?? 'admin@urbansportstore.dev';
-  const adminHintPassword = import.meta.env.VITE_ADMIN_PASSWORD ?? 'Admin123!';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
