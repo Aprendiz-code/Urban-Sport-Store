@@ -941,6 +941,14 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
   const featured = featuredProducts;
   const newArrivals = newArrivalsProducts;
   const onSale = saleProducts;
+  // Ensure carousel has enough items to scroll — duplicate if list is short
+  const arrivalsForCarousel = (() => {
+    const base = newArrivals.slice(0, 9);
+    if (base.length === 0) return base;
+    let arr = [...base];
+    while (arr.length < 6) arr = arr.concat(base);
+    return arr.slice(0, 9);
+  })();
 
   return (
     <main className="pt-[132px]">
@@ -1070,8 +1078,8 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
             <Btn variant="ghost" onClick={() => onNavigate("catalog")}>Ver todos <ChevronRight size={14} /></Btn>
           </div>
           <AutoScrollCarousel>
-              {newArrivals.slice(0, 9).map((p) => (
-              <div key={p.id} className="min-w-[15rem] sm:min-w-[16rem] lg:min-w-[18rem] flex-shrink-0">
+              {arrivalsForCarousel.map((p, idx) => (
+              <div key={p.id + "-" + idx} className="min-w-[15rem] sm:min-w-[16rem] lg:min-w-[18rem] flex-shrink-0">
                 <ProductCard product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
               </div>
             ))}
