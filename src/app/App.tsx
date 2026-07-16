@@ -502,7 +502,7 @@ function AutoScrollCarousel({ children }: { children: React.ReactNode }) {
       }
 
       carousel.scrollLeft += direction.current * 250;
-    }, 2800);
+    }, 2500);
 
     return () => clearInterval(interval);
   }, []);
