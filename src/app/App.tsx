@@ -590,17 +590,38 @@ function ProductCard({ product, onSelect, onAddToCart }: {
 
 // ─── NAVBAR ──────────────────────────────────────────────────────────────────
 
-function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, currentView, onLoginClick, onLogout, onCategorySelect }: {
+function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, currentView, onLoginClick, onLogout, onCategorySelect, onSelectProduct }: {
   cart: CartItem[]; onNavigate: (v: View) => void;
   onCartOpen: () => void; isLoggedIn: boolean; isAdmin: boolean;
   authUser: User | null; currentView: View; onLoginClick: () => void; onLogout: () => void;
   onCategorySelect: (c: Category) => void;
+  onSelectProduct: (p: Product) => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
   const [searchVal, setSearchVal] = useState("");
+  const [suggestions, setSuggestions] = useState<Product[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const suggestTimer = useRef<number | null>(null);
   const cartCount = cart.reduce((s, i) => s + i.qty, 0);
   const showCustomerOrders = !isAdmin && !isAdminUser(authUser);
+
+  // suggestions effect
+  useEffect(() => {
+    if (suggestTimer.current) window.clearTimeout(suggestTimer.current);
+    if (!searchVal || searchVal.trim().length < 2) {
+      setSuggestions([]);
+      return;
+    }
+    suggestTimer.current = window.setTimeout(() => {
+      const q = searchVal.trim().toLowerCase();
+      const matches = PRODUCTS.filter((p) => (
+        p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q) || p.sku?.toLowerCase()?.includes(q)
+      )).slice(0, 6);
+      setSuggestions(matches);
+    }, 180);
+    return () => { if (suggestTimer.current) window.clearTimeout(suggestTimer.current); };
+  }, [searchVal]);
 
   return (
     <div className="fixed top-0 left-0 right-0 z-50">
@@ -634,7 +655,21 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
               value={searchVal} onChange={(e) => setSearchVal(e.target.value)}
               placeholder="Buscar zapatillas, ropa, relojes…"
               className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:border-[#1d4ed8]/50 focus:bg-white transition-all"
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 180)}
             />
+
+            {showSuggestions && suggestions.length > 0 && (
+              <div className="absolute left-0 right-0 mt-2 bg-white border border-slate-100 rounded-xl shadow-lg z-50 max-h-60 overflow-auto">
+                {suggestions.map((s) => (
+                  <button key={s.id} onMouseDown={(e) => { e.preventDefault(); onSelectProduct(s); setSearchVal(''); setSuggestions([]); }}
+                    className="w-full text-left px-4 py-3 hover:bg-slate-50 transition-colors">
+                    <div className="text-sm font-semibold">{s.name}</div>
+                    <div className="text-xs text-slate-400">{s.brand} · {s.subcategory}</div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Mobile search (visible on xs) */}
@@ -645,7 +680,21 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
                 value={searchVal} onChange={(e) => setSearchVal(e.target.value)}
                 placeholder="Buscar zapatillas, ropa, relojes…"
                 className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none"
+                onFocus={() => setShowSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 180)}
               />
+
+              {showSuggestions && suggestions.length > 0 && (
+                <div className="absolute left-0 right-0 mt-2 bg-white border border-slate-100 rounded-xl shadow-lg z-50 max-h-60 overflow-auto">
+                  {suggestions.map((s) => (
+                    <button key={s.id} onMouseDown={(e) => { e.preventDefault(); onSelectProduct(s); setSearchVal(''); setSuggestions([]); }}
+                      className="w-full text-left px-4 py-3 hover:bg-slate-50 transition-colors">
+                      <div className="text-sm font-semibold">{s.name}</div>
+                      <div className="text-xs text-slate-400">{s.brand} · {s.subcategory}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
