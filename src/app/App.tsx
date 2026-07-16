@@ -780,21 +780,6 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
           </div>
         </div>
 
-        {/* Promo text above category buttons */}
-        {(currentView === "home" || currentView === "catalog") && (
-          <div className="mt-4 mb-2 px-4 sm:px-6">
-            <div className="relative mx-auto w-full max-w-xl bg-white shadow-sm rounded-full">
-              <div className="flex items-center justify-center px-6 py-2 text-[11px] sm:text-[12px] md:text-sm font-bold uppercase tracking-[0.2em] text-slate-900">
-                <span className="inline-flex items-center gap-3 whitespace-nowrap">
-                  <span>URBAN</span>
-                  <span className="text-slate-700">SPORT</span>
-                  <span>STORE</span>
-                  <span className="text-slate-600">10% de descuento en tu primera compra</span>
-                </span>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Categories Bar */}
         {(currentView === "home" || currentView === "catalog") && (
