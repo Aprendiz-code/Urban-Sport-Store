@@ -807,7 +807,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
 
       {/* Categories Bar */}
         {(currentView === "home" || currentView === "catalog") && (
-          <div className="hidden md:flex border-t border-slate-100 overflow-x-auto mt-0">
+          <div className="hidden md:flex border-t border-slate-100 overflow-x-auto mt-4 md:mt-6">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center gap-1 h-11">
               {NAV_CATEGORIES.map((cat) => (
                 <button key={cat.name}
@@ -822,7 +822,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
 
         {/* Mobile categories bar */}
         {(currentView === "home" || currentView === "catalog") && (
-          <div className="md:hidden border-t border-slate-100 overflow-x-auto mt-0 h-11">
+          <div className="md:hidden border-t border-slate-100 overflow-x-auto mt-4 h-11">
             <div className="max-w-7xl mx-auto px-4 flex items-center gap-1 h-full">
               {NAV_CATEGORIES.map((cat) => (
                 <button key={cat.name}
