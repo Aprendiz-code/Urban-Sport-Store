@@ -2795,32 +2795,6 @@ export default function App() {
   const [initialAdminSection, setInitialAdminSection] = useState<string | undefined>(undefined);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const params = new URLSearchParams(window.location.search);
-    const paramView = params.get("view");
-    const paramSection = params.get("adminSection");
-
-    if (paramView === "admin" && isAdmin) {
-      setView("admin");
-      if (paramSection) {
-        setInitialAdminSection(paramSection);
-      }
-      return;
-    }
-
-    if (paramView === "admin" && !isAdmin) {
-      const url = new URL(window.location.href);
-      url.searchParams.delete("view");
-      url.searchParams.delete("adminSection");
-      window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
-    }
-
-    setView("home");
-    setInitialAdminSection(undefined);
-  }, [isAdmin]);
-
-  useEffect(() => {
     let isActive = true;
 
     const loadProducts = async () => {
@@ -2858,6 +2832,32 @@ export default function App() {
   const [authUser, setAuthUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [productRefresh, setProductRefresh] = useState(0);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+    const paramView = params.get("view");
+    const paramSection = params.get("adminSection");
+
+    if (paramView === "admin" && isAdmin) {
+      setView("admin");
+      if (paramSection) {
+        setInitialAdminSection(paramSection);
+      }
+      return;
+    }
+
+    if (paramView === "admin" && !isAdmin) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("view");
+      url.searchParams.delete("adminSection");
+      window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    }
+
+    setView("home");
+    setInitialAdminSection(undefined);
+  }, [isAdmin]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
