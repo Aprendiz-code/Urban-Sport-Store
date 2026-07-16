@@ -780,6 +780,24 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
           </div>
         </div>
 
+        {/* Promo ribbon above category buttons */}
+        {(currentView === "home" || currentView === "catalog") && (
+          <div className="mt-4 mb-2 px-4 sm:px-6">
+            <div className="relative mx-auto max-w-7xl">
+              <div className="overflow-hidden rounded-full bg-gradient-to-r from-red-600 via-red-500 to-rose-600 shadow-lg">
+                <div className="flex items-center justify-center px-4 py-2 text-[11px] sm:text-xs md:text-sm font-semibold uppercase tracking-[0.18em] text-white transform rotate-[1.2deg]">
+                  <span className="inline-flex items-center gap-2">
+                    <span>Urban</span>
+                    <span className="text-sky-300">Sport</span>
+                    <span>STORE</span>
+                    <span className="text-white/80">10% de descuento en tu primera compra</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Categories Bar */}
         {(currentView === "home" || currentView === "catalog") && (
           <div className="hidden md:flex border-t border-slate-100 overflow-x-auto mt-0">
