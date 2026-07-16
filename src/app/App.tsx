@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import type { User } from '@supabase/supabase-js';
 import {
   ShoppingCart, Search, Menu, X, Star, ChevronRight, Package,
@@ -483,6 +483,48 @@ function SizeSelector({ sizes, selected, onSelect }: {
   );
 }
 
+function AutoScrollCarousel({ children }: { children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const direction = useRef(1);
+
+  useEffect(() => {
+    const carousel = ref.current;
+    if (!carousel) return;
+
+    let frameId = 0;
+    const step = 0.8;
+
+    const animate = () => {
+      if (!carousel) return;
+      const maxScroll = carousel.scrollWidth - carousel.clientWidth;
+      if (maxScroll <= 0) {
+        frameId = requestAnimationFrame(animate);
+        return;
+      }
+
+      if (carousel.scrollLeft >= maxScroll) {
+        direction.current = -1;
+      } else if (carousel.scrollLeft <= 0) {
+        direction.current = 1;
+      }
+
+      carousel.scrollLeft += direction.current * step;
+      frameId = requestAnimationFrame(animate);
+    };
+
+    frameId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frameId);
+  }, []);
+
+  return (
+    <div ref={ref} className="overflow-hidden pb-4 -mx-4 px-4 sm:px-0" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
+      <div className="flex flex-nowrap gap-4" style={{ minWidth: "max-content" }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 // ─── PRODUCT CARD ─────────────────────────────────────────────────────────────
 
 function ProductCard({ product, onSelect, onAddToCart }: {
@@ -913,15 +955,13 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
           </div>
           <Btn variant="ghost" onClick={() => onNavigate("catalog")}>Ver todos <ChevronRight size={14} /></Btn>
         </div>
-        <div className="overflow-x-auto pb-4 -mx-4 px-4 sm:px-0">
-          <div className="flex flex-nowrap gap-4 snap-x snap-mandatory">
-            {featured.slice(0, 8).map((p) => (
-              <div key={p.id} className="snap-start min-w-[15rem] sm:min-w-[16rem] lg:min-w-[18rem] flex-shrink-0">
-                <ProductCard product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
-              </div>
-            ))}
-          </div>
-        </div>
+        <AutoScrollCarousel>
+          {featured.slice(0, 8).map((p) => (
+            <div key={p.id} className="min-w-[15rem] sm:min-w-[16rem] lg:min-w-[18rem] flex-shrink-0">
+              <ProductCard product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
+            </div>
+          ))}
+        </AutoScrollCarousel>
       </section>
 
       {/* Promo banners */}
@@ -968,15 +1008,13 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
             </div>
             <Btn variant="ghost" onClick={() => onNavigate("catalog")}>Ver todos <ChevronRight size={14} /></Btn>
           </div>
-          <div className="overflow-x-auto pb-4 -mx-4 px-4 sm:px-0">
-            <div className="flex flex-nowrap gap-4 snap-x snap-mandatory">
-              {newArrivals.slice(0, 8).map((p) => (
-                <div key={p.id} className="snap-start min-w-[15rem] sm:min-w-[16rem] lg:min-w-[18rem] flex-shrink-0">
-                  <ProductCard product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
-                </div>
-              ))}
-            </div>
-          </div>
+          <AutoScrollCarousel>
+            {newArrivals.slice(0, 8).map((p) => (
+              <div key={p.id} className="min-w-[15rem] sm:min-w-[16rem] lg:min-w-[18rem] flex-shrink-0">
+                <ProductCard product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
+              </div>
+            ))}
+          </AutoScrollCarousel>
         </section>
       )}
 
@@ -990,15 +1028,13 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
             </div>
             <Btn variant="ghost" onClick={() => onNavigate("catalog")}>Ver todos <ChevronRight size={14} /></Btn>
           </div>
-          <div className="overflow-x-auto pb-4 -mx-4 px-4 sm:px-0">
-            <div className="flex flex-nowrap gap-4 snap-x snap-mandatory">
-              {onSale.slice(0, 8).map((p) => (
-                <div key={p.id} className="snap-start min-w-[15rem] sm:min-w-[16rem] lg:min-w-[18rem] flex-shrink-0">
-                  <ProductCard product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
-                </div>
-              ))}
-            </div>
-          </div>
+          <AutoScrollCarousel>
+            {onSale.slice(0, 8).map((p) => (
+              <div key={p.id} className="min-w-[15rem] sm:min-w-[16rem] lg:min-w-[18rem] flex-shrink-0">
+                <ProductCard product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
+              </div>
+            ))}
+          </AutoScrollCarousel>
         </div>
       </section>
 
