@@ -788,7 +788,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
         </div>
       </nav>
 
-      <div className="w-full h-10 sm:h-12 md:h-14 overflow-hidden">
+      <div className="w-full h-16 sm:h-18 md:h-20 overflow-hidden">
         <button
           type="button"
           onClick={() => onNavigate("catalog")}
