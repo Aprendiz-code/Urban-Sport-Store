@@ -465,10 +465,10 @@ function ProductCard({ product, onSelect, onAddToCart }: {
 
 // ─── NAVBAR ──────────────────────────────────────────────────────────────────
 
-function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, onLoginClick, onLogout, onCategorySelect }: {
+function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, currentView, onLoginClick, onLogout, onCategorySelect }: {
   cart: CartItem[]; onNavigate: (v: View) => void;
   onCartOpen: () => void; isLoggedIn: boolean; isAdmin: boolean;
-  authUser: User | null; onLoginClick: () => void; onLogout: () => void;
+  authUser: User | null; currentView: View; onLoginClick: () => void; onLogout: () => void;
   onCategorySelect: (c: Category) => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -582,20 +582,22 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, o
         </div>
 
         {/* Categories Bar */}
-        <div className="hidden md:flex border-t border-slate-100 overflow-x-auto">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center gap-1 h-11">
-            {NAV_CATEGORIES.map((cat) => (
-              <button key={cat.name}
-                onClick={() => onCategorySelect(cat.name)}
-                className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-semibold text-slate-600 hover:text-[#1d4ed8] hover:bg-blue-50 transition-colors whitespace-nowrap">
-                {cat.name}
-              </button>
-            ))}
+        {(currentView === "home" || currentView === "catalog") && (
+          <div className="hidden md:flex border-t border-slate-100 overflow-x-auto">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center gap-1 h-11">
+              {NAV_CATEGORIES.map((cat) => (
+                <button key={cat.name}
+                  onClick={() => onCategorySelect(cat.name)}
+                  className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-semibold text-slate-600 hover:text-[#1d4ed8] hover:bg-blue-50 transition-colors whitespace-nowrap">
+                  {cat.name}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Mobile menu */}
-        {menuOpen && (
+        {(currentView === "home" || currentView === "catalog") && menuOpen && (
           <div className="md:hidden border-t border-slate-100 bg-white px-4 py-3 space-y-1">
             <div className="relative mb-3">
               <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -2550,6 +2552,7 @@ export default function App() {
         isLoggedIn={isLoggedIn}
         isAdmin={isAdmin}
         authUser={authUser}
+        currentView={view}
         onLoginClick={() => navigate("login")}
         onLogout={handleLogout}
         onCategorySelect={handleCategorySelect}
