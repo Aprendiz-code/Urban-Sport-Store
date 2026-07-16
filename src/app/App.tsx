@@ -964,8 +964,8 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
       {/* Hero */}
       <section className="relative min-h-screen md:min-h-[88vh] flex items-center overflow-hidden bg-slate-900">
         <img
-          src="/images/hero-bg.jpg"
-          alt="Zapatillas deportivas" className="absolute inset-0 w-full h-full object-cover object-center"
+          src="https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=1600&h=900&fit=crop&auto=format"
+          alt="Atleta en acción" className="absolute inset-0 w-full h-full object-cover object-top"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-slate-900/95 via-slate-900/60 to-slate-900/20" />
 
