@@ -2259,11 +2259,66 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
 
   useEffect(() => { refreshAudit(); }, [productRefresh]);
 
-  const COUPONS = [
-    { code: 'DESC10', discount: '10%', expires: '31/08/2026' },
-    { code: 'ENVIOGRATIS', discount: 'Envío gratis', expires: '30/09/2026' },
-    { code: 'BLACKFRIDAY', discount: '25%', expires: '30/11/2026' },
-  ];
+  type AdminCoupon = { id: string; code: string; discount: string; expires: string };
+
+  const [coupons, setCoupons] = useState<AdminCoupon[]>([
+    { id: "c1", code: "DESC10", discount: "10%", expires: "31/08/2026" },
+    { id: "c2", code: "ENVIOGRATIS", discount: "Envío gratis", expires: "30/09/2026" },
+    { id: "c3", code: "BLACKFRIDAY", discount: "25%", expires: "30/11/2026" },
+  ]);
+  const [couponForm, setCouponForm] = useState({ code: "", discount: "", expires: "" });
+  const [couponMode, setCouponMode] = useState<"create" | "edit">("create");
+  const [activeCouponId, setActiveCouponId] = useState<string | null>(null);
+
+  const resetCouponForm = () => {
+    setCouponMode("create");
+    setActiveCouponId(null);
+    setCouponForm({ code: "", discount: "", expires: "" });
+  };
+
+  const handleCouponChange = (field: keyof typeof couponForm, value: string) => {
+    setCouponForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleCouponSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const code = couponForm.code.trim().toUpperCase();
+    if (!code || !couponForm.discount.trim() || !couponForm.expires.trim()) {
+      toast.error("Completa todos los campos del cupón.");
+      return;
+    }
+
+    if (couponMode === "edit" && activeCouponId) {
+      setCoupons((prev) =>
+        prev.map((coupon) =>
+          coupon.id === activeCouponId
+            ? { ...coupon, code, discount: couponForm.discount.trim(), expires: couponForm.expires.trim() }
+            : coupon
+        )
+      );
+      toast.success("Cupón actualizado.");
+    } else {
+      setCoupons((prev) => [
+        { id: `c-${Date.now()}`, code, discount: couponForm.discount.trim(), expires: couponForm.expires.trim() },
+        ...prev,
+      ]);
+      toast.success("Cupón creado.");
+    }
+
+    resetCouponForm();
+  };
+
+  const handleEditCoupon = (coupon: AdminCoupon) => {
+    setCouponMode("edit");
+    setActiveCouponId(coupon.id);
+    setCouponForm({ code: coupon.code, discount: coupon.discount, expires: coupon.expires });
+  };
+
+  const handleDeleteCoupon = (couponId: string) => {
+    if (!confirm("¿Eliminar este cupón? Esta acción no se puede deshacer.")) return;
+    setCoupons((prev) => prev.filter((coupon) => coupon.id !== couponId));
+    toast.success("Cupón eliminado.");
+  };
 
   const renderAdminSection = () => {
     switch (adminSection) {
@@ -2622,36 +2677,80 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
 
       case "coupons":
         return (
-          <div className="bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] p-5 mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-lg font-extrabold text-slate-900">Cupones</h2>
-                <p className="text-sm text-slate-600">Crea y administra descuentos para tus clientes.</p>
+          <div className="space-y-6 mb-6">
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+              <div className="xl:col-span-2 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] p-5">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+                  <div>
+                    <h2 className="text-lg font-extrabold text-slate-900">Cupones</h2>
+                    <p className="text-sm text-slate-600">Crea y administra descuentos para tus clientes.</p>
+                  </div>
+                  <button onClick={resetCouponForm} className="px-4 py-2 rounded-xl bg-black text-white font-semibold hover:bg-slate-900">{couponMode === 'edit' ? 'Nuevo cupón' : 'Limpiar formulario'}</button>
+                </div>
+
+                <form onSubmit={handleCouponSubmit} className="grid gap-4 sm:grid-cols-3">
+                  <div className="sm:col-span-1">
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Código</label>
+                    <input value={couponForm.code} onChange={(e) => handleCouponChange('code', e.target.value)} placeholder="DESC10" className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
+                  </div>
+                  <div className="sm:col-span-1">
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Descuento</label>
+                    <input value={couponForm.discount} onChange={(e) => handleCouponChange('discount', e.target.value)} placeholder="10% / Envío gratis" className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
+                  </div>
+                  <div className="sm:col-span-1">
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Expira</label>
+                    <input value={couponForm.expires} onChange={(e) => handleCouponChange('expires', e.target.value)} placeholder="31/08/2026" className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
+                  </div>
+
+                  <div className="sm:col-span-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <p className="text-sm text-slate-500">{couponMode === 'edit' ? 'Edita el cupón y guarda los cambios.' : 'Crea un nuevo código de descuento.'}</p>
+                    <button type="submit" className="inline-flex items-center justify-center rounded-2xl bg-black px-5 py-3 text-sm font-semibold text-white hover:bg-slate-900">{couponMode === 'edit' ? 'Actualizar cupón' : 'Crear cupón'}</button>
+                  </div>
+                </form>
               </div>
-              <button className="px-4 py-2 rounded-xl bg-black text-white font-semibold hover:bg-slate-900">Crear cupón</button>
+              <div className="bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] p-5">
+                <h3 className="text-lg font-extrabold text-slate-900 mb-4">Resumen de cupones</h3>
+                <p className="text-sm text-slate-600">Gestiona descuentos activos y consulta su fecha de caducidad.</p>
+                <div className="mt-6 space-y-3">
+                  <div className="rounded-3xl bg-slate-50 p-4">
+                    <p className="text-sm text-slate-500">Total de cupones</p>
+                    <p className="text-2xl font-extrabold text-slate-900">{coupons.length}</p>
+                  </div>
+                  <div className="rounded-3xl bg-slate-50 p-4">
+                    <p className="text-sm text-slate-500">Cupón próximo a expirar</p>
+                    <p className="text-base font-bold text-slate-900">{coupons[0]?.expires ?? 'N/A'}</p>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-slate-100">
-                    {['Código', 'Descuento', 'Expira', 'Acción'].map((h) => (
-                      <th key={h} className="text-left px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wide">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {COUPONS.map((coupon) => (
-                    <tr key={coupon.code} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
-                      <td className="px-4 py-3 text-sm font-semibold text-slate-800">{coupon.code}</td>
-                      <td className="px-4 py-3 text-sm text-slate-600">{coupon.discount}</td>
-                      <td className="px-4 py-3 text-sm text-slate-600">{coupon.expires}</td>
-                      <td className="px-4 py-3">
-                        <button className="px-3 py-1 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold">Editar</button>
-                      </td>
+
+            <div className="bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[640px]">
+                  <thead>
+                    <tr className="border-b border-slate-100 bg-slate-50">
+                      {['Código', 'Descuento', 'Expira', 'Acción'].map((h) => (
+                        <th key={h} className="text-left px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wide">{h}</th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {coupons.map((coupon) => (
+                      <tr key={coupon.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
+                        <td className="px-4 py-3 text-sm font-semibold text-slate-800">{coupon.code}</td>
+                        <td className="px-4 py-3 text-sm text-slate-600">{coupon.discount}</td>
+                        <td className="px-4 py-3 text-sm text-slate-600">{coupon.expires}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-wrap gap-2">
+                            <button type="button" onClick={() => handleEditCoupon(coupon)} className="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold">Editar</button>
+                            <button type="button" onClick={() => handleDeleteCoupon(coupon.id)} className="px-3 py-1.5 rounded-xl bg-red-50 text-red-600 text-xs font-semibold">Eliminar</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         );
@@ -2782,6 +2881,25 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
       </aside>
 
       <main className="flex-1 min-w-0 md:ml-56 px-6 sm:px-8 lg:px-10 py-8 overflow-x-hidden">
+        <div className="md:hidden mb-6">
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <select value={adminSection} onChange={(e) => handleSidebarClick(e.target.value)} className="flex-1 rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+                {SIDEBAR_LINKS.map((link) => (
+                  <option key={link.id} value={link.id}>{link.label}</option>
+                ))}
+              </select>
+              <button onClick={() => onNavigate("home")} className="whitespace-nowrap rounded-3xl bg-black px-4 py-3 text-sm font-semibold text-white hover:bg-slate-900">Tienda</button>
+            </div>
+            <div className="flex items-center gap-2 overflow-x-auto pb-1">
+              {SIDEBAR_LINKS.map((link) => (
+                <button key={link.id} onClick={() => handleSidebarClick(link.id)} className={`rounded-full px-4 py-2 text-sm font-semibold ${adminSection === link.id ? 'bg-black text-white' : 'bg-slate-100 text-slate-700'}`}>
+                  {link.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
         {renderAdminSection()}
       </main>
     </div>
