@@ -1023,29 +1023,35 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
       <section className="py-8 max-w-7xl mx-auto px-4 sm:px-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           {/* Hombre */}
-          <div className="relative rounded-[32px] overflow-hidden h-56 bg-slate-900 shadow-[0_20px_60px_-35px_rgba(15,23,42,0.45)]">
-            <img src="https://images.unsplash.com/photo-1556821840-3a63f15732ce?w=700&h=450&fit=crop&auto=format"
-              alt="Ropa Hombre" className="absolute inset-0 w-full h-full object-cover" />
+          <div className="relative rounded-[32px] overflow-hidden h-44 sm:h-56 bg-slate-900 shadow-[0_20px_60px_-35px_rgba(15,23,42,0.45)]">
+            <picture className="absolute inset-0 block w-full h-full">
+              <source srcSet="https://images.unsplash.com/photo-1556821840-3a63f15732ce?w=1200&h=800&fit=crop&auto=format 1200w, https://images.unsplash.com/photo-1556821840-3a63f15732ce?w=900&h=600&fit=crop&auto=format 900w, https://images.unsplash.com/photo-1556821840-3a63f15732ce?w=640&h=426&fit=crop&auto=format 640w" sizes="(max-width: 640px) 640px, (max-width: 1024px) 900px, 1200px" />
+              <img src="https://images.unsplash.com/photo-1556821840-3a63f15732ce?w=1200&h=800&fit=crop&auto=format"
+                alt="Ropa Hombre" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
+            </picture>
             <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 to-slate-900/15" />
-            <div className="absolute inset-0 p-8 flex flex-col justify-end">
+            <div className="absolute inset-0 p-6 sm:p-8 flex flex-col justify-end">
               <p className="text-xs font-semibold text-[#fbbf24] uppercase tracking-[0.3em] mb-1.5">Temporada 2026</p>
-              <h3 className="text-3xl font-extrabold text-white mb-3">Ropa Hombre</h3>
+              <h3 className="text-2xl sm:text-3xl font-extrabold text-white mb-3">Ropa Hombre</h3>
               <button onClick={() => onCategorySelect("Ropa Hombre")}
-                className="inline-flex items-center gap-2 text-sm font-bold text-slate-900 bg-white px-5 py-3 rounded-full hover:bg-slate-100 transition-all w-fit">
+                className="inline-flex items-center gap-2 text-sm font-bold text-slate-900 bg-white px-4 sm:px-5 py-2.5 sm:py-3 rounded-full hover:bg-slate-100 transition-all w-fit">
                 Explorar <ArrowRight size={14} />
               </button>
             </div>
           </div>
           {/* Mujer */}
-          <div className="relative rounded-[32px] overflow-hidden h-56 bg-slate-100 shadow-[0_20px_60px_-35px_rgba(15,23,42,0.12)]">
-            <img src="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=700&h=450&fit=crop&auto=format"
-              alt="Ropa Mujer" className="absolute inset-0 w-full h-full object-cover" />
+          <div className="relative rounded-[32px] overflow-hidden h-44 sm:h-56 bg-slate-100 shadow-[0_20px_60px_-35px_rgba(15,23,42,0.12)]">
+            <picture className="absolute inset-0 block w-full h-full">
+              <source srcSet="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=1200&h=800&fit=crop&auto=format 1200w, https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=900&h=600&fit=crop&auto=format 900w, https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=640&h=426&fit=crop&auto=format 640w" sizes="(max-width: 640px) 640px, (max-width: 1024px) 900px, 1200px" />
+              <img src="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=1200&h=800&fit=crop&auto=format"
+                alt="Ropa Mujer" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
+            </picture>
             <div className="absolute inset-0 bg-gradient-to-r from-white/80 to-transparent" />
-            <div className="absolute inset-0 p-8 flex flex-col justify-end">
+            <div className="absolute inset-0 p-6 sm:p-8 flex flex-col justify-end">
               <p className="text-xs font-semibold text-[#1d4ed8] uppercase tracking-[0.3em] mb-1.5">Colección nueva</p>
-              <h3 className="text-3xl font-extrabold text-slate-900 mb-3">Ropa Mujer</h3>
+              <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mb-3">Ropa Mujer</h3>
               <button onClick={() => onCategorySelect("Ropa Mujer")}
-                className="inline-flex items-center gap-2 text-sm font-bold text-white bg-black px-5 py-3 rounded-full hover:bg-slate-900 transition-all w-fit">
+                className="inline-flex items-center gap-2 text-sm font-bold text-white bg-black px-4 sm:px-5 py-2.5 sm:py-3 rounded-full hover:bg-slate-900 transition-all w-fit">
                 Explorar <ArrowRight size={14} />
               </button>
             </div>
