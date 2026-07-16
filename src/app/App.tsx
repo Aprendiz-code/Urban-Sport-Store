@@ -1914,8 +1914,8 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
     <main className="pt-[132px] min-h-screen flex">
       {/* Left panel */}
       <div className="hidden lg:flex flex-col justify-between w-1/2 relative overflow-hidden bg-slate-900">
-        <img src="https://images.unsplash.com/photo-1520975917076-54a4d7d6f73e?w=1600&h=1200&fit=crop&auto=format&q=80"
-          alt="Entrenamiento y ropa deportiva" className="absolute inset-0 w-full h-full object-cover" />
+        <img src="https://images.pexels.com/photos/1552249/pexels-photo-1552249.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=1200&w=1600"
+          alt="Prendas deportivas y entrenamiento" className="absolute inset-0 w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-b from-slate-900/70 via-slate-900/40 to-slate-900/80" />
         <div className="relative z-10 p-10">
           <div className="flex items-center gap-2">
