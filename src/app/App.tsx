@@ -678,7 +678,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
 
         {/* Categories Bar */}
         {(currentView === "home" || currentView === "catalog") && (
-          <div className="hidden md:flex border-t border-slate-100 overflow-x-auto mt-3">
+          <div className="hidden md:flex border-t border-slate-100 overflow-x-auto mt-0">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center gap-1 h-11">
               {NAV_CATEGORIES.map((cat) => (
                 <button key={cat.name}
@@ -693,7 +693,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
 
         {/* Mobile categories bar */}
         {(currentView === "home" || currentView === "catalog") && (
-          <div className="md:hidden border-t border-slate-100 overflow-x-auto mt-3 h-11">
+          <div className="md:hidden border-t border-slate-100 overflow-x-auto mt-0 h-11">
             <div className="max-w-7xl mx-auto px-4 flex items-center gap-1 h-full">
               {NAV_CATEGORIES.map((cat) => (
                 <button key={cat.name}
@@ -848,7 +848,7 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
   const onSale = saleProducts;
 
   return (
-    <main className="pt-0">
+    <main className="pt-[132px]">
       {/* Hero */}
       <section className="relative min-h-[88vh] flex items-center overflow-hidden bg-slate-900">
         <img
@@ -1096,20 +1096,17 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
 
 // ─── CATALOG PAGE ─────────────────────────────────────────────────────────────
 
-function CatalogPage({ filterCategory, onSelectProduct, onAddToCart, onNavigate }: {
+function CatalogPage({ filterCategory, onSelectProduct, onAddToCart, onNavigate, onCategorySelect }: {
   filterCategory: Category | null; onSelectProduct: (p: Product) => void;
   onAddToCart: (p: Product, size: string, color: string) => void;
   onNavigate: (v: View) => void;
+  onCategorySelect: (c: Category | null) => void;
 }) {
-  const [selectedCat, setSelectedCat] = useState<Category | null>(filterCategory);
+  const selectedCat = filterCategory;
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState("relevancia");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
-
-  useEffect(() => {
-    setSelectedCat(filterCategory);
-  }, [filterCategory]);
 
   const allBrands = [...new Set(PRODUCTS.map((p) => p.brand))];
   const filtered = useMemo(() => {
@@ -1137,7 +1134,7 @@ function CatalogPage({ filterCategory, onSelectProduct, onAddToCart, onNavigate 
           <div>
             <p className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-3">Categoría</p>
             <div className="space-y-0.5">
-              <button onClick={() => setSelectedCat(null)}
+              <button onClick={() => onCategorySelect(null)}
                 className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-colors ${!selectedCat ? "bg-[#1d4ed8] text-white font-bold" : "text-slate-600 hover:bg-slate-100"}`}>
                 Todos ({PRODUCTS.length})
               </button>
@@ -1145,7 +1142,7 @@ function CatalogPage({ filterCategory, onSelectProduct, onAddToCart, onNavigate 
                 const count = PRODUCTS.filter((p) => p.category === cat.name).length;
                 return (
                   <button key={cat.name}
-                    onClick={() => setSelectedCat(cat.name as Category)}
+                    onClick={() => onCategorySelect(cat.name as Category)}
                     className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-colors flex justify-between items-center ${selectedCat === cat.name ? "bg-[#1d4ed8] text-white font-bold" : "text-slate-600 hover:bg-slate-100"}`}>
                     <span className="flex items-center gap-1.5">{cat.name}</span>
                     <span className="text-xs opacity-60">{count}</span>
@@ -1212,7 +1209,7 @@ function CatalogPage({ filterCategory, onSelectProduct, onAddToCart, onNavigate 
           {mobileFiltersOpen && (
             <div className="mb-5 space-y-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm lg:hidden">
               <div className="grid gap-3">
-                <button onClick={() => setSelectedCat(null)} className="px-4 py-3 rounded-2xl bg-[#1d4ed8] text-white text-sm font-semibold">Mostrar todos ({PRODUCTS.length})</button>
+                <button onClick={() => onCategorySelect(null)} className="px-4 py-3 rounded-2xl bg-[#1d4ed8] text-white text-sm font-semibold">Mostrar todos ({PRODUCTS.length})</button>
                 <div>
                   <p className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-2">Marca</p>
                   <div className="grid grid-cols-2 gap-2">
@@ -1228,14 +1225,14 @@ function CatalogPage({ filterCategory, onSelectProduct, onAddToCart, onNavigate 
                   <p className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-2">Categoría</p>
                   <div className="grid grid-cols-2 gap-2">
                     {NAV_CATEGORIES.map((cat) => (
-                      <button key={cat.name} onClick={() => setSelectedCat(cat.name as Category)}
+                      <button key={cat.name} onClick={() => onCategorySelect(cat.name as Category)}
                         className={`rounded-2xl px-3 py-2 text-sm text-left ${selectedCat === cat.name ? "bg-[#1d4ed8] text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}>
                         {cat.name}
                       </button>
                     ))}
                   </div>
                 </div>
-                <button onClick={() => { setSelectedCat(null); setSelectedBrand(null); setMobileFiltersOpen(false); }}
+                <button onClick={() => { onCategorySelect(null); setSelectedBrand(null); setMobileFiltersOpen(false); }}
                   className="w-full px-4 py-3 rounded-2xl border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50">Limpiar filtros</button>
               </div>
             </div>
@@ -1246,7 +1243,7 @@ function CatalogPage({ filterCategory, onSelectProduct, onAddToCart, onNavigate 
             <div className="flex flex-wrap items-center gap-2 mb-4">
               <span className="text-xs text-slate-500">Filtros:</span>
               {selectedCat && (
-                <button onClick={() => setSelectedCat(null)}
+                <button onClick={() => onCategorySelect(null)}
                   className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#1d4ed8]/10 text-[#1d4ed8] text-xs border border-[#1d4ed8]/20 hover:bg-[#1d4ed8]/20 transition-colors font-semibold">
                   {selectedCat} <X size={11} />
                 </button>
@@ -1257,7 +1254,7 @@ function CatalogPage({ filterCategory, onSelectProduct, onAddToCart, onNavigate 
                   {selectedBrand} <X size={11} />
                 </button>
               )}
-              <button onClick={() => { setSelectedCat(null); setSelectedBrand(null); }}
+              <button onClick={() => { onCategorySelect(null); setSelectedBrand(null); }}
                 className="text-xs text-slate-400 hover:text-slate-600 transition-colors underline">Limpiar todo</button>
             </div>
           )}
@@ -1268,7 +1265,7 @@ function CatalogPage({ filterCategory, onSelectProduct, onAddToCart, onNavigate 
                 <Package size={28} className="text-slate-400" />
               </div>
               <p className="text-slate-500">Sin resultados para estos filtros.</p>
-              <Btn variant="outline" onClick={() => { setSelectedCat(null); setSelectedBrand(null); }}>Limpiar filtros</Btn>
+              <Btn variant="outline" onClick={() => { onCategorySelect(null); setSelectedBrand(null); }}>Limpiar filtros</Btn>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
@@ -3559,7 +3556,7 @@ export default function App() {
     navigate("product");
   };
 
-  const handleCategorySelect = (cat: Category) => {
+  const handleCategorySelect = (cat: Category | null) => {
     setFilterCategory(cat);
     navigate("catalog");
   };
@@ -3629,6 +3626,7 @@ export default function App() {
           onSelectProduct={handleSelectProduct}
           onAddToCart={handleAddToCart}
           onNavigate={navigate}
+          onCategorySelect={handleCategorySelect}
         />
       )}
       {view === "product" && selectedProduct && (
