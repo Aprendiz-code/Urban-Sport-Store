@@ -1025,9 +1025,9 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
           {/* Hombre */}
           <div className="relative rounded-[32px] overflow-hidden h-44 sm:h-56 bg-slate-900 shadow-[0_20px_60px_-35px_rgba(15,23,42,0.45)]">
             <picture className="absolute inset-0 block w-full h-full">
-              <source srcSet="https://images.unsplash.com/photo-1556821840-3a63f15732ce?w=1200&h=800&fit=crop&auto=format 1200w, https://images.unsplash.com/photo-1556821840-3a63f15732ce?w=900&h=600&fit=crop&auto=format 900w, https://images.unsplash.com/photo-1556821840-3a63f15732ce?w=640&h=426&fit=crop&auto=format 640w" sizes="(max-width: 640px) 640px, (max-width: 1024px) 900px, 1200px" />
-              <img src="https://images.unsplash.com/photo-1556821840-3a63f15732ce?w=1200&h=800&fit=crop&auto=format"
-                alt="Ropa Hombre" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
+              <source srcSet="https://images.unsplash.com/photo-1520975917076-54a4d7d6f73e?w=1200&h=800&fit=crop&auto=format 1200w, https://images.unsplash.com/photo-1520975917076-54a4d7d6f73e?w=900&h=600&fit=crop&auto=format 900w, https://images.unsplash.com/photo-1520975917076-54a4d7d6f73e?w=640&h=426&fit=crop&auto=format 640w" sizes="(max-width: 640px) 640px, (max-width: 1024px) 900px, 1200px" />
+              <img src="https://images.unsplash.com/photo-1520975917076-54a4d7d6f73e?w=1200&h=800&fit=crop&auto=format"
+                alt="Hombre entrenando" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
             </picture>
             <div className="absolute inset-0 bg-gradient-to-r from-black/30 to-slate-900/10" />
             <div className="absolute inset-0 p-6 sm:p-8 flex flex-col justify-end">
