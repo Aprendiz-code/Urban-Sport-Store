@@ -2111,7 +2111,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
           {METRICS.map((m) => (
             <div key={m.label} className="p-5 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)]">
               <div className="flex items-center justify-between mb-3">
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${m.up ? "bg-blue-50 text-[#1d4ed8]" : "bg-amber-50 text-amber-600"}`}>
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${m.up ? "bg-slate-100 text-slate-900" : "bg-amber-50 text-amber-600"}`}>
                   {m.icon}
                 </div>
                 <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${m.up ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-600"}`}>{m.change}</span>
@@ -2174,7 +2174,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                 <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar productos por nombre, marca o SKU"
                   className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none" />
                 <button onClick={() => { resetForm(); setFormMode('create'); }}
-                  className="ml-3 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#1d4ed8] text-white font-semibold hover:bg-[#1e40af]">
+                  className="ml-3 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-black text-white font-semibold hover:bg-slate-900">
                   <Plus size={14} /> Nuevo producto
                 </button>
               </div>
