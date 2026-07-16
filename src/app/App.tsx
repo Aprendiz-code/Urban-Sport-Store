@@ -78,6 +78,10 @@ interface HomePageContent {
   featuredSectionLabel: string;
   newArrivalsLabel: string;
   saleSectionLabel: string;
+  categorySectionImage?: string;
+  featuredSectionImage?: string;
+  newArrivalsSectionImage?: string;
+  saleSectionImage?: string;
 }
 
 const LOCAL_ADDRESS_STORAGE = "urbansport_addresses";
@@ -2210,10 +2214,32 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
     featuredSectionLabel: "Lo más buscado",
     newArrivalsLabel: "Recién llegados",
     saleSectionLabel: "Oferta especial",
+    categorySectionImage: "",
+    featuredSectionImage: "",
+    newArrivalsSectionImage: "",
+    saleSectionImage: "",
   } as const;
 
   const updateHomeContentField = (field: keyof HomePageContent, value: string) => {
     setHomeContent((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleSectionImageFileChange = async (field: keyof HomePageContent, e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const data = await uploadProductImage(file, `home/${field}-${Date.now()}-${file.name}`);
+      const path = (data as any)?.path ?? (data as any)?.Key ?? null;
+      if (path) {
+        const bucket = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET ?? 'products';
+        const publicUrl = getPublicUrl(bucket, path);
+        updateHomeContentField(field, publicUrl as string);
+        toast.success('Imagen subida y asignada.');
+      }
+    } catch (err) {
+      console.warn('Section image upload failed', err);
+      toast.error('Error subiendo imagen.');
+    }
   };
 
   const toggleHomeProductSelection = (section: "preview" | "sale" | "newArrivals", product: Product) => {
@@ -2641,6 +2667,11 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                       <input value={homeContent.categorySectionLabel} onChange={(e) => updateHomeContentField("categorySectionLabel", e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 mb-3" />
                       <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Título</label>
                       <input value={homeContent.categorySectionTitle} onChange={(e) => updateHomeContentField("categorySectionTitle", e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900" />
+                      <label className="block text-xs font-bold uppercase text-slate-500 mb-1 mt-3">Imagen de sección (opcional)</label>
+                      <div className="flex items-center gap-3">
+                        <input type="file" accept="image/*" onChange={(e) => handleSectionImageFileChange("categorySectionImage" as keyof HomePageContent, e)} />
+                        <input value={homeContent.categorySectionImage ?? ""} onChange={(e) => updateHomeContentField("categorySectionImage", e.target.value)} placeholder="URL de imagen (opcional)" className="flex-1 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900" />
+                      </div>
                     </div>
 
                     <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
@@ -2649,6 +2680,11 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                       <input value={homeContent.featuredSectionLabel} onChange={(e) => updateHomeContentField("featuredSectionLabel", e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 mb-3" />
                       <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Título</label>
                       <input value={homeContent.featuredSectionTitle} onChange={(e) => updateHomeContentField("featuredSectionTitle", e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900" />
+                        <label className="block text-xs font-bold uppercase text-slate-500 mb-1 mt-3">Imagen de sección (opcional)</label>
+                        <div className="flex items-center gap-3">
+                          <input type="file" accept="image/*" onChange={(e) => handleSectionImageFileChange("featuredSectionImage" as keyof HomePageContent, e)} />
+                          <input value={homeContent.featuredSectionImage ?? ""} onChange={(e) => updateHomeContentField("featuredSectionImage", e.target.value)} placeholder="URL de imagen (opcional)" className="flex-1 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900" />
+                        </div>
                     </div>
 
                     <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
@@ -2657,6 +2693,11 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                       <input value={homeContent.newArrivalsLabel} onChange={(e) => updateHomeContentField("newArrivalsLabel", e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 mb-3" />
                       <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Título</label>
                       <input value={homeContent.newArrivalsSectionTitle} onChange={(e) => updateHomeContentField("newArrivalsSectionTitle", e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900" />
+                        <label className="block text-xs font-bold uppercase text-slate-500 mb-1 mt-3">Imagen de sección (opcional)</label>
+                        <div className="flex items-center gap-3">
+                          <input type="file" accept="image/*" onChange={(e) => handleSectionImageFileChange("newArrivalsSectionImage" as keyof HomePageContent, e)} />
+                          <input value={homeContent.newArrivalsSectionImage ?? ""} onChange={(e) => updateHomeContentField("newArrivalsSectionImage", e.target.value)} placeholder="URL de imagen (opcional)" className="flex-1 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900" />
+                        </div>
                     </div>
 
                     <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
@@ -2665,6 +2706,11 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                       <input value={homeContent.saleSectionLabel} onChange={(e) => updateHomeContentField("saleSectionLabel", e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 mb-3" />
                       <label className="block text-xs font-bold uppercase text-slate-500 mb-1">Título</label>
                       <input value={homeContent.saleSectionTitle} onChange={(e) => updateHomeContentField("saleSectionTitle", e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900" />
+                        <label className="block text-xs font-bold uppercase text-slate-500 mb-1 mt-3">Imagen de sección (opcional)</label>
+                        <div className="flex items-center gap-3">
+                          <input type="file" accept="image/*" onChange={(e) => handleSectionImageFileChange("saleSectionImage" as keyof HomePageContent, e)} />
+                          <input value={homeContent.saleSectionImage ?? ""} onChange={(e) => updateHomeContentField("saleSectionImage", e.target.value)} placeholder="URL de imagen (opcional)" className="flex-1 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900" />
+                        </div>
                     </div>
                   </div>
                 </div>
@@ -2677,17 +2723,35 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                     <p className="text-xs uppercase text-slate-400 tracking-[0.24em] mb-2">Hero</p>
                     <h3 className="text-2xl font-extrabold text-white">{homeContent.heroTitle}</h3>
                     <p className="mt-3 text-sm text-slate-300 leading-relaxed">{homeContent.heroSubtitle}</p>
-                    <div className="mt-5 rounded-3xl bg-slate-900/80 p-4">
-                      <p className="text-xs uppercase text-slate-400 tracking-[0.24em] mb-2">{homeContent.categorySectionLabel}</p>
-                      <h4 className="text-lg font-bold text-white">{homeContent.categorySectionTitle}</h4>
-                    </div>
+                      <div className="mt-5 rounded-3xl bg-slate-900/80 p-4">
+                        <p className="text-xs uppercase text-slate-400 tracking-[0.24em] mb-2">{homeContent.categorySectionLabel}</p>
+                        <h4 className="text-lg font-bold text-white">{homeContent.categorySectionTitle}</h4>
+                        {homeContent.categorySectionImage ? (
+                          <img src={homeContent.categorySectionImage} alt="Category" className="mt-3 w-full max-h-36 object-cover rounded-md" />
+                        ) : null}
+                      </div>
                   </div>
                   <div className="rounded-[28px] border border-white/10 bg-slate-950 p-5">
                     <p className="text-xs uppercase text-slate-400 tracking-[0.24em] mb-2">Secciones</p>
                     <div className="space-y-3 text-sm">
-                      <p><span className="font-bold">{homeContent.featuredSectionLabel}</span> — {homeContent.featuredSectionTitle}</p>
-                      <p><span className="font-bold">{homeContent.newArrivalsLabel}</span> — {homeContent.newArrivalsSectionTitle}</p>
-                      <p><span className="font-bold">{homeContent.saleSectionLabel}</span> — {homeContent.saleSectionTitle}</p>
+                      <div>
+                        <p className="font-bold">{homeContent.featuredSectionLabel} — {homeContent.featuredSectionTitle}</p>
+                        {homeContent.featuredSectionImage ? (
+                          <img src={homeContent.featuredSectionImage} alt="Featured" className="mt-2 w-full max-h-28 object-cover rounded-md" />
+                        ) : null}
+                      </div>
+                      <div>
+                        <p className="font-bold">{homeContent.newArrivalsLabel} — {homeContent.newArrivalsSectionTitle}</p>
+                        {homeContent.newArrivalsSectionImage ? (
+                          <img src={homeContent.newArrivalsSectionImage} alt="New arrivals" className="mt-2 w-full max-h-28 object-cover rounded-md" />
+                        ) : null}
+                      </div>
+                      <div>
+                        <p className="font-bold">{homeContent.saleSectionLabel} — {homeContent.saleSectionTitle}</p>
+                        {homeContent.saleSectionImage ? (
+                          <img src={homeContent.saleSectionImage} alt="Sale" className="mt-2 w-full max-h-28 object-cover rounded-md" />
+                        ) : null}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -3237,6 +3301,10 @@ export default function App() {
     featuredSectionLabel: "Lo más buscado",
     newArrivalsLabel: "Recién llegados",
     saleSectionLabel: "Oferta especial",
+    categorySectionImage: "",
+    featuredSectionImage: "",
+    newArrivalsSectionImage: "",
+    saleSectionImage: "",
   });
   const [homePreviewProducts, setHomePreviewProducts] = useState<Product[]>(PRODUCTS.slice(0, 4));
   const [homeSaleProducts, setHomeSaleProducts] = useState<Product[]>(PRODUCTS.filter((p) => p.discount).slice(0, 4));
