@@ -691,20 +691,28 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
           </div>
         )}
 
+        {/* Mobile categories bar */}
+        {(currentView === "home" || currentView === "catalog") && (
+          <div className="md:hidden border-t border-slate-100 overflow-x-auto mt-3 h-11">
+            <div className="max-w-7xl mx-auto px-4 flex items-center gap-1 h-full">
+              {NAV_CATEGORIES.map((cat) => (
+                <button key={cat.name}
+                  onClick={() => onCategorySelect(cat.name)}
+                  className="flex items-center gap-1.5 px-4 h-9 rounded-lg text-sm font-semibold text-slate-600 hover:text-[#1d4ed8] hover:bg-blue-50 transition-colors whitespace-nowrap">
+                  {cat.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Mobile menu */}
-        {(currentView === "home" || currentView === "catalog") && menuOpen && (
-          <div className="md:hidden border-t border-slate-100 bg-white px-4 py-3 space-y-1 mt-3">
+        {menuOpen && (
+          <div className="md:hidden border-t border-slate-100 bg-white px-4 py-3 mt-3">
             <div className="relative mb-3">
               <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input placeholder="Buscar…" className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none" />
             </div>
-            {NAV_CATEGORIES.map((cat) => (
-              <button key={cat.name}
-                onClick={() => { onCategorySelect(cat.name); setMenuOpen(false); }}
-                className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm text-slate-600 hover:bg-slate-50 transition-colors">
-                {cat.name}
-              </button>
-            ))}
           </div>
         )}
       </nav>
