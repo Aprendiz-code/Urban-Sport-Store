@@ -914,9 +914,9 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
           <Btn variant="ghost" onClick={() => onNavigate("catalog")}>Ver todos <ChevronRight size={14} /></Btn>
         </div>
         <div className="overflow-x-auto pb-4 -mx-4 px-4 sm:px-0">
-          <div className="flex gap-5 snap-x snap-mandatory">
+          <div className="flex flex-nowrap gap-4 snap-x snap-mandatory">
             {featured.slice(0, 8).map((p) => (
-              <div key={p.id} className="snap-start min-w-[18rem] sm:min-w-[20rem] lg:min-w-[22rem] flex-shrink-0">
+              <div key={p.id} className="snap-start min-w-[15rem] sm:min-w-[16rem] lg:min-w-[18rem] flex-shrink-0">
                 <ProductCard product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
               </div>
             ))}
@@ -969,9 +969,9 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
             <Btn variant="ghost" onClick={() => onNavigate("catalog")}>Ver todos <ChevronRight size={14} /></Btn>
           </div>
           <div className="overflow-x-auto pb-4 -mx-4 px-4 sm:px-0">
-            <div className="flex gap-5 snap-x snap-mandatory">
+            <div className="flex flex-nowrap gap-4 snap-x snap-mandatory">
               {newArrivals.slice(0, 8).map((p) => (
-                <div key={p.id} className="snap-start min-w-[18rem] sm:min-w-[20rem] lg:min-w-[22rem] flex-shrink-0">
+                <div key={p.id} className="snap-start min-w-[15rem] sm:min-w-[16rem] lg:min-w-[18rem] flex-shrink-0">
                   <ProductCard product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
                 </div>
               ))}
@@ -991,9 +991,9 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
             <Btn variant="ghost" onClick={() => onNavigate("catalog")}>Ver todos <ChevronRight size={14} /></Btn>
           </div>
           <div className="overflow-x-auto pb-4 -mx-4 px-4 sm:px-0">
-            <div className="flex gap-5 snap-x snap-mandatory">
+            <div className="flex flex-nowrap gap-4 snap-x snap-mandatory">
               {onSale.slice(0, 8).map((p) => (
-                <div key={p.id} className="snap-start min-w-[18rem] sm:min-w-[20rem] lg:min-w-[22rem] flex-shrink-0">
+                <div key={p.id} className="snap-start min-w-[15rem] sm:min-w-[16rem] lg:min-w-[18rem] flex-shrink-0">
                   <ProductCard product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
                 </div>
               ))}
