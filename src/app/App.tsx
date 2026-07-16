@@ -1915,7 +1915,8 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
       {/* Left panel */}
       <div className="hidden lg:flex flex-col justify-between w-1/2 relative overflow-hidden bg-slate-900">
         <img src="/images/login-bg2.jpg"
-          alt="Ropa y zapatillas deportivas" className="absolute inset-0 w-full h-full object-cover" />
+          alt="Ropa y zapatillas deportivas" className="absolute inset-0 w-full h-full object-cover"
+          style={{ filter: 'hue-rotate(190deg) saturate(120%) brightness(95%)' }} />
         <div className="absolute inset-0 bg-gradient-to-b from-slate-900/70 via-slate-900/40 to-slate-900/80" />
         <div className="relative z-10 p-10">
           <div className="flex items-center gap-2">
