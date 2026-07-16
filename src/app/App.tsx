@@ -492,24 +492,33 @@ function AutoScrollCarousel({ children }: { children: React.ReactNode }) {
     if (!carousel) return;
 
     const interval = setInterval(() => {
+      const inner = carousel.firstElementChild as HTMLElement | null;
+      if (!inner) return;
+      const firstItem = inner.firstElementChild as HTMLElement | null;
+      if (!firstItem) return;
+
       const maxScroll = carousel.scrollWidth - carousel.clientWidth;
       if (maxScroll <= 0) return;
 
-      const step = 260; // pixels per tick
+      // calcular desplazamiento en base al ancho de la primera tarjeta + gap
+      const gapStr = getComputedStyle(inner).gap || "0px";
+      const gap = parseInt(gapStr.replace("px", ""), 10) || 0;
+      const step = Math.round(firstItem.getBoundingClientRect().width) + gap;
+
       const next = carousel.scrollLeft + step;
       if (next >= maxScroll) {
         carousel.scrollTo({ left: 0, behavior: "smooth" });
       } else {
         carousel.scrollBy({ left: step, behavior: "smooth" });
       }
-    }, 2500);
+    }, 3000);
 
     return () => clearInterval(interval);
   }, []);
 
   return (
     <div ref={ref} className="overflow-hidden pb-4 -mx-4 px-4 sm:px-0" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
-      <div className="flex flex-nowrap gap-3" style={{ minWidth: "max-content" }}>
+      <div className="flex flex-nowrap gap-3 snap-x snap-mandatory" style={{ minWidth: "max-content" }}>
         {children}
       </div>
     </div>
@@ -993,7 +1002,7 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
         </div>
         <AutoScrollCarousel>
           {HOME_CATEGORIES.map((cat) => (
-            <div key={cat.name} className="min-w-[13rem] sm:min-w-[14rem] lg:min-w-[14.5rem] flex-shrink-0">
+            <div key={cat.name} className="min-w-[16rem] sm:min-w-[18rem] lg:min-w-[20rem] flex-shrink-0 snap-start">
               <button
                 onClick={() => onCategorySelect(cat.name as Category)}
                 className="group relative rounded-3xl overflow-hidden aspect-[4/3] w-full bg-slate-200 hover:shadow-lg transition-all duration-300">
@@ -1966,14 +1975,7 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
                 </button>
               </div>
             </div>
-            {isLocalAuthFallback && !isRegister && (
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                <p className="font-semibold text-slate-900 mb-2">Login admin local</p>
-                <p className="text-slate-600">Usa estas credenciales para entrar al panel admin:</p>
-                <p className="mt-2 text-xs text-slate-500">Correo: <span className="font-medium text-slate-800">{adminHintEmail}</span></p>
-                <p className="text-xs text-slate-500">Contraseña: <span className="font-medium text-slate-800">{adminHintPassword}</span></p>
-              </div>
-            )}
+            {/* Admin hint removed per request: keeping only the login form */}
             {isRegister && (
               <label className="flex items-start gap-2.5 cursor-pointer">
                 <input type="checkbox" className="mt-0.5 accent-[#1d4ed8]" />
