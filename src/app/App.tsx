@@ -2047,7 +2047,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
         </div>
       </aside>
 
-      <main className="flex-1 md:ml-56 px-4 sm:px-6 py-8 overflow-x-hidden">
+      <main className="flex-1 min-w-0 md:pl-56 px-4 sm:px-6 py-8 overflow-x-hidden">
         <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
           <div>
             <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 capitalize">{adminSection === "dashboard" ? "Panel de administrador" : `${adminSection.charAt(0).toUpperCase()}${adminSection.slice(1)}`}</h1>
