@@ -788,7 +788,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
         </div>
       </nav>
 
-      <div className="w-full h-16 sm:h-20 md:h-24 lg:h-28 overflow-hidden">
+      <div className="w-full h-20 sm:h-24 md:h-28 lg:h-32 overflow-hidden">
         <button
           type="button"
           onClick={() => onNavigate("catalog")}
@@ -804,7 +804,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
           <img
             src={promoRibbon}
             alt="Rebajas UrbanSport Store: 10% de descuento en tu primera compra"
-            className="block w-full h-full object-cover object-center"
+            className="block w-full h-full object-contain object-center"
           />
         </button>
       </div>
