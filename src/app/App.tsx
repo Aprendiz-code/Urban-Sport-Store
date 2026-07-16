@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import type { User } from '@supabase/supabase-js';
 import {
   ShoppingCart, Search, Menu, X, Star, ChevronRight, Package,
@@ -25,7 +25,7 @@ import {
 
 import adminApi from "../lib/admin-api";
 import { uploadProductImage, getPublicUrl } from "../lib/supabase-store";
-import { recordAction } from "../lib/audit";
+import { recordAction, getAudit } from "../lib/audit";
 import { productSchema } from '../lib/schemas';
 import { Toaster } from './components/ui/sonner';
 import { toast } from 'sonner';
@@ -53,6 +53,66 @@ interface Product {
 interface CartItem {
   product: Product; qty: number; selectedSize: string; selectedColor: string;
 }
+
+interface Address {
+  id: string;
+  label: string;
+  line1: string;
+  line2?: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+  phone: string;
+  isDefault?: boolean;
+}
+
+const LOCAL_ADDRESS_STORAGE = "urbansport_addresses";
+
+const DEFAULT_ADDRESSES: Address[] = [
+  {
+    id: "addr-1",
+    label: "Casa",
+    line1: "Cra 15 #82-56",
+    line2: "Apto 402",
+    city: "Bogotá",
+    state: "Cundinamarca",
+    postalCode: "110221",
+    country: "Colombia",
+    phone: "+57 311 234 5678",
+    isDefault: true,
+  },
+  {
+    id: "addr-2",
+    label: "Oficina",
+    line1: "Av. El Dorado #68B-31",
+    city: "Bogotá",
+    state: "Cundinamarca",
+    postalCode: "111071",
+    country: "Colombia",
+    phone: "+57 312 876 5432",
+  },
+];
+
+const loadStoredAddresses = (): Address[] => {
+  if (typeof window === "undefined") return DEFAULT_ADDRESSES;
+
+  try {
+    const stored = window.localStorage.getItem(LOCAL_ADDRESS_STORAGE);
+    if (!stored) return DEFAULT_ADDRESSES;
+
+    const parsed = JSON.parse(stored) as Address[];
+    if (!Array.isArray(parsed) || parsed.length === 0) return DEFAULT_ADDRESSES;
+
+    return parsed.map((address) => ({
+      ...address,
+      isDefault: address.isDefault ?? false,
+    }));
+  } catch (error) {
+    console.warn("Error cargando direcciones desde localStorage.", error);
+    return DEFAULT_ADDRESSES;
+  }
+};
 
 const mapProductRecordToAppProduct = (record: ProductRecord): Product => ({
   id: record.id,
@@ -475,6 +535,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
   const [userOpen, setUserOpen] = useState(false);
   const [searchVal, setSearchVal] = useState("");
   const cartCount = cart.reduce((s, i) => s + i.qty, 0);
+  const showCustomerOrders = !isAdmin && !isAdminUser(authUser);
 
   return (
     <div className="fixed top-0 left-0 right-0 z-50">
@@ -541,10 +602,12 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
                         <p className="text-sm font-bold text-slate-800">{authUser?.user_metadata?.full_name ?? authUser?.email ?? 'Usuario'}</p>
                         <p className="text-xs text-slate-400">{authUser?.email ?? 'email@dominio.com'}</p>
                       </div>
-                      <button onClick={() => { onNavigate("account"); setUserOpen(false); }}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
-                        <Package size={14} /> Mis pedidos
-                      </button>
+                      {showCustomerOrders && (
+                        <button onClick={() => { onNavigate("account"); setUserOpen(false); }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+                          <Package size={14} /> Mis pedidos
+                        </button>
+                      )}
                       {isAdmin && (
                         <button onClick={() => { onNavigate("admin"); setUserOpen(false); }}
                           className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
@@ -993,9 +1056,10 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect }
 
 // ─── CATALOG PAGE ─────────────────────────────────────────────────────────────
 
-function CatalogPage({ filterCategory, onSelectProduct, onAddToCart }: {
+function CatalogPage({ filterCategory, onSelectProduct, onAddToCart, onNavigate }: {
   filterCategory: Category | null; onSelectProduct: (p: Product) => void;
   onAddToCart: (p: Product, size: string, color: string) => void;
+  onNavigate: (v: View) => void;
 }) {
   const [selectedCat, setSelectedCat] = useState<Category | null>(filterCategory);
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
@@ -1357,10 +1421,22 @@ function ProductDetailPage({ product, onBack, onAddToCart, onNavigate }: {
 
 // ─── CHECKOUT ────────────────────────────────────────────────────────────────
 
-function CheckoutPage({ cart, onNavigate }: { cart: CartItem[]; onNavigate: (v: View) => void }) {
+function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelectAddress, onCreateAddress }: { cart: CartItem[]; onNavigate: (v: View) => void; addresses: Address[]; selectedAddressId: string; onSelectAddress: (id: string) => void; onCreateAddress: (address: Omit<Address, 'id'>) => void; }) {
   const [step, setStep] = useState(0);
   const [selectedShip, setSelectedShip] = useState(0);
   const [showPass, setShowPass] = useState(false);
+  const [showNewAddress, setShowNewAddress] = useState(false);
+  const [addressForm, setAddressForm] = useState<Omit<Address, 'id'>>({
+    label: "",
+    line1: "",
+    line2: "",
+    city: "",
+    state: "",
+    postalCode: "",
+    country: "Colombia",
+    phone: "",
+    isDefault: false,
+  });
   const subtotal = cart.reduce((s, i) => s + i.product.price * i.qty, 0);
   const SHIP = [
     { name: "Estándar", desc: "5-7 días hábiles", price: 0, tag: "Gratis" },
@@ -1430,25 +1506,57 @@ function CheckoutPage({ cart, onNavigate }: { cart: CartItem[]; onNavigate: (v: 
           {step === 0 && (
             <div className="space-y-4">
               <h3 className="text-lg font-extrabold text-slate-900 mb-4">Dirección de entrega</h3>
-              {[
-                { label: "Casa", addr: "Cra 15 #82-56, Chapinero, Bogotá DC, 110221", default: true },
-                { label: "Oficina", addr: "Av. El Dorado #68B-31, Modelia, Bogotá DC, 111071", default: false },
-              ].map((a, i) => (
-                <label key={a.label} className={`flex gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all ${i === 0 ? "border-[#1d4ed8] bg-blue-50/50" : "border-slate-200 hover:border-slate-300"}`}>
-                  <input type="radio" name="addr" defaultChecked={i === 0} className="mt-0.5 accent-[#1d4ed8]" />
+              {addresses.map((a) => (
+                <label key={a.id} className={`flex gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all ${selectedAddressId === a.id ? "border-[#1d4ed8] bg-blue-50/50" : "border-slate-200 hover:border-slate-300"}`}>
+                  <input type="radio" name="addr" checked={selectedAddressId === a.id} onChange={() => onSelectAddress(a.id)} className="mt-0.5 accent-[#1d4ed8]" />
                   <div>
                     <p className="text-sm font-bold text-slate-800 flex items-center gap-2">
                       <MapPin size={13} className="text-[#1d4ed8]" /> {a.label}
-                      {a.default && <Badge variant="new">Predeterminada</Badge>}
+                      {a.isDefault && <Badge variant="new">Predeterminada</Badge>}
                     </p>
-                    <p className="text-sm text-slate-500 mt-0.5">{a.addr}</p>
+                    <p className="text-sm text-slate-500 mt-0.5">{a.line1}{a.line2 ? `, ${a.line2}` : ""}</p>
+                    <p className="text-sm text-slate-500">{a.city}, {a.state} · {a.postalCode}</p>
+                    <p className="text-sm text-slate-500">{a.country} · {a.phone}</p>
                   </div>
                 </label>
               ))}
-              <button onClick={() => toast('Función para agregar dirección próximamente disponible.')}
-                className="w-full p-4 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 hover:border-[#1d4ed8]/50 hover:text-[#1d4ed8] transition-all flex items-center justify-center gap-2 text-sm font-semibold">
-                <Plus size={14} /> Agregar nueva dirección
+              <button type="button" onClick={() => setShowNewAddress((prev) => !prev)}
+                className="w-full p-4 rounded-2xl border-2 border-dashed border-slate-200 text-slate-500 hover:border-[#1d4ed8]/50 hover:text-[#1d4ed8] transition-all flex items-center justify-center gap-2 text-sm font-semibold">
+                <Plus size={14} /> {showNewAddress ? "Cancelar" : "Agregar nueva dirección"}
               </button>
+              {showNewAddress && (
+                <form onSubmit={(event) => {
+                  event.preventDefault();
+                  onCreateAddress(addressForm);
+                  setShowNewAddress(false);
+                  setAddressForm({ label: "", line1: "", line2: "", city: "", state: "", postalCode: "", country: "Colombia", phone: "", isDefault: false });
+                }} className="space-y-4 p-4 bg-white rounded-3xl border border-slate-200 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)]">
+                  {[
+                    { name: 'label', label: 'Etiqueta', placeholder: 'Casa, Oficina, etc.' },
+                    { name: 'line1', label: 'Dirección', placeholder: 'Cra 15 #82-56' },
+                    { name: 'line2', label: 'Complemento', placeholder: 'Apto 402 (opcional)', optional: true },
+                    { name: 'city', label: 'Ciudad', placeholder: 'Bogotá' },
+                    { name: 'state', label: 'Departamento', placeholder: 'Cundinamarca' },
+                    { name: 'postalCode', label: 'Código postal', placeholder: '110221' },
+                    { name: 'phone', label: 'Teléfono', placeholder: '+57 311 234 5678' },
+                  ].map((field) => (
+                    <div key={field.name}>
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">{field.label}</label>
+                      <input
+                        value={(addressForm as any)[field.name] ?? ""}
+                        onChange={(e) => setAddressForm((prev) => ({ ...prev, [field.name]: e.target.value }))}
+                        placeholder={field.placeholder}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#1d4ed8]/50"
+                      />
+                    </div>
+                  ))}
+                  <label className="flex items-center gap-2 text-sm text-slate-600">
+                    <input type="checkbox" checked={addressForm.isDefault} onChange={(e) => setAddressForm((prev) => ({ ...prev, isDefault: e.target.checked }))} className="accent-[#1d4ed8]" />
+                    Establecer como dirección predeterminada
+                  </label>
+                  <Btn type="submit" variant="primary" className="w-full">Guardar dirección</Btn>
+                </form>
+              )}
             </div>
           )}
 
@@ -1714,8 +1822,54 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
 
 // ─── ACCOUNT PAGE ─────────────────────────────────────────────────────────────
 
-function AccountPage({ onNavigate, onLogout }: { onNavigate: (v: View) => void; onLogout: () => void }) {
-  const [section, setSection] = useState<"orders" | "profile" | "addresses">("orders");
+function AccountPage({ onNavigate, onLogout, addresses, onCreateAddress, onUpdateAddress, onDeleteAddress }: { onNavigate: (v: View) => void; onLogout: () => void; addresses: Address[]; onCreateAddress: (address: Omit<Address, 'id'>) => void; onUpdateAddress: (addressId: string, updates: Partial<Address>) => void; onDeleteAddress: (addressId: string) => void; }) {
+  const [section, setSection] = useState<"orders" | "profile" | "addresses" | "activity">("orders");
+  const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
+  const [showNewAddressForm, setShowNewAddressForm] = useState(false);
+  const [addressForm, setAddressForm] = useState<Omit<Address, 'id'>>({
+    label: "",
+    line1: "",
+    line2: "",
+    city: "",
+    state: "",
+    postalCode: "",
+    country: "Colombia",
+    phone: "",
+    isDefault: false,
+  });
+  const [auditEntries, setAuditEntries] = useState<{ id: string; ts: number; action: string; meta?: Record<string, any> }[]>([]);
+
+  const startEdit = (address: Address) => {
+    setEditingAddressId(address.id);
+    setShowNewAddressForm(true);
+    setAddressForm({
+      label: address.label,
+      line1: address.line1,
+      line2: address.line2 ?? "",
+      city: address.city,
+      state: address.state,
+      postalCode: address.postalCode,
+      country: address.country,
+      phone: address.phone,
+      isDefault: address.isDefault ?? false,
+    });
+  };
+
+  const resetAddressForm = () => {
+    setEditingAddressId(null);
+    setShowNewAddressForm(false);
+    setAddressForm({
+      label: "",
+      line1: "",
+      line2: "",
+      city: "",
+      state: "",
+      postalCode: "",
+      country: "Colombia",
+      phone: "",
+      isDefault: false,
+    });
+  };
 
   return (
     <main className="pt-[132px] min-h-screen max-w-5xl mx-auto px-4 sm:px-6 py-8">
@@ -1818,31 +1972,97 @@ function AccountPage({ onNavigate, onLogout }: { onNavigate: (v: View) => void; 
 
           {section === "addresses" && (
             <div>
-              <h2 className="text-xl font-extrabold text-slate-900 mb-6">Mis direcciones</h2>
-              <div className="space-y-4">
-                {[
-                  { label: "Casa (Predeterminada)", addr: "Cra 15 #82-56, Chapinero, Bogotá DC, 110221", default: true },
-                  { label: "Oficina", addr: "Av. El Dorado #68B-31, Modelia, Bogotá DC, 111071", default: false },
-                ].map((a) => (
-                  <div key={a.label} className="p-4 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_18px_48px_-40px_rgba(15,23,42,0.16)] flex items-start justify-between gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                  <h2 className="text-xl font-extrabold text-slate-900">Mis direcciones</h2>
+                  <p className="text-sm text-slate-500">Administra tus direcciones de entrega guardadas.</p>
+                </div>
+                <button type="button" onClick={() => {
+                  resetAddressForm();
+                  setShowNewAddressForm((prev) => !prev);
+                }}
+                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors">
+                  <Plus size={14} /> {showNewAddressForm ? "Cancelar" : "Agregar nueva dirección"}
+                </button>
+              </div>
+              {showNewAddressForm && (
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  if (editingAddressId) {
+                    onUpdateAddress(editingAddressId, addressForm);
+                  } else {
+                    onCreateAddress(addressForm);
+                  }
+                  resetAddressForm();
+                }} className="space-y-4 p-4 mb-6 bg-white rounded-[30px] border border-slate-200 shadow-[0_18px_48px_-40px_rgba(15,23,42,0.16)]">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {[
+                      { name: 'label', label: 'Etiqueta', placeholder: 'Casa, Oficina, etc.' },
+                      { name: 'line1', label: 'Dirección', placeholder: 'Cra 15 #82-56' },
+                      { name: 'line2', label: 'Complemento', placeholder: 'Apto 402 (opcional)' },
+                      { name: 'city', label: 'Ciudad', placeholder: 'Bogotá' },
+                      { name: 'state', label: 'Departamento', placeholder: 'Cundinamarca' },
+                      { name: 'postalCode', label: 'Código postal', placeholder: '110221' },
+                    ].map((field) => (
+                      <div key={field.name}>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">{field.label}</label>
+                        <input
+                          value={(addressForm as any)[field.name] ?? ''}
+                          onChange={(e) => setAddressForm((prev) => ({ ...prev, [field.name]: e.target.value }))}
+                          placeholder={field.placeholder}
+                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#1d4ed8]/50"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <div className="flex items-center gap-2 mb-1">
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">País</label>
+                      <input
+                        value={addressForm.country}
+                        onChange={(e) => setAddressForm((prev) => ({ ...prev, country: e.target.value }))}
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#1d4ed8]/50"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">Teléfono</label>
+                      <input
+                        value={addressForm.phone}
+                        onChange={(e) => setAddressForm((prev) => ({ ...prev, phone: e.target.value }))}
+                        placeholder="+57 311 234 5678"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#1d4ed8]/50"
+                      />
+                    </div>
+                  </div>
+                  <label className="flex items-center gap-2 text-sm text-slate-600">
+                    <input type="checkbox" checked={addressForm.isDefault} onChange={(e) => setAddressForm((prev) => ({ ...prev, isDefault: e.target.checked }))} className="accent-[#1d4ed8]" />
+                    Establecer como dirección predeterminada
+                  </label>
+                  <div className="flex gap-3 flex-wrap">
+                    <Btn type="submit" variant="primary">{editingAddressId ? 'Guardar cambios' : 'Guardar dirección'}</Btn>
+                    <Btn type="button" variant="secondary" onClick={resetAddressForm}>Cancelar</Btn>
+                  </div>
+                </form>
+              )}
+              <div className="space-y-4">
+                {addresses.map((a) => (
+                  <div key={a.id} className="p-4 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_18px_48px_-40px_rgba(15,23,42,0.16)] flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
                         <MapPin size={14} className="text-[#1d4ed8]" />
                         <span className="text-sm font-bold text-slate-800">{a.label}</span>
-                        {a.default && <Badge variant="new">Predeterminada</Badge>}
+                        {a.isDefault && <Badge variant="new">Predeterminada</Badge>}
                       </div>
-                      <p className="text-sm text-slate-500">{a.addr}</p>
+                      <p className="text-sm text-slate-500">{a.line1}{a.line2 ? `, ${a.line2}` : ''}</p>
+                      <p className="text-sm text-slate-500">{a.city}, {a.state} · {a.postalCode}</p>
+                      <p className="text-sm text-slate-500">{a.country} · {a.phone}</p>
                     </div>
-                    <div className="flex gap-1">
-                      <button className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-[#1d4ed8] hover:bg-blue-50 transition-colors"><Edit size={13} /></button>
-                      <button className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"><Trash2 size={13} /></button>
+                    <div className="flex gap-2">
+                      <button type="button" onClick={() => startEdit(a)} className="w-10 h-10 rounded-lg bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-[#1d4ed8] transition-colors"><Edit size={16} /></button>
+                      <button type="button" onClick={() => onDeleteAddress(a.id)} className="w-10 h-10 rounded-lg bg-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
                     </div>
                   </div>
                 ))}
-                <button onClick={() => toast('Función para agregar nueva dirección próximamente disponible.')}
-                  className="w-full p-4 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 hover:border-[#1d4ed8]/50 hover:text-[#1d4ed8] transition-all flex items-center justify-center gap-2 text-sm font-semibold">
-                  <Plus size={14} /> Agregar nueva dirección
-                </button>
               </div>
             </div>
           )}
@@ -1943,8 +2163,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
         // fallback to local
       }
       try {
-        const module = await import('../lib/audit');
-        setAuditEntries(module.getAudit(200));
+        setAuditEntries(getAudit(200));
       } catch (e) {
         setAuditEntries([]);
       }
@@ -2017,172 +2236,183 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
 
   useEffect(() => { refreshAudit(); }, [productRefresh]);
 
-  const updateField = <K extends keyof Omit<Product, "id">>(field: K, value: Omit<Product, "id">[K]) => {
-    setProductForm((prev) => ({ ...prev, [field]: value }));
-  };
+  const COUPONS = [
+    { code: 'DESC10', discount: '10%', expires: '31/08/2026' },
+    { code: 'ENVIOGRATIS', discount: 'Envío gratis', expires: '30/09/2026' },
+    { code: 'BLACKFRIDAY', discount: '25%', expires: '30/11/2026' },
+  ];
 
-  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      const data = await uploadProductImage(file);
-      const path = (data as any)?.path ?? (data as any)?.Key ?? null;
-      if (path) {
-        const bucket = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET ?? 'products';
-        const publicUrl = getPublicUrl(bucket, path);
-        updateField('image', publicUrl as any);
-      }
-    } catch (err) {
-      console.warn('Image upload failed', err);
-    }
-  };
-
-  return (
-    <div className="flex pt-[88px] min-h-screen bg-slate-50">
-      {/* Admin Sidebar — colored blue */}
-      <aside className="w-56 shrink-0 bg-[#1e3a8a] fixed top-[88px] bottom-0 left-0 flex flex-col hidden md:flex z-40">
-        <div className="p-4 border-b border-white/10">
-          <p className="text-[10px] font-bold text-blue-200 uppercase tracking-widest">Panel de administración</p>
-        </div>
-        <nav className="p-2 flex-1 overflow-y-auto space-y-0.5">
-          {SIDEBAR_LINKS.map((l) => (
-            <button key={l.id} onClick={() => setAdminSection(l.id)}
-              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors ${adminSection === l.id ? "bg-white/15 text-white" : "text-blue-200 hover:text-white hover:bg-white/10"}`}>
-              {l.icon} {l.label}
-            </button>
-          ))}
-        </nav>
-        <div className="p-4 border-t border-white/10">
-          <button onClick={() => onNavigate("home")}
-            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-blue-200 hover:text-white hover:bg-white/10 transition-colors">
-            Ir a la tienda
-          </button>
-        </div>
-      </aside>
-
-      <main className="flex-1 min-w-0 md:ml-56 px-6 sm:px-8 lg:px-10 py-8 overflow-x-hidden">
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
-          <div>
-            <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900">{pageTitle}</h1>
-            <p className="text-sm text-slate-500 mt-2">Bienvenido al espacio administrativo de Urban Sport Store.</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="rounded-2xl bg-slate-100 px-4 py-2 text-sm text-slate-700">Modo administrador</div>
-            <button className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-black text-white hover:bg-slate-900 transition-colors">
-              <BarChart2 size={16} /> Ver estadísticas
-            </button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 mb-8">
-          <div className="xl:col-span-2 p-8 rounded-[30px] bg-slate-950 text-white shadow-[0_20px_60px_-40px_rgba(15,23,42,0.36)]">
-            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <p className="uppercase text-xs tracking-[0.26em] text-slate-400 font-semibold mb-3">Administrador</p>
-                <h2 className="text-3xl sm:text-4xl font-extrabold">Control total de la tienda</h2>
-                <p className="mt-3 max-w-2xl text-sm text-slate-300">Administra pedidos, productos, inventarios y reportes desde un panel unificado y seguro.</p>
-              </div>
-              <div className="rounded-full border border-white/10 bg-white/10 px-4 py-3 text-xs uppercase tracking-[0.22em] font-semibold text-slate-100">Acceso rápido</div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8">
-              {[
-                { title: 'Pedidos', subtitle: 'Revisa todos los pedidos recientes.', action: () => setAdminSection('orders'), icon: <Tag size={18} /> },
-                { title: 'Productos', subtitle: 'Gestiona el catálogo y precios.', action: () => { resetForm(); setAdminSection('products'); }, icon: <Package size={18} /> },
-                { title: 'Inventario', subtitle: 'Controla stock crítico.', action: () => setAdminSection('inventory'), icon: <Layers size={18} /> },
-                { title: 'Reportes', subtitle: 'Analiza rendimiento rápido.', action: () => setAdminSection('reports'), icon: <BarChart2 size={18} /> },
-              ].map((item) => (
-                <button key={item.title} onClick={item.action} className="group rounded-[26px] border border-white/10 bg-white/10 p-5 text-left transition hover:bg-white/20">
-                  <div className="inline-flex items-center justify-center w-11 h-11 rounded-2xl bg-white/15 text-white mb-4 group-hover:bg-white/20">
-                    {item.icon}
+  const renderAdminSection = () => {
+    switch (adminSection) {
+      case "dashboard":
+        return (
+          <>
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 mb-8">
+              <div className="xl:col-span-2 p-8 rounded-[30px] bg-slate-950 text-white shadow-[0_20px_60px_-40px_rgba(15,23,42,0.36)]">
+                <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <p className="uppercase text-xs tracking-[0.26em] text-slate-400 font-semibold mb-3">Administrador</p>
+                    <h2 className="text-3xl sm:text-4xl font-extrabold">Control total de la tienda</h2>
+                    <p className="mt-3 max-w-2xl text-sm text-slate-300">Administra pedidos, productos, inventarios y reportes desde un panel unificado y seguro.</p>
                   </div>
-                  <p className="text-base font-semibold">{item.title}</p>
-                  <p className="mt-2 text-sm text-slate-300">{item.subtitle}</p>
-                </button>
+                  <div className="rounded-full border border-white/10 bg-white/10 px-4 py-3 text-xs uppercase tracking-[0.22em] font-semibold text-slate-100">Acceso rápido</div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8">
+                  {[
+                    { title: 'Pedidos', subtitle: 'Revisa todos los pedidos recientes.', action: () => setAdminSection('orders'), icon: <Tag size={18} /> },
+                    { title: 'Productos', subtitle: 'Gestiona el catálogo y precios.', action: () => { resetForm(); setAdminSection('products'); }, icon: <Package size={18} /> },
+                    { title: 'Inventario', subtitle: 'Controla stock crítico.', action: () => setAdminSection('inventory'), icon: <Layers size={18} /> },
+                    { title: 'Reportes', subtitle: 'Analiza rendimiento rápido.', action: () => setAdminSection('reports'), icon: <BarChart2 size={18} /> },
+                  ].map((item) => (
+                    <button key={item.title} onClick={item.action} className="group rounded-[26px] border border-white/10 bg-white/10 p-5 text-left transition hover:bg-white/20">
+                      <div className="inline-flex items-center justify-center w-11 h-11 rounded-2xl bg-white/15 text-white mb-4 group-hover:bg-white/20">
+                        {item.icon}
+                      </div>
+                      <p className="text-base font-semibold">{item.title}</p>
+                      <p className="mt-2 text-sm text-slate-300">{item.subtitle}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="p-6 rounded-[30px] bg-white/95 border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)]">
+                <p className="text-xs uppercase tracking-[0.24em] text-slate-400 font-semibold mb-4">Resumen rápido</p>
+                <div className="space-y-3">
+                  <div className="rounded-3xl bg-slate-50 p-4">
+                    <p className="text-sm text-slate-500">Usuarios activos hoy</p>
+                    <p className="text-2xl font-extrabold text-slate-900">1.250</p>
+                  </div>
+                  <div className="rounded-3xl bg-slate-50 p-4">
+                    <p className="text-sm text-slate-500">Pedidos pendientes</p>
+                    <p className="text-2xl font-extrabold text-slate-900">28</p>
+                  </div>
+                  <div className="rounded-3xl bg-slate-50 p-4">
+                    <p className="text-sm text-slate-500">Nuevo ingreso de productos</p>
+                    <p className="text-2xl font-extrabold text-slate-900">12</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mb-8">
+              {METRICS.map((m) => (
+                <div key={m.label} className="p-5 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)]">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${m.up ? "bg-slate-100 text-slate-900" : "bg-amber-50 text-amber-600"}`}>
+                      {m.icon}
+                    </div>
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${m.up ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-600"}`}>{m.change}</span>
+                  </div>
+                  <p className="text-2xl font-extrabold text-slate-900">{m.value}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{m.label}</p>
+                </div>
               ))}
             </div>
-          </div>
 
-          <div className="p-6 rounded-[30px] bg-white/95 border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)]">
-            <p className="text-xs uppercase tracking-[0.24em] text-slate-400 font-semibold mb-4">Resumen rápido</p>
-            <div className="space-y-3">
-              <div className="rounded-3xl bg-slate-50 p-4">
-                <p className="text-sm text-slate-500">Usuarios activos hoy</p>
-                <p className="text-2xl font-extrabold text-slate-900">1.250</p>
-              </div>
-              <div className="rounded-3xl bg-slate-50 p-4">
-                <p className="text-sm text-slate-500">Pedidos pendientes</p>
-                <p className="text-2xl font-extrabold text-slate-900">28</p>
-              </div>
-              <div className="rounded-3xl bg-slate-50 p-4">
-                <p className="text-sm text-slate-500">Nuevo ingreso de productos</p>
-                <p className="text-2xl font-extrabold text-slate-900">12</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Metrics */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mb-8">
-          {METRICS.map((m) => (
-            <div key={m.label} className="p-5 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)]">
-              <div className="flex items-center justify-between mb-3">
-                <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${m.up ? "bg-slate-100 text-slate-900" : "bg-amber-50 text-amber-600"}`}>
-                  {m.icon}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+              <div className="lg:col-span-2 p-5 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)]">
+                <div className="flex items-center justify-between mb-5">
+                  <h2 className="text-sm font-extrabold text-slate-800">Ventas últimos 7 días (COP)</h2>
+                  <span className="text-xs text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full">↑ 21.3% vs semana anterior</span>
                 </div>
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${m.up ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-600"}`}>{m.change}</span>
+                <ResponsiveContainer width="100%" height={200}>
+                  <AreaChart data={SALES_DATA} margin={{ top: 0, right: 0, left: -10, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colVentas" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#1d4ed8" stopOpacity={0.15} />
+                        <stop offset="95%" stopColor="#1d4ed8" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis dataKey="day" tick={{ fill: "#94a3b8", fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fill: "#94a3b8", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${(v / 1000000).toFixed(1)}M`} />
+                    <Tooltip
+                      contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: "12px", color: "#0f172a", fontSize: "12px", boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }}
+                      formatter={(v: number) => [`$${v.toLocaleString("es-CO")} COP`, "Ventas"]}
+                    />
+                    <Area type="monotone" dataKey="ventas" stroke="#1d4ed8" strokeWidth={2} fill="url(#colVentas)" dot={false} activeDot={{ r: 5, fill: "#1d4ed8" }} />
+                  </AreaChart>
+                </ResponsiveContainer>
               </div>
-              <p className="text-2xl font-extrabold text-slate-900">{m.value}</p>
-              <p className="text-xs text-slate-400 mt-0.5">{m.label}</p>
+
+              <div className="p-5 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)]">
+                <h2 className="text-sm font-extrabold text-slate-800 mb-5">Ventas por categoría</h2>
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={CAT_DATA} margin={{ top: 0, right: 0, left: -28, bottom: 0 }} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
+                    <XAxis type="number" tick={{ fill: "#94a3b8", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} />
+                    <YAxis type="category" dataKey="name" tick={{ fill: "#64748b", fontSize: 10 }} axisLine={false} tickLine={false} width={55} />
+                    <Tooltip
+                      contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: "12px", fontSize: "12px", boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }}
+                      formatter={(v: number) => [`${v}%`, "Participación"]}
+                    />
+                    <Bar dataKey="valor" fill="#1d4ed8" radius={[0, 6, 6, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
-          ))}
-        </div>
 
-        {/* Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          <div className="lg:col-span-2 p-5 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)]">
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-sm font-extrabold text-slate-800">Ventas últimos 7 días (COP)</h2>
-              <span className="text-xs text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full">↑ 21.3% vs semana anterior</span>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] overflow-hidden">
+                <div className="flex items-center justify-between p-5 border-b border-slate-50">
+                  <h2 className="text-sm font-extrabold text-slate-800">Pedidos recientes</h2>
+                  <button onClick={() => setAdminSection('orders')} className="text-xs text-[#1d4ed8] hover:underline flex items-center gap-1">Ver todos <ChevronRight size={11} /></button>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-slate-50">
+                        {['Pedido', 'Cliente', 'Fecha', 'Estado', 'Total'].map((h) => (
+                          <th key={h} className="text-left px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wide">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ORDERS.map((o) => (
+                        <tr key={o.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                          <td className="px-5 py-3 text-xs font-mono font-bold text-[#1d4ed8]">{o.id}</td>
+                          <td className="px-5 py-3 text-sm text-slate-700">{o.customer}</td>
+                          <td className="px-5 py-3 text-xs text-slate-400">{o.date}</td>
+                          <td className="px-5 py-3">
+                            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${STATUS_STYLE[o.status]}`}>{o.status}</span>
+                          </td>
+                          <td className="px-5 py-3 text-sm font-extrabold text-slate-900">{fmt(o.total)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] overflow-hidden">
+                <div className="flex items-center gap-2 p-5 border-b border-slate-50">
+                  <AlertTriangle size={15} className="text-amber-500" />
+                  <h2 className="text-sm font-extrabold text-slate-800">Inventario bajo</h2>
+                </div>
+                <div className="p-4 space-y-3">
+                  {LOW_STOCK.map((item) => (
+                    <div key={item.sku} className="p-3 bg-amber-50 border border-amber-100 rounded-xl">
+                      <p className="text-xs font-bold text-slate-700 line-clamp-1 mb-0.5">{item.name}</p>
+                      <p className="text-[10px] font-mono text-slate-400 mb-2">{item.sku}</p>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 bg-amber-100 rounded-full h-1.5">
+                          <div className="bg-amber-500 h-1.5 rounded-full" style={{ width: `${(item.stock / 15) * 100}%` }} />
+                        </div>
+                        <span className="text-xs font-extrabold text-amber-700">{item.stock}</span>
+                      </div>
+                    </div>
+                  ))}
+                  <button onClick={() => setAdminSection('inventory')} className="w-full py-2.5 rounded-xl text-xs font-bold text-white bg-black border border-black hover:bg-slate-900 transition-colors">
+                    Gestionar inventario
+                  </button>
+                </div>
+              </div>
             </div>
-            <ResponsiveContainer width="100%" height={200}>
-              <AreaChart data={SALES_DATA} margin={{ top: 0, right: 0, left: -10, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colVentas" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#1d4ed8" stopOpacity={0.15} />
-                    <stop offset="95%" stopColor="#1d4ed8" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                <XAxis dataKey="day" tick={{ fill: "#94a3b8", fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: "#94a3b8", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${(v / 1000000).toFixed(1)}M`} />
-                <Tooltip
-                  contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: "12px", color: "#0f172a", fontSize: "12px", boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }}
-                  formatter={(v: number) => [`$${v.toLocaleString("es-CO")} COP`, "Ventas"]}
-                />
-                <Area type="monotone" dataKey="ventas" stroke="#1d4ed8" strokeWidth={2} fill="url(#colVentas)" dot={false} activeDot={{ r: 5, fill: "#1d4ed8" }} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+          </>
+        );
 
-          <div className="p-5 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)]">
-            <h2 className="text-sm font-extrabold text-slate-800 mb-5">Ventas por categoría</h2>
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={CAT_DATA} margin={{ top: 0, right: 0, left: -28, bottom: 0 }} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
-                <XAxis type="number" tick={{ fill: "#94a3b8", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} />
-                <YAxis type="category" dataKey="name" tick={{ fill: "#64748b", fontSize: 10 }} axisLine={false} tickLine={false} width={55} />
-                <Tooltip
-                  contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: "12px", fontSize: "12px", boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }}
-                  formatter={(v: number) => [`${v}%`, "Participación"]}
-                />
-                <Bar dataKey="valor" fill="#1d4ed8" radius={[0, 6, 6, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Products management */}
-        {adminSection === "products" && (
+      case "products":
+        return (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
             <div className="lg:col-span-2 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] p-5">
               <div className="flex items-center justify-between gap-4 mb-4">
@@ -2269,65 +2499,242 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
               </form>
             </div>
           </div>
-        )}
+        );
 
-        {/* Recent orders + Low stock */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] overflow-hidden">
-            <div className="flex items-center justify-between p-5 border-b border-slate-50">
-              <h2 className="text-sm font-extrabold text-slate-800">Pedidos recientes</h2>
-              <button onClick={() => setAdminSection('orders')} className="text-xs text-[#1d4ed8] hover:underline flex items-center gap-1">Ver todos <ChevronRight size={11} /></button>
+      case "orders":
+        return (
+          <div className="grid grid-cols-1 gap-6 mb-6">
+            <div className="bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] overflow-hidden">
+              <div className="flex items-center justify-between p-5 border-b border-slate-50">
+                <h2 className="text-lg font-extrabold text-slate-900">Pedidos</h2>
+                <span className="text-xs text-slate-500">{ORDERS.length} pedidos registrados</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-slate-50">
+                      {['Pedido', 'Cliente', 'Fecha', 'Estado', 'Total'].map((h) => (
+                        <th key={h} className="text-left px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wide">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ORDERS.map((o) => (
+                      <tr key={o.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                        <td className="px-5 py-3 text-xs font-mono font-bold text-[#1d4ed8]">{o.id}</td>
+                        <td className="px-5 py-3 text-sm text-slate-700">{o.customer}</td>
+                        <td className="px-5 py-3 text-xs text-slate-400">{o.date}</td>
+                        <td className="px-5 py-3">
+                          <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${STATUS_STYLE[o.status]}`}>{o.status}</span>
+                        </td>
+                        <td className="px-5 py-3 text-sm font-extrabold text-slate-900">{fmt(o.total)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div className="bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] p-5">
+              <h3 className="text-lg font-extrabold text-slate-900 mb-3">Resumen de pedidos</h3>
+              <p className="text-sm text-slate-600">Consulta el estado de los pedidos recientes, actualiza los estados y gestiona envíos desde aquí.</p>
+            </div>
+          </div>
+        );
+
+      case "inventory":
+        return (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <div className="lg:col-span-2 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] p-5">
+              <h2 className="text-lg font-extrabold text-slate-900 mb-4">Inventario</h2>
+              <p className="text-sm text-slate-600 mb-6">Gestiona los niveles de stock y revisa los productos con inventario bajo.</p>
+              {LOW_STOCK.length > 0 ? (
+                <div className="space-y-3">
+                  {LOW_STOCK.map((item) => (
+                    <div key={item.sku} className="rounded-3xl bg-amber-50 p-4 border border-amber-100">
+                      <div className="flex items-center justify-between gap-4">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-800">{item.name}</p>
+                          <p className="text-xs text-slate-500">SKU: {item.sku}</p>
+                        </div>
+                        <span className="text-sm font-bold text-amber-700">{item.stock} en stock</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500">No hay productos con inventario bajo en este momento.</p>
+              )}
+            </div>
+            <div className="bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] p-5">
+              <h3 className="text-lg font-extrabold text-slate-900 mb-3">Acciones de inventario</h3>
+              <button onClick={() => setAdminSection('products')} className="w-full py-3 rounded-xl bg-black text-white font-semibold hover:bg-slate-900">Editar productos</button>
+            </div>
+          </div>
+        );
+
+      case "coupons":
+        return (
+          <div className="bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] p-5 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-extrabold text-slate-900">Cupones</h2>
+                <p className="text-sm text-slate-600">Crea y administra descuentos para tus clientes.</p>
+              </div>
+              <button className="px-4 py-2 rounded-xl bg-black text-white font-semibold hover:bg-slate-900">Crear cupón</button>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-slate-50">
-                    {["Pedido", "Cliente", "Fecha", "Estado", "Total"].map((h) => (
-                      <th key={h} className="text-left px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wide">{h}</th>
+                  <tr className="border-b border-slate-100">
+                    {['Código', 'Descuento', 'Expira', 'Acción'].map((h) => (
+                      <th key={h} className="text-left px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wide">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {ORDERS.map((o) => (
-                    <tr key={o.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                      <td className="px-5 py-3 text-xs font-mono font-bold text-[#1d4ed8]">{o.id}</td>
-                      <td className="px-5 py-3 text-sm text-slate-700">{o.customer}</td>
-                      <td className="px-5 py-3 text-xs text-slate-400">{o.date}</td>
-                      <td className="px-5 py-3">
-                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${STATUS_STYLE[o.status]}`}>{o.status}</span>
+                  {COUPONS.map((coupon) => (
+                    <tr key={coupon.code} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
+                      <td className="px-4 py-3 text-sm font-semibold text-slate-800">{coupon.code}</td>
+                      <td className="px-4 py-3 text-sm text-slate-600">{coupon.discount}</td>
+                      <td className="px-4 py-3 text-sm text-slate-600">{coupon.expires}</td>
+                      <td className="px-4 py-3">
+                        <button className="px-3 py-1 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold">Editar</button>
                       </td>
-                      <td className="px-5 py-3 text-sm font-extrabold text-slate-900">{fmt(o.total)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           </div>
+        );
 
-          <div className="bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] overflow-hidden">
-            <div className="flex items-center gap-2 p-5 border-b border-slate-50">
-              <AlertTriangle size={15} className="text-amber-500" />
-              <h2 className="text-sm font-extrabold text-slate-800">Inventario bajo</h2>
-            </div>
-            <div className="p-4 space-y-3">
-              {LOW_STOCK.map((item) => (
-                <div key={item.sku} className="p-3 bg-amber-50 border border-amber-100 rounded-xl">
-                  <p className="text-xs font-bold text-slate-700 line-clamp-1 mb-0.5">{item.name}</p>
-                  <p className="text-[10px] font-mono text-slate-400 mb-2">{item.sku}</p>
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 bg-amber-100 rounded-full h-1.5">
-                      <div className="bg-amber-500 h-1.5 rounded-full" style={{ width: `${(item.stock / 15) * 100}%` }} />
+      case "reports":
+        return (
+          <div className="space-y-6 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+              {METRICS.map((m) => (
+                <div key={m.label} className="p-5 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)]">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${m.up ? "bg-slate-100 text-slate-900" : "bg-amber-50 text-amber-600"}`}>
+                      {m.icon}
                     </div>
-                    <span className="text-xs font-extrabold text-amber-700">{item.stock}</span>
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${m.up ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-600"}`}>{m.change}</span>
                   </div>
+                  <p className="text-2xl font-extrabold text-slate-900">{m.value}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{m.label}</p>
                 </div>
               ))}
-              <button onClick={() => setAdminSection('inventory')} className="w-full py-2.5 rounded-xl text-xs font-bold text-white bg-black border border-black hover:bg-slate-900 transition-colors">
-                Gestionar inventario
-              </button>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2 p-5 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)]">
+                <h3 className="text-lg font-extrabold text-slate-900 mb-4">Reporte de ventas</h3>
+                <p className="text-sm text-slate-600">Visualiza tendencias de ventas y compara el rendimiento por categoría.</p>
+              </div>
+              <div className="p-5 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)]">
+                <h3 className="text-lg font-extrabold text-slate-900 mb-4">Exportar reportes</h3>
+                <button className="w-full py-3 rounded-xl bg-black text-white font-semibold hover:bg-slate-900">Descargar CSV</button>
+              </div>
             </div>
           </div>
+        );
+
+      case "activity":
+        return (
+          <div className="bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] p-5 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-extrabold text-slate-900">Actividad</h2>
+                <p className="text-sm text-slate-600">Registros recientes de auditoría y cambios en el panel.</p>
+              </div>
+              <button onClick={refreshAudit} className="px-4 py-2 rounded-xl bg-black text-white font-semibold hover:bg-slate-900">Actualizar</button>
+            </div>
+            {auditEntries.length > 0 ? (
+              <div className="space-y-3">
+                {auditEntries.map((entry) => (
+                  <div key={entry.id} className="rounded-3xl bg-slate-50 p-4">
+                    <p className="text-sm font-semibold text-slate-800">{entry.action}</p>
+                    <p className="text-xs text-slate-500">{new Date(entry.ts).toLocaleString('es-CO')}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500">No hay actividad registrada aún.</p>
+            )}
+          </div>
+        );
+
+      case "settings":
+        return (
+          <div className="bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] p-5 mb-6">
+            <h2 className="text-lg font-extrabold text-slate-900 mb-4">Ajustes</h2>
+            <div className="space-y-4">
+              <div className="rounded-3xl bg-slate-50 p-4">
+                <p className="text-sm font-semibold text-slate-800">Preferencias del panel</p>
+                <p className="text-sm text-slate-500">Activa o desactiva notificaciones y personaliza la vista del administrador.</p>
+              </div>
+              <div className="rounded-3xl bg-slate-50 p-4">
+                <p className="text-sm font-semibold text-slate-800">Seguridad</p>
+                <p className="text-sm text-slate-500">Cambia contraseñas y configura validación de dos pasos.</p>
+              </div>
+            </div>
+          </div>
+        );
+
+      default:
+        return (
+          <div className="bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] p-5">
+            <p className="text-sm text-slate-600">Sección no disponible todavía.</p>
+          </div>
+        );
+    }
+  };
+
+  type UpdateFieldFn = <K extends keyof Omit<Product, "id">>(field: K, value: Omit<Product, "id">[K]) => void;
+  const updateField: UpdateFieldFn = (field, value) => {
+    setProductForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleImageFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const data = await uploadProductImage(file);
+      const path = (data as any)?.path ?? (data as any)?.Key ?? null;
+      if (path) {
+        const bucket = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET ?? 'products';
+        const publicUrl = getPublicUrl(bucket, path);
+        updateField('image', publicUrl as any);
+      }
+    } catch (err) {
+      console.warn('Image upload failed', err);
+    }
+  };
+
+  return (
+    <div className="flex pt-[88px] min-h-screen bg-slate-50">
+      {/* Admin Sidebar — colored blue */}
+      <aside className="w-56 shrink-0 bg-[#1e3a8a] fixed top-[88px] bottom-0 left-0 flex flex-col hidden md:flex z-40">
+        <div className="p-4 border-b border-white/10">
+          <p className="text-[10px] font-bold text-blue-200 uppercase tracking-widest">Panel de administración</p>
         </div>
+        <nav className="p-2 flex-1 overflow-y-auto space-y-0.5">
+          {SIDEBAR_LINKS.map((l) => (
+            <button key={l.id} onClick={() => setAdminSection(l.id)}
+              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors ${adminSection === l.id ? "bg-white/15 text-white" : "text-blue-200 hover:text-white hover:bg-white/10"}`}>
+              {l.icon} {l.label}
+            </button>
+          ))}
+        </nav>
+        <div className="p-4 border-t border-white/10">
+          <button onClick={() => onNavigate("home")}
+            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-blue-200 hover:text-white hover:bg-white/10 transition-colors">
+            Ir a la tienda
+          </button>
+        </div>
+      </aside>
+
+      <main className="flex-1 min-w-0 md:ml-56 px-6 sm:px-8 lg:px-10 py-8 overflow-x-hidden">
+        {renderAdminSection()}
       </main>
     </div>
   );
@@ -2366,10 +2773,57 @@ export default function App() {
   const [filterCategory, setFilterCategory] = useState<Category | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
+  const [addresses, setAddresses] = useState<Address[]>(loadStoredAddresses);
+  const [selectedAddressId, setSelectedAddressId] = useState<string>(() => {
+    const stored = loadStoredAddresses();
+    return stored[0]?.id ?? DEFAULT_ADDRESSES[0].id;
+  });
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [authUser, setAuthUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [productRefresh, setProductRefresh] = useState(0);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(LOCAL_ADDRESS_STORAGE, JSON.stringify(addresses));
+  }, [addresses]);
+
+  const createAddress = (address: Omit<Address, "id">) => {
+    const newAddress: Address = {
+      ...address,
+      id: crypto.randomUUID?.() ?? `addr-${Date.now()}`,
+      isDefault: address.isDefault ?? true,
+    };
+
+    setAddresses((prev) => {
+      const updated = prev.map((addr) => ({
+        ...addr,
+        isDefault: newAddress.isDefault ? false : addr.isDefault,
+      }));
+      return [...updated, newAddress];
+    });
+    setSelectedAddressId(newAddress.id);
+  };
+
+  const updateAddress = (addressId: string, updates: Partial<Address>) => {
+    setAddresses((prev) => prev.map((addr) => {
+      if (addr.id !== addressId) {
+        return updates.isDefault ? { ...addr, isDefault: false } : addr;
+      }
+      return { ...addr, ...updates };
+    }));
+    if (updates.isDefault) setSelectedAddressId(addressId);
+  };
+
+  const deleteAddress = (addressId: string) => {
+    setAddresses((prev) => {
+      const next = prev.filter((addr) => addr.id !== addressId);
+      if (selectedAddressId === addressId) {
+        setSelectedAddressId(next[0]?.id ?? DEFAULT_ADDRESSES[0].id);
+      }
+      return next.length ? next : DEFAULT_ADDRESSES;
+    });
+  };
 
   useEffect(() => {
     let subscription: { unsubscribe: () => void } | null = null;
@@ -2397,8 +2851,17 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (view === "admin" && !isAdmin) {
+    if (isAdmin && view !== "admin") {
+      navigate("admin");
+      return;
+    }
+    if (!isAdmin && view === "admin") {
       navigate("login");
+      return;
+    }
+    if (!isAdmin && view === "account") {
+      // allow account for normal users only
+      return;
     }
   }, [view, isAdmin]);
 
@@ -2559,19 +3022,22 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#f4f5f7] text-slate-900" style={{ fontFamily: "'Manrope', system-ui, sans-serif" }}>
-      <Navbar
-        cart={cart} onNavigate={navigate}
-        onCartOpen={() => setCartOpen(true)}
-        isLoggedIn={isLoggedIn}
-        isAdmin={isAdmin}
-        authUser={authUser}
-        currentView={view}
-        onLoginClick={() => navigate("login")}
-        onLogout={handleLogout}
-        onCategorySelect={handleCategorySelect}
-      />
-      <Toaster />
-
+      {view !== "admin" && (
+        <>
+          <Navbar
+            cart={cart} onNavigate={navigate}
+            onCartOpen={() => setCartOpen(true)}
+            isLoggedIn={isLoggedIn}
+            isAdmin={isAdmin}
+            authUser={authUser}
+            currentView={view}
+            onLoginClick={() => navigate("login")}
+            onLogout={handleLogout}
+            onCategorySelect={handleCategorySelect}
+          />
+          <Toaster />
+        </>
+      )}
       {view === "home" && (
         <HomePage
           onNavigate={navigate} onSelectProduct={handleSelectProduct}
@@ -2581,7 +3047,9 @@ export default function App() {
       {view === "catalog" && (
         <CatalogPage
           filterCategory={filterCategory}
-          onSelectProduct={handleSelectProduct} onAddToCart={handleAddToCart}
+          onSelectProduct={handleSelectProduct}
+          onAddToCart={handleAddToCart}
+          onNavigate={navigate}
         />
       )}
       {view === "product" && selectedProduct && (
@@ -2592,10 +3060,28 @@ export default function App() {
           onNavigate={navigate}
         />
       )}
-      {view === "checkout" && <CheckoutPage cart={cart} onNavigate={navigate} />}
+      {view === "checkout" && (
+        <CheckoutPage
+          cart={cart}
+          onNavigate={navigate}
+          addresses={addresses}
+          selectedAddressId={selectedAddressId}
+          onSelectAddress={setSelectedAddressId}
+          onCreateAddress={createAddress}
+        />
+      )}
       {view === "login" && <LoginPage isRegister={false} onNavigate={navigate} onLogin={handleAuthSuccess} />}
       {view === "register" && <LoginPage isRegister={true} onNavigate={navigate} onLogin={handleAuthSuccess} />}
-      {view === "account" && <AccountPage onNavigate={navigate} onLogout={handleLogout} />}
+      {view === "account" && (
+        <AccountPage
+          onNavigate={navigate}
+          onLogout={handleLogout}
+          addresses={addresses}
+          onCreateAddress={createAddress}
+          onUpdateAddress={updateAddress}
+          onDeleteAddress={deleteAddress}
+        />
+      )}
       {view === "admin" && isAdmin && (
         <AdminDashboard
           onNavigate={navigate}
@@ -2618,7 +3104,8 @@ export default function App() {
       )}
 
       {/* Mobile bottom nav */}
-      <div className="fixed bottom-0 left-0 right-0 md:hidden bg-white border-t border-slate-200 z-40 flex">
+      {view !== "admin" && (
+        <div className="fixed bottom-0 left-0 right-0 md:hidden bg-white border-t border-slate-200 z-40 flex">
         {[
           { label: "Inicio", icon: <Home size={20} />, view: "home" as View },
           { label: "Buscar", icon: <Search size={20} />, view: "catalog" as View },
@@ -2644,6 +3131,7 @@ export default function App() {
           </button>
         ))}
       </div>
+      )}
     </div>
   );
 }
