@@ -2671,14 +2671,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                     <textarea value={homeContent.heroSubtitle} onChange={(e) => updateHomeContentField("heroSubtitle", e.target.value)} rows={3} className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
                   </div>
 
-                  <div className="space-y-4 mt-2">
-                    <div>
-                      <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Categoría - Etiqueta</label>
-                      <input value={homeContent.categorySectionLabel} onChange={(e) => updateHomeContentField("categorySectionLabel", e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 mb-3" />
-                      <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Categoría - Título</label>
-                      <input value={homeContent.categorySectionTitle} onChange={(e) => updateHomeContentField("categorySectionTitle", e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900" />
-                    </div>
-                  </div>
+                  
                 </div>
               </div>
 
