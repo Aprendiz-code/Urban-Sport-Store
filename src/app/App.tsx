@@ -786,29 +786,30 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
             </button>
           </div>
         </div>
+      </nav>
 
-        <div className="w-full h-12 sm:h-14 md:h-16 overflow-hidden">
-          <button
-            type="button"
-            onClick={() => onNavigate("catalog")}
-            aria-label="Ver promociones y productos con descuento"
-            className={[
-              'block w-full h-full overflow-hidden transition-all duration-700 ease-out',
-              'motion-reduce:transform-none motion-reduce:transition-none motion-reduce:animate-none',
-              promoEntered
-                ? 'opacity-100 translate-y-0 animate-[promo-pulse_3s_ease-in-out_infinite]'
-                : 'opacity-0 -translate-y-2',
-            ].join(' ')}
-          >
-            <img
-              src={promoRibbon}
-              alt="Rebajas UrbanSport Store: 10% de descuento en tu primera compra"
-              className="block w-full h-full object-cover object-center"
-            />
-          </button>
-        </div>
+      <div className="w-full h-12 sm:h-14 md:h-16 overflow-hidden">
+        <button
+          type="button"
+          onClick={() => onNavigate("catalog")}
+          aria-label="Ver promociones y productos con descuento"
+          className={[
+            'block w-full h-full overflow-hidden transition-all duration-700 ease-out',
+            'motion-reduce:transform-none motion-reduce:transition-none motion-reduce:animate-none',
+            promoEntered
+              ? 'opacity-100 translate-y-0 animate-[promo-pulse_3s_ease-in-out_infinite]'
+              : 'opacity-0 -translate-y-2',
+          ].join(' ')}
+        >
+          <img
+            src={promoRibbon}
+            alt="Rebajas UrbanSport Store: 10% de descuento en tu primera compra"
+            className="block w-full h-full object-cover object-center"
+          />
+        </button>
+      </div>
 
-        {/* Categories Bar */}
+      {/* Categories Bar */}
         {(currentView === "home" || currentView === "catalog") && (
           <div className="hidden md:flex border-t border-slate-100 overflow-x-auto mt-0">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center gap-1 h-11">
