@@ -916,7 +916,8 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect }
           <div className="flex gap-2 max-w-sm mx-auto">
             <input type="email" placeholder="tu@email.com"
               className="flex-1 px-4 py-3 rounded-xl text-sm text-slate-800 bg-white placeholder-slate-400 focus:outline-none" />
-            <button className="px-5 py-3 rounded-xl bg-[#f97316] text-white text-sm font-bold hover:bg-orange-600 transition-colors whitespace-nowrap">
+            <button onClick={() => toast.success('¡Gracias! Te notificaremos cuando haya ofertas disponibles.')}
+              className="px-5 py-3 rounded-xl bg-[#f97316] text-white text-sm font-bold hover:bg-orange-600 transition-colors whitespace-nowrap">
               Suscribirme
             </button>
           </div>
@@ -941,9 +942,32 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect }
               <div key={col.title}>
                 <p className="text-xs font-bold text-white uppercase tracking-widest mb-3">{col.title}</p>
                 <ul className="space-y-2">
-                  {col.links.map((l) => (
-                    <li key={l}><a href="#" className="text-xs text-slate-400 hover:text-white transition-colors">{l}</a></li>
-                  ))}
+                  {col.links.map((l) => {
+                    const categoryMap: Record<string, Category | null> = {
+                      "Zapatos deportivos": "Zapatos",
+                      "Ropa Hombre": "Ropa Hombre",
+                      "Ropa Mujer": "Ropa Mujer",
+                      "Perfumes": "Perfumes",
+                      "Relojes": "Relojes",
+                      "Gafas": "Gafas",
+                    };
+                    const category = categoryMap[l] ?? null;
+                    return (
+                      <li key={l}>
+                        {category ? (
+                          <button onClick={() => { onCategorySelect(category); onNavigate("catalog"); }}
+                            className="text-left w-full text-xs text-slate-400 hover:text-white transition-colors">
+                            {l}
+                          </button>
+                        ) : (
+                          <button onClick={() => toast('Próximamente: ' + l)}
+                            className="text-left w-full text-xs text-slate-400 hover:text-white transition-colors">
+                            {l}
+                          </button>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             ))}
@@ -951,9 +975,12 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect }
           <div className="border-t border-slate-800 pt-6 flex flex-col sm:flex-row justify-between items-center gap-3">
             <p className="text-xs text-slate-500">© 2026 UrbanSport Store. Todos los derechos reservados.</p>
             <div className="flex items-center gap-4 text-xs text-slate-500">
-              <a href="#" className="hover:text-slate-300 transition-colors">Privacidad</a>
-              <a href="#" className="hover:text-slate-300 transition-colors">Términos</a>
-              <a href="#" className="hover:text-slate-300 transition-colors">Cookies</a>
+              <button onClick={() => toast('Privacidad próximamente disponible.')}
+                className="hover:text-slate-300 transition-colors text-left">Privacidad</button>
+              <button onClick={() => toast('Términos próximamente disponible.')}
+                className="hover:text-slate-300 transition-colors text-left">Términos</button>
+              <button onClick={() => toast('Cookies próximamente disponible.')}
+                className="hover:text-slate-300 transition-colors text-left">Cookies</button>
             </div>
           </div>
         </div>
@@ -989,8 +1016,7 @@ function CatalogPage({ filterCategory, onSelectProduct, onAddToCart }: {
     <main className="pt-[132px] min-h-screen max-w-7xl mx-auto px-4 sm:px-6 py-8">
       {/* Breadcrumbs */}
       <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-6">
-        <span className="hover:text-slate-600 cursor-pointer">Inicio</span>
-        <ChevronRight size={12} />
+          <button onClick={() => onNavigate("home")} className="hover:text-slate-600 cursor-pointer">Inicio</button>
         <span className="text-slate-700 font-semibold">{selectedCat ?? "Todos los productos"}</span>
       </div>
 
@@ -1215,7 +1241,8 @@ function ProductDetailPage({ product, onBack, onAddToCart, onNavigate }: {
                  product.category === "Perfumes" ? "Presentación" : "Talla"}
               </p>
               {product.category !== "Perfumes" && product.sizes[0] !== "Talla única" && (
-                <button className="text-xs text-[#1d4ed8] hover:underline">Guía de tallas</button>
+                <button onClick={() => onNavigate("catalog")}
+                  className="text-xs text-[#1d4ed8] hover:underline">Guía de tallas</button>
               )}
             </div>
             <SizeSelector sizes={product.sizes} selected={selectedSize} onSelect={setSelectedSize} />
@@ -1416,7 +1443,8 @@ function CheckoutPage({ cart, onNavigate }: { cart: CartItem[]; onNavigate: (v: 
                   </div>
                 </label>
               ))}
-              <button className="w-full p-4 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 hover:border-[#1d4ed8]/50 hover:text-[#1d4ed8] transition-all flex items-center justify-center gap-2 text-sm font-semibold">
+              <button onClick={() => toast('Función para agregar dirección próximamente disponible.')}
+                className="w-full p-4 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 hover:border-[#1d4ed8]/50 hover:text-[#1d4ed8] transition-all flex items-center justify-center gap-2 text-sm font-semibold">
                 <Plus size={14} /> Agregar nueva dirección
               </button>
             </div>
@@ -1626,7 +1654,8 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
             <div>
               <div className="flex justify-between mb-1.5">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Contraseña</label>
-                {!isRegister && <button type="button" className="text-xs text-[#1d4ed8] hover:underline">¿Olvidaste tu contraseña?</button>}
+                {!isRegister && <button type="button" onClick={() => toast('Función de recuperación de contraseña próximamente disponible.')}
+                className="text-xs text-[#1d4ed8] hover:underline">¿Olvidaste tu contraseña?</button>}
               </div>
               <div className="relative">
                 <input type={showPass ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••"
@@ -1647,7 +1676,7 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
             {isRegister && (
               <label className="flex items-start gap-2.5 cursor-pointer">
                 <input type="checkbox" className="mt-0.5 accent-[#1d4ed8]" />
-                <span className="text-xs text-slate-500">Acepto los <a href="#" className="text-[#1d4ed8] hover:underline">Términos</a> y la <a href="#" className="text-[#1d4ed8] hover:underline">Política de privacidad</a>.</span>
+                <span className="text-xs text-slate-500">Acepto los <button type="button" onClick={() => toast('Términos próximamente disponible.')} className="text-[#1d4ed8] hover:underline">Términos</button> y la <button type="button" onClick={() => toast('Política de privacidad próximamente disponible.')} className="text-[#1d4ed8] hover:underline">Política de privacidad</button>.</span>
               </label>
             )}
             {error && <p className="text-sm text-red-600">{error}</p>}
@@ -1663,7 +1692,8 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
             <div className="flex-1 h-px bg-slate-200" />
           </div>
 
-          <button className="w-full py-3 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 font-semibold hover:bg-slate-50 transition-colors flex items-center justify-center gap-2 shadow-sm">
+          <button onClick={() => toast('Función de inicio con Google próximamente disponible.')}
+            className="w-full py-3 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 font-semibold hover:bg-slate-50 transition-colors flex items-center justify-center gap-2 shadow-sm">
             <svg width="16" height="16" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20H24v8h11.3C33.6 33.4 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.7 1.1 7.8 2.9l5.7-5.7C34 6.5 29.2 4 24 4 13 4 4 13 4 24s9 20 20 20c11 0 20-9 20-20 0-1.3-.1-2.7-.4-4z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 15.1 18.9 12 24 12c3 0 5.7 1.1 7.8 2.9l5.7-5.7C34 6.5 29.2 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.3 26.7 36 24 36c-5.2 0-9.6-3.4-11.2-8H6.5C9.9 37.7 16.5 44 24 44z"/><path fill="#1976D2" d="M43.6 20H24v8h11.3c-.8 2.2-2.2 4.1-4 5.5l6.2 5.2C40.6 35.4 44 30.1 44 24c0-1.3-.1-2.7-.4-4z"/></svg>
             Continuar con Google
           </button>
@@ -1682,7 +1712,7 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
 
 // ─── ACCOUNT PAGE ─────────────────────────────────────────────────────────────
 
-function AccountPage({ onNavigate }: { onNavigate: (v: View) => void }) {
+function AccountPage({ onNavigate, onLogout }: { onNavigate: (v: View) => void; onLogout: () => void }) {
   const [section, setSection] = useState<"orders" | "profile" | "addresses">("orders");
 
   return (
@@ -1706,7 +1736,7 @@ function AccountPage({ onNavigate }: { onNavigate: (v: View) => void }) {
                   {item.icon} {item.label}
                 </button>
               ))}
-              <button onClick={() => onNavigate("home")}
+              <button onClick={onLogout}
                 className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-red-500 hover:bg-red-50 transition-colors">
                 <LogOut size={15} /> Cerrar sesión
               </button>
@@ -1730,7 +1760,8 @@ function AccountPage({ onNavigate }: { onNavigate: (v: View) => void }) {
                     </div>
                     <div className="text-right">
                       <p className="text-base font-extrabold text-slate-900">{fmt(order.total)} COP</p>
-                      <button className="text-xs text-[#1d4ed8] hover:underline flex items-center gap-1 ml-auto mt-1">
+                      <button onClick={() => toast('Detalle de pedido próximamente disponible.')}
+                        className="text-xs text-[#1d4ed8] hover:underline flex items-center gap-1 ml-auto mt-1">
                         Ver detalle <ChevronRight size={11} />
                       </button>
                     </div>
@@ -1806,7 +1837,8 @@ function AccountPage({ onNavigate }: { onNavigate: (v: View) => void }) {
                     </div>
                   </div>
                 ))}
-                <button className="w-full p-4 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 hover:border-[#1d4ed8]/50 hover:text-[#1d4ed8] transition-all flex items-center justify-center gap-2 text-sm font-semibold">
+                <button onClick={() => toast('Función para agregar nueva dirección próximamente disponible.')}
+                  className="w-full p-4 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 hover:border-[#1d4ed8]/50 hover:text-[#1d4ed8] transition-all flex items-center justify-center gap-2 text-sm font-semibold">
                   <Plus size={14} /> Agregar nueva dirección
                 </button>
               </div>
@@ -2229,7 +2261,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
           <div className="lg:col-span-2 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] overflow-hidden">
             <div className="flex items-center justify-between p-5 border-b border-slate-50">
               <h2 className="text-sm font-extrabold text-slate-800">Pedidos recientes</h2>
-              <button className="text-xs text-[#1d4ed8] hover:underline flex items-center gap-1">Ver todos <ChevronRight size={11} /></button>
+              <button onClick={() => setAdminSection('orders')} className="text-xs text-[#1d4ed8] hover:underline flex items-center gap-1">Ver todos <ChevronRight size={11} /></button>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -2275,7 +2307,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                   </div>
                 </div>
               ))}
-              <button className="w-full py-2.5 rounded-xl text-xs font-bold text-[#1d4ed8] bg-blue-50 border border-blue-100 hover:bg-blue-100 transition-colors">
+              <button onClick={() => setAdminSection('inventory')} className="w-full py-2.5 rounded-xl text-xs font-bold text-[#1d4ed8] bg-blue-50 border border-blue-100 hover:bg-blue-100 transition-colors">
                 Gestionar inventario
               </button>
             </div>
@@ -2547,7 +2579,7 @@ export default function App() {
       {view === "checkout" && <CheckoutPage cart={cart} onNavigate={navigate} />}
       {view === "login" && <LoginPage isRegister={false} onNavigate={navigate} onLogin={handleAuthSuccess} />}
       {view === "register" && <LoginPage isRegister={true} onNavigate={navigate} onLogin={handleAuthSuccess} />}
-      {view === "account" && <AccountPage onNavigate={navigate} />}
+      {view === "account" && <AccountPage onNavigate={navigate} onLogout={handleLogout} />}
       {view === "admin" && isAdmin && (
         <AdminDashboard
           onNavigate={navigate}
