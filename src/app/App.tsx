@@ -781,15 +781,6 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
         </div>
 
 
-        {/* Promo image above category buttons */}
-        {(currentView === "home" || currentView === "catalog") && (
-          <div className="px-4 sm:px-6 mb-3">
-            <div className="mx-auto w-full max-w-7xl overflow-hidden rounded-3xl shadow-lg">
-              <img src="/images/hero-ecom.jpg" alt="Descuento ecommerce" className="w-full h-32 object-cover" />
-            </div>
-          </div>
-        )}
-
         {/* Categories Bar */}
         {(currentView === "home" || currentView === "catalog") && (
           <div className="hidden md:flex border-t border-slate-100 overflow-x-auto mt-0">
