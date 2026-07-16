@@ -1,12 +1,39 @@
+.promo-ribbon-bg {
+  background: linear-gradient(90deg, #f59e0b 0%, #f97316 30%, #fb923c 60%, #f97316 100%);
+  background-size: 200% 100%;
+  animation: ribbonGradient 8s linear infinite;
+}
+
 .promo-ribbon-scroll {
-  animation: ribbonShift 12s ease-in-out infinite;
+  animation: ribbonShift 5s ease-in-out infinite, ribbonPulse 8s ease-in-out infinite;
 }
 
 @keyframes ribbonShift {
   0%, 100% {
-    transform: translateX(-10%) rotate(1.2deg);
+    transform: translateX(-10%) skewX(-6deg);
   }
   50% {
-    transform: translateX(10%) rotate(1.2deg);
+    transform: translateX(10%) skewX(-6deg);
+  }
+}
+
+@keyframes ribbonPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.93;
+  }
+}
+
+@keyframes ribbonGradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
   }
 }
