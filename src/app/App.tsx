@@ -627,6 +627,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
           </button>
 
           {/* Search */}
+          {/* Desktop search */}
           <div className="flex-1 max-w-xl hidden sm:flex relative">
             <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
@@ -634,6 +635,18 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
               placeholder="Buscar zapatillas, ropa, relojes…"
               className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:border-[#1d4ed8]/50 focus:bg-white transition-all"
             />
+          </div>
+
+          {/* Mobile search (visible on xs) */}
+          <div className="flex-1 sm:hidden">
+            <div className="relative">
+              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                value={searchVal} onChange={(e) => setSearchVal(e.target.value)}
+                placeholder="Buscar zapatillas, ropa, relojes…"
+                className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none"
+              />
+            </div>
           </div>
 
           {/* Actions */}
