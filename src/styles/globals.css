@@ -5,15 +5,15 @@
 }
 
 .promo-ribbon-scroll {
-  animation: ribbonShift 5s ease-in-out infinite, ribbonPulse 8s ease-in-out infinite;
+  animation: ribbonMarquee 10s linear infinite;
 }
 
-@keyframes ribbonShift {
-  0%, 100% {
-    transform: translateX(-10%) skewX(-6deg);
+@keyframes ribbonMarquee {
+  0% {
+    transform: translateX(0%) skewX(-6deg);
   }
-  50% {
-    transform: translateX(10%) skewX(-6deg);
+  100% {
+    transform: translateX(-50%) skewX(-6deg);
   }
 }
 
