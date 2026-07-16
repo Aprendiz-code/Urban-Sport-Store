@@ -73,6 +73,11 @@ interface HomePageContent {
   featuredSectionTitle: string;
   newArrivalsSectionTitle: string;
   saleSectionTitle: string;
+  categorySectionLabel: string;
+  categorySectionTitle: string;
+  featuredSectionLabel: string;
+  newArrivalsLabel: string;
+  saleSectionLabel: string;
 }
 
 const LOCAL_ADDRESS_STORAGE = "urbansport_addresses";
@@ -861,8 +866,8 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
       <section className="py-16 max-w-7xl mx-auto px-4 sm:px-6">
         <div className="flex items-end justify-between mb-8">
           <div>
-            <p className="text-xs font-bold text-[#1d4ed8] tracking-widest uppercase mb-1.5">Explorar</p>
-            <h2 className="text-2xl font-extrabold text-slate-900">Todas las categorías</h2>
+            <p className="text-xs font-bold text-[#1d4ed8] tracking-widest uppercase mb-1.5">{content.categorySectionLabel}</p>
+            <h2 className="text-2xl font-extrabold text-slate-900">{content.categorySectionTitle}</h2>
           </div>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -885,7 +890,7 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
       <section className="py-8 max-w-7xl mx-auto px-4 sm:px-6">
         <div className="flex items-end justify-between mb-8">
           <div>
-            <p className="text-xs font-bold text-[#1d4ed8] tracking-widest uppercase mb-1.5">Lo más buscado</p>
+            <p className="text-xs font-bold text-[#1d4ed8] tracking-widest uppercase mb-1.5">{content.featuredSectionLabel}</p>
             <h2 className="text-2xl font-extrabold text-slate-900">{content.featuredSectionTitle}</h2>
           </div>
           <Btn variant="ghost" onClick={() => onNavigate("catalog")}>Ver todos <ChevronRight size={14} /></Btn>
@@ -936,7 +941,7 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
         <section className="py-8 max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex items-end justify-between mb-8">
             <div>
-              <p className="text-xs font-bold text-emerald-600 tracking-widest uppercase mb-1.5">Recién llegados</p>
+              <p className="text-xs font-bold text-emerald-600 tracking-widest uppercase mb-1.5">{content.newArrivalsLabel}</p>
               <h2 className="text-2xl font-extrabold text-slate-900">{content.newArrivalsSectionTitle}</h2>
             </div>
             <Btn variant="ghost" onClick={() => onNavigate("catalog")}>Ver todos <ChevronRight size={14} /></Btn>
@@ -954,7 +959,7 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex items-end justify-between mb-8">
             <div>
-              <p className="text-xs font-bold text-[#f97316] tracking-widest uppercase mb-1.5">Oferta especial</p>
+              <p className="text-xs font-bold text-[#f97316] tracking-widest uppercase mb-1.5">{content.saleSectionLabel}</p>
               <h2 className="text-2xl font-extrabold text-slate-900">{content.saleSectionTitle}</h2>
             </div>
             <Btn variant="ghost" onClick={() => onNavigate("catalog")}>Ver todos <ChevronRight size={14} /></Btn>
@@ -2200,6 +2205,11 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
     featuredSectionTitle: "Productos destacados",
     newArrivalsSectionTitle: "Novedades",
     saleSectionTitle: "En descuento ahora",
+    categorySectionLabel: "Explorar",
+    categorySectionTitle: "Todas las categorías",
+    featuredSectionLabel: "Lo más buscado",
+    newArrivalsLabel: "Recién llegados",
+    saleSectionLabel: "Oferta especial",
   } as const;
 
   const updateHomeContentField = (field: keyof HomePageContent, value: string) => {
@@ -2624,6 +2634,31 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                   </div>
                   <div className="grid gap-4 lg:grid-cols-3">
                     <div>
+                      <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Etiqueta de categoría</label>
+                      <input value={homeContent.categorySectionLabel} onChange={(e) => updateHomeContentField("categorySectionLabel", e.target.value)} className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Título de categorías</label>
+                      <input value={homeContent.categorySectionTitle} onChange={(e) => updateHomeContentField("categorySectionTitle", e.target.value)} className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Etiqueta destacados</label>
+                      <input value={homeContent.featuredSectionLabel} onChange={(e) => updateHomeContentField("featuredSectionLabel", e.target.value)} className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
+                    </div>
+                  </div>
+                  <div className="grid gap-4 lg:grid-cols-3">
+                    <div>
+                      <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Etiqueta novedades</label>
+                      <input value={homeContent.newArrivalsLabel} onChange={(e) => updateHomeContentField("newArrivalsLabel", e.target.value)} className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Etiqueta oferta</label>
+                      <input value={homeContent.saleSectionLabel} onChange={(e) => updateHomeContentField("saleSectionLabel", e.target.value)} className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
+                    </div>
+                    <div className="hidden lg:block" />
+                  </div>
+                  <div className="grid gap-4 lg:grid-cols-3">
+                    <div>
                       <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Título destacados</label>
                       <input value={homeContent.featuredSectionTitle} onChange={(e) => updateHomeContentField("featuredSectionTitle", e.target.value)} className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
                     </div>
@@ -2646,13 +2681,17 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                     <p className="text-xs uppercase text-slate-400 tracking-[0.24em] mb-2">Hero</p>
                     <h3 className="text-2xl font-extrabold text-white">{homeContent.heroTitle}</h3>
                     <p className="mt-3 text-sm text-slate-300 leading-relaxed">{homeContent.heroSubtitle}</p>
+                    <div className="mt-5 rounded-3xl bg-slate-900/80 p-4">
+                      <p className="text-xs uppercase text-slate-400 tracking-[0.24em] mb-2">{homeContent.categorySectionLabel}</p>
+                      <h4 className="text-lg font-bold text-white">{homeContent.categorySectionTitle}</h4>
+                    </div>
                   </div>
                   <div className="rounded-[28px] border border-white/10 bg-slate-950 p-5">
                     <p className="text-xs uppercase text-slate-400 tracking-[0.24em] mb-2">Secciones</p>
                     <div className="space-y-3 text-sm">
-                      <p><span className="font-bold">{homeContent.featuredSectionTitle}</span></p>
-                      <p><span className="font-bold">{homeContent.newArrivalsSectionTitle}</span></p>
-                      <p><span className="font-bold">{homeContent.saleSectionTitle}</span></p>
+                      <p><span className="font-bold">{homeContent.featuredSectionLabel}</span> — {homeContent.featuredSectionTitle}</p>
+                      <p><span className="font-bold">{homeContent.newArrivalsLabel}</span> — {homeContent.newArrivalsSectionTitle}</p>
+                      <p><span className="font-bold">{homeContent.saleSectionLabel}</span> — {homeContent.saleSectionTitle}</p>
                     </div>
                   </div>
                 </div>
@@ -3178,6 +3217,11 @@ export default function App() {
     featuredSectionTitle: "Productos destacados",
     newArrivalsSectionTitle: "Novedades",
     saleSectionTitle: "En descuento ahora",
+    categorySectionLabel: "Explorar",
+    categorySectionTitle: "Todas las categorías",
+    featuredSectionLabel: "Lo más buscado",
+    newArrivalsLabel: "Recién llegados",
+    saleSectionLabel: "Oferta especial",
   });
   const [homePreviewProducts, setHomePreviewProducts] = useState<Product[]>(PRODUCTS.slice(0, 4));
   const [homeSaleProducts, setHomeSaleProducts] = useState<Product[]>(PRODUCTS.filter((p) => p.discount).slice(0, 4));
