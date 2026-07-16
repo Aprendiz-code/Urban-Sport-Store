@@ -9,7 +9,6 @@ import {
   RefreshCw, Award, Grid3X3
 } from "lucide-react";
 import PromoCarousel from "./components/PromoCarousel";
-import promoRibbon from "../../10%/cinta 10% descuento.PNG";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
@@ -783,31 +782,11 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
         </div>
       </nav>
 
-      <div className="w-full h-[4.5rem] sm:h-[5.5rem] md:h-[10.5rem] lg:h-[12rem] xl:h-[13rem] overflow-hidden bg-white">
-        <button
-          type="button"
-          onClick={() => onNavigate('catalog')}
-          aria-label="Ver promociones y productos con descuento"
-          className={[
-            'block w-full h-full overflow-hidden bg-white',
-            'transition-all duration-700 ease-out',
-            'motion-reduce:transform-none motion-reduce:transition-none motion-reduce:animate-none',
-            promoEntered
-              ? 'opacity-100 translate-y-0 animate-[promo-pulse_3s_ease-in-out_infinite]'
-              : 'opacity-0 -translate-y-2',
-          ].join(' ')}
-        >
-          <img
-            src={promoRibbon}
-            alt="Rebajas UrbanSport Store 10% de descuento en tu primera compra"
-            className="block w-full h-full object-contain object-center"
-          />
-        </button>
-      </div>
+      
 
       {/* Categories Bar */}
         {(currentView === "home" || currentView === "catalog") && (
-          <div className="hidden md:flex border-t border-slate-100 overflow-x-auto mt-4 md:mt-10 lg:mt-12">
+          <div className="hidden md:flex border-t border-slate-100 overflow-x-auto mt-0">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center gap-1 h-11">
               {NAV_CATEGORIES.map((cat) => (
                 <button key={cat.name}
@@ -822,7 +801,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
 
         {/* Mobile categories bar */}
         {(currentView === "home" || currentView === "catalog") && (
-          <div className="md:hidden border-t border-slate-100 overflow-x-auto mt-4 h-11">
+          <div className="md:hidden border-t border-slate-100 overflow-x-auto mt-0 h-11">
             <div className="max-w-7xl mx-auto px-4 flex items-center gap-1 h-full">
               {NAV_CATEGORIES.map((cat) => (
                 <button key={cat.name}
@@ -1263,7 +1242,7 @@ function CatalogPage({ filterCategory, onSelectProduct, onAddToCart, onNavigate,
   }, [selectedCat, selectedBrand, sortBy]);
 
   return (
-    <main className="pt-[352px] min-h-screen max-w-7xl mx-auto px-4 sm:px-6 py-8">
+    <main className="pt-[312px] min-h-screen max-w-7xl mx-auto px-4 sm:px-6 py-8">
       {/* Breadcrumbs */}
       <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-6">
           <button onClick={() => onNavigate("home")} className="hover:text-slate-600 cursor-pointer">Inicio</button>
@@ -1443,7 +1422,7 @@ function ProductDetailPage({ product, onBack, onAddToCart, onNavigate }: {
   };
 
   return (
-    <main className="pt-[352px] min-h-screen max-w-7xl mx-auto px-4 sm:px-6 py-8">
+    <main className="pt-[312px] min-h-screen max-w-7xl mx-auto px-4 sm:px-6 py-8">
       {/* Breadcrumbs */}
       <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-6">
         <button onClick={() => onNavigate("home")} className="hover:text-slate-600">Inicio</button>
@@ -1663,7 +1642,7 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
   const STEPS = ["Dirección", "Envío", "Pago", "Confirmación"];
 
   if (step === 3) return (
-    <main className="pt-[376px] min-h-screen flex items-center justify-center px-4">
+    <main className="pt-[312px] min-h-screen flex items-center justify-center px-4">
       <div className="max-w-md w-full text-center space-y-6">
         <div className="w-20 h-20 rounded-full bg-emerald-100 border-2 border-emerald-200 flex items-center justify-center mx-auto">
           <Check size={36} className="text-emerald-600" />
@@ -1686,7 +1665,7 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
   );
 
   return (
-    <main className="pt-[384px] min-h-screen max-w-5xl mx-auto px-4 sm:px-6 py-10">
+    <main className="pt-[320px] min-h-screen max-w-5xl mx-auto px-4 sm:px-6 py-10">
       {/* Header */}
       <div className="flex items-center gap-3 mb-8">
         <button onClick={() => onNavigate("home")} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors text-sm">
@@ -1927,7 +1906,7 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
   };
 
   return (
-    <main className="pt-[384px] min-h-screen flex">
+    <main className="pt-[320px] min-h-screen flex">
       {/* Left panel (visible from md and up) */}
       <div className="hidden md:flex flex-col justify-between md:w-1/2 lg:w-1/2 relative overflow-hidden bg-slate-900">
         <img src="/images/login-bg3.jpg"
@@ -2098,7 +2077,7 @@ function AccountPage({ onNavigate, onLogout, addresses, onCreateAddress, onUpdat
   };
 
   return (
-    <main className="pt-[384px] min-h-screen max-w-5xl mx-auto px-4 sm:px-6 py-8">
+    <main className="pt-[320px] min-h-screen max-w-5xl mx-auto px-4 sm:px-6 py-8">
       <div className="flex gap-8">
         <aside className="hidden sm:block w-56 shrink-0">
           <div className="bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.18)] overflow-hidden">
