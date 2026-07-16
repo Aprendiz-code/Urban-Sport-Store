@@ -587,7 +587,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-4">
           {/* Logo */}
           <button onClick={() => onNavigate("home")} className="flex items-center gap-2 shrink-0">
-            <span className="text-2xl sm:text-[2.1rem] font-extrabold text-slate-900 hidden sm:block tracking-tight leading-none">
+            <span className="text-xl sm:text-[2.1rem] font-extrabold text-slate-900 tracking-tight leading-none">
               Urban<span className="text-[#1d4ed8]">Sport</span>
               <span className="block text-[12px] sm:text-[13px] font-semibold text-slate-400 tracking-widest uppercase">Store</span>
             </span>
@@ -848,7 +848,7 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
   const onSale = saleProducts;
 
   return (
-    <main className="pt-[132px]">
+    <main className="pt-0">
       {/* Hero */}
       <section className="relative min-h-[88vh] flex items-center overflow-hidden bg-slate-900">
         <img
@@ -1022,7 +1022,7 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
             <input type="email" placeholder="tu@email.com"
               className="flex-1 px-4 py-3 rounded-xl text-sm text-slate-800 bg-white placeholder-slate-400 focus:outline-none" />
             <button onClick={() => toast.success('¡Gracias! Te notificaremos cuando haya ofertas disponibles.')}
-              className="px-5 py-3 rounded-xl bg-[#f97316] text-white text-sm font-bold hover:bg-orange-600 transition-colors whitespace-nowrap">
+              className="px-5 py-3 rounded-xl bg-black/70 text-white text-sm font-bold hover:bg-black/90 transition-colors whitespace-nowrap">
               Suscribirme
             </button>
           </div>
@@ -1106,6 +1106,10 @@ function CatalogPage({ filterCategory, onSelectProduct, onAddToCart, onNavigate 
   const [sortBy, setSortBy] = useState("relevancia");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+
+  useEffect(() => {
+    setSelectedCat(filterCategory);
+  }, [filterCategory]);
 
   const allBrands = [...new Set(PRODUCTS.map((p) => p.brand))];
   const filtered = useMemo(() => {
