@@ -491,16 +491,9 @@ function AutoScrollCarousel({ children }: { children: React.ReactNode }) {
     const carousel = ref.current;
     if (!carousel) return;
 
-    let frameId = 0;
-    const step = 0.8;
-
-    const animate = () => {
-      if (!carousel) return;
+    const interval = setInterval(() => {
       const maxScroll = carousel.scrollWidth - carousel.clientWidth;
-      if (maxScroll <= 0) {
-        frameId = requestAnimationFrame(animate);
-        return;
-      }
+      if (maxScroll <= 0) return;
 
       if (carousel.scrollLeft >= maxScroll) {
         direction.current = -1;
@@ -508,17 +501,15 @@ function AutoScrollCarousel({ children }: { children: React.ReactNode }) {
         direction.current = 1;
       }
 
-      carousel.scrollLeft += direction.current * step;
-      frameId = requestAnimationFrame(animate);
-    };
+      carousel.scrollLeft += direction.current * 250;
+    }, 2800);
 
-    frameId = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(frameId);
+    return () => clearInterval(interval);
   }, []);
 
   return (
     <div ref={ref} className="overflow-hidden pb-4 -mx-4 px-4 sm:px-0" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
-      <div className="flex flex-nowrap gap-4" style={{ minWidth: "max-content" }}>
+      <div className="flex flex-nowrap gap-3" style={{ minWidth: "max-content" }}>
         {children}
       </div>
     </div>
