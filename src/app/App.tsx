@@ -2074,7 +2074,7 @@ function AccountPage({ onNavigate, onLogout, addresses, onCreateAddress, onUpdat
 
 // ─── ADMIN DASHBOARD ──────────────────────────────────────────────────────────
 
-function AdminDashboard({ onNavigate, products, createProduct, updateProduct, deleteProduct, adjustStock, productRefresh }: {
+function AdminDashboard({ onNavigate, products, createProduct, updateProduct, deleteProduct, adjustStock, productRefresh, initialSection }: {
   onNavigate: (v: View) => void;
   products: Product[];
   createProduct: (product: Omit<Product, "id">) => void;
@@ -2082,8 +2082,9 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
   deleteProduct: (productId: string) => void;
   adjustStock: (productId: string, delta: number) => void;
   productRefresh: number;
+  initialSection?: string;
 }) {
-  const [adminSection, setAdminSection] = useState("dashboard");
+  const [adminSection, setAdminSection] = useState(initialSection ?? "dashboard");
   const [searchTerm, setSearchTerm] = useState("");
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [activeProduct, setActiveProduct] = useState<Product | null>(null);
@@ -2124,6 +2125,19 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
   };
 
   const pageTitle = SECTION_TITLES[adminSection] ?? "Panel de administración";
+
+  const openAdminSectionWindow = (section: string) => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    url.searchParams.set("view", "admin");
+    url.searchParams.set("adminSection", section);
+    window.open(url.toString(), "_blank", "noopener,noreferrer");
+  };
+
+  const handleSidebarClick = (section: string) => {
+    openAdminSectionWindow(section);
+    setAdminSection(section);
+  };
 
   const LOW_STOCK = products.filter((product) => product.stock <= 10).map((product) => ({
     name: product.name, stock: product.stock, sku: product.sku,
@@ -2259,10 +2273,10 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8">
                   {[
-                    { title: 'Pedidos', subtitle: 'Revisa todos los pedidos recientes.', action: () => setAdminSection('orders'), icon: <Tag size={18} /> },
-                    { title: 'Productos', subtitle: 'Gestiona el catálogo y precios.', action: () => { resetForm(); setAdminSection('products'); }, icon: <Package size={18} /> },
-                    { title: 'Inventario', subtitle: 'Controla stock crítico.', action: () => setAdminSection('inventory'), icon: <Layers size={18} /> },
-                    { title: 'Reportes', subtitle: 'Analiza rendimiento rápido.', action: () => setAdminSection('reports'), icon: <BarChart2 size={18} /> },
+                    { title: 'Pedidos', subtitle: 'Revisa todos los pedidos recientes.', action: () => handleSidebarClick('orders'), icon: <Tag size={18} /> },
+                    { title: 'Productos', subtitle: 'Gestiona el catálogo y precios.', action: () => { resetForm(); handleSidebarClick('products'); }, icon: <Package size={18} /> },
+                    { title: 'Inventario', subtitle: 'Controla stock crítico.', action: () => handleSidebarClick('inventory'), icon: <Layers size={18} /> },
+                    { title: 'Reportes', subtitle: 'Analiza rendimiento rápido.', action: () => handleSidebarClick('reports'), icon: <BarChart2 size={18} /> },
                   ].map((item) => (
                     <button key={item.title} onClick={item.action} className="group rounded-[26px] border border-white/10 bg-white/10 p-5 text-left transition hover:bg-white/20">
                       <div className="inline-flex items-center justify-center w-11 h-11 rounded-2xl bg-white/15 text-white mb-4 group-hover:bg-white/20">
@@ -2356,7 +2370,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
               <div className="lg:col-span-2 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] overflow-hidden">
                 <div className="flex items-center justify-between p-5 border-b border-slate-50">
                   <h2 className="text-sm font-extrabold text-slate-800">Pedidos recientes</h2>
-                  <button onClick={() => setAdminSection('orders')} className="text-xs text-[#1d4ed8] hover:underline flex items-center gap-1">Ver todos <ChevronRight size={11} /></button>
+                  <button onClick={() => handleSidebarClick('orders')} className="text-xs text-[#1d4ed8] hover:underline flex items-center gap-1">Ver todos <ChevronRight size={11} /></button>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full">
@@ -2402,7 +2416,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                       </div>
                     </div>
                   ))}
-                  <button onClick={() => setAdminSection('inventory')} className="w-full py-2.5 rounded-xl text-xs font-bold text-white bg-black border border-black hover:bg-slate-900 transition-colors">
+                  <button onClick={() => handleSidebarClick('inventory')} className="w-full py-2.5 rounded-xl text-xs font-bold text-white bg-black border border-black hover:bg-slate-900 transition-colors">
                     Gestionar inventario
                   </button>
                 </div>
@@ -2567,7 +2581,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
             </div>
             <div className="bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] p-5">
               <h3 className="text-lg font-extrabold text-slate-900 mb-3">Acciones de inventario</h3>
-              <button onClick={() => setAdminSection('products')} className="w-full py-3 rounded-xl bg-black text-white font-semibold hover:bg-slate-900">Editar productos</button>
+              <button onClick={() => handleSidebarClick('products')} className="w-full py-3 rounded-xl bg-black text-white font-semibold hover:bg-slate-900">Editar productos</button>
             </div>
           </div>
         );
@@ -2719,7 +2733,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
         </div>
         <nav className="p-2 flex-1 overflow-y-auto space-y-0.5">
           {SIDEBAR_LINKS.map((l) => (
-            <button key={l.id} onClick={() => setAdminSection(l.id)}
+            <button key={l.id} onClick={() => handleSidebarClick(l.id)}
               className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors ${adminSection === l.id ? "bg-white/15 text-white" : "text-blue-200 hover:text-white hover:bg-white/10"}`}>
               {l.icon} {l.label}
             </button>
@@ -2744,6 +2758,22 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
 
 export default function App() {
   const [view, setView] = useState<View>("home");
+  const [initialAdminSection, setInitialAdminSection] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const paramView = params.get("view");
+    const paramSection = params.get("adminSection");
+
+    if (paramView === "admin") {
+      setView("admin");
+    }
+    if (paramSection) {
+      setInitialAdminSection(paramSection);
+    }
+  }, []);
+
   useEffect(() => {
     let isActive = true;
 
@@ -3091,6 +3121,7 @@ export default function App() {
           deleteProduct={deleteProduct}
           adjustStock={adjustStock}
           productRefresh={productRefresh}
+          initialSection={initialAdminSection}
         />
       )}
       {view === "admin" && !isAdmin && <LoginPage isRegister={false} onNavigate={navigate} onLogin={handleAuthSuccess} />}
