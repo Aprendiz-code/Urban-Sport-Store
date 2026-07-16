@@ -3212,9 +3212,11 @@ export default function App() {
   const [authUser, setAuthUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   // Dev helper: force admin session when visiting URL with ?forceAdmin=1
+  // Only active when VITE_ENABLE_FORCE_ADMIN === '1'
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
+      if (import.meta.env.VITE_ENABLE_FORCE_ADMIN !== '1') return;
       const params = new URLSearchParams(window.location.search);
       if (params.get('forceAdmin') === '1') {
         const adminEmail = import.meta.env.VITE_ADMIN_EMAIL ?? 'admin@urbansportstore.dev';
