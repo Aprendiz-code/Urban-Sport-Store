@@ -814,7 +814,6 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
           </div>
         )}
 
-      </nav>
     </div>
   );
 }
