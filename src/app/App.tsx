@@ -9,6 +9,7 @@ import {
   RefreshCw, Award, Grid3X3
 } from "lucide-react";
 import PromoCarousel from "./components/PromoCarousel";
+import promoRibbon from '../../10%/cinta 10% descuento.PNG';
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
@@ -785,8 +786,33 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
       
 
       {/* Categories Bar */}
+        {/* Promo image above categories */}
         {(currentView === "home" || currentView === "catalog") && (
-          <div className="hidden md:flex border-t border-slate-100 overflow-x-auto mt-0">
+          <div className="w-full border-t border-transparent">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
+              <button
+                type="button"
+                onClick={() => onNavigate('catalog')}
+                aria-label="Ver promociones y productos con descuento"
+                className={[
+                  'w-full block overflow-hidden rounded-lg',
+                  'transition-transform duration-700 ease-out',
+                  'motion-reduce:transform-none motion-reduce:transition-none',
+                  promoEntered ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2',
+                ].join(' ')}
+              >
+                <img
+                  src={promoRibbon}
+                  alt="Promoción 10% descuento Urban Sport Store"
+                  className="w-full h-auto object-contain mx-auto animate-pulse motion-reduce:animate-none"
+                />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {(currentView === "home" || currentView === "catalog") && (
+          <div className="hidden md:flex border-t border-slate-100 overflow-x-auto mt-4">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center gap-1 h-11">
               {NAV_CATEGORIES.map((cat) => (
                 <button key={cat.name}
