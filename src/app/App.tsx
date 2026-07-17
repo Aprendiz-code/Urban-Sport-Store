@@ -613,10 +613,10 @@ function ProductCard({ product, onSelect, onAddToCart }: {
   return (
     <div
       onClick={() => onSelect(product)}
-      className="group relative bg-white rounded-[30px] overflow-hidden cursor-pointer border border-slate-200/80 shadow-[0_15px_40px_-28px_rgba(15,23,42,0.35)] hover:-translate-y-1 hover:shadow-[0_20px_60px_-30px_rgba(15,23,42,0.45)] transition-all duration-300 flex flex-col h-full"
+      className="group relative w-full max-w-full h-full bg-white rounded-[20px] sm:rounded-[30px] overflow-hidden cursor-pointer border border-slate-200/80 shadow-[0_15px_40px_-28px_rgba(15,23,42,0.35)] hover:-translate-y-1 hover:shadow-[0_20px_60px_-30px_rgba(15,23,42,0.45)] transition-all duration-300 flex flex-col"
     >
       {/* Image */}
-      <div className="relative h-56 bg-slate-100 overflow-hidden">
+      <div className="relative h-44 sm:h-56 bg-slate-100 overflow-hidden">
         <img src={product.image} alt={product.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
@@ -636,10 +636,10 @@ function ProductCard({ product, onSelect, onAddToCart }: {
       </div>
 
       {/* Info */}
-      <div className="p-5 space-y-4 flex flex-col flex-1">
+      <div className="p-4 sm:p-5 space-y-3 sm:space-y-4 flex flex-col flex-1">
         <div>
           <p className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-[#1d4ed8] mb-2">{product.brand}</p>
-          <h3 className="text-base font-extrabold text-slate-900 line-clamp-2 leading-snug">{product.name}</h3>
+          <h3 className="text-sm sm:text-base font-extrabold text-slate-900 line-clamp-2 leading-snug">{product.name}</h3>
           <p className="text-sm text-slate-500 mt-1">{product.subcategory}{product.gender ? ` · ${product.gender}` : ""}</p>
         </div>
         <StarRating rating={product.rating} reviews={product.reviews} />
@@ -663,7 +663,7 @@ function ProductCard({ product, onSelect, onAddToCart }: {
 
         <button
           onClick={(e) => { e.stopPropagation(); onAddToCart(product, defaultSize, defaultColor); }}
-          className="mt-auto w-full py-3 rounded-full text-sm font-bold bg-black text-white hover:bg-slate-900 transition-all duration-200 flex items-center justify-center gap-2 shadow-sm shadow-slate-200"
+          className="mt-auto w-full py-2.5 sm:py-3 rounded-full text-xs sm:text-sm font-bold bg-black text-white hover:bg-slate-900 transition-all duration-200 flex items-center justify-center gap-2 shadow-sm shadow-slate-200"
         >
           <ShoppingCart size={14} /> Agregar al carrito
         </button>
@@ -1092,7 +1092,7 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
         </div>
         <AutoScrollCarousel>
           {HOME_CATEGORIES.map((cat) => (
-            <div key={cat.name} className="min-w-[calc(50%-6px)] sm:min-w-[16rem] lg:min-w-[20rem] flex-shrink-0 snap-start">
+            <div key={cat.name} className="w-[84vw] max-w-[280px] sm:w-[16rem] lg:w-[20rem] shrink-0 snap-start">
               <button
                 onClick={() => onCategorySelect(cat.name as Category)}
                 className="group relative rounded-2xl sm:rounded-3xl overflow-hidden aspect-[4/3] w-full bg-slate-200 hover:shadow-lg transition-all duration-300">
@@ -1119,7 +1119,7 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
         </div>
         <AutoScrollCarousel>
             {featured.slice(0, 9).map((p) => (
-            <div key={p.id} className="min-w-[calc(50%-6px)] sm:min-w-[16rem] lg:min-w-[18rem] flex-shrink-0">
+            <div key={p.id} className="w-[84vw] max-w-[280px] sm:w-[16rem] lg:w-[18rem] shrink-0">
               <ProductCard product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
             </div>
           ))}
@@ -1179,7 +1179,7 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
           </div>
           <AutoScrollCarousel>
               {arrivalsForCarousel.map((p, idx) => (
-              <div key={p.id + "-" + idx} className="min-w-[calc(50%-6px)] sm:min-w-[16rem] lg:min-w-[18rem] flex-shrink-0">
+              <div key={p.id + "-" + idx} className="w-[84vw] max-w-[280px] sm:w-[16rem] lg:w-[18rem] shrink-0">
                 <ProductCard product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
               </div>
             ))}
@@ -1200,7 +1200,7 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
           </div>
           <AutoScrollCarousel>
               {onSale.slice(0, 9).map((p) => (
-              <div key={p.id} className="min-w-[calc(50%-6px)] sm:min-w-[16rem] lg:min-w-[18rem] flex-shrink-0">
+              <div key={p.id} className="w-[84vw] max-w-[280px] sm:w-[16rem] lg:w-[18rem] shrink-0">
                 <ProductCard product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
               </div>
             ))}
@@ -1347,9 +1347,9 @@ function CatalogPage({ filterCategory, onSelectProduct, onAddToCart, onNavigate,
         <span className="text-slate-700 font-semibold whitespace-nowrap">{selectedCat ?? "Todos los productos"}</span>
       </div>
 
-      <div className="flex gap-6 md:gap-8">
-        {/* Sidebar */}
-        <aside className="hidden lg:block w-48 xl:w-56 shrink-0 space-y-6">
+      <div className="flex flex-col gap-6 md:gap-8">
+        {/* Sidebar - Centered */}
+        <aside className="hidden lg:grid lg:grid-cols-4 gap-6 md:gap-8 lg:gap-8 w-full">
           <div>
             <p className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-3">Categoría</p>
             <div className="space-y-0.5">
@@ -1383,19 +1383,21 @@ function CatalogPage({ filterCategory, onSelectProduct, onAddToCart, onNavigate,
             </div>
           </div>
 
-          <div>
+          <div className="lg:col-span-2">
             <p className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-3">Género</p>
-            {["Hombre", "Mujer", "Unisex"].map((g) => (
-              <label key={g} className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-slate-100 cursor-pointer">
-                <input type="checkbox" className="accent-[#1d4ed8]" />
-                <span className="text-sm text-slate-600">{g}</span>
-              </label>
-            ))}
+            <div className="flex gap-4">
+              {["Hombre", "Mujer", "Unisex"].map((g) => (
+                <label key={g} className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-slate-100 cursor-pointer">
+                  <input type="checkbox" className="accent-[#1d4ed8]" />
+                  <span className="text-sm text-slate-600">{g}</span>
+                </label>
+              ))}
+            </div>
           </div>
         </aside>
 
         {/* Main */}
-        <div className="flex-1 min-w-0">
+        <div className="w-full">
           {/* Toolbar */}
           <div className="flex flex-wrap items-center gap-3 mb-5">
             <h1 className="text-lg font-extrabold text-slate-900 flex-1">
@@ -2478,7 +2480,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
   };
 
   const HOME_CONTENT_FIELDS = {
-    heroTitle: "Tu ritmo. Tu estilo. Tu mejor versión.",
+    heroTitle: "Tu ritmo, Tu estilo, Tu mejor versión",
     heroSubtitle: "Zapatillas, ropa deportiva, perfumes y accesorios premium. Todo lo que necesitas para rendir al máximo y lucir increíble.",
     featuredSectionTitle: "Productos destacados",
     newArrivalsSectionTitle: "Novedades",
@@ -3544,7 +3546,7 @@ export default function App() {
     }
   }, []);
   const [homeContent, setHomeContent] = useState<HomePageContent>({
-    heroTitle: "Tu ritmo. Tu estilo. Tu mejor versión.",
+    heroTitle: "Tu ritmo, Tu estilo, Tu mejor versión",
     heroSubtitle: "Zapatillas, ropa deportiva, perfumes y accesorios premium. Todo lo que necesitas para rendir al máximo y lucir increíble.",
     featuredSectionTitle: "Productos destacados",
     newArrivalsSectionTitle: "Novedades",
