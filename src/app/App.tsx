@@ -1050,7 +1050,7 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
   })();
 
   return (
-    <main className="pt-[152px] md:pt-[152px]">
+    <main className="pt-[176px] md:pt-[176px]">
       {/* Hero */}
       <section className="relative min-h-screen md:min-h-[88vh] flex items-center justify-center overflow-hidden bg-slate-900">
         <img
