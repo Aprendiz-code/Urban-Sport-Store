@@ -1210,23 +1210,20 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
       </section>
 
       {/* Benefits */}
-      <section className="py-8 sm:py-12 md:py-14">
+      <section className="py-10 sm:py-14 md:py-16">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-5">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-8 lg:gap-10 text-center">
             {[
-              { icon: <Truck size={22} />, color: "bg-blue-100 text-[#1d4ed8]", title: "Envío gratis", desc: "Sin costo en pedidos seleccionados" },
-              { icon: <Shield size={22} />, color: "bg-green-100 text-green-700", title: "Pago seguro", desc: "Tus datos siempre protegidos" },
-              { icon: <RefreshCw size={22} />, color: "bg-orange-100 text-orange-600", title: "30 días devolución", desc: "Sin preguntas, sin complicaciones" },
-              { icon: <Bell size={22} />, color: "bg-purple-100 text-purple-600", title: "Soporte 24/7", desc: "Chat, email y teléfono" },
-              { icon: <ThumbsUp size={22} />, color: "bg-slate-100 text-slate-800", title: "Garantía satisfacción", desc: "Devuelve si no quedas contento" },
-              { icon: <DollarSign size={22} />, color: "bg-amber-100 text-amber-700", title: "Reembolso garantizado", desc: "Protegemos tu compra siempre" },
+              { icon: <Truck size={48} />, title: "Envío gratis" },
+              { icon: <Shield size={48} />, title: "Pago seguro" },
+              { icon: <Package size={48} />, title: "30 días devolución" },
+              { icon: <Bell size={48} />, title: "Soporte 24/7" },
+              { icon: <ThumbsUp size={48} />, title: "Garantía satisfacción" },
+              { icon: <DollarSign size={48} />, title: "Reembolso garantizado" },
             ].map((b) => (
-              <div key={b.title} className="flex flex-col items-center text-center p-4 sm:p-5 rounded-xl sm:rounded-[30px] bg-white/95 border border-slate-200/80 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.18)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_24px_70px_-45px_rgba(15,23,42,0.22)]">
-                <div className={`w-10 sm:w-12 h-10 sm:h-12 rounded-lg sm:rounded-xl flex items-center justify-center mb-2 sm:mb-3 ${b.color}`}>
-                  {b.icon}
-                </div>
-                <p className="text-xs sm:text-sm font-bold text-slate-800 mb-0.5 sm:mb-1">{b.title}</p>
-                <p className="text-[11px] sm:text-xs text-slate-500">{b.desc}</p>
+              <div key={b.title} className="flex flex-col items-center justify-center gap-3 text-slate-900">
+                <div className="text-slate-900">{b.icon}</div>
+                <p className="text-base sm:text-lg font-black uppercase tracking-[0.3em] leading-tight">{b.title}</p>
               </div>
             ))}
           </div>
