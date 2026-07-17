@@ -8,7 +8,20 @@ const adminEmail = (import.meta.env.VITE_ADMIN_EMAIL ?? 'Urbansportstore@outlook
 const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD ?? 'bM4_tX!8wK2#vP7$qR';
 
 const isAdminCredentials = (email: string, password: string) => {
-  return email.toLowerCase() === adminEmail && password === adminPassword;
+  const isAdmin = email.toLowerCase() === adminEmail && password === adminPassword;
+  // Debug log to help troubleshoot
+  if (!isAdmin && email.toLowerCase().includes('urban')) {
+    console.debug('[Admin Auth Debug]', {
+      inputEmail: email.toLowerCase(),
+      expectedEmail: adminEmail,
+      emailMatch: email.toLowerCase() === adminEmail,
+      inputPassword: `${password.substring(0, 3)}...${password.substring(password.length - 3)}`,
+      expectedPassword: `${adminPassword.substring(0, 3)}...${adminPassword.substring(adminPassword.length - 3)}`,
+      passwordMatch: password === adminPassword,
+      passwordLength: { input: password.length, expected: adminPassword.length }
+    });
+  }
+  return isAdmin;
 };
 
 const getLocalUser = (): User | null => {
