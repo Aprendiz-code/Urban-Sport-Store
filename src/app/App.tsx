@@ -10,7 +10,8 @@ import {
 } from "lucide-react";
 import PromoCarousel from "./components/PromoCarousel";
 // Use a runtime URL for the promo image (encode folder and spaces)
-const promoRibbon = '/10%25/cinta%2010%25%20descuento.PNG';
+// Nombre real del archivo en disco: 'cinta 10%.png'
+const promoRibbon = '/10%25/cinta%2010%25.png';
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
