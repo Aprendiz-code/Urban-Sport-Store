@@ -1931,120 +1931,150 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
   };
 
   return (
-    <main className="pt-[320px] min-h-screen flex">
-      {/* Left panel (visible from md and up) */}
-      <div className="hidden md:flex flex-col justify-between md:w-1/2 lg:w-1/2 relative overflow-hidden bg-slate-900">
-        <img src="/images/login-bg3.jpg"
-          alt="Zapatillas deportivas - fondo claro" className="absolute inset-0 w-full h-full object-cover object-center md:object-top" />
-        <div className="absolute inset-0 bg-gradient-to-b from-slate-900/80 via-slate-900/40 to-slate-900/80" />
-        <div className="relative z-10 p-6 sm:p-8 md:p-10">
-          <div className="flex items-center gap-2">
-            <span className="font-extrabold text-white text-sm">Urban<span className="text-[#f97316]">Sport</span><span className="block text-[10px] font-semibold text-slate-300 tracking-widest uppercase">Store</span></span>
-          </div>
-        </div>
-        <div className="relative z-10 p-6 sm:p-8 md:p-10">
-          <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-white mb-4 leading-tight">
-            Tu mejor versión<br />empieza aquí.
-          </h2>
-          <div className="space-y-3">
-            {[
-              "Envío gratis en pedidos +$250.000 COP",
-              "30 días de devolución garantizados",
-              "Productos 100% originales",
-              "Soporte 24/7 en español",
-            ].map((t) => (
-              <div key={t} className="flex items-center gap-3 text-sm sm:text-sm md:text-base text-slate-200">
-                <Check size={15} className="text-[#f97316] shrink-0" /> {t}
-              </div>
-            ))}
-          </div>
-        </div>
+    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 pt-[60px] px-4">
+      {/* Decorative elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 right-1/4 w-96 h-96 bg-[#f97316]/10 rounded-full blur-3xl" />
+        <div className="absolute -bottom-32 left-1/3 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
       </div>
 
-      {/* Right panel */}
-      <div className="flex-1 flex items-center justify-center px-4 py-16 bg-white">
-        <div className="w-full max-w-md space-y-6">
-          {/* Mobile banner above form */}
-          <div className="md:hidden w-full mb-2">
-            <div className="relative rounded-2xl overflow-hidden h-40">
-              <img src="/images/login-bg3.jpg" alt="Ropa deportiva" className="absolute inset-0 w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent" />
-              <div className="absolute inset-0 p-4 flex flex-col justify-end">
-                <h2 className="text-lg font-extrabold text-white">Tu mejor versión</h2>
-                <p className="text-xs text-slate-200">Ropa, zapatillas y accesorios premium</p>
-              </div>
-            </div>
+      <div className="w-full max-w-md relative z-10">
+        {/* Logo */}
+        <div className="text-center mb-12">
+          <div className="flex items-center justify-center gap-2 mb-4">
+            <span className="font-extrabold text-white text-2xl">Urban<span className="text-[#f97316]">Sport</span></span>
           </div>
+          <h1 className="text-4xl font-extrabold text-white mb-2">
+            {isRegister ? "Crear cuenta" : "Bienvenido"}
+          </h1>
+          <p className="text-slate-400">
+            {isRegister ? "Únete a UrbanSport Store hoy" : "Continúa tu aventura deportiva"}
+          </p>
+        </div>
 
-          <div className="bg-white rounded-2xl shadow-lg p-5">
-            <div>
-              <h1 className="text-2xl font-extrabold text-slate-900">{isRegister ? "Crear cuenta" : "Bienvenido de vuelta"}</h1>
-              <p className="text-sm text-slate-500 mt-1">{isRegister ? "Únete a UrbanSport Store" : "Ingresa a tu cuenta para continuar"}</p>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Main form card */}
+        <div className="bg-white/10 backdrop-blur-md rounded-3xl border border-white/20 p-8 shadow-2xl space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Name fields for register */}
             {isRegister && (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 {[["Nombre", "Diego"], ["Apellido", "Martínez"]].map(([lbl, ph]) => (
                   <div key={lbl}>
-                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">{lbl}</label>
-                    <input placeholder={ph} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#1d4ed8]/50 transition-colors" />
+                    <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">{lbl}</label>
+                    <input 
+                      placeholder={ph} 
+                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-sm text-white placeholder-slate-400 focus:outline-none focus:border-[#f97316]/50 focus:bg-white/20 transition-all duration-200 backdrop-blur-sm" 
+                    />
                   </div>
                 ))}
               </div>
             )}
+
+            {/* Email */}
             <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">Correo electrónico</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="diego@email.com" className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-xl text-base text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#1d4ed8]/50 transition-colors" />
+              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Correo electrónico</label>
+              <input 
+                type="email" 
+                value={email} 
+                onChange={(e) => setEmail(e.target.value)} 
+                placeholder="tu@email.com" 
+                className="w-full px-4 py-3.5 bg-white/10 border border-white/20 rounded-xl text-base text-white placeholder-slate-400 focus:outline-none focus:border-[#f97316]/50 focus:bg-white/20 transition-all duration-200 backdrop-blur-sm" 
+              />
             </div>
+
+            {/* Password */}
             <div>
-              <div className="flex justify-between mb-1.5">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Contraseña</label>
-                {!isRegister && <button type="button" onClick={() => toast('Función de recuperación de contraseña próximamente disponible.')}
-                className="text-xs text-[#1d4ed8] hover:underline">¿Olvidaste tu contraseña?</button>}
+              <div className="flex justify-between items-center mb-2">
+                <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Contraseña</label>
+                {!isRegister && (
+                  <button 
+                    type="button" 
+                    onClick={() => toast('Función de recuperación de contraseña próximamente disponible.')}
+                    className="text-xs text-[#f97316] hover:text-orange-400 font-semibold transition-colors"
+                  >
+                    ¿Olvidaste?
+                  </button>
+                )}
               </div>
               <div className="relative">
-                <input type={showPass ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••"
-                  className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-xl text-base text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#1d4ed8]/50 transition-colors" />
-                <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                  {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
+                <input 
+                  type={showPass ? "text" : "password"} 
+                  value={password} 
+                  onChange={(e) => setPassword(e.target.value)} 
+                  placeholder="••••••••"
+                  className="w-full px-4 py-3.5 bg-white/10 border border-white/20 rounded-xl text-base text-white placeholder-slate-400 focus:outline-none focus:border-[#f97316]/50 focus:bg-white/20 transition-all duration-200 backdrop-blur-sm" 
+                />
+                <button 
+                  type="button" 
+                  onClick={() => setShowPass(!showPass)} 
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
+                >
+                  {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
-            {/* Admin hint removed per request: keeping only the login form */}
+
+            {/* Terms checkbox for register */}
             {isRegister && (
-              <label className="flex items-start gap-2.5 cursor-pointer">
-                <input type="checkbox" className="mt-0.5 accent-[#1d4ed8]" />
-                <span className="text-xs text-slate-500">Acepto los <button type="button" onClick={() => toast('Términos próximamente disponible.')} className="text-[#1d4ed8] hover:underline">Términos</button> y la <button type="button" onClick={() => toast('Política de privacidad próximamente disponible.')} className="text-[#1d4ed8] hover:underline">Política de privacidad</button>.</span>
+              <label className="flex items-start gap-3 cursor-pointer group">
+                <input 
+                  type="checkbox" 
+                  className="mt-1 w-4 h-4 accent-[#f97316] cursor-pointer" 
+                />
+                <span className="text-xs text-slate-300 leading-relaxed">
+                  Acepto los <button type="button" onClick={() => toast('Términos próximamente disponible.')} className="text-[#f97316] hover:text-orange-400 font-semibold transition-colors">Términos</button> y la <button type="button" onClick={() => toast('Política de privacidad próximamente disponible.')} className="text-[#f97316] hover:text-orange-400 font-semibold transition-colors">Política de privacidad</button>.
+                </span>
               </label>
             )}
-            {error && <p className="text-sm text-red-600">{error}</p>}
-            <button type="submit" disabled={loading}
-              className="w-full py-4 rounded-xl bg-[#1d4ed8] text-white font-extrabold text-base hover:bg-[#1e40af] disabled:opacity-60 shadow-lg shadow-blue-200 transition-all flex items-center justify-center gap-2">
-              {loading ? <><RefreshCw size={15} className="animate-spin" /> Procesando…</> : isRegister ? "Crear cuenta" : "Iniciar sesión"}
+
+            {/* Error message */}
+            {error && (
+              <div className="p-3.5 bg-red-500/20 border border-red-500/30 rounded-xl">
+                <p className="text-sm text-red-300 font-medium">{error}</p>
+              </div>
+            )}
+
+            {/* Submit button */}
+            <button 
+              type="submit" 
+              disabled={loading}
+              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#f97316] to-orange-500 text-white font-extrabold text-base hover:shadow-lg hover:shadow-orange-500/30 disabled:opacity-60 disabled:shadow-none transition-all duration-300 flex items-center justify-center gap-2 transform hover:scale-105"
+            >
+              {loading ? (
+                <><RefreshCw size={18} className="animate-spin" /> Procesando…</>
+              ) : (
+                isRegister ? "Crear mi cuenta" : "Iniciar sesión"
+              )}
             </button>
           </form>
-          </div>
 
+          {/* Divider */}
           <div className="relative flex items-center gap-3">
-            <div className="flex-1 h-px bg-slate-200" />
-            <span className="text-xs text-slate-400">o continúa con</span>
-            <div className="flex-1 h-px bg-slate-200" />
+            <div className="flex-1 h-px bg-white/20" />
+            <span className="text-xs text-slate-400 font-medium">o continúa con</span>
+            <div className="flex-1 h-px bg-white/20" />
           </div>
 
-          <button onClick={() => toast('Función de inicio con Google próximamente disponible.')}
-            className="w-full py-3 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 font-semibold hover:bg-slate-50 transition-colors flex items-center justify-center gap-2 shadow-sm">
-            <svg width="16" height="16" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20H24v8h11.3C33.6 33.4 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.7 1.1 7.8 2.9l5.7-5.7C34 6.5 29.2 4 24 4 13 4 4 13 4 24s9 20 20 20c11 0 20-9 20-20 0-1.3-.1-2.7-.4-4z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 15.1 18.9 12 24 12c3 0 5.7 1.1 7.8 2.9l5.7-5.7C34 6.5 29.2 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.3 26.7 36 24 36c-5.2 0-9.6-3.4-11.2-8H6.5C9.9 37.7 16.5 44 24 44z"/><path fill="#1976D2" d="M43.6 20H24v8h11.3c-.8 2.2-2.2 4.1-4 5.5l6.2 5.2C40.6 35.4 44 30.1 44 24c0-1.3-.1-2.7-.4-4z"/></svg>
-            Continuar con Google
+          {/* Google button */}
+          <button 
+            onClick={() => toast('Función de inicio con Google próximamente disponible.')}
+            className="w-full py-3.5 rounded-xl border border-white/20 bg-white/5 text-sm text-white font-semibold hover:bg-white/10 hover:border-white/40 transition-all duration-200 flex items-center justify-center gap-3 backdrop-blur-sm transform hover:scale-105"
+          >
+            <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20H24v8h11.3C33.6 33.4 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.7 1.1 7.8 2.9l5.7-5.7C34 6.5 29.2 4 24 4 13 4 4 13 4 24s9 20 20 20c11 0 20-9 20-20 0-1.3-.1-2.7-.4-4z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 15.1 18.9 12 24 12c3 0 5.7 1.1 7.8 2.9l5.7-5.7C34 6.5 29.2 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.3 26.7 36 24 36c-5.2 0-9.6-3.4-11.2-8H6.5C9.9 37.7 16.5 44 24 44z"/><path fill="#1976D2" d="M43.6 20H24v8h11.3c-.8 2.2-2.2 4.1-4 5.5l6.2 5.2C40.6 35.4 44 30.1 44 24c0-1.3-.1-2.7-.4-4z"/></svg>
+            Google
           </button>
-
-          <p className="text-center text-sm text-slate-500">
-            {isRegister ? "¿Ya tienes cuenta? " : "¿No tienes cuenta? "}
-            <button onClick={() => onNavigate(isRegister ? "login" : "register")} className="text-[#1d4ed8] font-bold hover:underline">
-              {isRegister ? "Inicia sesión" : "Regístrate gratis"}
-            </button>
-          </p>
         </div>
+
+        {/* Sign up / Sign in toggle */}
+        <p className="text-center text-slate-400 mt-8">
+          {isRegister ? "¿Ya tienes cuenta? " : "¿No tienes cuenta? "}
+          <button 
+            onClick={() => onNavigate(isRegister ? "login" : "register")} 
+            className="text-[#f97316] font-bold hover:text-orange-400 transition-colors"
+          >
+            {isRegister ? "Inicia sesión" : "Regístrate"}
+          </button>
+        </p>
       </div>
     </main>
   );
