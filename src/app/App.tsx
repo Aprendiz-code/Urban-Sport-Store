@@ -9,7 +9,8 @@ import {
   RefreshCw, Award, Grid3X3
 } from "lucide-react";
 import PromoCarousel from "./components/PromoCarousel";
-import promoRibbon from '../../10%/cinta 10% descuento.PNG';
+// Use a runtime URL for the promo image (encode spaces and % to avoid import resolution issues)
+const promoRibbon = encodeURI('/10%/cinta 10% descuento.PNG');
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
