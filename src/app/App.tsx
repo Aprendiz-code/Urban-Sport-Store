@@ -990,28 +990,28 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
   return (
     <main className="pt-[192px]">
       {/* Hero */}
-      <section className="relative min-h-screen md:min-h-[88vh] flex items-center overflow-hidden bg-slate-900">
+      <section className="relative min-h-screen md:min-h-[88vh] flex items-center justify-center overflow-hidden bg-slate-900">
         <img
           src="https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=1600&h=900&fit=crop&auto=format"
-          alt="Atleta en acción" className="absolute inset-0 w-full h-full object-cover object-top"
+          alt="Atleta en acción" className="absolute inset-0 w-full h-full object-cover object-center md:object-top"
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-slate-900/95 via-slate-900/60 to-slate-900/20" />
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-900/98 via-slate-900/70 to-slate-900/30 md:from-slate-900/95 md:via-slate-900/60 md:to-slate-900/20" />
 
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-16 sm:py-24 w-full">
-          <div className="max-w-lg">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#f97316]/20 border border-[#f97316]/30 text-[#f97316] text-xs font-bold tracking-widest uppercase mb-4">
+        <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-12 sm:py-16 md:py-24 w-full">
+          <div className="max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#f97316]/20 border border-[#f97316]/30 text-[#f97316] text-[10px] sm:text-xs font-bold tracking-widest uppercase mb-3 sm:mb-4">
               <Award size={12} /> Colección 2026
             </div>
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold text-white leading-tight tracking-tight mb-4">{content.heroTitle}</h1>
-            <p className="text-base sm:text-lg text-slate-300 leading-relaxed mb-6 max-w-md">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-6xl font-extrabold text-white leading-tight tracking-tight mb-3 sm:mb-4">{content.heroTitle}</h1>
+            <p className="text-sm sm:text-base md:text-lg text-slate-300 leading-relaxed mb-6 max-w-md">
               {content.heroSubtitle}
             </p>
-            <div className="flex flex-wrap gap-3">
-              <Btn variant="primary" size="lg" onClick={() => onNavigate("catalog")}>
+            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+              <Btn variant="primary" size="lg" onClick={() => onNavigate("catalog")} className="w-full sm:w-auto justify-center">
                 Comprar ahora <ArrowRight size={16} />
               </Btn>
               <button onClick={() => onNavigate("catalog")}
-                className="px-6 py-3.5 text-base font-bold text-white border-2 border-white/30 rounded-xl hover:bg-white/10 transition-all">
+                className="px-6 py-3.5 text-sm sm:text-base font-bold text-white border-2 border-white/30 rounded-xl hover:bg-white/10 transition-all">
                 Ver novedades
               </button>
             </div>
@@ -1021,24 +1021,24 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
       </section>
 
       {/* Categories grid */}
-      <section className="py-16 max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="flex items-end justify-between mb-8">
+      <section className="py-8 sm:py-12 md:py-16 max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
+        <div className="flex items-end justify-between mb-6 sm:mb-8">
           <div>
-            <p className="text-xs font-bold text-[#1d4ed8] tracking-widest uppercase mb-1.5">{content.categorySectionLabel}</p>
-            <h2 className="text-2xl font-extrabold text-slate-900">{content.categorySectionTitle}</h2>
+            <p className="text-[10px] sm:text-xs font-bold text-[#1d4ed8] tracking-widest uppercase mb-1 sm:mb-1.5">{content.categorySectionLabel}</p>
+            <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">{content.categorySectionTitle}</h2>
           </div>
         </div>
         <AutoScrollCarousel>
           {HOME_CATEGORIES.map((cat) => (
-            <div key={cat.name} className="min-w-[16rem] sm:min-w-[18rem] lg:min-w-[20rem] flex-shrink-0 snap-start">
+            <div key={cat.name} className="min-w-[calc(50%-6px)] sm:min-w-[16rem] lg:min-w-[20rem] flex-shrink-0 snap-start">
               <button
                 onClick={() => onCategorySelect(cat.name as Category)}
-                className="group relative rounded-3xl overflow-hidden aspect-[4/3] w-full bg-slate-200 hover:shadow-lg transition-all duration-300">
+                className="group relative rounded-2xl sm:rounded-3xl overflow-hidden aspect-[4/3] w-full bg-slate-200 hover:shadow-lg transition-all duration-300">
                 <img src={cat.image} alt={cat.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-3">
-                  <p className="text-xs font-extrabold text-white leading-tight">{cat.name}</p>
-                  <p className="text-[9px] text-slate-300">{cat.sub}</p>
+                <div className="absolute bottom-0 left-0 right-0 p-2 sm:p-3">
+                  <p className="text-[11px] sm:text-xs font-extrabold text-white leading-tight">{cat.name}</p>
+                  <p className="text-[8px] sm:text-[9px] text-slate-300">{cat.sub}</p>
                 </div>
               </button>
             </div>
@@ -1047,57 +1047,58 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
       </section>
 
       {/* Featured */}
-      <section className="py-8 max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="flex items-end justify-between mb-8">
+      <section className="py-8 sm:py-12 md:py-16 max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
+        <div className="flex items-end justify-between mb-6 sm:mb-8 gap-4">
           <div>
-            <p className="text-xs font-bold text-[#1d4ed8] tracking-widest uppercase mb-1.5">{content.featuredSectionLabel}</p>
-            <h2 className="text-2xl font-extrabold text-slate-900">{content.featuredSectionTitle}</h2>
+            <p className="text-[10px] sm:text-xs font-bold text-[#1d4ed8] tracking-widest uppercase mb-1 sm:mb-1.5">{content.featuredSectionLabel}</p>
+            <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">{content.featuredSectionTitle}</h2>
           </div>
-          <Btn variant="ghost" onClick={() => onNavigate("catalog")}>Ver todos <ChevronRight size={14} /></Btn>
+          <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="hidden sm:flex">Ver todos <ChevronRight size={14} /></Btn>
         </div>
         <AutoScrollCarousel>
             {featured.slice(0, 9).map((p) => (
-            <div key={p.id} className="min-w-[15rem] sm:min-w-[16rem] lg:min-w-[18rem] flex-shrink-0">
+            <div key={p.id} className="min-w-[calc(50%-6px)] sm:min-w-[16rem] lg:min-w-[18rem] flex-shrink-0">
               <ProductCard product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
             </div>
           ))}
         </AutoScrollCarousel>
+        <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="sm:hidden w-full mt-6">Ver todos <ChevronRight size={14} /></Btn>
       </section>
 
       {/* Promo banners */}
-      <section className="py-8 max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+      <section className="py-8 sm:py-12 md:py-16 max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-5">
           {/* Hombre */}
-          <div className="relative rounded-[32px] overflow-hidden h-44 sm:h-56 bg-slate-900 shadow-[0_20px_60px_-35px_rgba(15,23,42,0.45)]">
+          <div className="relative rounded-2xl sm:rounded-[32px] overflow-hidden h-40 sm:h-56 md:h-64 bg-slate-900 shadow-[0_20px_60px_-35px_rgba(15,23,42,0.45)]">
             <picture className="absolute inset-0 block w-full h-full">
               <source srcSet="https://images.unsplash.com/photo-1520975917076-54a4d7d6f73e?w=1200&h=800&fit=crop&auto=format 1200w, https://images.unsplash.com/photo-1520975917076-54a4d7d6f73e?w=900&h=600&fit=crop&auto=format 900w, https://images.unsplash.com/photo-1520975917076-54a4d7d6f73e?w=640&h=426&fit=crop&auto=format 640w" sizes="(max-width: 640px) 640px, (max-width: 1024px) 900px, 1200px" />
               <img src="https://images.unsplash.com/photo-1520975917076-54a4d7d6f73e?w=1200&h=800&fit=crop&auto=format"
                 alt="Hombre entrenando" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
             </picture>
             <div className="absolute inset-0 bg-gradient-to-r from-black/30 to-slate-900/10" />
-            <div className="absolute inset-0 p-6 sm:p-8 flex flex-col justify-end">
-              <p className="text-xs font-semibold text-[#fbbf24] uppercase tracking-[0.3em] mb-1.5">Temporada 2026</p>
-              <h3 className="text-2xl sm:text-3xl font-extrabold text-white mb-3">Ropa Hombre</h3>
+            <div className="absolute inset-0 p-4 sm:p-6 md:p-8 flex flex-col justify-end">
+              <p className="text-[10px] sm:text-xs font-semibold text-[#fbbf24] uppercase tracking-[0.2em] sm:tracking-[0.3em] mb-1 sm:mb-1.5">Temporada 2026</p>
+              <h3 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-white mb-2 sm:mb-3">Ropa Hombre</h3>
               <button onClick={() => onCategorySelect("Ropa Hombre")}
-                className="inline-flex items-center gap-2 text-sm font-bold text-slate-900 bg-white px-4 sm:px-5 py-2.5 sm:py-3 rounded-full hover:bg-slate-100 transition-all w-fit">
-                Explorar <ArrowRight size={14} />
+                className="inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-slate-900 bg-white px-3 sm:px-5 py-2 sm:py-3 rounded-full hover:bg-slate-100 transition-all w-fit">
+                Explorar <ArrowRight size={13} />
               </button>
             </div>
           </div>
           {/* Mujer */}
-          <div className="relative rounded-[32px] overflow-hidden h-44 sm:h-56 bg-slate-100 shadow-[0_20px_60px_-35px_rgba(15,23,42,0.12)]">
+          <div className="relative rounded-2xl sm:rounded-[32px] overflow-hidden h-40 sm:h-56 md:h-64 bg-slate-100 shadow-[0_20px_60px_-35px_rgba(15,23,42,0.12)]">
             <picture className="absolute inset-0 block w-full h-full">
               <source srcSet="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=1200&h=800&fit=crop&auto=format 1200w, https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=900&h=600&fit=crop&auto=format 900w, https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=640&h=426&fit=crop&auto=format 640w" sizes="(max-width: 640px) 640px, (max-width: 1024px) 900px, 1200px" />
               <img src="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=1200&h=800&fit=crop&auto=format"
                 alt="Ropa Mujer" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
             </picture>
             <div className="absolute inset-0 bg-gradient-to-r from-white/80 to-transparent" />
-            <div className="absolute inset-0 p-6 sm:p-8 flex flex-col justify-end">
-              <p className="text-xs font-semibold text-[#1d4ed8] uppercase tracking-[0.3em] mb-1.5">Colección nueva</p>
-              <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mb-3">Ropa Mujer</h3>
+            <div className="absolute inset-0 p-4 sm:p-6 md:p-8 flex flex-col justify-end">
+              <p className="text-[10px] sm:text-xs font-semibold text-[#1d4ed8] uppercase tracking-[0.2em] sm:tracking-[0.3em] mb-1 sm:mb-1.5">Colección nueva</p>
+              <h3 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-slate-900 mb-2 sm:mb-3">Ropa Mujer</h3>
               <button onClick={() => onCategorySelect("Ropa Mujer")}
-                className="inline-flex items-center gap-2 text-sm font-bold text-white bg-black px-4 sm:px-5 py-2.5 sm:py-3 rounded-full hover:bg-slate-900 transition-all w-fit">
-                Explorar <ArrowRight size={14} />
+                className="inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-white bg-black px-3 sm:px-5 py-2 sm:py-3 rounded-full hover:bg-slate-900 transition-all w-fit">
+                Explorar <ArrowRight size={13} />
               </button>
             </div>
           </div>
@@ -1106,60 +1107,62 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
 
       {/* New arrivals */}
       {newArrivals.length > 0 && (
-        <section className="py-8 max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="flex items-end justify-between mb-8">
+        <section className="py-8 sm:py-12 md:py-16 max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
+          <div className="flex items-end justify-between mb-6 sm:mb-8 gap-4">
             <div>
-              <p className="text-xs font-bold text-emerald-600 tracking-widest uppercase mb-1.5">{content.newArrivalsLabel}</p>
-              <h2 className="text-2xl font-extrabold text-slate-900">{content.newArrivalsSectionTitle}</h2>
+              <p className="text-[10px] sm:text-xs font-bold text-emerald-600 tracking-widest uppercase mb-1 sm:mb-1.5">{content.newArrivalsLabel}</p>
+              <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">{content.newArrivalsSectionTitle}</h2>
             </div>
-            <Btn variant="ghost" onClick={() => onNavigate("catalog")}>Ver todos <ChevronRight size={14} /></Btn>
+            <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="hidden sm:flex">Ver todos <ChevronRight size={14} /></Btn>
           </div>
           <AutoScrollCarousel>
               {arrivalsForCarousel.map((p, idx) => (
-              <div key={p.id + "-" + idx} className="min-w-[15rem] sm:min-w-[16rem] lg:min-w-[18rem] flex-shrink-0">
+              <div key={p.id + "-" + idx} className="min-w-[calc(50%-6px)] sm:min-w-[16rem] lg:min-w-[18rem] flex-shrink-0">
                 <ProductCard product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
               </div>
             ))}
           </AutoScrollCarousel>
+          <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="sm:hidden w-full mt-6">Ver todos <ChevronRight size={14} /></Btn>
         </section>
       )}
 
       {/* Sale */}
-      <section className="py-8 bg-orange-50 border-y border-orange-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="flex items-end justify-between mb-8">
+      <section className="py-8 sm:py-12 md:py-16 bg-orange-50 border-y border-orange-100">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
+          <div className="flex items-end justify-between mb-6 sm:mb-8 gap-4">
             <div>
-              <p className="text-xs font-bold text-[#f97316] tracking-widest uppercase mb-1.5">{content.saleSectionLabel}</p>
-              <h2 className="text-2xl font-extrabold text-slate-900">{content.saleSectionTitle}</h2>
+              <p className="text-[10px] sm:text-xs font-bold text-[#f97316] tracking-widest uppercase mb-1 sm:mb-1.5">{content.saleSectionLabel}</p>
+              <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">{content.saleSectionTitle}</h2>
             </div>
-            <Btn variant="ghost" onClick={() => onNavigate("catalog")}>Ver todos <ChevronRight size={14} /></Btn>
+            <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="hidden sm:flex">Ver todos <ChevronRight size={14} /></Btn>
           </div>
           <AutoScrollCarousel>
               {onSale.slice(0, 9).map((p) => (
-              <div key={p.id} className="min-w-[15rem] sm:min-w-[16rem] lg:min-w-[18rem] flex-shrink-0">
+              <div key={p.id} className="min-w-[calc(50%-6px)] sm:min-w-[16rem] lg:min-w-[18rem] flex-shrink-0">
                 <ProductCard product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
               </div>
             ))}
           </AutoScrollCarousel>
+          <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="sm:hidden w-full mt-6">Ver todos <ChevronRight size={14} /></Btn>
         </div>
       </section>
 
       {/* Benefits */}
-      <section className="py-14">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+      <section className="py-8 sm:py-12 md:py-14">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-5">
             {[
               { icon: <Truck size={22} />, color: "bg-blue-100 text-[#1d4ed8]", title: "Envío gratis", desc: "En compras mayores a $250.000 COP" },
               { icon: <Shield size={22} />, color: "bg-green-100 text-green-700", title: "Pago seguro", desc: "Tus datos siempre protegidos" },
               { icon: <RefreshCw size={22} />, color: "bg-orange-100 text-orange-600", title: "30 días devolución", desc: "Sin preguntas, sin complicaciones" },
               { icon: <Bell size={22} />, color: "bg-purple-100 text-purple-600", title: "Soporte 24/7", desc: "Chat, email y teléfono" },
             ].map((b) => (
-              <div key={b.title} className="flex flex-col items-center text-center p-5 rounded-[30px] bg-white/95 border border-slate-200/80 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.18)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_24px_70px_-45px_rgba(15,23,42,0.22)]">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-3 ${b.color}`}>
+              <div key={b.title} className="flex flex-col items-center text-center p-4 sm:p-5 rounded-xl sm:rounded-[30px] bg-white/95 border border-slate-200/80 shadow-[0_20px_60px_-45px_rgba(15,23,42,0.18)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_24px_70px_-45px_rgba(15,23,42,0.22)]">
+                <div className={`w-10 sm:w-12 h-10 sm:h-12 rounded-lg sm:rounded-xl flex items-center justify-center mb-2 sm:mb-3 ${b.color}`}>
                   {b.icon}
                 </div>
-                <p className="text-sm font-bold text-slate-800 mb-1">{b.title}</p>
-                <p className="text-xs text-slate-500">{b.desc}</p>
+                <p className="text-xs sm:text-sm font-bold text-slate-800 mb-0.5 sm:mb-1">{b.title}</p>
+                <p className="text-[11px] sm:text-xs text-slate-500">{b.desc}</p>
               </div>
             ))}
           </div>
@@ -1167,16 +1170,16 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
       </section>
 
       {/* Newsletter */}
-      <section className="py-16 bg-[#1d4ed8]">
-        <div className="max-w-xl mx-auto px-4 text-center">
-          <p className="text-xs font-bold text-blue-200 uppercase tracking-widest mb-3">Mantente al día</p>
-          <h2 className="text-2xl font-extrabold text-white mb-2">Recibe ofertas exclusivas</h2>
-          <p className="text-blue-200 text-sm mb-6">Suscríbete y obtén 10% de descuento en tu primera compra.</p>
-          <div className="flex gap-2 max-w-sm mx-auto">
+      <section className="py-12 sm:py-14 md:py-16 bg-[#1d4ed8]">
+        <div className="max-w-xl mx-auto px-3 sm:px-4 text-center">
+          <p className="text-[10px] sm:text-xs font-bold text-blue-200 uppercase tracking-widest mb-2 sm:mb-3">Mantente al día</p>
+          <h2 className="text-xl sm:text-2xl font-extrabold text-white mb-1 sm:mb-2">Recibe ofertas exclusivas</h2>
+          <p className="text-blue-200 text-xs sm:text-sm mb-5 sm:mb-6">Suscríbete y obtén 10% de descuento en tu primera compra.</p>
+          <div className="flex flex-col sm:flex-row gap-2 max-w-sm mx-auto">
             <input type="email" placeholder="tu@email.com"
               className="flex-1 px-4 py-3 rounded-xl text-sm text-slate-800 bg-white placeholder-slate-400 focus:outline-none" />
             <button onClick={() => toast.success('¡Gracias! Te notificaremos cuando haya ofertas disponibles.')}
-              className="px-5 py-3 rounded-xl bg-black/70 text-white text-sm font-bold hover:bg-black/90 transition-colors whitespace-nowrap">
+              className="px-5 py-3 rounded-xl bg-black/70 text-white text-sm font-bold hover:bg-black/90 transition-colors whitespace-nowrap w-full sm:w-auto">
               Suscribirme
             </button>
           </div>
@@ -1184,14 +1187,14 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
       </section>
 
       {/* Footer */}
-      <footer className="bg-slate-900 text-slate-300 pt-14 pb-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 mb-10">
+      <footer className="bg-slate-900 text-slate-300 pt-10 sm:pt-14 pb-6 sm:pb-8">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-8 mb-8 sm:mb-10">
             <div className="col-span-2 sm:col-span-1">
-              <div className="flex items-center gap-2 mb-4">
-                <span className="font-extrabold text-white text-sm">Urban<span className="text-[#f97316]">Sport</span></span>
+              <div className="flex items-center gap-2 mb-3 sm:mb-4">
+                <span className="font-extrabold text-white text-xs sm:text-sm">Urban<span className="text-[#f97316]">Sport</span></span>
               </div>
-              <p className="text-xs leading-relaxed text-slate-400">Moda deportiva y accesorios premium. Tu mejor versión empieza aquí.</p>
+              <p className="text-[11px] sm:text-xs leading-relaxed text-slate-400">Moda deportiva y accesorios premium. Tu mejor versión empieza aquí.</p>
             </div>
             {[
               { title: "Productos", links: ["Zapatos deportivos", "Ropa Hombre", "Ropa Mujer", "Perfumes", "Relojes", "Gafas"] },
@@ -1275,16 +1278,16 @@ function CatalogPage({ filterCategory, onSelectProduct, onAddToCart, onNavigate,
   }, [selectedCat, selectedBrand, sortBy]);
 
   return (
-    <main className="pt-[312px] min-h-screen max-w-7xl mx-auto px-4 sm:px-6 py-8">
+    <main className="pt-[312px] min-h-screen max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-6 sm:py-8">
       {/* Breadcrumbs */}
-      <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-6">
-          <button onClick={() => onNavigate("home")} className="hover:text-slate-600 cursor-pointer">Inicio</button>
-        <span className="text-slate-700 font-semibold">{selectedCat ?? "Todos los productos"}</span>
+      <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-6 overflow-x-auto pb-2">
+          <button onClick={() => onNavigate("home")} className="hover:text-slate-600 cursor-pointer whitespace-nowrap">Inicio</button>
+        <span className="text-slate-700 font-semibold whitespace-nowrap">{selectedCat ?? "Todos los productos"}</span>
       </div>
 
-      <div className="flex gap-8">
+      <div className="flex gap-6 md:gap-8">
         {/* Sidebar */}
-        <aside className="hidden lg:block w-56 shrink-0 space-y-6">
+        <aside className="hidden lg:block w-48 xl:w-56 shrink-0 space-y-6">
           <div>
             <p className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-3">Categoría</p>
             <div className="space-y-0.5">
@@ -1414,15 +1417,15 @@ function CatalogPage({ filterCategory, onSelectProduct, onAddToCart, onNavigate,
           )}
 
           {filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-24 gap-4">
-              <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center">
-                <Package size={28} className="text-slate-400" />
+            <div className="flex flex-col items-center justify-center py-16 sm:py-24 gap-4">
+              <div className="w-14 sm:w-16 h-14 sm:h-16 rounded-2xl bg-slate-100 flex items-center justify-center">
+                <Package size={24} className="text-slate-400" />
               </div>
-              <p className="text-slate-500">Sin resultados para estos filtros.</p>
+              <p className="text-sm text-slate-500">Sin resultados para estos filtros.</p>
               <Btn variant="outline" onClick={() => { onCategorySelect(null); setSelectedBrand(null); }}>Limpiar filtros</Btn>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-3 sm:gap-4 md:gap-5">
               {filtered.map((p) => (
                 <ProductCard key={p.id} product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
               ))}
@@ -1732,24 +1735,24 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2">
           {step === 0 && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-extrabold text-slate-900 mb-4">Dirección de entrega</h3>
+            <div className="space-y-3 sm:space-y-4">
+              <h3 className="text-base sm:text-lg font-extrabold text-slate-900 mb-3 sm:mb-4">Dirección de entrega</h3>
               {addresses.map((a) => (
-                <label key={a.id} className={`flex gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all ${selectedAddressId === a.id ? "border-[#1d4ed8] bg-blue-50/50" : "border-slate-200 hover:border-slate-300"}`}>
-                  <input type="radio" name="addr" checked={selectedAddressId === a.id} onChange={() => onSelectAddress(a.id)} className="mt-0.5 accent-[#1d4ed8]" />
+                <label key={a.id} className={`flex gap-2 sm:gap-3 p-3 sm:p-4 rounded-lg sm:rounded-2xl border-2 cursor-pointer transition-all ${selectedAddressId === a.id ? "border-[#1d4ed8] bg-blue-50/50" : "border-slate-200 hover:border-slate-300"}`}>
+                  <input type="radio" name="addr" checked={selectedAddressId === a.id} onChange={() => onSelectAddress(a.id)} className="mt-1 accent-[#1d4ed8] shrink-0" />
                   <div>
-                    <p className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                      <MapPin size={13} className="text-[#1d4ed8]" /> {a.label}
+                    <p className="text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-2 flex-wrap">
+                      <MapPin size={13} className="text-[#1d4ed8] shrink-0" /> {a.label}
                       {a.isDefault && <Badge variant="new">Predeterminada</Badge>}
                     </p>
-                    <p className="text-sm text-slate-500 mt-0.5">{a.line1}{a.line2 ? `, ${a.line2}` : ""}</p>
-                    <p className="text-sm text-slate-500">{a.city}, {a.state} · {a.postalCode}</p>
-                    <p className="text-sm text-slate-500">{a.country} · {a.phone}</p>
+                    <p className="text-xs sm:text-sm text-slate-500 mt-0.5">{a.line1}{a.line2 ? `, ${a.line2}` : ""}</p>
+                    <p className="text-xs sm:text-sm text-slate-500">{a.city}, {a.state} · {a.postalCode}</p>
+                    <p className="text-xs sm:text-sm text-slate-500">{a.country} · {a.phone}</p>
                   </div>
                 </label>
               ))}
               <button type="button" onClick={() => setShowNewAddress((prev) => !prev)}
-                className="w-full p-4 rounded-2xl border-2 border-dashed border-slate-200 text-slate-500 hover:border-[#1d4ed8]/50 hover:text-[#1d4ed8] transition-all flex items-center justify-center gap-2 text-sm font-semibold">
+                className="w-full p-3 sm:p-4 rounded-lg sm:rounded-2xl border-2 border-dashed border-slate-200 text-slate-500 hover:border-[#1d4ed8]/50 hover:text-[#1d4ed8] transition-all flex items-center justify-center gap-2 text-xs sm:text-sm font-semibold">
                 <Plus size={14} /> {showNewAddress ? "Cancelar" : "Agregar nueva dirección"}
               </button>
               {showNewAddress && (
@@ -1789,17 +1792,17 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
           )}
 
           {step === 1 && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-extrabold text-slate-900 mb-4">Método de envío</h3>
+            <div className="space-y-3 sm:space-y-4">
+              <h3 className="text-base sm:text-lg font-extrabold text-slate-900 mb-3 sm:mb-4">Método de envío</h3>
               {SHIP.map((opt, i) => (
-                <label key={opt.name} className={`flex gap-3 p-4 rounded-2xl border-2 cursor-pointer transition-all ${selectedShip === i ? "border-[#1d4ed8] bg-blue-50/50" : "border-slate-200 hover:border-slate-300"}`}>
-                  <input type="radio" name="ship" checked={selectedShip === i} onChange={() => setSelectedShip(i)} className="mt-0.5 accent-[#1d4ed8]" />
+                <label key={opt.name} className={`flex gap-2 sm:gap-3 p-3 sm:p-4 rounded-lg sm:rounded-2xl border-2 cursor-pointer transition-all ${selectedShip === i ? "border-[#1d4ed8] bg-blue-50/50" : "border-slate-200 hover:border-slate-300"}`}>
+                  <input type="radio" name="ship" checked={selectedShip === i} onChange={() => setSelectedShip(i)} className="mt-1 accent-[#1d4ed8] shrink-0" />
                   <Truck size={16} className={`mt-0.5 shrink-0 ${selectedShip === i ? "text-[#1d4ed8]" : "text-slate-400"}`} />
                   <div className="flex-1">
-                    <p className="text-sm font-bold text-slate-800">{opt.name}</p>
-                    <p className="text-xs text-slate-500">{opt.desc}</p>
+                    <p className="text-xs sm:text-sm font-bold text-slate-800">{opt.name}</p>
+                    <p className="text-[11px] sm:text-xs text-slate-500">{opt.desc}</p>
                   </div>
-                  <span className={`text-sm font-extrabold ${opt.price === 0 ? "text-emerald-600" : "text-slate-800"}`}>{opt.tag}</span>
+                  <span className={`text-xs sm:text-sm font-extrabold ${opt.price === 0 ? "text-emerald-600" : "text-slate-800"}`}>{opt.tag}</span>
                 </label>
               ))}
             </div>
@@ -1843,8 +1846,8 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
             </div>
           )}
 
-          <div className="flex gap-3 mt-8">
-            {step > 0 && <Btn variant="secondary" onClick={() => setStep(step - 1)}><ChevronLeft size={14} /> Atrás</Btn>}
+          <div className="flex flex-col sm:flex-row gap-3 mt-6 sm:mt-8">
+            {step > 0 && <Btn variant="secondary" onClick={() => setStep(step - 1)} className="flex-1 sm:flex-none justify-center"><ChevronLeft size={14} /> Atrás</Btn>}
             <Btn variant="primary" className="flex-1" size="lg" onClick={() => setStep(step + 1)}>
               {step === 2 ? <><Shield size={15} /> Pagar {fmt(total)} COP</> : <>Continuar <ChevronRight size={15} /></>}
             </Btn>
@@ -1853,28 +1856,28 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
 
         {/* Summary */}
         <div className="lg:col-span-1">
-          <div className="bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_22px_60px_-42px_rgba(15,23,42,0.18)] p-5 sticky top-[152px] space-y-4">
-            <h3 className="text-sm font-extrabold text-slate-800">Resumen del pedido</h3>
-            <div className="space-y-3 max-h-52 overflow-y-auto">
+          <div className="bg-white/95 rounded-lg sm:rounded-[30px] border border-slate-200/80 shadow-[0_22px_60px_-42px_rgba(15,23,42,0.18)] p-4 sm:p-5 sticky top-[152px] space-y-4">
+            <h3 className="text-xs sm:text-sm font-extrabold text-slate-800">Resumen del pedido</h3>
+            <div className="space-y-2 sm:space-y-3 max-h-40 sm:max-h-52 overflow-y-auto">
               {cart.map((item) => (
-                <div key={`${item.product.id}-${item.selectedSize}`} className="flex gap-3">
+                <div key={`${item.product.id}-${item.selectedSize}`} className="flex gap-2 sm:gap-3">
                   <div className="relative shrink-0">
-                    <img src={item.product.image} alt="" className="w-12 h-12 rounded-lg object-cover bg-slate-100" />
-                    <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-[#1d4ed8] text-white text-[9px] font-bold flex items-center justify-center">{item.qty}</span>
+                    <img src={item.product.image} alt="" className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-cover bg-slate-100" />
+                    <span className="absolute -top-1.5 -right-1.5 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-[#1d4ed8] text-white text-[8px] sm:text-[9px] font-bold flex items-center justify-center">{item.qty}</span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-slate-700 line-clamp-2 leading-tight">{item.product.name}</p>
-                    {item.selectedSize !== "Talla única" && <p className="text-[10px] text-slate-400 mt-0.5">T: {item.selectedSize}</p>}
-                    <p className="text-xs font-extrabold text-slate-900 mt-0.5">{fmt(item.product.price * item.qty)}</p>
+                    <p className="text-[11px] sm:text-xs font-semibold text-slate-700 line-clamp-2 leading-tight">{item.product.name}</p>
+                    {item.selectedSize !== "Talla única" && <p className="text-[9px] sm:text-[10px] text-slate-400 mt-0.5">T: {item.selectedSize}</p>}
+                    <p className="text-[11px] sm:text-xs font-extrabold text-slate-900 mt-0.5">{fmt(item.product.price * item.qty)}</p>
                   </div>
                 </div>
               ))}
             </div>
             <div className="flex gap-2">
-              <input placeholder="Código de cupón" className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-[#1d4ed8]/50" />
+              <input placeholder="Código de cupón" className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:border-[#1d4ed8]/50" />
               <Btn variant="outline" size="sm">Aplicar</Btn>
             </div>
-            <div className="space-y-1.5 text-sm border-t border-slate-100 pt-3">
+            <div className="space-y-1 sm:space-y-1.5 text-xs sm:text-sm border-t border-slate-100 pt-3">
               <div className="flex justify-between text-slate-500"><span>Subtotal</span><span className="font-semibold text-slate-800">{fmt(subtotal)}</span></div>
               <div className="flex justify-between text-slate-500">
                 <span>Envío</span>
@@ -1882,7 +1885,7 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
                   {SHIP[selectedShip].price === 0 ? "Gratis" : fmt(SHIP[selectedShip].price)}
                 </span>
               </div>
-              <div className="flex justify-between font-extrabold text-slate-900 text-base border-t border-slate-100 pt-1.5">
+              <div className="flex justify-between font-extrabold text-slate-900 text-sm sm:text-base border-t border-slate-100 pt-1.5">
                 <span>Total</span><span>{fmt(total)} COP</span>
               </div>
             </div>
