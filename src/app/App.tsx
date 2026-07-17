@@ -882,7 +882,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
           </div>
 
             <div className="border-t border-slate-100 overflow-x-auto">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 hidden md:flex items-center gap-1 h-11">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 hidden md:flex items-center justify-center gap-1 h-11">
               {NAV_CATEGORIES.map((cat) => (
                 <button key={cat.name}
                   onClick={() => onCategorySelect(cat.name)}
@@ -1050,7 +1050,7 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
   })();
 
   return (
-    <main className="pt-[192px]">
+    <main className="pt-[120px] md:pt-[132px]">
       {/* Hero */}
       <section className="relative min-h-screen md:min-h-[88vh] flex items-center justify-center overflow-hidden bg-slate-900">
         <img
@@ -1350,7 +1350,7 @@ function CatalogPage({ filterCategory, onSelectProduct, onAddToCart, onNavigate,
       <div className="flex flex-col gap-6 md:gap-8">
         {/* Sidebar - Horizontal centered for desktop */}
         <aside className="hidden lg:block">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
             <div>
               <p className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-3">Categoría</p>
               <div className="space-y-0.5">
