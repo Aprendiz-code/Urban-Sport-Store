@@ -2,6 +2,7 @@ import { prisma } from '../db/prisma.js';
 import { comparePassword, generateAccessToken, hashPassword } from '../utils/auth.js';
 import { HttpError } from '../middlewares/error-handler.js';
 import { randomUUID } from 'crypto';
+import { env } from '../config/env.js';
 
 export class AuthService {
   async register(payload: { name: string; email: string; password: string }) {
@@ -98,7 +99,7 @@ export class AuthService {
 
   async exchangeSupabaseToken(accessToken: string) {
     // call Supabase auth user endpoint to validate token
-    const supabaseUrl = process.env.SUPABASE_URL || '';
+    const supabaseUrl = env.supabaseUrl || process.env.SUPABASE_URL || '';
     if (!supabaseUrl) throw new Error('SUPABASE_URL not configured');
     const resp = await fetch(`${supabaseUrl}/auth/v1/user`, {
       method: 'GET',

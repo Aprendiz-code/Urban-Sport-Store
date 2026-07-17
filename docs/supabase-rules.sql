@@ -1,15 +1,14 @@
 -- Enable row level security for products
 alter table public.products enable row level security;
 
--- Allow public read access for the storefront
+-- Public storefront read access only
 create policy if not exists "Allow public read access"
 on public.products
 for select
 using (true);
 
--- Allow authenticated admin users to insert products.
--- In production, prefer a backend service role for writes and keep this policy restrictive.
-create policy if not exists "Allow authenticated admins to insert products"
+-- Authenticated admins can insert products.
+create policy if not exists "Allow authenticated admin insert"
 on public.products
 for insert
 to authenticated
@@ -18,8 +17,8 @@ with check (
   or coalesce((auth.jwt() -> 'user_metadata' ->> 'role'), '') = 'ADMIN'
 );
 
--- Allow authenticated admin users to update products
-create policy if not exists "Allow authenticated admins to update products"
+-- Authenticated admins can update products.
+create policy if not exists "Allow authenticated admin update"
 on public.products
 for update
 to authenticated
@@ -32,8 +31,8 @@ with check (
   or coalesce((auth.jwt() -> 'user_metadata' ->> 'role'), '') = 'ADMIN'
 );
 
--- Allow authenticated admin users to delete products
-create policy if not exists "Allow authenticated admins to delete products"
+-- Authenticated admins can delete products.
+create policy if not exists "Allow authenticated admin delete"
 on public.products
 for delete
 to authenticated

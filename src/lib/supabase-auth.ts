@@ -42,20 +42,26 @@ export const signInWithEmail = async (email: string, password: string) => {
   }
 
   if (!isSupabaseEnabled()) {
-    if (email !== adminEmail || password !== adminPassword) {
-      return { data: { user: null }, error: new Error('Credenciales inválidas. Usa el admin local.') };
-    }
     const user = {
-      id: 'local-admin',
+      id: `local-${Date.now()}`,
       email,
-      user_metadata: { full_name: 'Administrador local', role: 'ADMIN', isAdmin: true },
+      user_metadata: { full_name: email, role: 'CUSTOMER' },
     } as unknown as User;
     setLocalUser(user);
     return { data: { user }, error: null };
   }
 
   const client = getSupabaseClient();
-  return client.auth.signInWithPassword({ email, password });
+  const result = await client.auth.signInWithPassword({ email, password });
+
+  if (result.error) {
+    if (result.error.message?.includes('Email not confirmed') || result.error.code === 'email_not_confirmed') {
+      return { data: { user: null }, error: new Error('Debes confirmar tu correo antes de iniciar sesión.') };
+    }
+    return result;
+  }
+
+  return result;
 };
 
 export const signUpWithEmail = async (email: string, password: string, options?: { name?: string }) => {
@@ -66,12 +72,12 @@ export const signUpWithEmail = async (email: string, password: string, options?:
       user_metadata: { full_name: options?.name ?? email, role: 'CUSTOMER' },
     } as unknown as User;
     setLocalUser(user);
-    return { data: { user }, error: null };
+    return { data: { user }, error: null, needsConfirmation: false };
   }
 
   const client = getSupabaseClient();
   const redirectUrl = typeof window !== 'undefined' ? window.location.origin : undefined;
-  return client.auth.signUp({
+  const result = await client.auth.signUp({
     email,
     password,
     options: {
@@ -79,6 +85,22 @@ export const signUpWithEmail = async (email: string, password: string, options?:
       emailRedirectTo: redirectUrl,
     },
   });
+
+  if (!result.error && result.data.user) {
+    const localUser = {
+      ...result.data.user,
+      email,
+      user_metadata: {
+        ...(result.data.user.user_metadata ?? {}),
+        full_name: options?.name ?? email,
+        role: 'CUSTOMER',
+      },
+    } as unknown as User;
+    setLocalUser(localUser);
+    return { ...result, data: { ...result.data, user: localUser }, needsConfirmation: !result.data.session };
+  }
+
+  return result;
 };
 
 export const signOut = async () => {

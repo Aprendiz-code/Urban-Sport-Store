@@ -2008,22 +2008,25 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
       let user = null;
       let adminStatus = false;
       if (isRegister) {
-        const { data, error: signUpError } = await signUpWithEmail(email, password, { name });
-        if (signUpError) throw signUpError;
-        if (!data.user) throw new Error("No se pudo crear la cuenta.");
+        const signUpResult = await signUpWithEmail(email, password, { name });
+        if (signUpResult.error) throw signUpResult.error;
+        if (!signUpResult.data.user) throw new Error("No se pudo crear la cuenta.");
 
-        toast.success("Registro creado. Revisa tu correo para confirmar la cuenta.");
+        user = signUpResult.data.user;
+        adminStatus = isAdminUser(user);
+        onLogin(user, adminStatus);
+        toast.success(signUpResult.needsConfirmation ? "Cuenta creada. Revisa tu correo si tu configuración de Supabase requiere confirmación; ya puedes seguir usando la tienda." : "Registro exitoso. Ya puedes continuar en la tienda.");
         setEmail("");
         setPassword("");
         setName("");
-        onNavigate("login");
+        onNavigate(adminStatus ? "admin" : "home");
         return;
       }
 
-      const { data, error: signInError } = await signInWithEmail(email, password);
-      if (signInError) throw signInError;
-      if (!data.user) throw new Error("No se pudo iniciar sesión.");
-      user = data.user;
+      const signInResult = await signInWithEmail(email, password);
+      if (signInResult.error) throw signInResult.error;
+      if (!signInResult.data.user) throw new Error("No se pudo iniciar sesión.");
+      user = signInResult.data.user;
 
       adminStatus = isAdminUser(user);
       onLogin(user, adminStatus);
