@@ -1931,39 +1931,39 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 pt-[60px] px-4">
+    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 pt-[60px] px-4">
       {/* Decorative elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 right-1/4 w-96 h-96 bg-[#1d4ed8]/10 rounded-full blur-3xl" />
-        <div className="absolute -bottom-32 left-1/3 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
+        <div className="absolute top-0 right-1/4 w-96 h-96 bg-[#1d4ed8]/5 rounded-full blur-3xl" />
+        <div className="absolute -bottom-32 left-1/3 w-96 h-96 bg-blue-400/5 rounded-full blur-3xl" />
       </div>
 
       <div className="w-full max-w-md relative z-10">
         {/* Logo */}
         <div className="text-center mb-12">
           <div className="flex items-center justify-center gap-2 mb-4">
-            <span className="font-extrabold text-white text-2xl">Urban<span className="text-[#1d4ed8]">Sport</span></span>
+            <span className="font-extrabold text-slate-900 text-2xl">Urban<span className="text-[#1d4ed8]">Sport</span></span>
           </div>
-          <h1 className="text-4xl font-extrabold text-white mb-2">
+          <h1 className="text-4xl font-extrabold text-slate-900 mb-2">
             {isRegister ? "Crear cuenta" : "Bienvenido"}
           </h1>
-          <p className="text-slate-400">
+          <p className="text-slate-600">
             {isRegister ? "Únete a UrbanSport Store hoy" : "Continúa tu aventura deportiva"}
           </p>
         </div>
 
         {/* Main form card */}
-        <div className="bg-white/10 backdrop-blur-md rounded-3xl border border-white/20 p-8 shadow-2xl space-y-6">
+        <div className="bg-white/95 backdrop-blur-sm rounded-3xl border border-blue-200 p-8 shadow-xl space-y-6">
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Name fields for register */}
             {isRegister && (
               <div className="grid grid-cols-2 gap-3">
                 {[["Nombre", "Diego"], ["Apellido", "Martínez"]].map(([lbl, ph]) => (
                   <div key={lbl}>
-                    <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">{lbl}</label>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">{lbl}</label>
                     <input 
                       placeholder={ph} 
-                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-sm text-white placeholder-slate-400 focus:outline-none focus:border-[#1d4ed8]/50 focus:bg-white/20 transition-all duration-200 backdrop-blur-sm" 
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 placeholder-slate-500 focus:outline-none focus:border-[#1d4ed8] focus:bg-white transition-all duration-200" 
                     />
                   </div>
                 ))}
@@ -1972,20 +1972,20 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
 
             {/* Email */}
             <div>
-              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Correo electrónico</label>
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">Correo electrónico</label>
               <input 
                 type="email" 
                 value={email} 
                 onChange={(e) => setEmail(e.target.value)} 
                 placeholder="tu@email.com" 
-                className="w-full px-4 py-3.5 bg-white/10 border border-white/20 rounded-xl text-base text-white placeholder-slate-400 focus:outline-none focus:border-[#1d4ed8]/50 focus:bg-white/20 transition-all duration-200 backdrop-blur-sm" 
+                className="w-full px-4 py-3.5 bg-slate-50 border border-slate-300 rounded-xl text-base text-slate-900 placeholder-slate-500 focus:outline-none focus:border-[#1d4ed8] focus:bg-white transition-all duration-200" 
               />
             </div>
 
             {/* Password */}
             <div>
               <div className="flex justify-between items-center mb-2">
-                <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Contraseña</label>
+                <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Contraseña</label>
                 {!isRegister && (
                   <button 
                     type="button" 
@@ -2002,12 +2002,12 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
                   value={password} 
                   onChange={(e) => setPassword(e.target.value)} 
                   placeholder="••••••••"
-                  className="w-full px-4 py-3.5 bg-white/10 border border-white/20 rounded-xl text-base text-white placeholder-slate-400 focus:outline-none focus:border-[#1d4ed8]/50 focus:bg-white/20 transition-all duration-200 backdrop-blur-sm" 
+                  className="w-full px-4 py-3.5 bg-slate-50 border border-slate-300 rounded-xl text-base text-slate-900 placeholder-slate-500 focus:outline-none focus:border-[#1d4ed8] focus:bg-white transition-all duration-200" 
                 />
                 <button 
                   type="button" 
                   onClick={() => setShowPass(!showPass)} 
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-900 transition-colors"
                 >
                   {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
@@ -2021,8 +2021,8 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
                   type="checkbox" 
                   className="mt-1 w-4 h-4 accent-[#1d4ed8] cursor-pointer" 
                 />
-                <span className="text-xs text-slate-300 leading-relaxed">
-                  Acepto los <button type="button" onClick={() => toast('Términos próximamente disponible.')} className="text-[#1d4ed8] hover:text-blue-400 font-semibold transition-colors">Términos</button> y la <button type="button" onClick={() => toast('Política de privacidad próximamente disponible.')} className="text-[#1d4ed8] hover:text-blue-400 font-semibold transition-colors">Política de privacidad</button>.
+                <span className="text-xs text-slate-700 leading-relaxed">
+                  Acepto los <button type="button" onClick={() => toast('Términos próximamente disponible.')} className="text-[#1d4ed8] hover:text-blue-600 font-semibold transition-colors">Términos</button> y la <button type="button" onClick={() => toast('Política de privacidad próximamente disponible.')} className="text-[#1d4ed8] hover:text-blue-600 font-semibold transition-colors">Política de privacidad</button>.
                 </span>
               </label>
             )}
@@ -2050,15 +2050,15 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
 
           {/* Divider */}
           <div className="relative flex items-center gap-3">
-            <div className="flex-1 h-px bg-white/20" />
-            <span className="text-xs text-slate-400 font-medium">o continúa con</span>
-            <div className="flex-1 h-px bg-white/20" />
+            <div className="flex-1 h-px bg-slate-300" />
+            <span className="text-xs text-slate-600 font-medium">o continúa con</span>
+            <div className="flex-1 h-px bg-slate-300" />
           </div>
 
           {/* Google button */}
           <button 
             onClick={() => toast('Función de inicio con Google próximamente disponible.')}
-            className="w-full py-3.5 rounded-xl border border-white/20 bg-white/5 text-sm text-white font-semibold hover:bg-white/10 hover:border-white/40 transition-all duration-200 flex items-center justify-center gap-3 backdrop-blur-sm transform hover:scale-105"
+            className="w-full py-3.5 rounded-xl border border-slate-300 bg-white text-sm text-slate-900 font-semibold hover:bg-slate-50 hover:border-blue-400 transition-all duration-200 flex items-center justify-center gap-3 transform hover:scale-105"
           >
             <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20H24v8h11.3C33.6 33.4 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.7 1.1 7.8 2.9l5.7-5.7C34 6.5 29.2 4 24 4 13 4 4 13 4 24s9 20 20 20c11 0 20-9 20-20 0-1.3-.1-2.7-.4-4z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 15.1 18.9 12 24 12c3 0 5.7 1.1 7.8 2.9l5.7-5.7C34 6.5 29.2 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.3 26.7 36 24 36c-5.2 0-9.6-3.4-11.2-8H6.5C9.9 37.7 16.5 44 24 44z"/><path fill="#1976D2" d="M43.6 20H24v8h11.3c-.8 2.2-2.2 4.1-4 5.5l6.2 5.2C40.6 35.4 44 30.1 44 24c0-1.3-.1-2.7-.4-4z"/></svg>
             Google
@@ -2066,11 +2066,11 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
         </div>
 
         {/* Sign up / Sign in toggle */}
-        <p className="text-center text-slate-400 mt-8">
+        <p className="text-center text-slate-700 mt-8">
           {isRegister ? "¿Ya tienes cuenta? " : "¿No tienes cuenta? "}
           <button 
             onClick={() => onNavigate(isRegister ? "login" : "register")} 
-            className="text-[#1d4ed8] font-bold hover:text-blue-400 transition-colors"
+            className="text-[#1d4ed8] font-bold hover:text-blue-600 transition-colors"
           >
             {isRegister ? "Inicia sesión" : "Regístrate"}
           </button>
