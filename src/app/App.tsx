@@ -15,7 +15,7 @@ import {
   Tooltip, ResponsiveContainer,
 } from "recharts";
 // promoRibbon moved to src/assets/cinta-10.png
-import { fetchProductsFromSupabase, type ProductRecord } from "../lib/supabase-store";
+import { createProductInSupabase, deleteProductInSupabase, fetchProductsFromSupabase, seedProductsToSupabase, updateProductInSupabase, type ProductRecord } from "../lib/supabase-store";
 import {
   signInWithEmail,
   signUpWithEmail,
@@ -160,6 +160,29 @@ const mapProductRecordToAppProduct = (record: ProductRecord): Product => ({
   isNew: record.is_new ?? false,
   isFeatured: record.is_featured ?? false,
   specs: record.specs ?? [],
+});
+
+const mapAppProductToProductRecord = (product: Partial<Product> & { id?: string }): ProductRecord => ({
+  id: product.id ?? crypto.randomUUID(),
+  name: product.name ?? "",
+  brand: product.brand ?? "",
+  price: Number(product.price ?? 0),
+  original_price: product.originalPrice ?? null,
+  discount: product.discount ?? null,
+  rating: Number(product.rating ?? 0),
+  reviews: Number(product.reviews ?? 0),
+  image: product.image ?? "",
+  category: (product.category ?? "Zapatos") as string,
+  subcategory: product.subcategory ?? "",
+  stock: Number(product.stock ?? 0),
+  sku: product.sku ?? "",
+  description: product.description ?? "",
+  colors: product.colors ?? [],
+  sizes: product.sizes ?? [],
+  gender: (product.gender ?? "Unisex") as string,
+  is_new: product.isNew ?? false,
+  is_featured: product.isFeatured ?? false,
+  specs: product.specs ?? [],
 });
 
 // ─── DATA ────────────────────────────────────────────────────────────────────
@@ -1988,13 +2011,19 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
         const { data, error: signUpError } = await signUpWithEmail(email, password, { name });
         if (signUpError) throw signUpError;
         if (!data.user) throw new Error("No se pudo crear la cuenta.");
-        user = data.user;
-      } else {
-        const { data, error: signInError } = await signInWithEmail(email, password);
-        if (signInError) throw signInError;
-        if (!data.user) throw new Error("No se pudo iniciar sesión.");
-        user = data.user;
+
+        toast.success("Registro creado. Revisa tu correo para confirmar la cuenta.");
+        setEmail("");
+        setPassword("");
+        setName("");
+        onNavigate("login");
+        return;
       }
+
+      const { data, error: signInError } = await signInWithEmail(email, password);
+      if (signInError) throw signInError;
+      if (!data.user) throw new Error("No se pudo iniciar sesión.");
+      user = data.user;
 
       adminStatus = isAdminUser(user);
       onLogin(user, adminStatus);
@@ -2031,18 +2060,16 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
         {/* Main form card */}
         <div className="bg-white/95 backdrop-blur-sm rounded-3xl border border-blue-200 p-8 shadow-xl space-y-6">
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Name fields for register */}
+            {/* Name field for register */}
             {isRegister && (
-              <div className="grid grid-cols-2 gap-3">
-                {[["Nombre", "Diego"], ["Apellido", "Martínez"]].map(([lbl, ph]) => (
-                  <div key={lbl}>
-                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">{lbl}</label>
-                    <input 
-                      placeholder={ph} 
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 placeholder-slate-500 focus:outline-none focus:border-[#1d4ed8] focus:bg-white transition-all duration-200" 
-                    />
-                  </div>
-                ))}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">Nombre completo</label>
+                <input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Tu nombre"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 placeholder-slate-500 focus:outline-none focus:border-[#1d4ed8] focus:bg-white transition-all duration-200"
+                />
               </div>
             )}
 
@@ -3500,10 +3527,20 @@ export default function App() {
       if (!url || !anonKey) return;
 
       try {
-        const data = await fetchProductsFromSupabase(12);
+        const data = await fetchProductsFromSupabase(24);
         if (!isActive) return;
         if (data.length > 0) {
           PRODUCTS = data.map(mapProductRecordToAppProduct);
+          return;
+        }
+
+        const fallbackProducts = PRODUCTS.map((product) => mapAppProductToProductRecord(product));
+        if (fallbackProducts.length > 0) {
+          await seedProductsToSupabase(fallbackProducts);
+          const reloaded = await fetchProductsFromSupabase(24);
+          if (isActive && reloaded.length > 0) {
+            PRODUCTS = reloaded.map(mapProductRecordToAppProduct);
+          }
         }
       } catch (error) {
         console.warn("No se pudo cargar productos desde Supabase; se mantendrán los datos locales.", error);
@@ -3703,15 +3740,16 @@ export default function App() {
 
   const createProduct = async (product: Omit<Product, "id">) => {
     try {
-      const created = await adminApi.createProductApi(product as any);
-      if (created?.id) {
-        PRODUCTS = [created as Product, ...PRODUCTS];
-        refreshProducts();
-        try { recordAction('create_product', { id: created.id, name: created.name }); } catch (e) { }
-        return;
-      }
+      const record = mapAppProductToProductRecord({ ...product, id: crypto.randomUUID() });
+      const created = await createProductInSupabase(record);
+      const createdAppProduct = mapProductRecordToAppProduct(created);
+      PRODUCTS = [createdAppProduct, ...PRODUCTS.filter((item) => item.id !== createdAppProduct.id)];
+      refreshProducts();
+      toast.success("Producto creado y guardado en Supabase.");
+      try { recordAction('create_product', { id: createdAppProduct.id, name: createdAppProduct.name }); } catch (e) { }
+      return;
     } catch (err) {
-      console.warn("Backend create product failed, falling back to local:", err);
+      console.warn("Supabase create product failed, falling back to local:", err);
     }
 
     const newProduct = { ...product, id: crypto.randomUUID() };
@@ -3722,15 +3760,17 @@ export default function App() {
 
   const updateProduct = async (productId: string, updates: Partial<Product>) => {
     try {
-      const updated = await adminApi.updateProductApi(productId, updates as any);
-      if (updated?.id) {
-        PRODUCTS = PRODUCTS.map((p) => p.id === productId ? updated as Product : p);
-        refreshProducts();
-        try { recordAction('update_product', { id: updated.id, name: updated.name }); } catch (e) { }
-        return;
-      }
+      const record = mapAppProductToProductRecord({ ...PRODUCTS.find((product) => product.id === productId), ...updates, id: productId });
+      const { id: _ignoredId, ...recordUpdates } = record;
+      const updated = await updateProductInSupabase(productId, recordUpdates);
+      const updatedAppProduct = mapProductRecordToAppProduct(updated);
+      PRODUCTS = PRODUCTS.map((product) => product.id === productId ? updatedAppProduct : product);
+      refreshProducts();
+      toast.success("Producto actualizado en Supabase.");
+      try { recordAction('update_product', { id: updatedAppProduct.id, name: updatedAppProduct.name }); } catch (e) { }
+      return;
     } catch (err) {
-      console.warn("Backend update failed, falling back to local:", err);
+      console.warn("Supabase update failed, falling back to local:", err);
     }
 
     PRODUCTS = PRODUCTS.map((product) => product.id === productId ? { ...product, ...updates } : product);
@@ -3740,13 +3780,14 @@ export default function App() {
 
   const deleteProduct = async (productId: string) => {
     try {
-      await adminApi.deleteProductApi(productId);
+      await deleteProductInSupabase(productId);
       PRODUCTS = PRODUCTS.filter((product) => product.id !== productId);
       refreshProducts();
+      toast.success("Producto eliminado de Supabase.");
       try { recordAction('delete_product', { id: productId }); } catch (e) { }
       return;
     } catch (err) {
-      console.warn("Backend delete failed, falling back to local:", err);
+      console.warn("Supabase delete failed, falling back to local:", err);
     }
 
     PRODUCTS = PRODUCTS.filter((product) => product.id !== productId);

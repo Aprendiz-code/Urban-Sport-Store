@@ -4,8 +4,12 @@ import { getSupabaseClient, isSupabaseEnabled } from './supabase-client';
 const LOCAL_USER_KEY = 'urbansport_local_user';
 const LOCAL_TOKEN = 'local-admin-token';
 
-const adminEmail = import.meta.env.VITE_ADMIN_EMAIL ?? 'admin@urbansportstore.dev';
-const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD ?? 'Admin123!';
+const adminEmail = (import.meta.env.VITE_ADMIN_EMAIL ?? 'Urbansportstore@outlook.com').toLowerCase();
+const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD ?? 'bM4_tX!8wK2#vP7$qR';
+
+const isAdminCredentials = (email: string, password: string) => {
+  return email.toLowerCase() === adminEmail && password === adminPassword;
+};
 
 const getLocalUser = (): User | null => {
   if (typeof window === 'undefined') return null;
@@ -27,6 +31,16 @@ const setLocalUser = (user: User | null) => {
 };
 
 export const signInWithEmail = async (email: string, password: string) => {
+  if (isAdminCredentials(email, password)) {
+    const user = {
+      id: 'local-admin',
+      email,
+      user_metadata: { full_name: 'Administrador', role: 'ADMIN', isAdmin: true },
+    } as unknown as User;
+    setLocalUser(user);
+    return { data: { user }, error: null };
+  }
+
   if (!isSupabaseEnabled()) {
     if (email !== adminEmail || password !== adminPassword) {
       return { data: { user: null }, error: new Error('Credenciales inválidas. Usa el admin local.') };
@@ -56,7 +70,15 @@ export const signUpWithEmail = async (email: string, password: string, options?:
   }
 
   const client = getSupabaseClient();
-  return client.auth.signUp({ email, password, options: { data: { full_name: options?.name ?? '' } } });
+  const redirectUrl = typeof window !== 'undefined' ? window.location.origin : undefined;
+  return client.auth.signUp({
+    email,
+    password,
+    options: {
+      data: { full_name: options?.name ?? '' },
+      emailRedirectTo: redirectUrl,
+    },
+  });
 };
 
 export const signOut = async () => {
@@ -110,7 +132,7 @@ export const isAdminUser = (user: User | null) => {
   if (!user) return false;
   const metadata = (user as any).user_metadata as Record<string, any> | undefined;
   return (
-    user.email === adminEmail ||
+    user.email?.toLowerCase() === adminEmail ||
     metadata?.role === 'ADMIN' ||
     metadata?.is_admin === true ||
     metadata?.isAdmin === true

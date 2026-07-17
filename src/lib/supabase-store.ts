@@ -25,13 +25,55 @@ export interface ProductRecord {
 
 export const fetchProductsFromSupabase = async (limit = 12): Promise<ProductRecord[]> => {
   const client = getSupabaseClient();
-  const { data, error } = await client.from('products').select('*').limit(limit);
+  const { data, error } = await client.from('products').select('*').order('id', { ascending: false }).limit(limit);
 
   if (error) {
     throw error;
   }
 
   return (data ?? []) as ProductRecord[];
+};
+
+export const createProductInSupabase = async (product: ProductRecord) => {
+  const client = getSupabaseClient();
+  const { data, error } = await client.from('products').insert([product]).select('*').single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data as ProductRecord;
+};
+
+export const seedProductsToSupabase = async (products: ProductRecord[]) => {
+  const client = getSupabaseClient();
+  const { data, error } = await client.from('products').insert(products).select('*');
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []) as ProductRecord[];
+};
+
+export const updateProductInSupabase = async (productId: string, updates: Partial<ProductRecord>) => {
+  const client = getSupabaseClient();
+  const { data, error } = await client.from('products').update(updates).eq('id', productId).select('*').single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data as ProductRecord;
+};
+
+export const deleteProductInSupabase = async (productId: string) => {
+  const client = getSupabaseClient();
+  const { error } = await client.from('products').delete().eq('id', productId);
+
+  if (error) {
+    throw error;
+  }
 };
 
 export const uploadProductImage = async (file: File, path = `${Date.now()}-${file.name}`) => {
