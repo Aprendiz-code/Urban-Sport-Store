@@ -9,11 +9,11 @@ import {
   RefreshCw, Award, Grid3X3
 } from "lucide-react";
 import PromoCarousel from "./components/PromoCarousel";
-import promoRibbon from "../../10%/cinta 10% descuento.PNG";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
 } from "recharts";
+const promoRibbon = '/10%25/cinta%2010%25.png';
 import { fetchProductsFromSupabase, type ProductRecord } from "../lib/supabase-store";
 import {
   signInWithEmail,
@@ -604,8 +604,8 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
   cart: CartItem[]; onNavigate: (v: View) => void;
   onCartOpen: () => void; isLoggedIn: boolean; isAdmin: boolean;
   authUser: User | null; currentView: View; onLoginClick: () => void; onLogout: () => void;
-  onCategorySelect: (c: Category) => void;
-  onSelectProduct: (p: Product) => void;
+  onCategorySelect: (c: Category | null) => void;
+  onSelectProduct?: (p: Product) => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
@@ -786,7 +786,6 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
             </button>
           </div>
         </div>
-      </nav>
 
       {(currentView === "home" || currentView === "catalog") && (
         <div className="w-full bg-white border-t border-slate-100">
@@ -836,15 +835,16 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
         </div>
       )}
 
-        {/* Mobile menu */}
-        {menuOpen && (
-          <div className="md:hidden border-t border-slate-100 bg-white px-4 py-3 mt-3">
-            <div className="relative mb-3">
-              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input placeholder="Buscar…" className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none" />
-            </div>
+      {/* Mobile menu */}
+      {menuOpen && (
+        <div className="md:hidden border-t border-slate-100 bg-white px-4 py-3 mt-3">
+          <div className="relative mb-3">
+            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input placeholder="Buscar…" className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none" />
           </div>
-        )}
+        </div>
+      )}
+
       </nav>
     </div>
   );
@@ -3758,6 +3758,7 @@ export default function App() {
             onLoginClick={() => navigate("login")}
             onLogout={handleLogout}
             onCategorySelect={handleCategorySelect}
+            onSelectProduct={handleSelectProduct}
           />
           <Toaster />
         </>
