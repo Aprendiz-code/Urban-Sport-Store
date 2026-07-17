@@ -608,7 +608,6 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
   onCategorySelect: (c: Category | null) => void;
   onSelectProduct?: (p: Product) => void;
 }) {
-  const [menuOpen, setMenuOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
   const [searchVal, setSearchVal] = useState("");
   const [suggestions, setSuggestions] = useState<Product[]>([]);
@@ -781,10 +780,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
               )}
             </div>
 
-            <button onClick={() => setMenuOpen(!menuOpen)}
-              className="md:hidden w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-colors">
-              {menuOpen ? <X size={19} /> : <Menu size={19} />}
-            </button>
+
           </div>
         </div>
 
@@ -838,14 +834,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
         </div>
       )}
 
-      {menuOpen && (
-        <div className="md:hidden border-t border-slate-100 bg-white px-4 py-3 mt-3">
-          <div className="relative mb-3">
-            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input placeholder="Buscar…" className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none" />
-          </div>
-        </div>
-      )}
+
 
       </nav>
     </div>
