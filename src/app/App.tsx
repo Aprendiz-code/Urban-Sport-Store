@@ -2432,6 +2432,10 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
   const [searchTerm, setSearchTerm] = useState("");
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [activeProduct, setActiveProduct] = useState<Product | null>(null);
+  const [importUrl, setImportUrl] = useState("");
+  const [importedImages, setImportedImages] = useState<string[]>([]);
+  const [isImportingImages, setIsImportingImages] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
   const [productForm, setProductForm] = useState<Omit<Product, "id">>({
     name: "", brand: "", price: 0, originalPrice: undefined, discount: undefined,
     rating: 0, reviews: 0, image: "", category: "Zapatos", subcategory: "Running",
@@ -2596,12 +2600,118 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
   const resetForm = () => {
     setFormMode("create");
     setActiveProduct(null);
+    setImportUrl("");
+    setImportedImages([]);
+    setImportError(null);
     setProductForm({
       name: "", brand: "", price: 0, originalPrice: undefined, discount: undefined,
       rating: 0, reviews: 0, image: "", category: "Zapatos", subcategory: "Running",
       stock: 0, sku: "", description: "", colors: [], sizes: [], gender: "Unisex",
       isNew: false, isFeatured: false, specs: [],
     });
+  };
+
+  const extractImageUrlsFromHtml = (html: string, baseUrl: string) => {
+    const urls = new Set<string>();
+    const addUrl = (value?: string) => {
+      if (!value) return;
+      const trimmed = value.trim();
+      if (!trimmed) return;
+      try {
+        urls.add(new URL(trimmed, baseUrl).toString());
+      } catch {
+        urls.add(trimmed);
+      }
+    };
+
+    const patterns = [
+      /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["'][^>]*>/gi,
+      /<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["'][^>]*>/gi,
+      /<meta[^>]+itemprop=["']image["'][^>]+content=["']([^"']+)["'][^>]*>/gi,
+      /<img[^>]+src=["']([^"']+)["'][^>]*>/gi,
+      /<img[^>]+srcset=["']([^"']+)["'][^>]*>/gi,
+      /<source[^>]+srcset=["']([^"']+)["'][^>]*>/gi,
+    ];
+
+    patterns.forEach((pattern) => {
+      Array.from(html.matchAll(pattern)).forEach((match) => {
+        const value = match[1];
+        if (pattern.source.includes('srcset')) {
+          value.split(',').forEach((entry) => {
+            const [candidate] = entry.trim().split(/\s+/);
+            addUrl(candidate);
+          });
+          return;
+        }
+        addUrl(value);
+      });
+    });
+
+    return Array.from(urls).filter((url) => /\.(jpe?g|png|gif|webp|avif)(\?.*)?$/i.test(url));
+  };
+
+  const uploadImportedImage = async (imageUrl: string) => {
+    try {
+      const response = await fetch(imageUrl);
+      if (!response.ok) {
+        return imageUrl;
+      }
+
+      const blob = await response.blob();
+      const parsedUrl = new URL(imageUrl);
+      const filename = parsedUrl.pathname.split('/').filter(Boolean).pop() || `imported-${Date.now()}.jpg`;
+      const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
+      const data = await uploadProductImage(file, `imported/${Date.now()}-${filename}`);
+      const path = (data as any)?.path ?? (data as any)?.Key ?? null;
+      if (!path) return imageUrl;
+      const bucket = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET ?? 'products';
+      return getPublicUrl(bucket, path);
+    } catch {
+      return imageUrl;
+    }
+  };
+
+  const handleImportImagesFromUrl = async () => {
+    const sourceUrl = importUrl.trim();
+    if (!sourceUrl) {
+      toast.error('Pega una URL del producto para importar sus imágenes.');
+      return;
+    }
+
+    setIsImportingImages(true);
+    setImportError(null);
+
+    try {
+      const normalizedUrl = /^https?:\/\//i.test(sourceUrl) ? sourceUrl : `https://${sourceUrl}`;
+      const response = await fetch(normalizedUrl, { headers: { Accept: 'text/html,application/xhtml+xml' } });
+      if (!response.ok) {
+        throw new Error(`No se pudo abrir la URL (${response.status}).`);
+      }
+
+      const html = await response.text();
+      const candidateImages = extractImageUrlsFromHtml(html, normalizedUrl);
+      if (candidateImages.length === 0) {
+        throw new Error('No se encontraron imágenes útiles en esa página.');
+      }
+
+      const uploadedImages = await Promise.all(candidateImages.slice(0, 6).map(uploadImportedImage));
+      const uniqueImages = Array.from(new Set(uploadedImages.filter(Boolean)));
+
+      if (uniqueImages.length === 0) {
+        throw new Error('No fue posible descargar ninguna imagen desde esa URL.');
+      }
+
+      setImportedImages(uniqueImages);
+      updateField('image', uniqueImages[0]);
+      toast.success(`Se importaron ${uniqueImages.length} imagen${uniqueImages.length > 1 ? 'es' : ''} desde la URL.`);
+      setImportUrl('');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'No se pudo importar la imagen desde la URL.';
+      setImportError(message);
+      toast.error(message);
+    } finally {
+      setIsImportingImages(false);
+    }
   };
 
   const [auditEntries, setAuditEntries] = useState<{ id: string; ts: number; action: string; meta?: Record<string, any> }[]>([]);
@@ -3171,7 +3281,29 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                 <div>
                   <label className="text-xs font-bold text-slate-500 uppercase">Imagen (archivo o URL)</label>
                   <input type="file" accept="image/*" onChange={handleImageFileChange} className="w-full px-3 py-2 mt-1 rounded-lg border border-slate-200 bg-slate-50" />
+                  <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <label className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Importar desde URL del producto</label>
+                    <div className="mt-2 flex flex-col gap-2">
+                      <input value={importUrl} onChange={(e) => setImportUrl(e.target.value)} placeholder="https://.../producto" className="w-full px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-700" />
+                      <button type="button" onClick={handleImportImagesFromUrl} disabled={isImportingImages} className="inline-flex items-center justify-center rounded-lg bg-[#1d4ed8] px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-70">
+                        {isImportingImages ? 'Importando...' : 'Importar imágenes reales'}
+                      </button>
+                    </div>
+                    {importError ? <p className="mt-2 text-xs text-red-600">{importError}</p> : null}
+                  </div>
                   <input value={productForm.image} onChange={(e) => updateField('image', e.target.value)} placeholder="O pega una URL pública" className="w-full px-3 py-2 mt-2 rounded-lg border border-slate-200 bg-slate-50" />
+                  {importedImages.length > 0 ? (
+                    <div className="mt-3">
+                      <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Imágenes importadas</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {importedImages.map((image) => (
+                          <button key={image} type="button" onClick={() => updateField('image', image)} className={`overflow-hidden rounded-lg border ${productForm.image === image ? 'border-[#1d4ed8]' : 'border-slate-200'}`}>
+                            <img src={image} alt="Imagen importada" className="h-16 w-full object-cover" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
                 <div className="flex items-center gap-2">
                   <button type="submit" className="px-4 py-2 rounded-xl bg-black text-white font-semibold">{formMode === 'edit' ? 'Guardar cambios' : 'Crear'}</button>
