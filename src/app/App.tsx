@@ -487,13 +487,19 @@ function SizeSelector({ sizes, selected, onSelect }: {
 
 function AutoScrollCarousel({ children }: { children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement | null>(null);
-  const direction = useRef(1);
+  const isDragging = useRef(false);
+  const startX = useRef(0);
+  const scrollLeft = useRef(0);
+  const autoScrollInterval = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
-    const carousel = ref.current;
-    if (!carousel) return;
+  // Iniciar auto-scroll
+  const startAutoScroll = () => {
+    if (autoScrollInterval.current) clearInterval(autoScrollInterval.current);
+    
+    autoScrollInterval.current = setInterval(() => {
+      const carousel = ref.current;
+      if (!carousel || isDragging.current) return;
 
-    const interval = setInterval(() => {
       const inner = carousel.firstElementChild as HTMLElement | null;
       if (!inner) return;
       const firstItem = inner.firstElementChild as HTMLElement | null;
@@ -514,12 +520,79 @@ function AutoScrollCarousel({ children }: { children: React.ReactNode }) {
         carousel.scrollBy({ left: step, behavior: "smooth" });
       }
     }, 3000);
+  };
 
-    return () => clearInterval(interval);
+  useEffect(() => {
+    startAutoScroll();
+    return () => {
+      if (autoScrollInterval.current) clearInterval(autoScrollInterval.current);
+    };
   }, []);
 
+  // Manejo de mouse drag
+  const handleMouseDown = (e: React.MouseEvent) => {
+    const carousel = ref.current;
+    if (!carousel) return;
+    isDragging.current = true;
+    startX.current = e.pageX - carousel.offsetLeft;
+    scrollLeft.current = carousel.scrollLeft;
+    if (autoScrollInterval.current) clearInterval(autoScrollInterval.current);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging.current) return;
+    const carousel = ref.current;
+    if (!carousel) return;
+
+    e.preventDefault();
+    const x = e.pageX - carousel.offsetLeft;
+    const walk = (x - startX.current) * 2; // multiplica por 2 para hacer más sensible
+    carousel.scrollLeft = scrollLeft.current - walk;
+  };
+
+  const handleMouseUp = () => {
+    isDragging.current = false;
+    startAutoScroll();
+  };
+
+  // Manejo de touch
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const carousel = ref.current;
+    if (!carousel) return;
+    isDragging.current = true;
+    startX.current = e.touches[0].pageX - carousel.offsetLeft;
+    scrollLeft.current = carousel.scrollLeft;
+    if (autoScrollInterval.current) clearInterval(autoScrollInterval.current);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging.current) return;
+    const carousel = ref.current;
+    if (!carousel) return;
+
+    const x = e.touches[0].pageX - carousel.offsetLeft;
+    const walk = (x - startX.current) * 2;
+    carousel.scrollLeft = scrollLeft.current - walk;
+  };
+
+  const handleTouchEnd = () => {
+    isDragging.current = false;
+    startAutoScroll();
+  };
+
   return (
-    <div ref={ref} className="overflow-hidden pb-4 -mx-4 px-4 sm:px-0" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
+    <div 
+      ref={ref} 
+      className="overflow-hidden pb-4 -mx-4 px-4 sm:px-0 cursor-grab active:cursor-grabbing"
+      style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
       <div className="flex flex-nowrap gap-3 snap-x snap-mandatory" style={{ minWidth: "max-content" }}>
         {children}
       </div>
