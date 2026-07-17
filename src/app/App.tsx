@@ -9,11 +9,12 @@ import {
   RefreshCw, Award, Grid3X3
 } from "lucide-react";
 import PromoCarousel from "./components/PromoCarousel";
+import promoRibbon from "../assets/cinta-10.png";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
 } from "recharts";
-const promoRibbon = '/10%25/cinta%2010%25.png';
+// promoRibbon moved to src/assets/cinta-10.png
 import { fetchProductsFromSupabase, type ProductRecord } from "../lib/supabase-store";
 import {
   signInWithEmail,
@@ -789,28 +790,30 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
 
       {(currentView === "home" || currentView === "catalog") && (
         <div className="w-full bg-white border-t border-slate-100">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
+          <div className="w-full py-1">
             <button
               type="button"
               onClick={() => onNavigate('catalog')}
               aria-label="Ver promociones y productos con descuento"
               className={[
-                'block w-full overflow-hidden rounded-3xl bg-white',
+                'block w-full overflow-hidden bg-white rounded-none',
                 'transition-transform duration-700 ease-out',
                 'motion-reduce:transform-none motion-reduce:transition-none',
                 promoEntered ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2',
               ].join(' ')}
             >
-              <img
-                src={promoRibbon}
-                alt="Rebajas UrbanSport Store 10% de descuento en tu primera compra"
-                className="block w-full h-auto object-contain"
-              />
+              <div className="w-full flex items-center justify-center bg-white">
+                <img
+                  src={promoRibbon}
+                  alt="Rebajas UrbanSport Store 10% de descuento en tu primera compra"
+                  className="block w-full h-auto object-contain promo-animate"
+                />
+              </div>
             </button>
           </div>
 
-          <div className="border-t border-slate-100 overflow-x-auto">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center gap-1 h-11">
+            <div className="border-t border-slate-100 overflow-x-auto">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 hidden md:flex items-center gap-1 h-11">
               {NAV_CATEGORIES.map((cat) => (
                 <button key={cat.name}
                   onClick={() => onCategorySelect(cat.name)}
@@ -835,7 +838,6 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
         </div>
       )}
 
-      {/* Mobile menu */}
       {menuOpen && (
         <div className="md:hidden border-t border-slate-100 bg-white px-4 py-3 mt-3">
           <div className="relative mb-3">
