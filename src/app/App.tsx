@@ -1061,7 +1061,7 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
 
         <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-12 sm:py-16 md:py-24 w-full">
           <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#f97316]/20 border border-[#f97316]/30 text-[#f97316] text-[10px] sm:text-xs font-bold tracking-widest uppercase mb-3 sm:mb-4">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#f97316]/20 border border-[#f97316]/30 text-[#f97316] text-[10px] sm:text-xs font-bold tracking-widest uppercase mb-3 sm:mb-4 whitespace-nowrap">
               <Award size={12} /> Colección 2026
             </div>
             <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-6xl font-extrabold text-white leading-tight tracking-tight mb-3 sm:mb-4">{content.heroTitle}</h1>
@@ -1348,50 +1348,52 @@ function CatalogPage({ filterCategory, onSelectProduct, onAddToCart, onNavigate,
       </div>
 
       <div className="flex flex-col gap-6 md:gap-8">
-        {/* Sidebar - Centered */}
-        <aside className="hidden lg:grid lg:grid-cols-4 gap-6 md:gap-8 lg:gap-8 w-full">
-          <div>
-            <p className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-3">Categoría</p>
-            <div className="space-y-0.5">
-              <button onClick={() => onCategorySelect(null)}
-                className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-colors ${!selectedCat ? "bg-[#1d4ed8] text-white font-bold" : "text-slate-600 hover:bg-slate-100"}`}>
-                Todos ({PRODUCTS.length})
-              </button>
-              {NAV_CATEGORIES.map((cat) => {
-                const count = PRODUCTS.filter((p) => p.category === cat.name).length;
-                return (
-                  <button key={cat.name}
-                    onClick={() => onCategorySelect(cat.name as Category)}
-                    className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-colors flex justify-between items-center ${selectedCat === cat.name ? "bg-[#1d4ed8] text-white font-bold" : "text-slate-600 hover:bg-slate-100"}`}>
-                    <span className="flex items-center gap-1.5">{cat.name}</span>
-                    <span className="text-xs opacity-60">{count}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div>
-            <p className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-3">Marca</p>
-            <div className="space-y-0.5">
-              {allBrands.map((brand) => (
-                <button key={brand} onClick={() => setSelectedBrand(brand === selectedBrand ? null : brand)}
-                  className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-colors ${selectedBrand === brand ? "bg-blue-50 text-[#1d4ed8] font-semibold" : "text-slate-600 hover:bg-slate-100"}`}>
-                  {brand}
+        {/* Sidebar - Horizontal centered for desktop */}
+        <aside className="hidden lg:block">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
+            <div>
+              <p className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-3">Categoría</p>
+              <div className="space-y-0.5">
+                <button onClick={() => onCategorySelect(null)}
+                  className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-colors ${!selectedCat ? "bg-[#1d4ed8] text-white font-bold" : "text-slate-600 hover:bg-slate-100"}`}>
+                  Todos ({PRODUCTS.length})
                 </button>
-              ))}
+                {NAV_CATEGORIES.map((cat) => {
+                  const count = PRODUCTS.filter((p) => p.category === cat.name).length;
+                  return (
+                    <button key={cat.name}
+                      onClick={() => onCategorySelect(cat.name as Category)}
+                      className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-colors flex justify-between items-center ${selectedCat === cat.name ? "bg-[#1d4ed8] text-white font-bold" : "text-slate-600 hover:bg-slate-100"}`}>
+                      <span className="flex items-center gap-1.5">{cat.name}</span>
+                      <span className="text-xs opacity-60">{count}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
 
-          <div className="lg:col-span-2">
-            <p className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-3">Género</p>
-            <div className="flex gap-4">
-              {["Hombre", "Mujer", "Unisex"].map((g) => (
-                <label key={g} className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-slate-100 cursor-pointer">
-                  <input type="checkbox" className="accent-[#1d4ed8]" />
-                  <span className="text-sm text-slate-600">{g}</span>
-                </label>
-              ))}
+            <div>
+              <p className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-3">Marca</p>
+              <div className="space-y-0.5">
+                {allBrands.map((brand) => (
+                  <button key={brand} onClick={() => setSelectedBrand(brand === selectedBrand ? null : brand)}
+                    className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-colors ${selectedBrand === brand ? "bg-blue-50 text-[#1d4ed8] font-semibold" : "text-slate-600 hover:bg-slate-100"}`}>
+                    {brand}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-3">Género</p>
+              <div className="space-y-0.5">
+                {["Hombre", "Mujer", "Unisex"].map((g) => (
+                  <label key={g} className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-slate-100 cursor-pointer\">
+                    <input type="checkbox" className="accent-[#1d4ed8]" />
+                    <span className="text-sm text-slate-600">{g}</span>
+                  </label>
+                ))}
+              </div>
             </div>
           </div>
         </aside>
