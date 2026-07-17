@@ -9,9 +9,7 @@ import {
   RefreshCw, Award, Grid3X3
 } from "lucide-react";
 import PromoCarousel from "./components/PromoCarousel";
-// Use a runtime URL for the promo image (encode folder and spaces)
-// Nombre real del archivo en disco: 'cinta 10%.png'
-const promoRibbon = '/10%25/cinta%2010%25.png';
+import promoRibbon from "../../10%/cinta 10% descuento.PNG";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
@@ -609,6 +607,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
   onCategorySelect: (c: Category) => void;
   onSelectProduct: (p: Product) => void;
 }) {
+  const [menuOpen, setMenuOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
   const [searchVal, setSearchVal] = useState("");
   const [suggestions, setSuggestions] = useState<Product[]>([]);
@@ -781,40 +780,37 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
               )}
             </div>
 
+            <button onClick={() => setMenuOpen(!menuOpen)}
+              className="md:hidden w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-colors">
+              {menuOpen ? <X size={19} /> : <Menu size={19} />}
+            </button>
           </div>
         </div>
       </nav>
 
-      
-
-      {/* Categories Bar */}
-        {/* Promo image above categories */}
-        {(currentView === "home" || currentView === "catalog") && (
-          <div className="w-full border-t border-transparent">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
-              <button
-                type="button"
-                onClick={() => onNavigate('catalog')}
-                aria-label="Ver promociones y productos con descuento"
-                className={[
-                  'w-full block overflow-hidden rounded-lg',
-                  'transition-transform duration-700 ease-out',
-                  'motion-reduce:transform-none motion-reduce:transition-none',
-                  promoEntered ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2',
-                ].join(' ')}
-              >
-                <img
-                  src={promoRibbon}
-                  alt="Promoción 10% descuento Urban Sport Store"
-                  className="w-full h-auto object-contain mx-auto animate-pulse motion-reduce:animate-none"
-                />
-              </button>
-            </div>
+      {(currentView === "home" || currentView === "catalog") && (
+        <div className="w-full bg-white border-t border-slate-100">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
+            <button
+              type="button"
+              onClick={() => onNavigate('catalog')}
+              aria-label="Ver promociones y productos con descuento"
+              className={[
+                'block w-full overflow-hidden rounded-3xl bg-white',
+                'transition-transform duration-700 ease-out',
+                'motion-reduce:transform-none motion-reduce:transition-none',
+                promoEntered ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2',
+              ].join(' ')}
+            >
+              <img
+                src={promoRibbon}
+                alt="Rebajas UrbanSport Store 10% de descuento en tu primera compra"
+                className="block w-full h-auto object-contain"
+              />
+            </button>
           </div>
-        )}
 
-        {(currentView === "home" || currentView === "catalog") && (
-          <div className="hidden md:flex border-t border-slate-100 overflow-x-auto mt-4">
+          <div className="border-t border-slate-100 overflow-x-auto">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center gap-1 h-11">
               {NAV_CATEGORIES.map((cat) => (
                 <button key={cat.name}
@@ -825,12 +821,9 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
               ))}
             </div>
           </div>
-        )}
 
-        {/* Mobile categories bar */}
-        {(currentView === "home" || currentView === "catalog") && (
-          <div className="md:hidden border-t border-slate-100 overflow-x-auto mt-0 h-11">
-            <div className="max-w-7xl mx-auto px-4 flex items-center gap-1 h-full">
+          <div className="md:hidden border-t border-slate-100 overflow-x-auto">
+            <div className="max-w-7xl mx-auto px-4 flex items-center gap-1 h-11">
               {NAV_CATEGORIES.map((cat) => (
                 <button key={cat.name}
                   onClick={() => onCategorySelect(cat.name)}
@@ -840,8 +833,19 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
               ))}
             </div>
           </div>
-        )}
+        </div>
+      )}
 
+        {/* Mobile menu */}
+        {menuOpen && (
+          <div className="md:hidden border-t border-slate-100 bg-white px-4 py-3 mt-3">
+            <div className="relative mb-3">
+              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input placeholder="Buscar…" className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none" />
+            </div>
+          </div>
+        )}
+      </nav>
     </div>
   );
 }
