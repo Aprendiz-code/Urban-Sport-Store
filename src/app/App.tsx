@@ -1934,7 +1934,7 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
     <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 pt-[60px] px-4">
       {/* Decorative elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 right-1/4 w-96 h-96 bg-[#f97316]/10 rounded-full blur-3xl" />
+        <div className="absolute top-0 right-1/4 w-96 h-96 bg-[#1d4ed8]/10 rounded-full blur-3xl" />
         <div className="absolute -bottom-32 left-1/3 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
       </div>
 
@@ -1942,7 +1942,7 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
         {/* Logo */}
         <div className="text-center mb-12">
           <div className="flex items-center justify-center gap-2 mb-4">
-            <span className="font-extrabold text-white text-2xl">Urban<span className="text-[#f97316]">Sport</span></span>
+            <span className="font-extrabold text-white text-2xl">Urban<span className="text-[#1d4ed8]">Sport</span></span>
           </div>
           <h1 className="text-4xl font-extrabold text-white mb-2">
             {isRegister ? "Crear cuenta" : "Bienvenido"}
@@ -1963,7 +1963,7 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
                     <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">{lbl}</label>
                     <input 
                       placeholder={ph} 
-                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-sm text-white placeholder-slate-400 focus:outline-none focus:border-[#f97316]/50 focus:bg-white/20 transition-all duration-200 backdrop-blur-sm" 
+                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-sm text-white placeholder-slate-400 focus:outline-none focus:border-[#1d4ed8]/50 focus:bg-white/20 transition-all duration-200 backdrop-blur-sm" 
                     />
                   </div>
                 ))}
@@ -1978,7 +1978,7 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
                 value={email} 
                 onChange={(e) => setEmail(e.target.value)} 
                 placeholder="tu@email.com" 
-                className="w-full px-4 py-3.5 bg-white/10 border border-white/20 rounded-xl text-base text-white placeholder-slate-400 focus:outline-none focus:border-[#f97316]/50 focus:bg-white/20 transition-all duration-200 backdrop-blur-sm" 
+                className="w-full px-4 py-3.5 bg-white/10 border border-white/20 rounded-xl text-base text-white placeholder-slate-400 focus:outline-none focus:border-[#1d4ed8]/50 focus:bg-white/20 transition-all duration-200 backdrop-blur-sm" 
               />
             </div>
 
@@ -1990,7 +1990,7 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
                   <button 
                     type="button" 
                     onClick={() => toast('Función de recuperación de contraseña próximamente disponible.')}
-                    className="text-xs text-[#f97316] hover:text-orange-400 font-semibold transition-colors"
+                    className="text-xs text-[#1d4ed8] hover:text-blue-400 font-semibold transition-colors"
                   >
                     ¿Olvidaste?
                   </button>
@@ -2002,7 +2002,7 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
                   value={password} 
                   onChange={(e) => setPassword(e.target.value)} 
                   placeholder="••••••••"
-                  className="w-full px-4 py-3.5 bg-white/10 border border-white/20 rounded-xl text-base text-white placeholder-slate-400 focus:outline-none focus:border-[#f97316]/50 focus:bg-white/20 transition-all duration-200 backdrop-blur-sm" 
+                  className="w-full px-4 py-3.5 bg-white/10 border border-white/20 rounded-xl text-base text-white placeholder-slate-400 focus:outline-none focus:border-[#1d4ed8]/50 focus:bg-white/20 transition-all duration-200 backdrop-blur-sm" 
                 />
                 <button 
                   type="button" 
@@ -2019,10 +2019,10 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
               <label className="flex items-start gap-3 cursor-pointer group">
                 <input 
                   type="checkbox" 
-                  className="mt-1 w-4 h-4 accent-[#f97316] cursor-pointer" 
+                  className="mt-1 w-4 h-4 accent-[#1d4ed8] cursor-pointer" 
                 />
                 <span className="text-xs text-slate-300 leading-relaxed">
-                  Acepto los <button type="button" onClick={() => toast('Términos próximamente disponible.')} className="text-[#f97316] hover:text-orange-400 font-semibold transition-colors">Términos</button> y la <button type="button" onClick={() => toast('Política de privacidad próximamente disponible.')} className="text-[#f97316] hover:text-orange-400 font-semibold transition-colors">Política de privacidad</button>.
+                  Acepto los <button type="button" onClick={() => toast('Términos próximamente disponible.')} className="text-[#1d4ed8] hover:text-blue-400 font-semibold transition-colors">Términos</button> y la <button type="button" onClick={() => toast('Política de privacidad próximamente disponible.')} className="text-[#1d4ed8] hover:text-blue-400 font-semibold transition-colors">Política de privacidad</button>.
                 </span>
               </label>
             )}
@@ -2038,7 +2038,7 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
             <button 
               type="submit" 
               disabled={loading}
-              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#f97316] to-orange-500 text-white font-extrabold text-base hover:shadow-lg hover:shadow-orange-500/30 disabled:opacity-60 disabled:shadow-none transition-all duration-300 flex items-center justify-center gap-2 transform hover:scale-105"
+              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#1d4ed8] to-blue-600 text-white font-extrabold text-base hover:shadow-lg hover:shadow-blue-500/30 disabled:opacity-60 disabled:shadow-none transition-all duration-300 flex items-center justify-center gap-2 transform hover:scale-105"
             >
               {loading ? (
                 <><RefreshCw size={18} className="animate-spin" /> Procesando…</>
@@ -2070,7 +2070,7 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
           {isRegister ? "¿Ya tienes cuenta? " : "¿No tienes cuenta? "}
           <button 
             onClick={() => onNavigate(isRegister ? "login" : "register")} 
-            className="text-[#f97316] font-bold hover:text-orange-400 transition-colors"
+            className="text-[#1d4ed8] font-bold hover:text-blue-400 transition-colors"
           >
             {isRegister ? "Inicia sesión" : "Regístrate"}
           </button>
