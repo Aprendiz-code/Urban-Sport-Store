@@ -36,7 +36,7 @@ import {
   isAdminUser,
 } from "../lib/supabase-auth";
 
-import adminApi, { createSupabaseProductApi, updateSupabaseProductApi, deleteSupabaseProductApi } from "../lib/admin-api";
+import adminApi, { createSupabaseProductApi, updateSupabaseProductApi, deleteSupabaseProductApi, updateHomeContentApi } from "../lib/admin-api";
 import { uploadProductImage, getPublicUrl } from "../lib/supabase-store";
 import { recordAction, getAudit } from "../lib/audit";
 import { productSchema } from '../lib/schemas';
@@ -2846,7 +2846,13 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                     <h2 className="text-2xl font-extrabold text-slate-900">Editar secciones de la home</h2>
                     <p className="text-sm text-slate-500 mt-1">Actualiza el texto y las colecciones que se muestran en la tienda.</p>
                   </div>
-                  <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-xs font-semibold text-slate-600">Vista previa en vivo</span>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button type="button" onClick={saveHomeContent} disabled={homeContentSaving}
+                      className="rounded-3xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-emerald-400">
+                      {homeContentSaving ? 'Guardando...' : 'Guardar contenido'}
+                    </button>
+                    <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-xs font-semibold text-slate-600">Vista previa en vivo</span>
+                  </div>
                 </div>
 
                 <div className="grid gap-4">
@@ -3466,6 +3472,23 @@ export default function App() {
   useEffect(() => {
     let isActive = true;
 
+    const loadHomeContent = async () => {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL ?? '/api/v1'}/home-content`);
+        if (!res.ok) return;
+        const json = await res.json();
+        if (json?.data) {
+          setHomeContent((prev) => ({ ...prev, ...json.data }));
+        }
+      } catch (error) {
+        console.warn('No se pudo cargar el contenido de la home desde backend.', error);
+      }
+    };
+
+    if (typeof window !== 'undefined') {
+      void loadHomeContent();
+    }
+
     const loadProducts = async () => {
       const isSupabaseConfigured = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
       const isApiConfigured = Boolean(import.meta.env.VITE_API_URL);
@@ -3569,6 +3592,21 @@ export default function App() {
     saleSectionSubtitle: "Promociones y descuentos por tiempo limitado.",
     saleSectionDiscount: "",
   });
+  const [homeContentSaving, setHomeContentSaving] = useState(false);
+
+  const saveHomeContent = async () => {
+    setHomeContentSaving(true);
+    try {
+      await updateHomeContentApi(homeContent);
+      toast.success('Contenido de la home guardado.');
+    } catch (error) {
+      console.error('Error guardando contenido de la home:', error);
+      toast.error('No se pudo guardar el contenido. Intenta nuevamente.');
+    } finally {
+      setHomeContentSaving(false);
+    }
+  };
+
   const [homePreviewProducts, setHomePreviewProducts] = useState<Product[]>([]);
   const [homeSaleProducts, setHomeSaleProducts] = useState<Product[]>([]);
   const [homeNewArrivals, setHomeNewArrivals] = useState<Product[]>([]);

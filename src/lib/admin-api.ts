@@ -81,6 +81,10 @@ export async function deleteSupabaseProductApi(productId: string) {
   return callApi(`/supabase-products/${productId}`, { method: 'DELETE' });
 }
 
+export async function updateHomeContentApi(payload: Record<string, unknown>) {
+  return callApi('/home-content', { method: 'PATCH', body: JSON.stringify(payload) });
+}
+
 export async function createInventoryMovement(productId: string, delta: number, reason?: string) {
   return callApi('/inventory/movements', { method: 'POST', body: JSON.stringify({ productId, delta, reason }) });
 }
@@ -89,4 +93,4 @@ export async function fetchAuditLogs(limit = 200) {
   return callApi(`/audit?limit=${limit}`, { method: 'GET' });
 }
 
-export default { fetchProducts, createProductApi, fetchSupabaseProducts, createSupabaseProductApi, updateSupabaseProductApi, deleteSupabaseProductApi, updateProductApi, deleteProductApi, createInventoryMovement, fetchAuditLogs };
+export default { fetchProducts, createProductApi, fetchSupabaseProducts, createSupabaseProductApi, updateSupabaseProductApi, deleteSupabaseProductApi, updateProductApi, deleteProductApi, updateHomeContentApi, createInventoryMovement, fetchAuditLogs };

@@ -135,6 +135,14 @@ model Brand {
   @@index([slug])
 }
 
+model SiteContent {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  content   Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model Product {
   id               String               @id @default(uuid())
   name             String

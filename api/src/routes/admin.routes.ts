@@ -3,6 +3,7 @@ import { requireAuth, requireRole } from '../middlewares/auth.js';
 import { validateBody, validateParams } from '../middlewares/validation.js';
 import { z } from 'zod';
 import { adminDashboard, createBrand, createCategory, createCoupon, createInventoryMovement, createProduct, deleteCategory, deleteCoupon, deleteProduct, fetchSupabaseProducts, createSupabaseProduct, updateSupabaseProduct, deleteSupabaseProduct, getLowStockProducts, inventoryReport, salesReport, updateBrand, updateCategory, updateCoupon, updateOrderStatus, updateProduct } from '../controllers/admin.controller.js';
+import { updateHomeContent } from '../controllers/content.controller.js';
 
 const router = Router();
 
@@ -25,6 +26,29 @@ const inventorySchema = z.object({ productId: z.string().uuid(), type: z.enum(['
 const orderStatusSchema = z.object({ status: z.enum(['PENDING_PAYMENT', 'PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED']) });
 const couponSchema = z.object({ code: z.string().min(1), type: z.enum(['PERCENTAGE', 'FIXED']), value: z.number().min(0), minimumAmount: z.number().min(0).optional(), totalLimit: z.number().int().min(1).optional(), perUserLimit: z.number().int().min(1).optional(), startsAt: z.string().datetime().transform((v) => new Date(v)), expiresAt: z.string().datetime().transform((v) => new Date(v)), isActive: z.boolean().optional() });
 
+const homeContentSchema = z.object({
+  heroTitle: z.string().optional(),
+  heroSubtitle: z.string().optional(),
+  featuredSectionTitle: z.string().optional(),
+  newArrivalsSectionTitle: z.string().optional(),
+  saleSectionTitle: z.string().optional(),
+  categorySectionLabel: z.string().optional(),
+  categorySectionTitle: z.string().optional(),
+  featuredSectionLabel: z.string().optional(),
+  newArrivalsLabel: z.string().optional(),
+  saleSectionLabel: z.string().optional(),
+  categorySectionImage: z.string().optional(),
+  featuredSectionImage: z.string().optional(),
+  newArrivalsSectionImage: z.string().optional(),
+  saleSectionImage: z.string().optional(),
+  featuredSectionSubtitle: z.string().optional(),
+  featuredSectionDiscount: z.string().optional(),
+  newArrivalsSectionSubtitle: z.string().optional(),
+  newArrivalsSectionDiscount: z.string().optional(),
+  saleSectionSubtitle: z.string().optional(),
+  saleSectionDiscount: z.string().optional(),
+});
+
 router.get('/dashboard', requireAuth, requireRole('ADMIN'), adminDashboard);
 router.post('/products', requireAuth, requireRole('ADMIN'), validateBody(productSchema), createProduct);
 router.patch('/products/:productId', requireAuth, requireRole('ADMIN'), validateParams(z.object({ productId: z.string().uuid() })), validateBody(productSchema.partial()), updateProduct);
@@ -46,6 +70,7 @@ router.patch('/orders/:orderId/status', requireAuth, requireRole('ADMIN'), valid
 router.post('/coupons', requireAuth, requireRole('ADMIN'), validateBody(couponSchema), createCoupon);
 router.patch('/coupons/:couponId', requireAuth, requireRole('ADMIN'), validateParams(z.object({ couponId: z.string().uuid() })), validateBody(couponSchema.partial()), updateCoupon);
 router.delete('/coupons/:couponId', requireAuth, requireRole('ADMIN'), validateParams(z.object({ couponId: z.string().uuid() })), deleteCoupon);
+router.patch('/home-content', requireAuth, requireRole('ADMIN'), validateBody(homeContentSchema.partial()), updateHomeContent);
 router.get('/reports/sales', requireAuth, requireRole('ADMIN'), salesReport);
 router.get('/reports/inventory', requireAuth, requireRole('ADMIN'), inventoryReport);
 

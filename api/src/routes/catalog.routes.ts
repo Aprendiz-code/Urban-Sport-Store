@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { listProducts, getProductBySlug, getFeaturedProducts, searchProducts } from '../controllers/product.controller.js';
 import { listCategories, getCategoryBySlug, listBrands } from '../controllers/catalog.controller.js';
+import { getHomeContent } from '../controllers/content.controller.js';
 import { validateQuery, validateParams } from '../middlewares/validation.js';
 import { productQuerySchema, slugParamSchema } from '../validators/products.js';
 
@@ -13,5 +14,6 @@ router.get('/products/:slug', validateParams(slugParamSchema), getProductBySlug)
 router.get('/categories', listCategories);
 router.get('/categories/:slug', validateParams(slugParamSchema), getCategoryBySlug);
 router.get('/brands', listBrands);
+router.get('/home-content', getHomeContent);
 
 export default router;
