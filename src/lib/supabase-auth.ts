@@ -6,6 +6,7 @@ const LOCAL_TOKEN = 'local-admin-token';
 
 const adminEmail = (import.meta.env.VITE_ADMIN_EMAIL ?? 'Urbansportstore@outlook.com').toLowerCase();
 const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD ?? 'bM4_tX!8wK2#vP7$qR';
+const adminMetadata = { full_name: 'Administrador', role: 'ADMIN', isAdmin: true };
 
 const isAdminCredentials = (email: string, password: string) => {
   const isAdmin = email.toLowerCase() === adminEmail && password === adminPassword;
@@ -48,7 +49,7 @@ export const signInWithEmail = async (email: string, password: string) => {
     const user = {
       id: 'local-admin',
       email,
-      user_metadata: { full_name: 'Administrador', role: 'ADMIN', isAdmin: true },
+      user_metadata: adminMetadata,
     } as unknown as User;
     setLocalUser(user);
     return { data: { user }, error: null };
