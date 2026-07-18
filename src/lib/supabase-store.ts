@@ -17,6 +17,7 @@ export interface ProductRecord {
   description?: string | null;
   colors?: Array<{ name: string; hex: string }> | null;
   sizes?: string[] | null;
+  images?: string[] | null;
   gender?: string | null;
   is_new?: boolean | null;
   is_featured?: boolean | null;

@@ -48,6 +48,7 @@ interface Product {
   stock: number; sku: string; description: string;
   colors: { name: string; hex: string }[];
   sizes: string[];
+  images?: string[];
   gender?: "Hombre" | "Mujer" | "Unisex";
   isNew?: boolean; isFeatured?: boolean; specs?: string[];
 }
@@ -149,6 +150,7 @@ const mapProductRecordToAppProduct = (record: ProductRecord): Product => ({
   rating: record.rating ?? 0,
   reviews: record.reviews ?? 0,
   image: record.image,
+  images: record.images ?? [],
   category: record.category as Category,
   subcategory: record.subcategory ?? "",
   stock: record.stock ?? 0,
@@ -172,6 +174,7 @@ const mapAppProductToProductRecord = (product: Partial<Product> & { id?: string 
   rating: Number(product.rating ?? 0),
   reviews: Number(product.reviews ?? 0),
   image: product.image ?? "",
+  images: product.images ?? [],
   category: (product.category ?? "Zapatos") as string,
   subcategory: product.subcategory ?? "",
   stock: Number(product.stock ?? 0),
@@ -1559,16 +1562,24 @@ function ProductDetailPage({ product, onBack, onAddToCart, onNavigate }: {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-16">
         {/* Gallery */}
         <div className="space-y-3">
-          <div className="aspect-square bg-slate-50 rounded-2xl overflow-hidden border border-slate-100">
-            <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
-          </div>
-          <div className="grid grid-cols-4 gap-2">
-            {[0, 1, 2, 3].map((i) => (
-              <div key={i} className={`aspect-square rounded-xl overflow-hidden border-2 cursor-pointer transition-colors ${i === 0 ? "border-[#1d4ed8]" : "border-slate-200 hover:border-slate-300"}`}>
-                <img src={product.image} alt="" className="w-full h-full object-cover" />
-              </div>
-            ))}
-          </div>
+          {(() => {
+            const gallery = product.images?.length ? product.images : [product.image];
+            const mainImage = gallery[0] ?? product.image;
+            return (
+              <>
+                <div className="aspect-square bg-slate-50 rounded-2xl overflow-hidden border border-slate-100">
+                  <img src={mainImage} alt={product.name} className="w-full h-full object-cover" />
+                </div>
+                <div className="grid grid-cols-4 gap-2">
+                  {gallery.slice(0, 4).map((src, index) => (
+                    <div key={index} className={`aspect-square rounded-xl overflow-hidden border-2 cursor-pointer transition-colors ${index === 0 ? "border-[#1d4ed8]" : "border-slate-200 hover:border-slate-300"}`}>
+                      <img src={src} alt={`Miniatura ${index + 1}`} className="w-full h-full object-cover" />
+                    </div>
+                  ))}
+                </div>
+              </>
+            );
+          })()}
         </div>
 
         {/* Info */}
@@ -2464,10 +2475,11 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
   const [activeProduct, setActiveProduct] = useState<Product | null>(null);
   const [productForm, setProductForm] = useState<Omit<Product, "id">>({
     name: "", brand: "", price: 0, originalPrice: undefined, discount: undefined,
-    rating: 0, reviews: 0, image: "", category: "Zapatos", subcategory: "Running",
+    rating: 0, reviews: 0, image: "", images: [], category: "Zapatos", subcategory: "Running",
     stock: 0, sku: "", description: "", colors: [], sizes: [], gender: "Unisex",
     isNew: false, isFeatured: false, specs: [],
   });
+  const [galleryUrl, setGalleryUrl] = useState("");
 
   const METRICS = [
     { label: "Ventas totales", value: "$40.200.000", change: "+14.2%", up: true, icon: <TrendingUp size={18} /> },
@@ -2628,10 +2640,11 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
     setActiveProduct(null);
     setProductForm({
       name: "", brand: "", price: 0, originalPrice: undefined, discount: undefined,
-      rating: 0, reviews: 0, image: "", category: "Zapatos", subcategory: "Running",
+      rating: 0, reviews: 0, image: "", images: [], category: "Zapatos", subcategory: "Running",
       stock: 0, sku: "", description: "", colors: [], sizes: [], gender: "Unisex",
       isNew: false, isFeatured: false, specs: [],
     });
+    setGalleryUrl("");
   };
 
   const [auditEntries, setAuditEntries] = useState<{ id: string; ts: number; action: string; meta?: Record<string, any> }[]>([]);
@@ -2664,6 +2677,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
       rating: product.rating,
       reviews: product.reviews,
       image: product.image,
+      images: product.images ?? [],
       category: product.category,
       subcategory: product.subcategory,
       stock: product.stock,
@@ -2676,6 +2690,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
       isFeatured: product.isFeatured ?? false,
       specs: product.specs ?? [],
     });
+    setGalleryUrl("");
   };
 
   const handleFormSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -3198,10 +3213,30 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                   <label className="text-xs font-bold text-slate-500 uppercase">SKU</label>
                   <input value={productForm.sku} onChange={(e) => updateField('sku', e.target.value)} className="w-full px-3 py-2 mt-1 rounded-lg border border-slate-200 bg-slate-50" />
                 </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase">Imagen (archivo o URL)</label>
-                  <input type="file" accept="image/*" onChange={handleImageFileChange} className="w-full px-3 py-2 mt-1 rounded-lg border border-slate-200 bg-slate-50" />
-                  <input value={productForm.image} onChange={(e) => updateField('image', e.target.value)} placeholder="O pega una URL pública" className="w-full px-3 py-2 mt-2 rounded-lg border border-slate-200 bg-slate-50" />
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 uppercase">Imagen principal (archivo o URL)</label>
+                    <input type="file" accept="image/*" onChange={handleImageFileChange} className="w-full px-3 py-2 mt-1 rounded-lg border border-slate-200 bg-slate-50" />
+                    <input value={productForm.image} onChange={(e) => updateField('image', e.target.value)} placeholder="O pega una URL pública" className="w-full px-3 py-2 mt-2 rounded-lg border border-slate-200 bg-slate-50" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 uppercase">Galería de imágenes</label>
+                    <input type="file" accept="image/*" multiple onChange={handleGalleryFilesChange} className="w-full px-3 py-2 mt-1 rounded-lg border border-slate-200 bg-slate-50" />
+                    <div className="flex gap-2 mt-2">
+                      <input value={galleryUrl} onChange={(e) => setGalleryUrl(e.target.value)} placeholder="URL pública de galería" className="flex-1 px-3 py-2 rounded-lg border border-slate-200 bg-slate-50" />
+                      <button type="button" onClick={addGalleryImageUrl} className="px-4 py-2 rounded-xl bg-slate-900 text-white">Agregar</button>
+                    </div>
+                    {productForm.images?.length > 0 && (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3">
+                        {productForm.images.map((img, index) => (
+                          <div key={index} className="relative rounded-xl overflow-hidden border border-slate-200 bg-slate-50">
+                            <img src={img} alt={`Galería ${index + 1}`} className="w-full h-24 object-cover" />
+                            <button type="button" onClick={() => removeGalleryImage(index)} className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/70 text-white text-xs font-bold">×</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <button type="submit" className="px-4 py-2 rounded-xl bg-black text-white font-semibold">{formMode === 'edit' ? 'Guardar cambios' : 'Crear'}</button>
@@ -3463,6 +3498,40 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
     } catch (err) {
       console.warn('Image upload failed', err);
     }
+  };
+
+  const handleGalleryFilesChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files?.length) return;
+    const bucket = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET ?? 'products';
+    const uploadedUrls: string[] = [];
+
+    for (const file of Array.from(files)) {
+      try {
+        const data = await uploadProductImage(file, `products/${Date.now()}-${file.name}`);
+        const path = (data as any)?.path ?? (data as any)?.Key ?? null;
+        if (path) {
+          uploadedUrls.push(getPublicUrl(bucket, path) as string);
+        }
+      } catch (err) {
+        console.warn('Gallery image upload failed', err);
+      }
+    }
+
+    if (uploadedUrls.length > 0) {
+      updateField('images', [...(productForm.images ?? []), ...uploadedUrls] as any);
+    }
+  };
+
+  const addGalleryImageUrl = () => {
+    const url = galleryUrl.trim();
+    if (!url) return;
+    updateField('images', [...(productForm.images ?? []), url] as any);
+    setGalleryUrl("");
+  };
+
+  const removeGalleryImage = (index: number) => {
+    updateField('images', (productForm.images ?? []).filter((_, i) => i !== index) as any);
   };
 
   return (
