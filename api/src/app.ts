@@ -36,7 +36,14 @@ declare global {
 const app = express();
 
 app.use(helmet());
-app.use(cors({ origin: env.corsOrigins, credentials: true }));
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (env.corsOrigins.includes(origin)) return callback(null, true);
+    callback(new Error('Origin not allowed by CORS'));
+  },
+  credentials: true,
+}));
 app.use(cookieParser());
 app.use(express.json({ limit: '1mb' }));
 app.use(globalLimiter);

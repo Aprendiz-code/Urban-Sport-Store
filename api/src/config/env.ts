@@ -36,7 +36,10 @@ export const env = {
   jwtExpiresIn: getEnv('JWT_EXPIRES_IN', '15m'),
   refreshTokenTtlDays: Number(getEnv('REFRESH_TOKEN_TTL_DAYS', '7')),
   cookieSameSite: getEnv('COOKIE_SAMESITE', 'lax') as 'lax' | 'strict' | 'none',
-  corsOrigins: getEnv('CORS_ORIGINS', 'http://localhost:3000').split(','),
+  corsOrigins: getEnv('CORS_ORIGINS', 'http://localhost:3000')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean),
   rateLimitWindowMs: Number(getEnv('RATE_LIMIT_WINDOW_MS', '900000')),
   rateLimitMax: Number(getEnv('RATE_LIMIT_MAX', '120')),
   authRateLimitMax: Number(getEnv('AUTH_RATE_LIMIT_MAX', '10')),

@@ -15,15 +15,15 @@ import carritoEnvioGratis from "../../iconos envio/Carrito envio gratis.png";
 import mediosDePagoIcon from "../../iconos envio/Medios de pago.png";
 import soporte7Icon from "../../iconos envio/iconos y demas/Soporte 24/7.png";
 import {
-  ResponsiveContainer as RechartsResponsiveContainer,
-  AreaChart as RechartsAreaChart,
-  Area as RechartsArea,
-  BarChart as RechartsBarChart,
-  Bar as RechartsBar,
-  XAxis as RechartsXAxis,
-  YAxis as RechartsYAxis,
-  CartesianGrid as RechartsCartesianGrid,
-  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
 } from "./components/LazyRecharts";
 // promoRibbon moved to src/assets/cinta-10.png
 import { fetchProductsFromSupabase, type ProductRecord } from "../lib/supabase-store";
@@ -566,12 +566,13 @@ function ProductCard({ product, onSelect, onAddToCart }: {
 
 // ─── NAVBAR ──────────────────────────────────────────────────────────────────
 
-function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, currentView, onLoginClick, onLogout, onCategorySelect, onSelectProduct }: {
+function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, currentView, onLoginClick, onLogout, onCategorySelect, onSelectProduct, products }: {
   cart: CartItem[]; onNavigate: (v: View) => void;
   onCartOpen: () => void; isLoggedIn: boolean; isAdmin: boolean;
   authUser: User | null; currentView: View; onLoginClick: () => void; onLogout: () => void;
   onCategorySelect: (c: Category | null) => void;
   onSelectProduct?: (p: Product) => void;
+  products: Product[];
 }) {
   const [userOpen, setUserOpen] = useState(false);
   const [searchVal, setSearchVal] = useState("");
@@ -602,7 +603,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
       setSuggestions(matches);
     }, 180);
     return () => { if (suggestTimer.current) window.clearTimeout(suggestTimer.current); };
-  }, [searchVal]);
+  }, [searchVal, products]);
 
   return (
     <div className="fixed top-0 left-0 right-0 z-50">
@@ -1210,11 +1211,12 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
 
 // ─── CATALOG PAGE ─────────────────────────────────────────────────────────────
 
-function CatalogPage({ filterCategory, onSelectProduct, onAddToCart, onNavigate, onCategorySelect }: {
+function CatalogPage({ filterCategory, onSelectProduct, onAddToCart, onNavigate, onCategorySelect, products }: {
   filterCategory: Category | null; onSelectProduct: (p: Product) => void;
   onAddToCart: (p: Product, size: string, color: string) => void;
   onNavigate: (v: View) => void;
   onCategorySelect: (c: Category | null) => void;
+  products: Product[];
 }) {
   const selectedCat = filterCategory;
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
@@ -3830,6 +3832,7 @@ export default function App() {
             isAdmin={isAdmin}
             authUser={authUser}
             currentView={view}
+            products={products}
             onLoginClick={() => navigate("login")}
             onLogout={handleLogout}
             onCategorySelect={handleCategorySelect}
@@ -3850,6 +3853,7 @@ export default function App() {
       )}
       {view === "catalog" && (
         <CatalogPage
+          products={products}
           filterCategory={filterCategory}
           onSelectProduct={handleSelectProduct}
           onAddToCart={handleAddToCart}
