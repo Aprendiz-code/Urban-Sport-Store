@@ -15,7 +15,7 @@ import {
   Tooltip, ResponsiveContainer,
 } from "recharts";
 // promoRibbon moved to src/assets/cinta-10.png
-import { createProductInSupabase, deleteProductInSupabase, fetchProductsFromSupabase, seedProductsToSupabase, updateProductInSupabase, type ProductRecord } from "../lib/supabase-store";
+import { fetchProductsFromSupabase, type ProductRecord } from "../lib/supabase-store";
 import {
   signInWithEmail,
   signUpWithEmail,
@@ -25,7 +25,7 @@ import {
   isAdminUser,
 } from "../lib/supabase-auth";
 
-import adminApi from "../lib/admin-api";
+import adminApi, { createSupabaseProductApi, updateSupabaseProductApi, deleteSupabaseProductApi } from "../lib/admin-api";
 import { uploadProductImage, getPublicUrl } from "../lib/supabase-store";
 import { recordAction, getAudit } from "../lib/audit";
 import { productSchema } from '../lib/schemas';
@@ -190,151 +190,6 @@ const mapAppProductToProductRecord = (product: Partial<Product> & { id?: string 
 
 // ─── DATA ────────────────────────────────────────────────────────────────────
 
-let PRODUCTS: Product[] = [
-  {
-    id: "1", name: "Nike Air Zoom Pegasus 40", brand: "Nike", price: 449900,
-    originalPrice: 529900, discount: 15, rating: 4.8, reviews: 1842,
-    image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=700&h=700&fit=crop&auto=format",
-    category: "Zapatos", subcategory: "Running", gender: "Hombre",
-    stock: 18, sku: "NK-AZP40-H",
-    description: "El Nike Air Zoom Pegasus 40 ofrece más comodidad que nunca. La tecnología Air Zoom te impulsa con cada zancada para que puedas rodar más lejos.",
-    colors: [{ name: "Negro", hex: "#1a1a1a" }, { name: "Blanco", hex: "#f5f5f5" }, { name: "Azul", hex: "#1d4ed8" }],
-    sizes: ["40", "41", "42", "43", "44", "45"],
-    specs: ["Peso: 283 g", "Drop: 10 mm", "Entresuela React Foam", "Suela de goma translúcida", "Unidad Air Zoom en antepié", "Mesh transpirable"],
-    isFeatured: true, isNew: true,
-  },
-  {
-    id: "2", name: "Adidas Ultraboost 23", brand: "Adidas", price: 529900,
-    rating: 4.9, reviews: 2103,
-    image: "https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?w=700&h=700&fit=crop&auto=format",
-    category: "Zapatos", subcategory: "Running", gender: "Mujer",
-    stock: 14, sku: "AD-UB23-M",
-    description: "Las Adidas Ultraboost 23 llevan la tecnología Boost a un nuevo nivel. Diseñadas para mayor retorno de energía y comodidad duradera.",
-    colors: [{ name: "Blanco", hex: "#f5f5f5" }, { name: "Negro", hex: "#1a1a1a" }, { name: "Rosa", hex: "#f472b6" }],
-    sizes: ["36", "37", "38", "39", "40", "41"],
-    specs: ["Tecnología Boost", "Upper Primeknit+", "Torsion System", "Entresuela LEP 2.0+", "Peso: 264 g"],
-    isFeatured: true,
-  },
-  {
-    id: "3", name: "Nike Tech Fleece Full-Zip Hoodie", brand: "Nike", price: 289900,
-    originalPrice: 329900, discount: 12, rating: 4.7, reviews: 634,
-    image: "https://images.unsplash.com/photo-1556821840-3a63f15732ce?w=700&h=700&fit=crop&auto=format",
-    category: "Ropa Hombre", subcategory: "Buzos y hoodies",
-    stock: 30, sku: "NK-TFHZ-H",
-    description: "La hoodie Tech Fleece de Nike combina calidez y peso ligero. Su tejido exclusivo atrapa el calor sin añadir volumen innecesario.",
-    colors: [{ name: "Negro", hex: "#1a1a1a" }, { name: "Gris", hex: "#6b7280" }, { name: "Azul marino", hex: "#1e3a8a" }],
-    sizes: ["XS", "S", "M", "L", "XL", "XXL"],
-    specs: ["Material: 66% algodón, 34% poliéster", "Tejido Tech Fleece de 3 capas", "Bolsillos laterales con cremallera", "Capucha ajustable", "Peso: 490 g"],
-    isFeatured: true,
-  },
-  {
-    id: "4", name: "Adidas Tiro 23 League Track Pants", brand: "Adidas", price: 159900,
-    rating: 4.5, reviews: 421,
-    image: "https://images.unsplash.com/photo-1506629082955-511b1aa562c8?w=700&h=700&fit=crop&auto=format",
-    category: "Ropa Hombre", subcategory: "Pantalones",
-    stock: 42, sku: "AD-T23LP-H",
-    description: "Los pantalones Tiro 23 son el favorito de los jugadores de fútbol. Corte slim y tela AEROREADY para mantenerte seco durante el entrenamiento.",
-    colors: [{ name: "Negro", hex: "#1a1a1a" }, { name: "Azul marino", hex: "#1e3a8a" }],
-    sizes: ["XS", "S", "M", "L", "XL", "XXL"],
-    specs: ["Tela AEROREADY", "Bolsillos laterales", "Tobillo con cremallera", "Ajuste slim fit", "Cinturilla elástica"],
-    isNew: true,
-  },
-  {
-    id: "5", name: "Nike Pro 365 Leggings 7/8", brand: "Nike", price: 149900,
-    originalPrice: 189900, discount: 21, rating: 4.8, reviews: 987,
-    image: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=700&h=700&fit=crop&auto=format",
-    category: "Ropa Mujer", subcategory: "Leggings", gender: "Mujer",
-    stock: 55, sku: "NK-P365L-M",
-    description: "Los leggings Nike Pro 365 están diseñados para el movimiento. La tela Dri-FIT mantiene la humedad alejada para que puedas dar el máximo.",
-    colors: [{ name: "Negro", hex: "#1a1a1a" }, { name: "Morado", hex: "#7c3aed" }, { name: "Verde lima", hex: "#84cc16" }],
-    sizes: ["XS", "S", "M", "L", "XL"],
-    specs: ["Tela Dri-FIT", "Cinturilla ancha de alta sujeción", "Bolsillo posterior", "Largo 7/8", "Tejido con 13% elastano"],
-    isFeatured: true,
-  },
-  {
-    id: "6", name: "Puma Suede Classic XXI", brand: "Puma", price: 219900,
-    originalPrice: 269900, discount: 19, rating: 4.6, reviews: 779,
-    image: "https://images.unsplash.com/photo-1525966222134-fcfa99b8ae77?w=700&h=700&fit=crop&auto=format",
-    category: "Zapatos", subcategory: "Casual", gender: "Unisex",
-    stock: 22, sku: "PM-SUEDE21",
-    description: "Un ícono desde 1968, el Puma Suede sigue siendo tan relevante como siempre. Upper de gamuza premium con amortiguación SoftFoam+ para máxima comodidad.",
-    colors: [{ name: "Negro", hex: "#1a1a1a" }, { name: "Blanco", hex: "#f5f5f5" }, { name: "Rojo", hex: "#dc2626" }, { name: "Azul", hex: "#1d4ed8" }],
-    sizes: ["38", "39", "40", "41", "42", "43", "44"],
-    specs: ["Upper de gamuza premium", "Entresuela SoftFoam+", "Suela de goma vulcanizada", "Clásico logo PUMA lateral"],
-    isFeatured: true,
-  },
-  {
-    id: "7", name: "Sauvage Dior EDT 100 ml", brand: "Dior", price: 399900,
-    rating: 4.9, reviews: 1234,
-    image: "https://images.unsplash.com/photo-1541643600914-78b084683702?w=700&h=700&fit=crop&auto=format",
-    category: "Perfumes", subcategory: "Hombre", gender: "Hombre",
-    stock: 20, sku: "DR-SVG-100",
-    description: "Sauvage es una fragancia de contraste. Fresca y magistralmente elaborada con bergamota de Calabria y ambroxan que crea un rastro persistente.",
-    colors: [],
-    sizes: ["30 ml", "60 ml", "100 ml", "200 ml"],
-    specs: ["Familia: Aromática fresca", "Notas de salida: Bergamota calabresa", "Notas de corazón: Pimienta de Sichuan", "Notas de fondo: Ambroxan", "Concentración: EDT"],
-    isFeatured: true,
-  },
-  {
-    id: "8", name: "La Vie Est Belle Lancôme 75 ml", brand: "Lancôme", price: 319900,
-    originalPrice: 379900, discount: 16, rating: 4.8, reviews: 892,
-    image: "https://images.unsplash.com/photo-1568702846914-96b305d2aaeb?w=700&h=700&fit=crop&auto=format",
-    category: "Perfumes", subcategory: "Mujer", gender: "Mujer",
-    stock: 17, sku: "LC-LVEB-75",
-    description: "La Vie Est Belle: la vida es bella. Una fragancia gourmand floral que celebra la felicidad femenina y la elección de vivir según los propios valores.",
-    colors: [],
-    sizes: ["30 ml", "50 ml", "75 ml", "100 ml"],
-    specs: ["Familia: Floral gourmand", "Notas de salida: Iris, jazmin", "Notas de corazón: Pachulí, vetiver", "Notas de fondo: Praliné, vainilla", "Concentración: EDP"],
-    isFeatured: true,
-  },
-  {
-    id: "9", name: "Garmin Forerunner 265", brand: "Garmin", price: 899900,
-    rating: 4.8, reviews: 517,
-    image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=700&h=700&fit=crop&auto=format",
-    category: "Relojes", subcategory: "Smartwatch Running", gender: "Unisex",
-    stock: 9, sku: "GRM-FR265",
-    description: "El Garmin Forerunner 265 con pantalla AMOLED a color. Seguimiento avanzado de salud, métricas de running de nivel elite y hasta 13 días de batería.",
-    colors: [{ name: "Negro", hex: "#1a1a1a" }, { name: "Blanco", hex: "#f5f5f5" }, { name: "Turquesa", hex: "#0d9488" }],
-    sizes: ["Talla única"],
-    specs: ["Pantalla AMOLED 1.3\"", "GPS multibanda", "Batería hasta 13 días", "Resistencia al agua 5 ATM", "Monitor cardíaco óptico", "Seguimiento de O₂ en sangre", "Peso: 47 g"],
-    isFeatured: true, isNew: true,
-  },
-  {
-    id: "10", name: "Oakley Sutro Lite", brand: "Oakley", price: 389900,
-    originalPrice: 449900, discount: 13, rating: 4.7, reviews: 328,
-    image: "https://images.unsplash.com/photo-1577803645773-f96470509666?w=700&h=700&fit=crop&auto=format",
-    category: "Gafas", subcategory: "Running", gender: "Unisex",
-    stock: 25, sku: "OK-SUTLITE",
-    description: "Diseñadas para running y ciclismo de alto rendimiento. Las Oakley Sutro Lite ofrecen un campo visual amplísimo con el mínimo peso posible.",
-    colors: [{ name: "Negro mate", hex: "#1a1a1a" }, { name: "Blanco", hex: "#f5f5f5" }, { name: "Rojo", hex: "#dc2626" }],
-    sizes: ["Talla única"],
-    specs: ["Lente Prizm Road", "Protección UV 100%", "Marco O-Matter ultraligero", "Peso: 29 g", "Lente polarizado: No", "Patillas ajustables"],
-    isFeatured: true,
-  },
-  {
-    id: "11", name: "Nike Metcon 9", brand: "Nike", price: 399900,
-    rating: 4.7, reviews: 445,
-    image: "https://images.unsplash.com/photo-1539185441755-769473a23570?w=700&h=700&fit=crop&auto=format",
-    category: "Zapatos", subcategory: "Gym y training", gender: "Hombre",
-    stock: 11, sku: "NK-MTC9-H",
-    description: "Las Nike Metcon 9 son las zapatillas de entrenamiento más versátiles del mercado. Suela plana para levantamiento de pesas y amortiguación zonal para sprints.",
-    colors: [{ name: "Negro", hex: "#1a1a1a" }, { name: "Gris", hex: "#6b7280" }, { name: "Naranja", hex: "#f97316" }],
-    sizes: ["39", "40", "41", "42", "43", "44", "45"],
-    specs: ["Suela React ampliada", "Zona de talón estable", "Lengüeta Flyknit", "Agarre multidireccional", "Compatible con peso libre"],
-    isNew: true,
-  },
-  {
-    id: "12", name: "Under Armour Charged Assert 10", brand: "Under Armour", price: 279900,
-    originalPrice: 369900, discount: 24, rating: 4.5, reviews: 663,
-    image: "https://images.unsplash.com/photo-1491553895911-0055eca6402d?w=700&h=700&fit=crop&auto=format",
-    category: "Zapatos", subcategory: "Running", gender: "Mujer",
-    stock: 33, sku: "UA-CA10-M",
-    description: "Las Under Armour Charged Assert 10 ofrecen amortiguación Charged para mayor retorno de energía y una suela de goma solida de alta durabilidad.",
-    colors: [{ name: "Blanco", hex: "#f5f5f5" }, { name: "Rosa", hex: "#f472b6" }, { name: "Negro", hex: "#1a1a1a" }],
-    sizes: ["36", "37", "38", "39", "40", "41"],
-    specs: ["Amortiguación Charged", "Upper mesh transpirable", "Suela goma duradera", "Peso: 221 g", "Drop: 10 mm"],
-  },
-];
 
 const NAV_CATEGORIES: { name: Category }[] = [
   { name: "Zapatos" },
@@ -730,7 +585,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
     }
     suggestTimer.current = window.setTimeout(() => {
       const q = searchVal.trim().toLowerCase();
-      const matches = PRODUCTS.filter((p) => (
+      const matches = products.filter((p) => (
         p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q) || p.sku?.toLowerCase()?.includes(q)
       )).slice(0, 6);
       setSuggestions(matches);
@@ -1352,9 +1207,9 @@ function CatalogPage({ filterCategory, onSelectProduct, onAddToCart, onNavigate,
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
-  const allBrands = [...new Set(PRODUCTS.map((p) => p.brand))];
+  const allBrands = [...new Set(products.map((p) => p.brand))];
   const filtered = useMemo(() => {
-    let list = PRODUCTS;
+    let list = products;
     if (selectedCat) list = list.filter((p) => p.category === selectedCat);
     if (selectedBrand) list = list.filter((p) => p.brand === selectedBrand);
     if (sortBy === "precio-asc") list = [...list].sort((a, b) => a.price - b.price);
@@ -1381,10 +1236,10 @@ function CatalogPage({ filterCategory, onSelectProduct, onAddToCart, onNavigate,
               <div className="space-y-0.5">
                 <button onClick={() => onCategorySelect(null)}
                   className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-colors ${!selectedCat ? "bg-[#1d4ed8] text-white font-bold" : "text-slate-600 hover:bg-slate-100"}`}>
-                  Todos ({PRODUCTS.length})
+                  Todos ({products.length})
                 </button>
                 {NAV_CATEGORIES.map((cat) => {
-                  const count = PRODUCTS.filter((p) => p.category === cat.name).length;
+                  const count = products.filter((p) => p.category === cat.name).length;
                   return (
                     <button key={cat.name}
                       onClick={() => onCategorySelect(cat.name as Category)}
@@ -1457,7 +1312,7 @@ function CatalogPage({ filterCategory, onSelectProduct, onAddToCart, onNavigate,
           {mobileFiltersOpen && (
             <div className="mb-5 space-y-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm lg:hidden">
               <div className="grid gap-3">
-                <button onClick={() => onCategorySelect(null)} className="px-4 py-3 rounded-2xl bg-[#1d4ed8] text-white text-sm font-semibold">Mostrar todos ({PRODUCTS.length})</button>
+                <button onClick={() => onCategorySelect(null)} className="px-4 py-3 rounded-2xl bg-[#1d4ed8] text-white text-sm font-semibold">Mostrar todos ({products.length})</button>
                 <div>
                   <p className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-2">Marca</p>
                   <div className="grid grid-cols-2 gap-2">
@@ -1740,7 +1595,7 @@ function ProductDetailPage({ product, onBack, onAddToCart, onNavigate }: {
       <div className="mt-16">
         <h3 className="text-xl font-extrabold text-slate-900 mb-6">También te puede interesar</h3>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-5">
-          {PRODUCTS.filter((p) => p.id !== product.id && p.category === product.category).slice(0, 4).map((p) => (
+          {products.filter((p) => p.id !== product.id && p.category === product.category).slice(0, 4).map((p) => (
             <ProductCard key={p.id} product={p} onSelect={onBack as unknown as (p: Product) => void} onAddToCart={onAddToCart} />
           ))}
         </div>
@@ -3588,42 +3443,61 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
 export default function App() {
   const [view, setView] = useState<View>("home");
   const [initialAdminSection, setInitialAdminSection] = useState<string | undefined>(undefined);
+  const [products, setProducts] = useState<Product[]>([]);
 
   useEffect(() => {
     let isActive = true;
 
     const loadProducts = async () => {
-      const url = import.meta.env.VITE_SUPABASE_URL;
-      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      const isSupabaseConfigured = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
+      const isApiConfigured = Boolean(import.meta.env.VITE_API_URL);
 
-      if (!url || !anonKey) return;
-
-      try {
-        const data = await fetchProductsFromSupabase(24);
-        if (!isActive) return;
-        if (data.length > 0) {
-          PRODUCTS = data.map(mapProductRecordToAppProduct);
-          return;
-        }
-
-        const fallbackProducts = PRODUCTS.map((product) => mapAppProductToProductRecord(product));
-        if (fallbackProducts.length > 0) {
-          await seedProductsToSupabase(fallbackProducts);
-          const reloaded = await fetchProductsFromSupabase(24);
-          if (isActive && reloaded.length > 0) {
-            PRODUCTS = reloaded.map(mapProductRecordToAppProduct);
+      const tryLoadingFromAdminApi = async () => {
+        try {
+          const response = await adminApi.fetchSupabaseProducts();
+          if (!isActive) return false;
+          if (Array.isArray(response) && response.length > 0) {
+            setProducts(response.map(mapProductRecordToAppProduct));
+            return true;
           }
+        } catch (error) {
+          console.warn('No se pudo cargar productos desde el backend admin.', error);
         }
-      } catch (error) {
-        console.warn("No se pudo cargar productos desde Supabase; se mantendrán los datos locales.", error);
+        return false;
+      };
+
+      const tryLoadingFromSupabase = async () => {
+        try {
+          const data = await fetchProductsFromSupabase(24);
+          if (!isActive) return false;
+          if (data.length > 0) {
+            setProducts(data.map(mapProductRecordToAppProduct));
+            return true;
+          }
+        } catch (error) {
+          console.warn('No se pudo cargar productos desde Supabase.', error);
+        }
+        return false;
+      };
+
+      if (isApiConfigured) {
+        const loaded = await tryLoadingFromAdminApi();
+        if (loaded) return;
       }
+
+      if (isSupabaseConfigured) {
+        const loaded = await tryLoadingFromSupabase();
+        if (loaded) return;
+      }
+
+      console.warn('No se cargaron productos desde Supabase ni el backend admin. El catálogo quedará vacío hasta que haya datos en la base de datos.');
     };
 
     void loadProducts();
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [productRefresh]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [filterCategory, setFilterCategory] = useState<Category | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -3677,10 +3551,16 @@ export default function App() {
     saleSectionSubtitle: "Promociones y descuentos por tiempo limitado.",
     saleSectionDiscount: "",
   });
-  const [homePreviewProducts, setHomePreviewProducts] = useState<Product[]>(PRODUCTS.slice(0, 9));
-  const [homeSaleProducts, setHomeSaleProducts] = useState<Product[]>(PRODUCTS.filter((p) => p.discount).slice(0, 9));
-  const [homeNewArrivals, setHomeNewArrivals] = useState<Product[]>(PRODUCTS.filter((p) => p.isNew).slice(0, 9));
+  const [homePreviewProducts, setHomePreviewProducts] = useState<Product[]>([]);
+  const [homeSaleProducts, setHomeSaleProducts] = useState<Product[]>([]);
+  const [homeNewArrivals, setHomeNewArrivals] = useState<Product[]>([]);
   const [productRefresh, setProductRefresh] = useState(0);
+
+  useEffect(() => {
+    setHomePreviewProducts(products.slice(0, 9));
+    setHomeSaleProducts(products.filter((p) => p.discount).slice(0, 9));
+    setHomeNewArrivals(products.filter((p) => p.isNew).slice(0, 9));
+  }, [products]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -3813,90 +3693,57 @@ export default function App() {
   const createProduct = async (product: Omit<Product, "id">) => {
     try {
       const record = mapAppProductToProductRecord({ ...product, id: crypto.randomUUID() });
-      const created = await createProductInSupabase(record);
+      const created = await createSupabaseProductApi(record);
       const createdAppProduct = mapProductRecordToAppProduct(created);
-      PRODUCTS = [createdAppProduct, ...PRODUCTS.filter((item) => item.id !== createdAppProduct.id)];
       refreshProducts();
       toast.success("Producto creado y guardado en Supabase.");
       try { recordAction('create_product', { id: createdAppProduct.id, name: createdAppProduct.name }); } catch (e) { }
       return;
     } catch (err) {
-      console.warn("Supabase create product failed, falling back to local:", err);
+      console.error("Backend create product failed:", err);
+      toast.error("Error creando producto. Intenta nuevamente.");
     }
-
-    const newProduct = { ...product, id: crypto.randomUUID() };
-    PRODUCTS = [newProduct, ...PRODUCTS];
-    refreshProducts();
-    try { recordAction('create_product_local', { id: newProduct.id, name: newProduct.name }); } catch (e) { }
   };
 
   const updateProduct = async (productId: string, updates: Partial<Product>) => {
     try {
-      const record = mapAppProductToProductRecord({ ...PRODUCTS.find((product) => product.id === productId), ...updates, id: productId });
+      const record = mapAppProductToProductRecord({ ...products.find((product) => product.id === productId), ...updates, id: productId });
       const { id: _ignoredId, ...recordUpdates } = record;
-      const updated = await updateProductInSupabase(productId, recordUpdates);
+      const updated = await updateSupabaseProductApi(productId, recordUpdates);
       const updatedAppProduct = mapProductRecordToAppProduct(updated);
-      PRODUCTS = PRODUCTS.map((product) => product.id === productId ? updatedAppProduct : product);
       refreshProducts();
       toast.success("Producto actualizado en Supabase.");
       try { recordAction('update_product', { id: updatedAppProduct.id, name: updatedAppProduct.name }); } catch (e) { }
       return;
     } catch (err) {
-      console.warn("Supabase update failed, falling back to local:", err);
+      console.error("Backend update failed:", err);
+      toast.error("Error actualizando producto. Intenta nuevamente.");
     }
-
-    PRODUCTS = PRODUCTS.map((product) => product.id === productId ? { ...product, ...updates } : product);
-    refreshProducts();
-    try { recordAction('update_product_local', { id: productId, updates }); } catch (e) { }
   };
 
   const deleteProduct = async (productId: string) => {
     try {
-      await deleteProductInSupabase(productId);
-      PRODUCTS = PRODUCTS.filter((product) => product.id !== productId);
+      await deleteSupabaseProductApi(productId);
       refreshProducts();
       toast.success("Producto eliminado de Supabase.");
       try { recordAction('delete_product', { id: productId }); } catch (e) { }
       return;
     } catch (err) {
-      console.warn("Supabase delete failed, falling back to local:", err);
+      console.error("Backend delete failed:", err);
+      toast.error("Error eliminando producto. Intenta nuevamente.");
     }
-
-    PRODUCTS = PRODUCTS.filter((product) => product.id !== productId);
-    refreshProducts();
-    try { recordAction('delete_product_local', { id: productId }); } catch (e) { }
   };
 
   const adjustStock = async (productId: string, delta: number) => {
     try {
       await adminApi.createInventoryMovement(productId, delta, 'adjustment');
-      PRODUCTS = PRODUCTS.map((product) => product.id === productId ? { ...product, stock: Math.max(0, product.stock + delta) } : product);
-      const updated = PRODUCTS.find((p) => p.id === productId);
       refreshProducts();
       try { recordAction('inventory_movement', { id: productId, delta }); } catch (e) { }
-      try {
-        if (updated && updated.stock <= 5) {
-          // simple notification for low stock
-          // later replace with Toaster/sonner
-          // eslint-disable-next-line no-alert
-          alert(`Stock bajo: ${updated.name} tiene ${updated.stock} unidades`);
-        }
-      } catch (e) { /* ignore */ }
-      return;
       return;
     } catch (err) {
-      console.warn('Backend inventory movement failed, falling back to local adjust:', err);
+      console.error('Backend inventory movement failed:', err);
+      toast.error('Error ajustando inventario. Intenta nuevamente.');
     }
-
-    PRODUCTS = PRODUCTS.map((product) => product.id === productId ? { ...product, stock: Math.max(0, product.stock + delta) } : product);
-    const updated = PRODUCTS.find((p) => p.id === productId);
-    refreshProducts();
-    try {
-      if (updated && updated.stock <= 5) {
-        // notification for low stock
-        toast(`Stock bajo: ${updated.name} tiene ${updated.stock} unidades`);
-      }
-    } catch (e) { /* ignore */ }
   };
 
   const navigate = (v: View) => {
@@ -4028,7 +3875,7 @@ export default function App() {
       {view === "admin" && isAdmin && (
         <AdminDashboard
           onNavigate={navigate}
-          products={PRODUCTS}
+          products={products}
           createProduct={createProduct}
           updateProduct={updateProduct}
           deleteProduct={deleteProduct}

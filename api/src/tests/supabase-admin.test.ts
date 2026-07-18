@@ -1,20 +1,23 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { SupabaseAdminService } from '../services/supabase-admin.service.js';
+import * as supabaseEnv from '../config/supabase-env.js';
 
 describe('SupabaseAdminService', () => {
   const fetchMock = vi.fn();
 
   beforeEach(() => {
     vi.stubGlobal('fetch', fetchMock);
-    process.env.SUPABASE_URL = 'https://example.supabase.co';
-    process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-key';
+    // Mock getSupabaseConfig to return test credentials
+    vi.spyOn(supabaseEnv, 'getSupabaseConfig').mockReturnValue({
+      url: 'https://example.supabase.co',
+      serviceRoleKey: 'service-role-key',
+    });
     fetchMock.mockReset();
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
-    delete process.env.SUPABASE_URL;
-    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    vi.restoreAllMocks();
   });
 
   it('creates products through the service-role endpoint', async () => {

@@ -22,7 +22,6 @@ async function callApi(path: string, opts: RequestInit = {}) {
     return res;
   };
 
-  // try with stored backend token first
   let res = storedBackend ? await makeRequest(storedBackend) : await makeRequest(supabaseToken ?? undefined);
 
   if (res.status === 401 && supabaseToken) {
@@ -43,7 +42,11 @@ async function callApi(path: string, opts: RequestInit = {}) {
   }
 
   if (res.status === 204) return null;
-  return res.json();
+  const json = await res.json();
+  if (json && typeof json === 'object' && 'ok' in json && json.ok && 'data' in json) {
+    return json.data;
+  }
+  return json;
 }
 
 export async function fetchProducts() {
@@ -62,6 +65,22 @@ export async function deleteProductApi(productId: string) {
   return callApi(`/products/${productId}`, { method: 'DELETE' });
 }
 
+export async function fetchSupabaseProducts() {
+  return callApi('/supabase-products', { method: 'GET' });
+}
+
+export async function createSupabaseProductApi(payload: Partial<Product>) {
+  return callApi('/supabase-products', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export async function updateSupabaseProductApi(productId: string, payload: Partial<Product>) {
+  return callApi(`/supabase-products/${productId}`, { method: 'PATCH', body: JSON.stringify(payload) });
+}
+
+export async function deleteSupabaseProductApi(productId: string) {
+  return callApi(`/supabase-products/${productId}`, { method: 'DELETE' });
+}
+
 export async function createInventoryMovement(productId: string, delta: number, reason?: string) {
   return callApi('/inventory/movements', { method: 'POST', body: JSON.stringify({ productId, delta, reason }) });
 }
@@ -70,4 +89,4 @@ export async function fetchAuditLogs(limit = 200) {
   return callApi(`/audit?limit=${limit}`, { method: 'GET' });
 }
 
-export default { fetchProducts, createProductApi, updateProductApi, deleteProductApi, createInventoryMovement, fetchAuditLogs };
+export default { fetchProducts, createProductApi, fetchSupabaseProducts, createSupabaseProductApi, updateSupabaseProductApi, deleteSupabaseProductApi, updateProductApi, deleteProductApi, createInventoryMovement, fetchAuditLogs };

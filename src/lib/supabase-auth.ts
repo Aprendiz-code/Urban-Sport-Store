@@ -8,6 +8,15 @@ const adminEmail = (import.meta.env.VITE_ADMIN_EMAIL ?? 'Urbansportstore@outlook
 const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD ?? 'bM4_tX!8wK2#vP7$qR';
 const adminMetadata = { full_name: 'Administrador', role: 'ADMIN', isAdmin: true };
 
+const getUserMetadata = (email: string, name?: string) => {
+  const isAdmin = email.toLowerCase() === adminEmail;
+  return {
+    full_name: name ?? (isAdmin ? 'Administrador' : email),
+    role: isAdmin ? 'ADMIN' : 'CUSTOMER',
+    isAdmin: isAdmin,
+  };
+};
+
 const isAdminCredentials = (email: string, password: string) => {
   const isAdmin = email.toLowerCase() === adminEmail && password === adminPassword;
   // Debug log to help troubleshoot
@@ -17,7 +26,7 @@ const isAdminCredentials = (email: string, password: string) => {
       expectedEmail: adminEmail,
       emailMatch: email.toLowerCase() === adminEmail,
       inputPassword: `${password.substring(0, 3)}...${password.substring(password.length - 3)}`,
-      expectedPassword: `${adminPassword.substring(0, 3)}...${adminPassword.substring(adminPassword.length - 3)}`,
+      expectedPassword: `${adminPassword.substring(0, 3)}...${adminPassword.substring(password.length - 3)}`,
       passwordMatch: password === adminPassword,
       passwordLength: { input: password.length, expected: adminPassword.length }
     });
@@ -45,17 +54,17 @@ const setLocalUser = (user: User | null) => {
 };
 
 export const signInWithEmail = async (email: string, password: string) => {
-  if (isAdminCredentials(email, password)) {
-    const user = {
-      id: 'local-admin',
-      email,
-      user_metadata: adminMetadata,
-    } as unknown as User;
-    setLocalUser(user);
-    return { data: { user }, error: null };
-  }
-
   if (!isSupabaseEnabled()) {
+    if (isAdminCredentials(email, password)) {
+      const user = {
+        id: 'local-admin',
+        email,
+        user_metadata: adminMetadata,
+      } as unknown as User;
+      setLocalUser(user);
+      return { data: { user }, error: null };
+    }
+
     const user = {
       id: `local-${Date.now()}`,
       email,
@@ -75,6 +84,10 @@ export const signInWithEmail = async (email: string, password: string) => {
     return result;
   }
 
+  if (result.data.user) {
+    setLocalUser(result.data.user);
+  }
+
   return result;
 };
 
@@ -83,7 +96,7 @@ export const signUpWithEmail = async (email: string, password: string, options?:
     const user = {
       id: `local-${Date.now()}`,
       email,
-      user_metadata: { full_name: options?.name ?? email, role: 'CUSTOMER' },
+      user_metadata: getUserMetadata(email, options?.name),
     } as unknown as User;
     setLocalUser(user);
     return { data: { user }, error: null, needsConfirmation: false };
@@ -104,32 +117,16 @@ export const signUpWithEmail = async (email: string, password: string, options?:
     const { error: signInError } = await client.auth.signInWithPassword({ email, password });
     if (!signInError) {
       const refreshedUser = await client.auth.getUser();
-      const localUser = {
-        ...refreshedUser.data.user,
-        email,
-        user_metadata: {
-          ...(refreshedUser.data.user?.user_metadata ?? {}),
-          full_name: options?.name ?? email,
-          role: 'CUSTOMER',
-        },
-      } as unknown as User;
-      setLocalUser(localUser);
-      return { ...result, data: { ...result.data, user: localUser }, needsConfirmation: false };
+      if (refreshedUser.data.user) {
+        setLocalUser(refreshedUser.data.user);
+      }
+      return { ...result, data: { ...result.data, user: refreshedUser.data.user ?? result.data.user }, needsConfirmation: false };
     }
   }
 
   if (!result.error && result.data.user) {
-    const localUser = {
-      ...result.data.user,
-      email,
-      user_metadata: {
-        ...(result.data.user.user_metadata ?? {}),
-        full_name: options?.name ?? email,
-        role: 'CUSTOMER',
-      },
-    } as unknown as User;
-    setLocalUser(localUser);
-    return { ...result, data: { ...result.data, user: localUser }, needsConfirmation: !result.data.session };
+    setLocalUser(result.data.user);
+    return { ...result, data: { ...result.data, user: result.data.user }, needsConfirmation: !result.data.session };
   }
 
   return result;

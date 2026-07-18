@@ -2,8 +2,10 @@ import { NextFunction, Request, Response } from 'express';
 import { prisma } from '../db/prisma.js';
 import { successResponse } from '../utils/responses.js';
 import { ProductService } from '../services/product.service.js';
+import { SupabaseAdminService } from '../services/supabase-admin.service.js';
 
 const productService = new ProductService();
+const supabaseAdminService = new SupabaseAdminService();
 
 export const adminDashboard = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -24,6 +26,46 @@ export const createProduct = async (req: Request, res: Response, next: NextFunct
     // record audit
     try { await prisma.auditLog.create({ data: { actorId: req.user?.id ?? undefined, action: 'create_product', entity: 'product', entityId: product.id, changes: product } }); } catch (e) { /* ignore */ }
     res.status(201).json(successResponse(product));
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const fetchSupabaseProducts = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const products = await supabaseAdminService.fetchProducts();
+    res.status(200).json(successResponse(products));
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const createSupabaseProduct = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const rows = await supabaseAdminService.createProduct(req.body);
+    const product = Array.isArray(rows) ? rows[0] : rows;
+    res.status(201).json(successResponse(product));
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateSupabaseProduct = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const productId = Array.isArray(req.params.productId) ? req.params.productId[0] : req.params.productId;
+    const rows = await supabaseAdminService.updateProduct(productId, req.body);
+    const product = Array.isArray(rows) ? rows[0] : rows;
+    res.status(200).json(successResponse(product));
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteSupabaseProduct = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const productId = Array.isArray(req.params.productId) ? req.params.productId[0] : req.params.productId;
+    await supabaseAdminService.deleteProduct(productId);
+    res.status(200).json(successResponse({ ok: true }));
   } catch (error) {
     next(error);
   }

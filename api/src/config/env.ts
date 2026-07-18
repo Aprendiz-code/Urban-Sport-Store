@@ -1,9 +1,16 @@
 import path from 'node:path';
 import dotenv from 'dotenv';
 
-const loadEnvFiles = () => {
+export const loadEnvFiles = () => {
+  // Try to load from current directory first
   dotenv.config({ path: path.resolve(process.cwd(), '.env') });
   dotenv.config({ path: path.resolve(process.cwd(), '.env.local'), override: true });
+  
+  // If running from project root and in a monorepo structure, also try api/.env.local
+  const apiEnvPath = path.resolve(process.cwd(), 'api', '.env.local');
+  if (process.cwd() !== path.resolve(process.cwd(), 'api')) {
+    dotenv.config({ path: apiEnvPath, override: true });
+  }
 };
 
 loadEnvFiles();

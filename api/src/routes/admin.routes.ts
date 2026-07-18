@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { requireAuth, requireRole } from '../middlewares/auth.js';
 import { validateBody, validateParams } from '../middlewares/validation.js';
 import { z } from 'zod';
-import { adminDashboard, createBrand, createCategory, createCoupon, createInventoryMovement, createProduct, deleteCategory, deleteCoupon, deleteProduct, getLowStockProducts, inventoryReport, salesReport, updateBrand, updateCategory, updateCoupon, updateOrderStatus, updateProduct } from '../controllers/admin.controller.js';
+import { adminDashboard, createBrand, createCategory, createCoupon, createInventoryMovement, createProduct, deleteCategory, deleteCoupon, deleteProduct, fetchSupabaseProducts, createSupabaseProduct, updateSupabaseProduct, deleteSupabaseProduct, getLowStockProducts, inventoryReport, salesReport, updateBrand, updateCategory, updateCoupon, updateOrderStatus, updateProduct } from '../controllers/admin.controller.js';
 
 const router = Router();
 
@@ -29,6 +29,11 @@ router.get('/dashboard', requireAuth, requireRole('ADMIN'), adminDashboard);
 router.post('/products', requireAuth, requireRole('ADMIN'), validateBody(productSchema), createProduct);
 router.patch('/products/:productId', requireAuth, requireRole('ADMIN'), validateParams(z.object({ productId: z.string().uuid() })), validateBody(productSchema.partial()), updateProduct);
 router.delete('/products/:productId', requireAuth, requireRole('ADMIN'), validateParams(z.object({ productId: z.string().uuid() })), deleteProduct);
+
+router.get('/supabase-products', requireAuth, requireRole('ADMIN'), fetchSupabaseProducts);
+router.post('/supabase-products', requireAuth, requireRole('ADMIN'), createSupabaseProduct);
+router.patch('/supabase-products/:productId', requireAuth, requireRole('ADMIN'), validateParams(z.object({ productId: z.string().uuid() })), updateSupabaseProduct);
+router.delete('/supabase-products/:productId', requireAuth, requireRole('ADMIN'), validateParams(z.object({ productId: z.string().uuid() })), deleteSupabaseProduct);
 router.post('/categories', requireAuth, requireRole('ADMIN'), validateBody(categorySchema), createCategory);
 router.patch('/categories/:categoryId', requireAuth, requireRole('ADMIN'), validateParams(z.object({ categoryId: z.string().uuid() })), validateBody(categorySchema.partial()), updateCategory);
 router.delete('/categories/:categoryId', requireAuth, requireRole('ADMIN'), validateParams(z.object({ categoryId: z.string().uuid() })), deleteCategory);
