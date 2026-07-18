@@ -10,10 +10,21 @@ import {
 } from "lucide-react";
 import PromoCarousel from "./components/PromoCarousel";
 import promoRibbon from "../assets/cinta-10.png";
+import iconosEnvio from "../../iconos envio/Envio gratis y demas.png";
+import carritoEnvioGratis from "../../iconos envio/Carrito envio gratis.png";
+import mediosDePagoIcon from "../../iconos envio/Medios de pago.png";
+import soporte7Icon from "../../iconos envio/iconos y demas/Soporte 24/7.png";
 import {
-  AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer,
-} from "recharts";
+  ResponsiveContainer as RechartsResponsiveContainer,
+  AreaChart as RechartsAreaChart,
+  Area as RechartsArea,
+  BarChart as RechartsBarChart,
+  Bar as RechartsBar,
+  XAxis as RechartsXAxis,
+  YAxis as RechartsYAxis,
+  CartesianGrid as RechartsCartesianGrid,
+  Tooltip as RechartsTooltip,
+} from "./components/LazyRecharts";
 // promoRibbon moved to src/assets/cinta-10.png
 import { fetchProductsFromSupabase, type ProductRecord } from "../lib/supabase-store";
 import {
@@ -29,8 +40,8 @@ import adminApi, { createSupabaseProductApi, updateSupabaseProductApi, deleteSup
 import { uploadProductImage, getPublicUrl } from "../lib/supabase-store";
 import { recordAction, getAudit } from "../lib/audit";
 import { productSchema } from '../lib/schemas';
-import { Toaster } from './components/ui/sonner';
-import { toast } from 'sonner';
+import Toaster from './components/LazyToaster';
+import { toast } from '../lib/lazyToast';
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 
@@ -600,9 +611,21 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
         variant="marquee"
         intervalMs={7800}
         messages={[
-          "Envíos gratis a toda Colombia por compras superiores a $250.000",
-          "Aceptamos todos los medios de pago: Tarjeta de crédito, débito y PSE. ¡Compra 100% segura!",
-          "Soporte y atención al cliente las 24 horas",
+          <span className="inline-flex items-center gap-2">
+            <img src={carritoEnvioGratis} alt="Carrito envío gratis" className="h-5 w-5 object-contain" />
+            Envíos gratis a toda Colombia por compras superiores a $299.999
+            <img src={carritoEnvioGratis} alt="Carrito envío gratis" className="h-5 w-5 object-contain" />
+          </span>,
+          <span className="inline-flex items-center gap-2">
+            <img src={mediosDePagoIcon} alt="Medios de pago" className="h-5 w-5 object-contain" />
+            Aceptamos todos los medios de pago: Tarjeta de crédito, débito y PSE. ¡Compra 100% segura!
+            <img src={mediosDePagoIcon} alt="Medios de pago" className="h-5 w-5 object-contain" />
+          </span>,
+          <span className="inline-flex items-center gap-2">
+            <img src={soporte7Icon} alt="Soporte 24/7" className="h-5 w-5 object-contain" />
+            Soporte y atención al cliente las 24 horas
+            <img src={soporte7Icon} alt="Soporte 24/7" className="h-5 w-5 object-contain" />
+          </span>,
         ]}
       />
 
@@ -1090,23 +1113,15 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
         </div>
       </section>
 
-      {/* Benefits */}
+      {/* Envío icons placeholder */}
       <section className="py-10 sm:py-14 md:py-16">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-8 lg:gap-10 text-center">
-            {[
-              { icon: <Truck size={48} />, title: "Envío gratis" },
-              { icon: <Shield size={48} />, title: "Pago seguro" },
-              { icon: <Package size={48} />, title: "30 días devolución" },
-              { icon: <Bell size={48} />, title: "Soporte 24/7" },
-              { icon: <ThumbsUp size={48} />, title: "Garantía satisfacción" },
-              { icon: <DollarSign size={48} />, title: "Reembolso garantizado" },
-            ].map((b) => (
-              <div key={b.title} className="flex flex-col items-center justify-center gap-3 text-slate-900">
-                <div className="text-slate-900">{b.icon}</div>
-                <p className="text-base sm:text-lg font-black uppercase tracking-[0.3em] leading-tight">{b.title}</p>
-              </div>
-            ))}
+          <div className="overflow-hidden rounded-[30px] border border-slate-200 bg-white p-4 sm:p-6 md:p-8 shadow-sm">
+            <img
+              src={iconosEnvio}
+              alt="Envío gratis, pago seguro, 30 días devolución, soporte 24/7, garantía satisfacción, reembolso garantizado"
+              className="w-full h-auto object-contain"
+            />
           </div>
         </div>
       </section>
@@ -3444,6 +3459,7 @@ export default function App() {
   const [view, setView] = useState<View>("home");
   const [initialAdminSection, setInitialAdminSection] = useState<string | undefined>(undefined);
   const [products, setProducts] = useState<Product[]>([]);
+  const [productRefresh, setProductRefresh] = useState(0);
 
   useEffect(() => {
     let isActive = true;
@@ -3554,7 +3570,6 @@ export default function App() {
   const [homePreviewProducts, setHomePreviewProducts] = useState<Product[]>([]);
   const [homeSaleProducts, setHomeSaleProducts] = useState<Product[]>([]);
   const [homeNewArrivals, setHomeNewArrivals] = useState<Product[]>([]);
-  const [productRefresh, setProductRefresh] = useState(0);
 
   useEffect(() => {
     setHomePreviewProducts(products.slice(0, 9));
