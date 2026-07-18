@@ -24,7 +24,7 @@ export const getTestToken = async (req: Request, res: Response, next: NextFuncti
 
     const roles = admin.userRoles.map(({ role }) => role.name as 'CUSTOMER' | 'ADMIN');
 
-    const token = generateAccessToken({ id: admin.id, email: admin.email, roles });
+    const token = generateAccessToken({ id: admin.id, email: admin.email, name: admin.name, roles });
     res.status(200).json(successResponse({ token }));
   } catch (err) {
     next(err);

@@ -99,6 +99,24 @@ export const signUpWithEmail = async (email: string, password: string, options?:
     },
   });
 
+  if (!result.error && result.data.user && !result.data.session) {
+    const { error: signInError } = await client.auth.signInWithPassword({ email, password });
+    if (!signInError) {
+      const refreshedUser = await client.auth.getUser();
+      const localUser = {
+        ...refreshedUser.data.user,
+        email,
+        user_metadata: {
+          ...(refreshedUser.data.user?.user_metadata ?? {}),
+          full_name: options?.name ?? email,
+          role: 'CUSTOMER',
+        },
+      } as unknown as User;
+      setLocalUser(localUser);
+      return { ...result, data: { ...result.data, user: localUser }, needsConfirmation: false };
+    }
+  }
+
   if (!result.error && result.data.user) {
     const localUser = {
       ...result.data.user,

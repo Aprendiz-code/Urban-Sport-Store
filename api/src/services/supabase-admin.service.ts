@@ -1,10 +1,13 @@
+import { getSupabaseConfig } from '../config/supabase-env.js';
+
 export class SupabaseAdminService {
   private readonly supabaseUrl: string;
   private readonly serviceRoleKey: string;
 
   constructor() {
-    this.supabaseUrl = process.env.SUPABASE_URL ?? '';
-    this.serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
+    const { url, serviceRoleKey } = getSupabaseConfig();
+    this.supabaseUrl = url;
+    this.serviceRoleKey = serviceRoleKey;
   }
 
   private getBaseHeaders() {
