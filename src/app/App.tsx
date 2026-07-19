@@ -3506,7 +3506,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
           <div className="bg-black/70 text-white text-xs px-3 py-1 rounded-lg">adminSection: {adminSection}</div>
         </div>
 
-        {backendAdminAvailable === false && view === 'admin' ? (
+        {backendAdminAvailable === false ? (
           <div className="mb-6 p-4 rounded-lg bg-yellow-50 border border-yellow-100 text-yellow-800">
             <strong>Backend admin no disponible.</strong> Algunas funciones administrativas pueden no estar disponibles. (Error 404 en /api/v1/admin/*)
           </div>
