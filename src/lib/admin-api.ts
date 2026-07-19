@@ -35,6 +35,23 @@ async function callApi(path: string, opts: RequestInit = {}) {
       // ignore
     }
   }
+  // If the request returned 404 and the configured VITE_API_URL points to a host
+  // that doesn't serve the admin backend, try the relative `/api/v1/admin` path
+  // as a fallback. This helps when the frontend is served from a domain but the
+  // backend is mounted under the same origin at `/api/v1` (or when VITE_API_URL
+  // is misconfigured to a host without the admin API).
+  if (res.status === 404 && API_ROOT !== '/api/v1') {
+    try {
+      const fallbackRes = await fetch(`/api/v1/admin${path}`, { headers: { ...(opts.headers as Record<string,string>), 'Content-Type': 'application/json' }, ...opts });
+      if (fallbackRes.ok) {
+        res = fallbackRes;
+      } else {
+        // keep original response for error reporting
+      }
+    } catch (e) {
+      // network error on fallback, continue to error handling below
+    }
+  }
 
   if (!res.ok) {
     const text = await res.text();
