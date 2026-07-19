@@ -23,15 +23,37 @@ const getEnv = (key: string, fallback?: string): string => {
   return value;
 };
 
+const normalizeDatabaseUrl = (value: string): string => {
+  if (!value) return value;
+  try {
+    const url = new URL(value);
+    if ((url.protocol === 'postgres:' || url.protocol === 'postgresql:') && url.hostname.endsWith('.supabase.co')) {
+      if (!url.searchParams.has('sslmode')) {
+        url.searchParams.set('sslmode', 'require');
+      }
+      return url.toString();
+    }
+  } catch {
+    // ignore malformed URLs and use the raw value
+  }
+  return value;
+};
+
 const parseBoolean = (value: string | undefined, fallback = false): boolean => {
   if (value === undefined) return fallback;
   return value === 'true';
 };
 
+const rawDatabaseUrl = getEnv('DATABASE_URL', 'postgresql://postgres:postgres@localhost:5432/urbansportstore');
+const databaseUrl = normalizeDatabaseUrl(rawDatabaseUrl);
+if (databaseUrl !== rawDatabaseUrl) {
+  process.env.DATABASE_URL = databaseUrl;
+}
+
 export const env = {
   port: Number(getEnv('PORT', '4000')),
   nodeEnv: getEnv('NODE_ENV', 'development'),
-  databaseUrl: getEnv('DATABASE_URL', 'postgresql://postgres:postgres@localhost:5432/urbansportstore'),
+  databaseUrl,
   jwtSecret: getEnv('JWT_SECRET', 'dev-secret'),
   jwtExpiresIn: getEnv('JWT_EXPIRES_IN', '15m'),
   refreshTokenTtlDays: Number(getEnv('REFRESH_TOKEN_TTL_DAYS', '7')),

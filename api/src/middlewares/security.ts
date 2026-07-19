@@ -2,14 +2,14 @@ import rateLimit from 'express-rate-limit';
 import { Request, Response, NextFunction } from 'express';
 import { env } from '../config/env.js';
 
-export const globalLimiter = rateLimit({
+export const globalLimiter = (rateLimit as any)({
   windowMs: env.rateLimitWindowMs,
   max: env.rateLimitMax,
   standardHeaders: true,
   legacyHeaders: false,
 });
 
-export const authLimiter = rateLimit({
+export const authLimiter = (rateLimit as any)({
   windowMs: env.rateLimitWindowMs,
   max: env.authRateLimitMax,
   standardHeaders: true,

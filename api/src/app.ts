@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { default as helmet } from 'helmet';
+import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import swaggerUi from 'swagger-ui-express';
 import swaggerJSDoc from 'swagger-jsdoc';
@@ -35,7 +35,8 @@ declare global {
 
 const app = express();
 
-app.use(helmet());
+app.set('trust proxy', 1);
+app.use((helmet as any)());
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);

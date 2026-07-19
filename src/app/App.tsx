@@ -3538,9 +3538,21 @@ export default function App() {
     let isActive = true;
 
     const loadHomeContent = async () => {
+      const apiUrl = import.meta.env.VITE_API_URL ?? '/api/v1';
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL ?? '/api/v1'}/home-content`);
+        const res = await fetch(`${apiUrl}/home-content`);
         if (!res.ok) {
+          if (res.status === 404 && apiUrl !== '/api/v1') {
+            const fallbackRes = await fetch(`/api/v1/home-content`);
+            if (fallbackRes.ok) {
+              setBackendHomeAvailable(true);
+              const fallbackJson = await fallbackRes.json();
+              if (fallbackJson?.data) {
+                setHomeContent((prev) => ({ ...prev, ...fallbackJson.data }));
+              }
+              return;
+            }
+          }
           setBackendHomeAvailable(false);
           return;
         }
