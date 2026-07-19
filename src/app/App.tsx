@@ -3218,6 +3218,9 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                     </select>
                   </div>
                 </div>
+
+                {/* Imágenes - Mejorado */}
+                <div className="bg-slate-50 rounded-xl p-4 space-y-4">
                   <div>
                     <label className="text-xs font-bold text-slate-600 uppercase block mb-3 flex items-center gap-2">
                       <span>🖼️ Imagen principal</span>
@@ -3314,6 +3317,8 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                     )}
                   </div>
                 </div>
+
+                {/* Botones de acción mejorados */}
                 <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
                   <button 
                     type="submit" 
