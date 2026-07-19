@@ -2491,6 +2491,40 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
     setAdminSection(section);
   };
 
+  const exportReportsCsv = () => {
+    try {
+      const rows: string[] = [];
+      // Header
+      rows.push(['Pedido', 'Cliente', 'Fecha', 'Estado', 'Total', 'Items'].join(','));
+      // Orders
+      ORDERS.forEach((o) => {
+        const line = [
+          JSON.stringify(o.id),
+          JSON.stringify(o.customer),
+          JSON.stringify(o.date),
+          JSON.stringify(o.status),
+          JSON.stringify(o.total),
+          JSON.stringify(o.items),
+        ].join(',');
+        rows.push(line);
+      });
+
+      const csv = rows.join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `reportes_${new Date().toISOString().slice(0,10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Error generando CSV:', err);
+      toast.error('No se pudo generar el CSV. Intenta nuevamente.');
+    }
+  };
+
   const LOW_STOCK = products.filter((product) => product.stock <= 10).map((product) => ({
     name: product.name, stock: product.stock, sku: product.sku,
   }));
@@ -3300,7 +3334,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
               </div>
               <div className="p-5 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)]">
                 <h3 className="text-lg font-extrabold text-slate-900 mb-4">Exportar reportes</h3>
-                <button className="w-full py-3 rounded-xl bg-black text-white font-semibold hover:bg-slate-900">Descargar CSV</button>
+                <button onClick={() => exportReportsCsv()} className="w-full py-3 rounded-xl bg-black text-white font-semibold hover:bg-slate-900">Descargar CSV</button>
               </div>
             </div>
           </div>
