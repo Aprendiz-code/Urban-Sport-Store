@@ -3501,7 +3501,6 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
         </div>
         <div aria-hidden className="fixed top-20 right-6 z-50">
           <div className="bg-black/70 text-white text-xs px-3 py-1 rounded-lg">adminSection: {adminSection}</div>
-          <div className="mt-1 bg-black/60 text-white text-xs px-3 py-1 rounded-lg">isAdmin: {String(isAdmin)}</div>
         </div>
 
         {(() => {
