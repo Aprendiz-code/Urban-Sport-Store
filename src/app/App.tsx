@@ -2323,7 +2323,7 @@ function AccountPage({ onNavigate, onLogout, addresses, onCreateAddress, onUpdat
 
 // ─── ADMIN DASHBOARD ──────────────────────────────────────────────────────────
 
-function AdminDashboard({ onNavigate, products, createProduct, updateProduct, deleteProduct, adjustStock, productRefresh, initialSection, homeContent, setHomeContent, homePreviewProducts, setHomePreviewProducts, homeSaleProducts, setHomeSaleProducts, homeNewArrivals, setHomeNewArrivals, backendAdminAvailable }: {
+function AdminDashboard({ onNavigate, products, createProduct, updateProduct, deleteProduct, adjustStock, productRefresh, initialSection, homeContent, setHomeContent, homePreviewProducts, setHomePreviewProducts, homeSaleProducts, setHomeSaleProducts, homeNewArrivals, setHomeNewArrivals, saveHomeContent, backendAdminAvailable }: {
   onNavigate: (v: View) => void;
   products: Product[];
   createProduct: (product: Omit<Product, "id">) => void;
@@ -2340,6 +2340,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
   setHomeSaleProducts: React.Dispatch<React.SetStateAction<Product[]>>;
   homeNewArrivals: Product[];
   setHomeNewArrivals: React.Dispatch<React.SetStateAction<Product[]>>;
+  saveHomeContent: () => Promise<void>;
   backendAdminAvailable?: boolean | null;
 }) {
   const [adminSection, setAdminSection] = useState(initialSection ?? "dashboard");
@@ -4033,6 +4034,7 @@ export default function App() {
           setHomeSaleProducts={setHomeSaleProducts}
           homeNewArrivals={homeNewArrivals}
           setHomeNewArrivals={setHomeNewArrivals}
+          saveHomeContent={saveHomeContent}
           backendAdminAvailable={backendAdminAvailable}
         />
       )}
