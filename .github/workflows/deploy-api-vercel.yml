@@ -16,23 +16,18 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Install pnpm
-        run: |
-          npm install -g pnpm@11.13.0
-          pnpm --version
-
-      - name: Install dependencies
+      - name: Install API dependencies
         run: |
           cd api
-          pnpm install --frozen-lockfile
+          npm ci
 
       - name: Run migrations and build
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           cd api
-          pnpm run db:deploy || true
-          pnpm run build
+          npm run db:deploy || true
+          npm run build
 
       - name: Deploy to Vercel
         env:
