@@ -13,7 +13,6 @@ import promoRibbon from "../assets/cinta-10.png";
 import iconosEnvio from "../../iconos envio/Envio gratis y demas.png";
 import carritoEnvioGratis from "../../iconos envio/Carrito envio gratis.png";
 import mediosDePagoIcon from "../../iconos envio/Medios de pago.png";
-import soporte7Icon from "../../iconos envio/iconos y demas/Soporte 24/7.png";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -623,9 +622,9 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
             <img src={mediosDePagoIcon} alt="Medios de pago" className="h-5 w-5 object-contain" />
           </span>,
           <span className="inline-flex items-center gap-2">
-            <img src={soporte7Icon} alt="Soporte 24/7" className="h-5 w-5 object-contain" />
+            <img src={iconosEnvio} alt="Envío gratis" className="h-5 w-5 object-contain" />
             Soporte y atención al cliente las 24 horas
-            <img src={soporte7Icon} alt="Soporte 24/7" className="h-5 w-5 object-contain" />
+            <img src={iconosEnvio} alt="Envío gratis" className="h-5 w-5 object-contain" />
           </span>,
         ]}
       />
