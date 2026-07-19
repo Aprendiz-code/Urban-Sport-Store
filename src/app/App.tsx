@@ -10,9 +10,6 @@ import {
 } from "lucide-react";
 import PromoCarousel from "./components/PromoCarousel";
 import promoRibbon from "../assets/cinta-10.png";
-import iconosEnvio from "../../iconos envio/Envio gratis y demas.png";
-import carritoEnvioGratis from "../../iconos envio/Carrito envio gratis.png";
-import mediosDePagoIcon from "../../iconos envio/Medios de pago.png";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -611,21 +608,9 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
         variant="marquee"
         intervalMs={7800}
         messages={[
-          <span className="inline-flex items-center gap-2">
-            <img src={carritoEnvioGratis} alt="Carrito envío gratis" className="h-5 w-5 object-contain" />
-            Envíos gratis a toda Colombia por compras superiores a $299.999
-            <img src={carritoEnvioGratis} alt="Carrito envío gratis" className="h-5 w-5 object-contain" />
-          </span>,
-          <span className="inline-flex items-center gap-2">
-            <img src={mediosDePagoIcon} alt="Medios de pago" className="h-5 w-5 object-contain" />
-            Aceptamos todos los medios de pago: Tarjeta de crédito, débito y PSE. ¡Compra 100% segura!
-            <img src={mediosDePagoIcon} alt="Medios de pago" className="h-5 w-5 object-contain" />
-          </span>,
-          <span className="inline-flex items-center gap-2">
-            <img src={iconosEnvio} alt="Envío gratis" className="h-5 w-5 object-contain" />
-            Soporte y atención al cliente las 24 horas
-            <img src={iconosEnvio} alt="Envío gratis" className="h-5 w-5 object-contain" />
-          </span>,
+          "Envíos gratis a toda Colombia por compras superiores a $299.999",
+          "Aceptamos todos los medios de pago: Tarjeta de crédito, débito y PSE. ¡Compra 100% segura!",
+          "Soporte y atención al cliente las 24 horas",
         ]}
       />
 
