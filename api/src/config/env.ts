@@ -6,10 +6,15 @@ export const loadEnvFiles = () => {
   dotenv.config({ path: path.resolve(process.cwd(), '.env') });
   dotenv.config({ path: path.resolve(process.cwd(), '.env.local'), override: true });
   
-  // If running from project root and in a monorepo structure, also try api/.env.local
+  // Load development overrides if available
+  dotenv.config({ path: path.resolve(process.cwd(), '.env.development.local'), override: true });
+  
+  // If running from project root and in a monorepo structure, also try api/.env.local and api/.env.development.local
   const apiEnvPath = path.resolve(process.cwd(), 'api', '.env.local');
+  const apiDevEnvPath = path.resolve(process.cwd(), 'api', '.env.development.local');
   if (process.cwd() !== path.resolve(process.cwd(), 'api')) {
     dotenv.config({ path: apiEnvPath, override: true });
+    dotenv.config({ path: apiDevEnvPath, override: true });
   }
 };
 
@@ -44,8 +49,20 @@ const parseBoolean = (value: string | undefined, fallback = false): boolean => {
   return value === 'true';
 };
 
-const rawDatabaseUrl = getEnv('DATABASE_URL', 'postgresql://postgres:postgres@localhost:5432/urbansportstore');
-const databaseUrl = normalizeDatabaseUrl(rawDatabaseUrl);
+const rawDatabaseUrl = getEnv('DATABASE_URL', '');
+
+// En desarrollo, si DATABASE_URL es Supabase (no accesible), usar localhost
+let databaseUrl = rawDatabaseUrl;
+const nodeEnv = getEnv('NODE_ENV', 'development');
+
+if (nodeEnv === 'development' && databaseUrl.includes('supabase.co')) {
+  console.log('🔄 Supabase URL detected in development, using localhost fallback');
+  databaseUrl = 'postgresql://postgres:postgres@localhost:5432/urbansportstore';
+} else if (!databaseUrl) {
+  databaseUrl = 'postgresql://postgres:postgres@localhost:5432/urbansportstore';
+}
+
+databaseUrl = normalizeDatabaseUrl(databaseUrl);
 if (databaseUrl !== rawDatabaseUrl) {
   process.env.DATABASE_URL = databaseUrl;
 }

@@ -2354,6 +2354,11 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
     isNew: false, isFeatured: false, specs: [],
   });
   const [galleryUrl, setGalleryUrl] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [isUploadingGallery, setIsUploadingGallery] = useState(false);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [mainImagePreview, setMainImagePreview] = useState<string>("");
 
   const METRICS = [
     { label: "Ventas totales", value: "$40.200.000", change: "+14.2%", up: true, icon: <TrendingUp size={18} /> },
@@ -2623,6 +2628,20 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
       discount: productForm.discount ? Number(productForm.discount) : undefined,
     };
 
+    // Validaciones básicas
+    const errors: Record<string, string> = {};
+    if (!productForm.name.trim()) errors.name = "El nombre es requerido";
+    if (!productForm.sku.trim()) errors.sku = "El SKU es requerido";
+    if (productForm.price <= 0) errors.price = "El precio debe ser mayor a 0";
+    if (productForm.stock < 0) errors.stock = "El stock no puede ser negativo";
+    if (!productForm.image && productForm.images.length === 0) errors.image = "Al menos una imagen es requerida";
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      toast.error("Por favor, completa todos los campos requeridos");
+      return;
+    }
+
     // Zod validation
     try {
       productSchema.parse(payload as any);
@@ -2633,13 +2652,40 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
     }
     if (!payload.sku) payload.sku = `SKU-${Date.now().toString().slice(-6)}`;
 
-    if (formMode === "edit" && activeProduct) {
-      void updateProduct(activeProduct.id, payload);
-    } else {
-      void createProduct(payload);
-    }
+    setIsSubmitting(true);
+    const executeUpdate = async () => {
+      if (formMode === "edit" && activeProduct) {
+        try {
+          await updateProduct(activeProduct.id, payload);
+          resetForm();
+          setAdminSection("products");
+        } catch (e) {
+          console.error("Error updating product:", e);
+          toast.error("Error al actualizar el producto");
+        } finally {
+          setIsSubmitting(false);
+        }
+      }
+    };
 
-    resetForm();
+    const executeCreate = async () => {
+      try {
+        await createProduct(payload);
+        resetForm();
+        setAdminSection("products");
+      } catch (e) {
+        console.error("Error creating product:", e);
+        toast.error("Error al crear el producto");
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
+
+    if (formMode === "edit" && activeProduct) {
+      void executeUpdate();
+    } else {
+      void executeCreate();
+    }
   };
 
   const handleDeleteProduct = (productId: string) => {
@@ -3086,83 +3132,212 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
             </div>
 
             <div className="bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] p-5">
-              <h3 className="text-lg font-extrabold text-slate-900 mb-3">{formMode === 'edit' ? 'Editar producto' : 'Crear producto'}</h3>
-              <form onSubmit={handleFormSubmit} className="space-y-3">
-                <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase">Nombre</label>
-                  <input value={productForm.name} onChange={(e) => updateField('name', e.target.value)} className="w-full px-3 py-2 mt-1 rounded-lg border border-slate-200 bg-slate-50" />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase">Marca</label>
-                  <input value={productForm.brand} onChange={(e) => updateField('brand', e.target.value)} className="w-full px-3 py-2 mt-1 rounded-lg border border-slate-200 bg-slate-50" />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
+              <h3 className="text-lg font-extrabold text-slate-900 mb-4">{formMode === 'edit' ? '✏️ Editar producto' : '➕ Crear nuevo producto'}</h3>
+              <form onSubmit={handleFormSubmit} className="space-y-4">
+                {/* Nombre y Marca */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase">Precio</label>
-                    <input type="number" value={productForm.price as any} onChange={(e) => updateField('price', Number(e.target.value))} className="w-full px-3 py-2 mt-1 rounded-lg border border-slate-200 bg-slate-50" />
+                    <label className="text-xs font-bold text-slate-600 uppercase block mb-2">Nombre *</label>
+                    <input 
+                      value={productForm.name} 
+                      onChange={(e) => { updateField('name', e.target.value); setFormErrors({...formErrors, name: ''}) }}
+                      placeholder="Ej: Nike Air Force 1" 
+                      className={`w-full px-4 py-3 rounded-xl border-2 transition-colors ${formErrors.name ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-white hover:border-slate-300 focus:border-slate-500'} focus:outline-none`} 
+                    />
+                    {formErrors.name && <p className="text-xs text-red-600 mt-1">{formErrors.name}</p>}
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase">Stock</label>
-                    <input type="number" value={productForm.stock as any} onChange={(e) => updateField('stock', Number(e.target.value))} className="w-full px-3 py-2 mt-1 rounded-lg border border-slate-200 bg-slate-50" />
+                    <label className="text-xs font-bold text-slate-600 uppercase block mb-2">Marca</label>
+                    <input 
+                      value={productForm.brand} 
+                      onChange={(e) => updateField('brand', e.target.value)}
+                      placeholder="Ej: Nike" 
+                      className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-white hover:border-slate-300 focus:border-slate-500 focus:outline-none transition-colors" 
+                    />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+
+                {/* Precio y Stock */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase">Categoría</label>
-                    <select value={productForm.category} onChange={(e) => {
-                      const category = e.target.value as Category;
-                      updateField('category', category);
-                      const [defaultSubcategory] = CATEGORY_SUBCATEGORIES[category] || [''];
-                      if (!CATEGORY_SUBCATEGORIES[category].includes(productForm.subcategory)) {
-                        updateField('subcategory', defaultSubcategory);
-                      }
-                    }} className="w-full px-3 py-2 mt-1 rounded-lg border border-slate-200 bg-slate-50 text-slate-700">
+                    <label className="text-xs font-bold text-slate-600 uppercase block mb-2">Precio *</label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-3 text-slate-600 font-semibold">$</span>
+                      <input 
+                        type="number" 
+                        value={productForm.price as any} 
+                        onChange={(e) => { updateField('price', Number(e.target.value)); setFormErrors({...formErrors, price: ''}) }}
+                        placeholder="0" 
+                        className={`w-full pl-8 pr-4 py-3 rounded-xl border-2 transition-colors ${formErrors.price ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-white hover:border-slate-300 focus:border-slate-500'} focus:outline-none`}
+                      />
+                    </div>
+                    {formErrors.price && <p className="text-xs text-red-600 mt-1">{formErrors.price}</p>}
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-600 uppercase block mb-2">Stock *</label>
+                    <input 
+                      type="number" 
+                      value={productForm.stock as any} 
+                      onChange={(e) => { updateField('stock', Number(e.target.value)); setFormErrors({...formErrors, stock: ''}) }}
+                      placeholder="0" 
+                      className={`w-full px-4 py-3 rounded-xl border-2 transition-colors ${formErrors.stock ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-white hover:border-slate-300 focus:border-slate-500'} focus:outline-none`}
+                    />
+                    {formErrors.stock && <p className="text-xs text-red-600 mt-1">{formErrors.stock}</p>}
+                  </div>
+                </div>
+
+                {/* SKU y Categoría */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-bold text-slate-600 uppercase block mb-2">SKU *</label>
+                    <input 
+                      value={productForm.sku} 
+                      onChange={(e) => { updateField('sku', e.target.value); setFormErrors({...formErrors, sku: ''}) }}
+                      placeholder="Ej: NKE-AF1-001" 
+                      className={`w-full px-4 py-3 rounded-xl border-2 transition-colors ${formErrors.sku ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-white hover:border-slate-300 focus:border-slate-500'} focus:outline-none`}
+                    />
+                    {formErrors.sku && <p className="text-xs text-red-600 mt-1">{formErrors.sku}</p>}
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-600 uppercase block mb-2">Categoría</label>
+                    <select 
+                      value={productForm.category} 
+                      onChange={(e) => {
+                        const category = e.target.value as Category;
+                        updateField('category', category);
+                        const [defaultSubcategory] = CATEGORY_SUBCATEGORIES[category] || [''];
+                        if (!CATEGORY_SUBCATEGORIES[category].includes(productForm.subcategory)) {
+                          updateField('subcategory', defaultSubcategory);
+                        }
+                      }} 
+                      className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-white hover:border-slate-300 focus:border-slate-500 focus:outline-none transition-colors text-slate-700"
+                    >
                       {Object.keys(CATEGORY_SUBCATEGORIES).map((cat) => (
                         <option key={cat} value={cat}>{cat}</option>
                       ))}
                     </select>
                   </div>
-                  <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase">Subcategoría</label>
-                    <select value={productForm.subcategory} onChange={(e) => updateField('subcategory', e.target.value)} className="w-full px-3 py-2 mt-1 rounded-lg border border-slate-200 bg-slate-50 text-slate-700">
-                      {(CATEGORY_SUBCATEGORIES[productForm.category] || []).map((subcat) => (
-                        <option key={subcat} value={subcat}>{subcat}</option>
-                      ))}
-                    </select>
-                  </div>
                 </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase">SKU</label>
-                  <input value={productForm.sku} onChange={(e) => updateField('sku', e.target.value)} className="w-full px-3 py-2 mt-1 rounded-lg border border-slate-200 bg-slate-50" />
-                </div>
-                <div className="space-y-3">
                   <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase">Imagen principal (archivo o URL)</label>
-                    <input type="file" accept="image/*" onChange={handleImageFileChange} className="w-full px-3 py-2 mt-1 rounded-lg border border-slate-200 bg-slate-50" />
-                    <input value={productForm.image} onChange={(e) => updateField('image', e.target.value)} placeholder="O pega una URL pública" className="w-full px-3 py-2 mt-2 rounded-lg border border-slate-200 bg-slate-50" />
+                    <label className="text-xs font-bold text-slate-600 uppercase block mb-3 flex items-center gap-2">
+                      <span>🖼️ Imagen principal</span>
+                      {isUploadingImage && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full animate-pulse">Cargando...</span>}
+                    </label>
+                    
+                    {/* Preview de imagen principal */}
+                    {(productForm.image || mainImagePreview) && (
+                      <div className="mb-3 rounded-xl overflow-hidden border-2 border-slate-200 bg-white">
+                        <img 
+                          src={mainImagePreview || productForm.image} 
+                          alt="Preview" 
+                          className="w-full h-40 object-cover"
+                        />
+                      </div>
+                    )}
+
+                    {/* Input file */}
+                    <label className="w-full px-4 py-3 rounded-xl border-2 border-dashed border-slate-300 bg-white hover:bg-slate-50 cursor-pointer transition-colors flex flex-col items-center justify-center gap-2">
+                      <span className="text-2xl">📁</span>
+                      <span className="text-sm font-semibold text-slate-600">Selecciona una imagen</span>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={handleImageFileChange} 
+                        disabled={isUploadingImage}
+                        className="hidden" 
+                      />
+                    </label>
+
+                    {/* O URL */}
+                    <div className="mt-2 text-xs text-slate-500 text-center">O</div>
+                    <input 
+                      value={productForm.image} 
+                      onChange={(e) => { updateField('image', e.target.value); setMainImagePreview(e.target.value); }}
+                      placeholder="Pega una URL pública (ej: https://example.com/image.jpg)" 
+                      className={`w-full px-4 py-3 mt-2 rounded-xl border-2 transition-colors ${formErrors.image ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-white hover:border-slate-300 focus:border-slate-500'} focus:outline-none`}
+                    />
+                    {formErrors.image && <p className="text-xs text-red-600 mt-1">{formErrors.image}</p>}
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase">Galería de imágenes</label>
-                    <input type="file" accept="image/*" multiple onChange={handleGalleryFilesChange} className="w-full px-3 py-2 mt-1 rounded-lg border border-slate-200 bg-slate-50" />
-                    <div className="flex gap-2 mt-2">
-                      <input value={galleryUrl} onChange={(e) => setGalleryUrl(e.target.value)} placeholder="URL pública de galería" className="flex-1 px-3 py-2 rounded-lg border border-slate-200 bg-slate-50" />
-                      <button type="button" onClick={addGalleryImageUrl} className="px-4 py-2 rounded-xl bg-slate-900 text-white">Agregar</button>
+                    <label className="text-xs font-bold text-slate-600 uppercase block mb-3 flex items-center gap-2">
+                      <span>📸 Galería de imágenes</span>
+                      {isUploadingGallery && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full animate-pulse">Cargando...</span>}
+                    </label>
+                    {/* Input file múltiple */}
+                    <label className="w-full px-4 py-3 rounded-xl border-2 border-dashed border-slate-300 bg-white hover:bg-slate-50 cursor-pointer transition-colors flex flex-col items-center justify-center gap-2">
+                      <span className="text-2xl">📸</span>
+                      <span className="text-sm font-semibold text-slate-600">Selecciona múltiples imágenes</span>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        multiple 
+                        onChange={handleGalleryFilesChange} 
+                        disabled={isUploadingGallery}
+                        className="hidden" 
+                      />
+                    </label>
+                    {/* O URL */}
+                    <div className="mt-3 flex gap-2">
+                      <input 
+                        value={galleryUrl} 
+                        onChange={(e) => setGalleryUrl(e.target.value)} 
+                        placeholder="O pega una URL pública" 
+                        className="flex-1 px-4 py-3 rounded-xl border-2 border-slate-200 bg-white hover:border-slate-300 focus:border-slate-500 focus:outline-none transition-colors"
+                        onKeyPress={(e) => e.key === 'Enter' && addGalleryImageUrl()}
+                      />
+                      <button 
+                        type="button" 
+                        onClick={addGalleryImageUrl} 
+                        className="px-4 py-3 rounded-xl bg-slate-900 text-white font-semibold hover:bg-slate-800 transition-colors"
+                      >
+                        Agregar
+                      </button>
                     </div>
                     {productForm.images?.length > 0 && (
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3">
+                      <div className="mt-3">
+                        <p className="text-xs font-semibold text-slate-600 mb-2">{productForm.images.length} imagen(es) en galería</p>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                         {productForm.images.map((img, index) => (
-                          <div key={index} className="relative rounded-xl overflow-hidden border border-slate-200 bg-slate-50">
+                            <div key={index} className="relative rounded-xl overflow-hidden border-2 border-slate-200 bg-white hover:border-slate-400 transition-colors group">
                             <img src={img} alt={`Galería ${index + 1}`} className="w-full h-24 object-cover" />
-                            <button type="button" onClick={() => removeGalleryImage(index)} className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/70 text-white text-xs font-bold">×</button>
-                          </div>
-                        ))}
+                              <button 
+                                type="button" 
+                                onClick={() => removeGalleryImage(index)} 
+                                className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                              >
+                                <span className="text-white text-2xl font-bold">✕</span>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button type="submit" className="px-4 py-2 rounded-xl bg-black text-white font-semibold">{formMode === 'edit' ? 'Guardar cambios' : 'Crear'}</button>
-                  <button type="button" onClick={() => resetForm()} className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700">Cancelar</button>
+                <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
+                  <button 
+                    type="submit" 
+                    disabled={isSubmitting}
+                    className={`flex-1 px-6 py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 ${isSubmitting ? 'bg-slate-300 text-slate-600 cursor-not-allowed' : 'bg-black text-white hover:bg-slate-900 active:scale-95'}`}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <span className="animate-spin">⏳</span>
+                        {formMode === 'edit' ? 'Guardando cambios...' : 'Creando producto...'}
+                      </>
+                    ) : (
+                      <>
+                        {formMode === 'edit' ? '💾 Guardar cambios' : '✅ Crear producto'}
+                      </>
+                    )}
+                  </button>
+                  <button 
+                    type="button" 
+                    onClick={() => resetForm()} 
+                    className="flex-1 px-6 py-3 rounded-xl bg-slate-100 text-slate-700 font-semibold hover:bg-slate-200 transition-colors active:scale-95"
+                  >
+                    ✕ Cancelar
+                  </button>
                 </div>
               </form>
             </div>
@@ -3409,6 +3584,15 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
   const handleImageFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    
+    // Show preview immediately
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setMainImagePreview(event.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+
+    setIsUploadingImage(true);
     try {
       const data = await uploadProductImage(file);
       const path = (data as any)?.path ?? (data as any)?.Key ?? null;
@@ -3416,9 +3600,13 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
         const bucket = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET ?? 'products';
         const publicUrl = getPublicUrl(bucket, path);
         updateField('image', publicUrl as any);
+        toast.success('Imagen cargada exitosamente');
       }
     } catch (err) {
       console.warn('Image upload failed', err);
+      toast.error('Error al cargar la imagen. Intenta nuevamente o usa una URL.');
+    } finally {
+      setIsUploadingImage(false);
     }
   };
 
@@ -3428,12 +3616,21 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
     const bucket = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET ?? 'products';
     const uploadedUrls: string[] = [];
 
+    setIsUploadingGallery(true);
+    const totalFiles = files.length;
+    let uploadedCount = 0;
+
     for (const file of Array.from(files)) {
       try {
         const data = await uploadProductImage(file, `products/${Date.now()}-${file.name}`);
         const path = (data as any)?.path ?? (data as any)?.Key ?? null;
         if (path) {
           uploadedUrls.push(getPublicUrl(bucket, path) as string);
+        }
+        uploadedCount++;
+        // Show progress
+        if (uploadedCount % Math.ceil(totalFiles / 3) === 0) {
+          toast.success(`Cargadas ${uploadedCount}/${totalFiles} imágenes`);
         }
       } catch (err) {
         console.warn('Gallery image upload failed', err);
@@ -3442,7 +3639,11 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
 
     if (uploadedUrls.length > 0) {
       updateField('images', [...(productForm.images ?? []), ...uploadedUrls] as any);
+      toast.success(`${uploadedUrls.length} imágenes cargadas a la galería`);
+    } else {
+      toast.error('No se pudieron cargar las imágenes. Intenta nuevamente.');
     }
+    setIsUploadingGallery(false);
   };
 
   const addGalleryImageUrl = () => {

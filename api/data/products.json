@@ -1,0 +1,38 @@
+{
+  "products": [
+    {
+      "name": "Fallback Product",
+      "slug": "fallback-product",
+      "sku": "FB-001",
+      "description": "",
+      "price": 129000,
+      "compareAtPrice": null,
+      "stock": 5,
+      "status": "ACTIVE",
+      "categoryId": "cat-1",
+      "brandId": "brand-1",
+      "category": "category-cat-1",
+      "brand": "brand-brand-1",
+      "id": "9eee80ef-62b3-4190-878f-b4e86af5d722",
+      "createdAt": "2026-07-19T21:59:28.722Z",
+      "updatedAt": "2026-07-19T21:59:28.724Z"
+    },
+    {
+      "name": "Fallback Product",
+      "slug": "fallback-product",
+      "sku": "FB-001",
+      "description": "",
+      "price": 129000,
+      "compareAtPrice": null,
+      "stock": 5,
+      "status": "ACTIVE",
+      "categoryId": "cat-1",
+      "brandId": "brand-1",
+      "category": "category-cat-1",
+      "brand": "brand-brand-1",
+      "id": "04a49786-e171-492c-9105-d87de37c884d",
+      "createdAt": "2026-07-19T22:00:53.013Z",
+      "updatedAt": "2026-07-19T22:00:53.015Z"
+    }
+  ]
+}
