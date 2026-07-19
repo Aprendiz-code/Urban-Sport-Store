@@ -2424,6 +2424,8 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
     saleSectionImage: "",
   } as const;
 
+  
+
   const updateHomeContentField = (field: keyof HomePageContent, value: string) => {
     setHomeContent((prev) => ({ ...prev, [field]: value }));
   };
