@@ -730,7 +730,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
                         </button>
                       )}
                       {isAdmin && (
-                        <button type="button" onClick={() => { console.log('user menu -> admin click'); onNavigate("admin"); setUserOpen(false); }}
+                        <button type="button" onClick={() => { onNavigate("admin"); setUserOpen(false); }}
                           className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
                           <BarChart2 size={14} /> Panel admin
                         </button>
@@ -2497,9 +2497,6 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
   ];
 
   const handleSidebarClick = (section: string) => {
-    // Diagnostic log to help trace navigation issues
-    // eslint-disable-next-line no-console
-    console.log('handleSidebarClick', section);
     updateAdminSectionUrl(section);
     setAdminSection(section);
   };
@@ -3502,10 +3499,6 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
             </div>
           </div>
         </div>
-        <div aria-hidden className="fixed top-20 right-6 z-50">
-          <div className="bg-black/70 text-white text-xs px-3 py-1 rounded-lg">adminSection: {adminSection}</div>
-        </div>
-
         {backendAdminAvailable === false ? (
           <div className="mb-6 p-4 rounded-lg bg-yellow-50 border border-yellow-100 text-yellow-800">
             <strong>Backend admin no disponible.</strong> Algunas funciones administrativas pueden no estar disponibles. (Error 404 en /api/v1/admin/*)
