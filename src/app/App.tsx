@@ -2388,10 +2388,16 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
 
   const updateAdminSectionUrl = (section: string) => {
     if (typeof window === "undefined") return;
-    const url = new URL(window.location.href);
-    url.searchParams.set("view", "admin");
-    url.searchParams.set("adminSection", section);
-    window.history.replaceState({}, "", url.pathname + url.search);
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set("view", "admin");
+      url.searchParams.set("adminSection", section);
+      window.history.replaceState({}, "", url.pathname + url.search);
+    } catch (err) {
+      // Diagnostic log in case URL manipulation fails
+      // eslint-disable-next-line no-console
+      console.error('updateAdminSectionUrl failed', err, section, window.location.href);
+    }
   };
 
   const HOME_CONTENT_FIELDS = {
@@ -2487,6 +2493,9 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
   ];
 
   const handleSidebarClick = (section: string) => {
+    // Diagnostic log to help trace navigation issues
+    // eslint-disable-next-line no-console
+    console.log('handleSidebarClick', section);
     updateAdminSectionUrl(section);
     setAdminSection(section);
   };
@@ -3455,7 +3464,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
         </div>
         <nav className="p-2 flex-1 overflow-y-auto space-y-0.5">
           {SIDEBAR_LINKS.map((l) => (
-            <button key={l.id} onClick={() => handleSidebarClick(l.id)}
+            <button type="button" key={l.id} onClick={() => handleSidebarClick(l.id)}
               className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors ${adminSection === l.id ? "bg-white/15 text-white" : "text-blue-200 hover:text-white hover:bg-white/10"}`}>
               {l.icon} {l.label}
             </button>
@@ -3478,11 +3487,11 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                   <option key={link.id} value={link.id}>{link.label}</option>
                 ))}
               </select>
-              <button onClick={() => onNavigate("home")} className="whitespace-nowrap rounded-3xl bg-black px-4 py-3 text-sm font-semibold text-white hover:bg-slate-900">Tienda</button>
+              <button type="button" onClick={() => onNavigate("home")} className="whitespace-nowrap rounded-3xl bg-black px-4 py-3 text-sm font-semibold text-white hover:bg-slate-900">Tienda</button>
             </div>
             <div className="flex items-center gap-2 overflow-x-auto pb-1">
               {SIDEBAR_LINKS.map((link) => (
-                <button key={link.id} onClick={() => handleSidebarClick(link.id)} className={`rounded-full px-4 py-2 text-sm font-semibold ${adminSection === link.id ? 'bg-black text-white' : 'bg-slate-100 text-slate-700'}`}>
+                <button type="button" key={link.id} onClick={() => handleSidebarClick(link.id)} className={`rounded-full px-4 py-2 text-sm font-semibold ${adminSection === link.id ? 'bg-black text-white' : 'bg-slate-100 text-slate-700'}`}>
                   {link.label}
                 </button>
               ))}
