@@ -3498,7 +3498,25 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
             </div>
           </div>
         </div>
-        {renderAdminSection()}
+        <div aria-hidden className="fixed top-20 right-6 z-50">
+          <div className="bg-black/70 text-white text-xs px-3 py-1 rounded-lg">adminSection: {adminSection}</div>
+          <div className="mt-1 bg-black/60 text-white text-xs px-3 py-1 rounded-lg">isAdmin: {String(isAdmin)}</div>
+        </div>
+
+        {(() => {
+          try {
+            return renderAdminSection();
+          } catch (err) {
+            // eslint-disable-next-line no-console
+            console.error('renderAdminSection error', err);
+            return (
+              <div className="p-6 bg-red-50 text-red-700 rounded-lg">
+                <h3 className="font-bold">Error al renderizar la sección</h3>
+                <pre className="text-xs mt-2">{String(err)}</pre>
+              </div>
+            );
+          }
+        })()}
       </main>
     </div>
   );
