@@ -708,9 +708,10 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
 
             <div className="relative">
               <button
-                onClick={() => setUserOpen(!userOpen)}
-                className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
-              >
+                  type="button"
+                  onClick={() => setUserOpen(!userOpen)}
+                  className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
+                >
                 {isLoggedIn
                   ? <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#1d4ed8] to-[#f97316] flex items-center justify-center text-xs font-bold text-white">V</div>
                   : <Users size={19} />}
@@ -724,19 +725,19 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
                         <p className="text-xs text-slate-400">{authUser?.email ?? 'email@dominio.com'}</p>
                       </div>
                       {showCustomerOrders && (
-                        <button onClick={() => { onNavigate("account"); setUserOpen(false); }}
+                        <button type="button" onClick={() => { onNavigate("account"); setUserOpen(false); }}
                           className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
                           <Package size={14} /> Mis pedidos
                         </button>
                       )}
                       {isAdmin && (
-                        <button onClick={() => { onNavigate("admin"); setUserOpen(false); }}
+                        <button type="button" onClick={() => { console.log('user menu -> admin click'); onNavigate("admin"); setUserOpen(false); }}
                           className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
                           <BarChart2 size={14} /> Panel admin
                         </button>
                       )}
                       <div className="border-t border-slate-100 mt-1 pt-1">
-                        <button onClick={() => { onLogout(); setUserOpen(false); }}
+                        <button type="button" onClick={() => { onLogout(); setUserOpen(false); }}
                           className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors">
                           <LogOut size={14} /> Cerrar sesión
                         </button>
@@ -3863,20 +3864,28 @@ export default function App() {
   };
 
   const navigate = (v: View) => {
-    setView(v);
+    try {
+      // Diagnostic
+      // eslint-disable-next-line no-console
+      console.log('navigate ->', v);
+      setView(v);
 
-    if (typeof window !== "undefined") {
-      const url = new URL(window.location.href);
-      if (v === "admin") {
-        url.searchParams.set("view", "admin");
-      } else {
-        url.searchParams.delete("view");
-        url.searchParams.delete("adminSection");
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        if (v === "admin") {
+          url.searchParams.set("view", "admin");
+        } else {
+          url.searchParams.delete("view");
+          url.searchParams.delete("adminSection");
+        }
+        window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
       }
-      window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
-    }
 
-    window.scrollTo({ top: 0, behavior: "smooth" });
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('navigate failed', err, v);
+    }
   };
 
   const handleSelectProduct = (p: Product) => {
