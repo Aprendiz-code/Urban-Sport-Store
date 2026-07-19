@@ -3503,6 +3503,12 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
           <div className="bg-black/70 text-white text-xs px-3 py-1 rounded-lg">adminSection: {adminSection}</div>
         </div>
 
+        {backendAdminAvailable === false && view === 'admin' ? (
+          <div className="mb-6 p-4 rounded-lg bg-yellow-50 border border-yellow-100 text-yellow-800">
+            <strong>Backend admin no disponible.</strong> Algunas funciones administrativas pueden no estar disponibles. (Error 404 en /api/v1/admin/*)
+          </div>
+        ) : null}
+
         {(() => {
           try {
             return renderAdminSection();
@@ -3526,6 +3532,8 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
 
 export default function App() {
   const [view, setView] = useState<View>("home");
+  const [backendHomeAvailable, setBackendHomeAvailable] = useState<boolean | null>(null);
+  const [backendAdminAvailable, setBackendAdminAvailable] = useState<boolean | null>(null);
   const [initialAdminSection, setInitialAdminSection] = useState<string | undefined>(undefined);
   const [products, setProducts] = useState<Product[]>([]);
   const [productRefresh, setProductRefresh] = useState(0);
@@ -3536,13 +3544,18 @@ export default function App() {
     const loadHomeContent = async () => {
       try {
         const res = await fetch(`${import.meta.env.VITE_API_URL ?? '/api/v1'}/home-content`);
-        if (!res.ok) return;
+        if (!res.ok) {
+          setBackendHomeAvailable(false);
+          return;
+        }
+        setBackendHomeAvailable(true);
         const json = await res.json();
         if (json?.data) {
           setHomeContent((prev) => ({ ...prev, ...json.data }));
         }
       } catch (error) {
         console.warn('No se pudo cargar el contenido de la home desde backend.', error);
+        setBackendHomeAvailable(false);
       }
     };
 
@@ -3557,6 +3570,7 @@ export default function App() {
       const tryLoadingFromAdminApi = async () => {
         try {
           const response = await adminApi.fetchSupabaseProducts();
+          setBackendAdminAvailable(true);
           if (!isActive) return false;
           if (Array.isArray(response) && response.length > 0) {
             setProducts(response.map(mapProductRecordToAppProduct));
@@ -3564,6 +3578,7 @@ export default function App() {
           }
         } catch (error) {
           console.warn('No se pudo cargar productos desde el backend admin.', error);
+          setBackendAdminAvailable(false);
         }
         return false;
       };
