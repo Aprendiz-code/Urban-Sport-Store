@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import { prisma } from '../db/prisma.js';
+import type { Prisma } from '@prisma/client';
 import { successResponse } from '../utils/responses.js';
 import { ProductService } from '../services/product.service.js';
 import { SupabaseAdminService } from '../services/supabase-admin.service.js';
@@ -24,7 +25,19 @@ export const createProduct = async (req: Request, res: Response, next: NextFunct
   try {
     const product = await productService.create(req.body);
     // record audit
-    try { await prisma.auditLog.create({ data: { actorId: req.user?.id ?? undefined, action: 'create_product', entity: 'product', entityId: product.id, changes: product } }); } catch (e) { /* ignore */ }
+    try {
+      await prisma.auditLog.create({
+        data: {
+          actorId: req.user?.id ?? undefined,
+          action: 'create_product',
+          entity: 'product',
+          entityId: product.id,
+          changes: JSON.parse(JSON.stringify(product)) as Prisma.InputJsonValue,
+        },
+      });
+    } catch (e) {
+      /* ignore */
+    }
     res.status(201).json(successResponse(product));
   } catch (error) {
     next(error);
@@ -75,7 +88,19 @@ export const updateProduct = async (req: Request, res: Response, next: NextFunct
   try {
     const productId = Array.isArray(req.params.productId) ? req.params.productId[0] : req.params.productId;
     const product = await productService.update(productId, req.body);
-    try { await prisma.auditLog.create({ data: { actorId: req.user?.id ?? undefined, action: 'update_product', entity: 'product', entityId: product.id, changes: req.body } }); } catch (e) { }
+    try {
+      await prisma.auditLog.create({
+        data: {
+          actorId: req.user?.id ?? undefined,
+          action: 'update_product',
+          entity: 'product',
+          entityId: product.id,
+          changes: JSON.parse(JSON.stringify(req.body)) as Prisma.InputJsonValue,
+        },
+      });
+    } catch (e) {
+      /* ignore */
+    }
     res.status(200).json(successResponse(product));
   } catch (error) {
     next(error);
@@ -144,7 +169,19 @@ export const updateBrand = async (req: Request, res: Response, next: NextFunctio
 export const createInventoryMovement = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const movement = await prisma.inventoryMovement.create({ data: req.body });
-    try { await prisma.auditLog.create({ data: { actorId: req.user?.id ?? undefined, action: 'inventory_movement', entity: 'product', entityId: (req.body as any).productId, changes: req.body } }); } catch (e) { }
+    try {
+      await prisma.auditLog.create({
+        data: {
+          actorId: req.user?.id ?? undefined,
+          action: 'inventory_movement',
+          entity: 'product',
+          entityId: (req.body as any).productId,
+          changes: JSON.parse(JSON.stringify(req.body)) as Prisma.InputJsonValue,
+        },
+      });
+    } catch (e) {
+      /* ignore */
+    }
     res.status(201).json(successResponse(movement));
   } catch (error) {
     next(error);

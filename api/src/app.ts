@@ -36,7 +36,8 @@ declare global {
 const app = express();
 
 app.set('trust proxy', 1);
-app.use((helmet as any)());
+const helmetMiddleware = (helmet as any).default ?? helmet;
+app.use(helmetMiddleware());
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
