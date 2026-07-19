@@ -9,7 +9,6 @@ import {
   RefreshCw, Award, Grid3X3, ThumbsUp, DollarSign
 } from "lucide-react";
 import PromoCarousel from "./components/PromoCarousel";
-import promoRibbon from "../assets/cinta-10.png";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -761,12 +760,8 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
                 promoEntered ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2',
               ].join(' ')}
             >
-              <div className="w-full flex items-center justify-center bg-white">
-                <img
-                  src={promoRibbon}
-                  alt="Rebajas UrbanSport Store 10% de descuento en tu primera compra"
-                  className="block w-full h-auto object-contain promo-animate"
-                />
+              <div className="w-full flex items-center justify-center bg-white" style={{ minHeight: 72 }}>
+                {/* espacio reservado para futura imagen */}
               </div>
             </button>
           </div>
@@ -1529,20 +1524,6 @@ function ProductDetailPage({ product, onBack, onAddToCart, onNavigate }: {
               className="flex-1 py-3.5 rounded-xl text-sm font-extrabold border-2 border-black text-black hover:bg-slate-100 flex items-center justify-center gap-2 transition-colors">
               Comprar ahora
             </button>
-          </div>
-
-          {/* Trust */}
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              { icon: <Truck size={14} />, text: "Envío gratis\n+$250.000" },
-              { icon: <Shield size={14} />, text: "Garantía\noficial" },
-              { icon: <RefreshCw size={14} />, text: "30 días\ndevolución" },
-            ].map((t) => (
-              <div key={t.text} className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-slate-50 border border-slate-100">
-                <span className="text-[#1d4ed8]">{t.icon}</span>
-                <span className="text-[10px] text-slate-500 text-center whitespace-pre-line leading-tight">{t.text}</span>
-              </div>
-            ))}
           </div>
         </div>
       </div>
