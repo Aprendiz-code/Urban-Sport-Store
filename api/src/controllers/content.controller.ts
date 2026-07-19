@@ -39,9 +39,10 @@ export const getHomeContent = async (_req: Request, res: Response, next: NextFun
 export const updateHomeContent = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const existing = await prisma.siteContent.findUnique({ where: { key: HOME_CONTENT_KEY } });
+    const existingContent = typeof existing?.content === 'object' && existing?.content !== null ? existing.content : {};
     const updatedContent = {
       ...DEFAULT_HOME_CONTENT,
-      ...(existing?.content ?? {}),
+      ...existingContent,
       ...req.body,
     };
     const siteContent = await prisma.siteContent.upsert({
