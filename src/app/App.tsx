@@ -603,62 +603,38 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
   }, [searchVal, products]);
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-50">
-      {/* Announce Bar (carousel) */}
-      <PromoCarousel
-        variant="marquee"
-        intervalMs={7800}
-        messages={[
-          "Envíos gratis a toda Colombia por compras superiores a $299.999",
-          "Aceptamos todos los medios de pago: Tarjeta de crédito, débito y PSE. ¡Compra 100% segura!",
-          "Soporte y atención al cliente las 24 horas",
-        ]}
-      />
+    <>
+      <div className="fixed top-0 left-0 right-0 z-50">
+        {/* Announce Bar (carousel) */}
+        <PromoCarousel
+          variant="marquee"
+          intervalMs={7800}
+          messages={[
+            "Envíos gratis a toda Colombia por compras superiores a $299.999",
+            "Aceptamos todos los medios de pago: Tarjeta de crédito, débito y PSE. ¡Compra 100% segura!",
+            "Soporte y atención al cliente las 24 horas",
+          ]}
+        />
 
-      {/* Main Navbar */}
-      <nav className="bg-white border-b border-slate-100 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-4">
-          {/* Logo */}
-          <button onClick={() => onNavigate("home")} className="flex items-center gap-2 shrink-0">
-            <span className="text-xl sm:text-[2.1rem] font-extrabold text-slate-900 tracking-tight leading-none">
-              Urban<span className="text-[#1d4ed8]">Sport</span>
-              <span className="block text-[12px] sm:text-[13px] font-semibold text-slate-400 tracking-widest uppercase">Store</span>
-            </span>
-          </button>
+        {/* Main Navbar */}
+        <nav className="bg-white border-b border-slate-100 shadow-sm">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-4">
+            {/* Logo */}
+            <button onClick={() => onNavigate("home")} className="flex items-center gap-2 shrink-0">
+              <span className="text-xl sm:text-[2.1rem] font-extrabold text-slate-900 tracking-tight leading-none">
+                Urban<span className="text-[#1d4ed8]">Sport</span>
+                <span className="block text-[12px] sm:text-[13px] font-semibold text-slate-400 tracking-widest uppercase">Store</span>
+              </span>
+            </button>
 
-          {/* Search */}
-          {/* Desktop search */}
-          <div className="flex-1 max-w-xl hidden sm:flex relative">
-            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              value={searchVal} onChange={(e) => setSearchVal(e.target.value)}
-              placeholder="Buscar zapatillas, ropa, relojes…"
-              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:border-[#1d4ed8]/50 focus:bg-white transition-all"
-              onFocus={() => setShowSuggestions(true)}
-              onBlur={() => setTimeout(() => setShowSuggestions(false), 180)}
-            />
-
-            {showSuggestions && suggestions.length > 0 && (
-              <div className="absolute left-0 right-0 mt-2 bg-white border border-slate-100 rounded-xl shadow-lg z-50 max-h-60 overflow-auto">
-                {suggestions.map((s) => (
-                  <button key={s.id} onMouseDown={(e) => { e.preventDefault(); onSelectProduct(s); setSearchVal(''); setSuggestions([]); }}
-                    className="w-full text-left px-4 py-3 hover:bg-slate-50 transition-colors">
-                    <div className="text-sm font-semibold">{s.name}</div>
-                    <div className="text-xs text-slate-400">{s.brand} · {s.subcategory}</div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Mobile search (visible on xs) */}
-          <div className="flex-1 sm:hidden">
-            <div className="relative">
+            {/* Search */}
+            {/* Desktop search */}
+            <div className="flex-1 max-w-xl hidden sm:flex relative">
               <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 value={searchVal} onChange={(e) => setSearchVal(e.target.value)}
                 placeholder="Buscar zapatillas, ropa, relojes…"
-                className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none"
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:border-[#1d4ed8]/50 focus:bg-white transition-all"
                 onFocus={() => setShowSuggestions(true)}
                 onBlur={() => setTimeout(() => setShowSuggestions(false), 180)}
               />
@@ -675,78 +651,103 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
                 </div>
               )}
             </div>
-          </div>
 
-          {/* Actions */}
-          <div className="flex items-center gap-1 ml-auto">
-            <button
-              onClick={onCartOpen}
-              className="relative w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
-            >
-              <ShoppingCart size={19} />
-              {cartCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 w-4.5 h-4.5 w-5 h-5 rounded-full bg-[#f97316] text-white text-[10px] font-bold flex items-center justify-center">
-                  {cartCount}
-                </span>
-              )}
-            </button>
+            {/* Mobile search (visible on xs) */}
+            <div className="flex-1 sm:hidden">
+              <div className="relative">
+                <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  value={searchVal} onChange={(e) => setSearchVal(e.target.value)}
+                  placeholder="Buscar zapatillas, ropa, relojes…"
+                  className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none"
+                  onFocus={() => setShowSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 180)}
+                />
 
-            <div className="relative">
-              <button
-                  type="button"
-                  onClick={() => setUserOpen(!userOpen)}
-                  className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
-                >
-                {isLoggedIn
-                  ? <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#1d4ed8] to-[#f97316] flex items-center justify-center text-xs font-bold text-white">V</div>
-                  : <Users size={19} />}
-              </button>
-              {userOpen && (
-                <div className="absolute right-0 top-12 w-52 bg-white border border-slate-100 rounded-2xl shadow-xl py-2 z-50">
-                  {isLoggedIn ? (
-                    <>
-                      <div className="px-4 py-2.5 border-b border-slate-100 mb-1">
-                        <p className="text-sm font-bold text-slate-800">{authUser?.user_metadata?.full_name ?? authUser?.email ?? 'Usuario'}</p>
-                        <p className="text-xs text-slate-400">{authUser?.email ?? 'email@dominio.com'}</p>
-                      </div>
-                      {showCustomerOrders && (
-                        <button type="button" onClick={() => { onNavigate("account"); setUserOpen(false); }}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
-                          <Package size={14} /> Mis pedidos
-                        </button>
-                      )}
-                      {isAdmin && (
-                        <button type="button" onClick={() => { onNavigate("admin"); setUserOpen(false); }}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
-                          <BarChart2 size={14} /> Panel admin
-                        </button>
-                      )}
-                      <div className="border-t border-slate-100 mt-1 pt-1">
-                        <button type="button" onClick={() => { onLogout(); setUserOpen(false); }}
-                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors">
-                          <LogOut size={14} /> Cerrar sesión
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <button onClick={() => { onNavigate("login"); setUserOpen(false); }}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
-                        Iniciar sesión
+                {showSuggestions && suggestions.length > 0 && (
+                  <div className="absolute left-0 right-0 mt-2 bg-white border border-slate-100 rounded-xl shadow-lg z-50 max-h-60 overflow-auto">
+                    {suggestions.map((s) => (
+                      <button key={s.id} onMouseDown={(e) => { e.preventDefault(); onSelectProduct(s); setSearchVal(''); setSuggestions([]); }}
+                        className="w-full text-left px-4 py-3 hover:bg-slate-50 transition-colors">
+                        <div className="text-sm font-semibold">{s.name}</div>
+                        <div className="text-xs text-slate-400">{s.brand} · {s.subcategory}</div>
                       </button>
-                      <button onClick={() => { onNavigate("register"); setUserOpen(false); }}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
-                        Crear cuenta
-                      </button>
-                    </>
-                  )}
-                </div>
-              )}
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
+            {/* Actions */}
+            <div className="flex items-center gap-1 ml-auto">
+              <button
+                onClick={onCartOpen}
+                className="relative w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
+              >
+                <ShoppingCart size={19} />
+                {cartCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-4.5 h-4.5 w-5 h-5 rounded-full bg-[#f97316] text-white text-[10px] font-bold flex items-center justify-center">
+                    {cartCount}
+                  </span>
+                )}
+              </button>
 
+              <div className="relative">
+                <button
+                    type="button"
+                    onClick={() => setUserOpen(!userOpen)}
+                    className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
+                  >
+                  {isLoggedIn
+                    ? <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#1d4ed8] to-[#f97316] flex items-center justify-center text-xs font-bold text-white">V</div>
+                    : <Users size={19} />}
+                </button>
+                {userOpen && (
+                  <div className="absolute right-0 top-12 w-52 bg-white border border-slate-100 rounded-2xl shadow-xl py-2 z-50">
+                    {isLoggedIn ? (
+                      <>
+                        <div className="px-4 py-2.5 border-b border-slate-100 mb-1">
+                          <p className="text-sm font-bold text-slate-800">{authUser?.user_metadata?.full_name ?? authUser?.email ?? 'Usuario'}</p>
+                          <p className="text-xs text-slate-400">{authUser?.email ?? 'email@dominio.com'}</p>
+                        </div>
+                        {showCustomerOrders && (
+                          <button type="button" onClick={() => { onNavigate("account"); setUserOpen(false); }}
+                            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+                            <Package size={14} /> Mis pedidos
+                          </button>
+                        )}
+                        {isAdmin && (
+                          <button type="button" onClick={() => { onNavigate("admin"); setUserOpen(false); }}
+                            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+                            <BarChart2 size={14} /> Panel admin
+                          </button>
+                        )}
+                        <div className="border-t border-slate-100 mt-1 pt-1">
+                          <button type="button" onClick={() => { onLogout(); setUserOpen(false); }}
+                            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors">
+                            <LogOut size={14} /> Cerrar sesión
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <button onClick={() => { onNavigate("login"); setUserOpen(false); }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+                          Iniciar sesión
+                        </button>
+                        <button onClick={() => { onNavigate("register"); setUserOpen(false); }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+                          Crear cuenta
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
+        </nav>
+      </div>
 
       {(currentView === "home" || currentView === "catalog") && (
         <div className="w-full bg-white border-t border-slate-100">
@@ -773,8 +774,8 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
             </button>
           </div>
 
-            <div className="border-t border-slate-100 overflow-x-auto">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 hidden md:flex items-center justify-center gap-1 h-11">
+          <div className="border-t border-slate-100 overflow-x-auto">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 hidden md:flex items-center justify-center gap-1 h-11">
               {NAV_CATEGORIES.map((cat) => (
                 <button key={cat.name}
                   onClick={() => onCategorySelect(cat.name)}
@@ -798,11 +799,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
           </div>
         </div>
       )}
-
-
-
-      </nav>
-    </div>
+    </>
   );
 }
 
@@ -942,7 +939,7 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
   })();
 
   return (
-    <main className="pt-[220px] md:pt-[220px]">
+    <main className="pt-[100px] md:pt-[100px]">
       {/* Hero */}
       <section className="relative min-h-[64vh] md:min-h-[58vh] flex items-center justify-center overflow-hidden bg-slate-900">
         <img
