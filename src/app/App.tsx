@@ -760,7 +760,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
                 promoEntered ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2',
               ].join(' ')}
             >
-              <div className="w-full flex items-center justify-center bg-white" style={{ minHeight: 72 }}>
+              <div className="w-full flex items-center justify-center bg-white" style={{ minHeight: 140 }}>
                 {/* espacio reservado para futura imagen */}
               </div>
             </button>
@@ -937,14 +937,14 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
   return (
     <main className="pt-[220px] md:pt-[220px]">
       {/* Hero */}
-      <section className="relative min-h-screen md:min-h-[88vh] flex items-center justify-center overflow-hidden bg-slate-900">
+      <section className="relative min-h-[64vh] md:min-h-[58vh] flex items-center justify-center overflow-hidden bg-slate-900">
         <img
           src="https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=1600&h=900&fit=crop&auto=format"
           alt="Atleta en acción" className="absolute inset-0 w-full h-full object-cover object-center md:object-top"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-slate-900/98 via-slate-900/70 to-slate-900/30 md:from-slate-900/95 md:via-slate-900/60 md:to-slate-900/20" />
 
-        <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-12 sm:py-16 md:py-24 w-full">
+        <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-8 sm:py-10 md:py-14 w-full">
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#f97316]/20 border border-[#f97316]/30 text-[#f97316] text-[10px] sm:text-xs font-bold tracking-widest uppercase mb-3 sm:mb-4 whitespace-nowrap">
               <Award size={12} /> Colección 2026
@@ -968,7 +968,7 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
       </section>
 
       {/* Categories grid */}
-      <section className="py-8 sm:py-12 md:py-16 max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
+      <section className="pt-16 sm:pt-20 md:pt-24 pb-12 sm:pb-16 md:pb-20 max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
         <div className="flex items-end justify-between mb-6 sm:mb-8">
           <div>
             <p className="text-[10px] sm:text-xs font-bold text-[#1d4ed8] tracking-widest uppercase mb-1 sm:mb-1.5">{content.categorySectionLabel}</p>
@@ -1091,19 +1091,6 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
             ))}
           </AutoScrollCarousel>
           <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="sm:hidden w-full mt-6">Ver todos <ChevronRight size={14} /></Btn>
-        </div>
-      </section>
-
-      {/* Envío icons placeholder */}
-      <section className="py-10 sm:py-14 md:py-16">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
-          <div className="overflow-hidden rounded-[30px] border border-slate-200 bg-white p-4 sm:p-6 md:p-8 shadow-sm">
-            <img
-              src={iconosEnvio}
-              alt="Envío gratis, pago seguro, 30 días devolución, soporte 24/7, garantía satisfacción, reembolso garantizado"
-              className="w-full h-auto object-contain"
-            />
-          </div>
         </div>
       </section>
 
