@@ -774,7 +774,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
             </button>
           </div>
 
-          <div className="overflow-x-auto mt-0">
+          <div className="overflow-x-auto mt-6">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 hidden md:flex items-center justify-center gap-1 h-9">
               {NAV_CATEGORIES.map((cat) => (
                 <button key={cat.name}
@@ -786,7 +786,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
             </div>
           </div>
 
-          <div className="md:hidden overflow-x-auto mt-0">
+          <div className="md:hidden overflow-x-auto mt-6">
             <div className="max-w-7xl mx-auto px-3 flex items-center gap-1 h-9"> 
               {NAV_CATEGORIES.map((cat) => (
                 <button key={cat.name}
