@@ -750,7 +750,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
       </div>
 
       {(currentView === "home" || currentView === "catalog") && (
-        <div className="w-full bg-white border-t border-slate-100" style={{ marginTop: typeof headerOffset === 'number' && headerOffset > 0 ? `${headerOffset}px` : undefined }}>
+        <div className="w-full bg-white border-t border-slate-100" style={{ marginTop: typeof headerOffset === 'number' && headerOffset > 0 ? `${headerOffset + 12}px` : undefined }}>
           <div className="w-full py-1">
             <button
               type="button"
@@ -768,7 +768,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
                   src={promoBanner}
                   alt="Promoción Urban Sport Store"
                   loading="lazy"
-                  className="w-full max-w-full h-auto object-contain object-center transform translate-y-4"
+                  className="w-full max-w-full h-auto object-contain object-center transform translate-y-8"
                 />
               </div>
             </button>
