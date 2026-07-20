@@ -750,7 +750,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
       </div>
 
       {(currentView === "home" || currentView === "catalog") && (
-        <div className="w-full bg-white border-t border-slate-100">
+        <div className="w-full bg-white border-t border-slate-100 mt-[100px]">
           <div className="w-full py-1">
             <button
               type="button"
