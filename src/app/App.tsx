@@ -23,6 +23,7 @@ import {
 } from "./components/LazyRecharts";
 // promoRibbon moved to src/assets/cinta-10.png
 import { fetchProductsFromSupabase, type ProductRecord } from "../lib/supabase-store";
+import { createProductWithFallback, deleteProductWithFallback, updateProductWithFallback } from "../lib/admin-product-fallback";
 import {
   signInWithEmail,
   signUpWithEmail,
@@ -2320,11 +2321,11 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [mainImagePreview, setMainImagePreview] = useState<string>("");
 
-  const METRICS = [
-    { label: "Ventas totales", value: "$40.200.000", change: "+14.2%", up: true, icon: <TrendingUp size={18} /> },
-    { label: "Pedidos", value: "366", change: "+9.8%", up: true, icon: <Package size={18} /> },
-    { label: "Clientes", value: "3.241", change: "+6.1%", up: true, icon: <Users size={18} /> },
-    { label: "Inventario bajo", value: "5 productos", change: "Revisar", up: false, icon: <AlertTriangle size={18} /> },
+  const metrics = [
+    { label: "Productos activos", value: products.length.toString(), change: "+0%", up: true, icon: <Package size={18} /> },
+    { label: "Stock total", value: products.reduce((sum, product) => sum + (product.stock ?? 0), 0).toLocaleString('es-CO'), change: "+0%", up: true, icon: <TrendingUp size={18} /> },
+    { label: "Valor catálogo", value: fmt(products.reduce((sum, product) => sum + (product.price ?? 0) * Math.max(product.stock ?? 0, 0), 0)), change: "+0%", up: true, icon: <DollarSign size={18} /> },
+    { label: "Inventario bajo", value: `${products.filter((product) => (product.stock ?? 0) <= 10).length} productos`, change: "Revisar", up: false, icon: <AlertTriangle size={18} /> },
   ];
 
   const SIDEBAR_LINKS = [
@@ -2769,7 +2770,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mb-8">
-              {METRICS.map((m) => (
+              {metrics.map((m) => (
                 <div key={m.label} className="p-5 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)]">
                   <div className="flex items-center justify-between mb-3">
                     <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${m.up ? "bg-slate-100 text-slate-900" : "bg-amber-50 text-amber-600"}`}>
@@ -3464,7 +3465,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
         return (
           <div className="space-y-6 mb-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
-              {METRICS.map((m) => (
+              {metrics.map((m) => (
                 <div key={m.label} className="p-5 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)]">
                   <div className="flex items-center justify-between mb-3">
                     <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${m.up ? "bg-slate-100 text-slate-900" : "bg-amber-50 text-amber-600"}`}>
@@ -4005,10 +4006,10 @@ export default function App() {
   const createProduct = async (product: Omit<Product, "id">) => {
     try {
       const record = mapAppProductToProductRecord({ ...product, id: crypto.randomUUID() });
-      const created = await createSupabaseProductApi(record);
+      const created = await createProductWithFallback(record);
       const createdAppProduct = mapProductRecordToAppProduct(created);
       refreshProducts();
-      toast.success("Producto creado y guardado en Supabase.");
+      toast.success("Producto creado y guardado correctamente.");
       try { recordAction('create_product', { id: createdAppProduct.id, name: createdAppProduct.name }); } catch (e) { }
       return;
     } catch (err) {
@@ -4021,10 +4022,10 @@ export default function App() {
     try {
       const record = mapAppProductToProductRecord({ ...products.find((product) => product.id === productId), ...updates, id: productId });
       const { id: _ignoredId, ...recordUpdates } = record;
-      const updated = await updateSupabaseProductApi(productId, recordUpdates);
+      const updated = await updateProductWithFallback(productId, recordUpdates);
       const updatedAppProduct = mapProductRecordToAppProduct(updated);
       refreshProducts();
-      toast.success("Producto actualizado en Supabase.");
+      toast.success("Producto actualizado correctamente.");
       try { recordAction('update_product', { id: updatedAppProduct.id, name: updatedAppProduct.name }); } catch (e) { }
       return;
     } catch (err) {
@@ -4035,9 +4036,9 @@ export default function App() {
 
   const deleteProduct = async (productId: string) => {
     try {
-      await deleteSupabaseProductApi(productId);
+      await deleteProductWithFallback(productId);
       refreshProducts();
-      toast.success("Producto eliminado de Supabase.");
+      toast.success("Producto eliminado correctamente.");
       try { recordAction('delete_product', { id: productId }); } catch (e) { }
       return;
     } catch (err) {
