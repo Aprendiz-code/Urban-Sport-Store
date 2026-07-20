@@ -49,6 +49,21 @@ const parseBoolean = (value: string | undefined, fallback = false): boolean => {
   return value === 'true';
 };
 
+const normalizeOrigin = (value: string): string => {
+  const trimmed = value.trim().replace(/\/$/, '');
+  if (!trimmed) return '';
+  if (trimmed === '*') return '*';
+
+  try {
+    const url = trimmed.startsWith('http://') || trimmed.startsWith('https://')
+      ? new URL(trimmed)
+      : new URL(`https://${trimmed}`);
+    return `${url.protocol}//${url.host}`;
+  } catch {
+    return trimmed;
+  }
+};
+
 const rawDatabaseUrl = getEnv('DATABASE_URL', '');
 
 // En desarrollo, si DATABASE_URL es Supabase (no accesible), usar localhost
@@ -77,7 +92,7 @@ export const env = {
   cookieSameSite: getEnv('COOKIE_SAMESITE', 'lax') as 'lax' | 'strict' | 'none',
   corsOrigins: getEnv('CORS_ORIGINS', 'http://localhost:3000')
     .split(',')
-    .map((origin) => origin.trim())
+    .map(normalizeOrigin)
     .filter(Boolean),
   rateLimitWindowMs: Number(getEnv('RATE_LIMIT_WINDOW_MS', '900000')),
   rateLimitMax: Number(getEnv('RATE_LIMIT_MAX', '120')),

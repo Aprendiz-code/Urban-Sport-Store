@@ -32,7 +32,8 @@ export const getHomeContent = async (_req: Request, res: Response, next: NextFun
     const siteContent = await prisma.siteContent.findUnique({ where: { key: HOME_CONTENT_KEY } });
     res.status(200).json(successResponse(siteContent?.content ?? DEFAULT_HOME_CONTENT));
   } catch (error) {
-    next(error);
+    console.warn('Failed to load home content from database, returning default content.', error);
+    res.status(200).json(successResponse(DEFAULT_HOME_CONTENT));
   }
 };
 

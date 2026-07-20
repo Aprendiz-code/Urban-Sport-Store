@@ -10,6 +10,8 @@ const normalizeApiRoot = (url?: string) => {
 };
 
 const API_ROOT = normalizeApiRoot(import.meta.env.VITE_API_URL);
+const API_BASE = `${API_ROOT}/admin`;
+
 async function bridgeSupabaseToken(supabaseToken: string) {
   const res = await fetch(`${API_ROOT}/auth/bridge`, { method: 'POST', headers: { Authorization: `Bearer ${supabaseToken}`, 'Content-Type': 'application/json' } });
   if (!res.ok) throw new Error('Bridge failed');

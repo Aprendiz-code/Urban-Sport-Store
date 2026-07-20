@@ -35,13 +35,24 @@ declare global {
 
 const app = express();
 
+const isAllowedOrigin = (origin: string): boolean => {
+  if (env.corsOrigins.includes('*')) return true;
+  return env.corsOrigins.some((allowed) => {
+    if (allowed === origin) return true;
+    if (!allowed.includes('*')) return false;
+    const escaped = allowed.split('*').map((part) => part.replace(/[-[\]{}()+?.,\\^$|#\s]/g, '\\$&')).join('.*');
+    const regex = new RegExp(`^${escaped}$`);
+    return regex.test(origin);
+  });
+};
+
 app.set('trust proxy', 1);
 const helmetMiddleware = (helmet as any).default ?? helmet;
 app.use(helmetMiddleware());
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
-    if (env.corsOrigins.includes(origin)) return callback(null, true);
+    if (isAllowedOrigin(origin)) return callback(null, true);
     callback(new Error('Origin not allowed by CORS'));
   },
   credentials: true,
