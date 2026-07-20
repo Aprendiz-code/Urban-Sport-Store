@@ -15,42 +15,52 @@ async function callApi(path: string, opts: RequestInit = {}) {
   const supabaseToken = await getAccessToken();
   const storedBackend = localStorage.getItem('urbansport_backend_token');
 
-  const makeRequest = async (bearer?: string) => {
+  const makeRequest = async (url: string, bearer?: string) => {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (bearer) headers['Authorization'] = `Bearer ${bearer}`;
-    const res = await fetch(`${API_BASE}${path}`, { headers: { ...(opts.headers as Record<string,string>), ...headers }, ...opts });
-    return res;
+    return fetch(url, { headers: { ...(opts.headers as Record<string,string>), ...headers }, ...opts });
   };
 
-  let res = storedBackend ? await makeRequest(storedBackend) : await makeRequest(supabaseToken ?? undefined);
+  const primaryUrl = `${API_BASE}${path}`;
+  const fallbackUrl = `/api/v1/admin${path}`;
 
-  if (res.status === 401 && supabaseToken) {
+  let res: Response | null = null;
+  let primaryError: unknown = null;
+
+  try {
+    res = storedBackend ? await makeRequest(primaryUrl, storedBackend) : await makeRequest(primaryUrl, supabaseToken ?? undefined);
+  } catch (error) {
+    primaryError = error;
+  }
+
+  if (res && res.status === 401 && supabaseToken) {
     try {
       const backendToken = await bridgeSupabaseToken(supabaseToken);
       if (backendToken) {
         localStorage.setItem('urbansport_backend_token', backendToken);
-        res = await makeRequest(backendToken);
+        res = await makeRequest(primaryUrl, backendToken);
       }
     } catch (e) {
       // ignore
     }
   }
-  // If the request returned 404 and the configured VITE_API_URL points to a host
-  // that doesn't serve the admin backend, try the relative `/api/v1/admin` path
-  // as a fallback. This helps when the frontend is served from a domain but the
-  // backend is mounted under the same origin at `/api/v1` (or when VITE_API_URL
-  // is misconfigured to a host without the admin API).
-  if (res.status === 404 && API_ROOT !== '/api/v1') {
+
+  const shouldTryFallback = API_ROOT !== '/api/v1' && (!res || !res.ok);
+
+  if (shouldTryFallback) {
     try {
-      const fallbackRes = await fetch(`/api/v1/admin${path}`, { headers: { ...(opts.headers as Record<string,string>), 'Content-Type': 'application/json' }, ...opts });
+      const bearer = storedBackend ?? supabaseToken ?? undefined;
+      const fallbackRes = await makeRequest(fallbackUrl, bearer);
       if (fallbackRes.ok) {
         res = fallbackRes;
-      } else {
-        // keep original response for error reporting
       }
     } catch (e) {
-      // network error on fallback, continue to error handling below
+      // ignore fallback errors and continue to original error handling below
     }
+  }
+
+  if (!res) {
+    throw new Error(`Network error calling ${primaryUrl}: ${primaryError ?? 'unknown error'}`);
   }
 
   if (!res.ok) {
