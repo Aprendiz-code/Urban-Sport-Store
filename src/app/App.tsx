@@ -941,10 +941,10 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
   return (
     <main className="pt-[100px] md:pt-[100px]">
       {/* Hero */}
-      <section className="relative min-h-[52vh] md:min-h-[48vh] flex items-center justify-center overflow-hidden bg-slate-900">
+      <section className="relative min-h-[48vh] md:min-h-[44vh] flex items-center justify-center overflow-hidden bg-slate-900">
         <img
           src="https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=1600&h=900&fit=crop&auto=format"
-          alt="Atleta en acción" className="absolute inset-0 w-full h-full object-cover object-center md:object-top"
+          alt="Atleta en acción" className="absolute inset-0 w-full h-full object-contain object-center md:object-center"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-slate-900/98 via-slate-900/70 to-slate-900/30 md:from-slate-900/95 md:via-slate-900/60 md:to-slate-900/20" />
 
