@@ -763,7 +763,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
                 promoEntered ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2',
               ].join(' ')}
             >
-              <div className="relative w-full overflow-visible bg-gradient-to-b from-gray-50 to-gray-100 flex items-center justify-center min-h-[300px] sm:min-h-[360px] md:min-h-[420px] lg:min-h-[500px] xl:min-h-[560px] py-3 sm:py-4 md:py-5 px-0">
+              <div className="relative w-full overflow-visible bg-gradient-to-b from-gray-50 to-gray-100 flex items-center justify-center min-h-[340px] sm:min-h-[420px] md:min-h-[500px] lg:min-h-[600px] xl:min-h-[680px] py-4 sm:py-5 md:py-6 px-0">
                 <img
                   src={promoBanner}
                   alt="Promoción Urban Sport Store"
@@ -774,7 +774,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
             </button>
           </div>
 
-          <div className="border-t border-slate-100 overflow-x-auto mt-4">
+          <div className="border-t border-slate-100 overflow-x-auto mt-8">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 hidden md:flex items-center justify-center gap-1 h-11">
               {NAV_CATEGORIES.map((cat) => (
                 <button key={cat.name}
