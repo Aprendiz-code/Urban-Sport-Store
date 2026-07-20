@@ -750,7 +750,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
       </div>
 
       {(currentView === "home" || currentView === "catalog") && (
-        <div className="w-full bg-white border-t border-slate-100 mt-[100px]">
+        <div className="w-full bg-white border-t border-slate-100" style={{ marginTop: headerOffset ? `${headerOffset}px` : undefined }}>
           <div className="w-full py-1">
             <button
               type="button"
@@ -3741,6 +3741,24 @@ export default function App() {
   const [initialAdminSection, setInitialAdminSection] = useState<string | undefined>(undefined);
   const [products, setProducts] = useState<Product[]>([]);
   const [productRefresh, setProductRefresh] = useState(0);
+  const [headerOffset, setHeaderOffset] = useState<number>(0);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const calcHeader = () => {
+      const hdr = document.querySelector('div.fixed.top-0.left-0.right-0.z-50');
+      if (hdr && hdr instanceof HTMLElement) {
+        setHeaderOffset(hdr.offsetHeight || 0);
+      }
+    };
+    calcHeader();
+    window.addEventListener('resize', calcHeader);
+    window.addEventListener('orientationchange', calcHeader);
+    return () => {
+      window.removeEventListener('resize', calcHeader);
+      window.removeEventListener('orientationchange', calcHeader);
+    };
+  }, []);
 
   useEffect(() => {
     let isActive = true;
