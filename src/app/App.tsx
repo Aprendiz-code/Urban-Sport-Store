@@ -9,6 +9,7 @@ import {
   RefreshCw, Award, Grid3X3, ThumbsUp, DollarSign
 } from "lucide-react";
 import PromoCarousel from "./components/PromoCarousel";
+import promoBanner from "../../10%/Promocion 10%.png";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -760,8 +761,12 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
                 promoEntered ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2',
               ].join(' ')}
             >
-              <div className="w-full flex items-center justify-center bg-white" style={{ minHeight: 140 }}>
-                {/* espacio reservado para futura imagen */}
+              <div className="w-full flex items-center justify-center bg-white" style={{ minHeight: 260 }}>
+                <img
+                  src={promoBanner}
+                  alt="Promoción Urban Sport Store"
+                  className="w-full h-full object-cover object-center rounded-none"
+                />
               </div>
             </button>
           </div>
