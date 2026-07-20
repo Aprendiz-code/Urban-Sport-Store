@@ -3698,7 +3698,14 @@ export default function App() {
     let isActive = true;
 
     const loadHomeContent = async () => {
-      const apiUrl = import.meta.env.VITE_API_URL ?? '/api/v1';
+      const normalizeApiRoot = (url?: string) => {
+        const trimmed = url?.trim().replace(/\/$/, '');
+        if (!trimmed) return '/api/v1';
+        if (trimmed.endsWith('/api/v1')) return trimmed;
+        if (trimmed.endsWith('/api')) return `${trimmed}/v1`;
+        return `${trimmed}/api/v1`;
+      };
+      const apiUrl = normalizeApiRoot(import.meta.env.VITE_API_URL);
       try {
         const res = await fetch(`${apiUrl}/home-content`);
         if (!res.ok) {

@@ -1,9 +1,15 @@
 import type { Product } from '../../types';
 import { getAccessToken } from './supabase-auth';
 
-const API_ROOT = import.meta.env.VITE_API_URL?.trim().replace(/\/$/, '') || '/api/v1';
-const API_BASE = `${API_ROOT}/admin`;
+const normalizeApiRoot = (url?: string) => {
+  const trimmed = url?.trim().replace(/\/$/, '');
+  if (!trimmed) return '/api/v1';
+  if (trimmed.endsWith('/api/v1')) return trimmed;
+  if (trimmed.endsWith('/api')) return `${trimmed}/v1`;
+  return `${trimmed}/api/v1`;
+};
 
+const API_ROOT = normalizeApiRoot(import.meta.env.VITE_API_URL);
 async function bridgeSupabaseToken(supabaseToken: string) {
   const res = await fetch(`${API_ROOT}/auth/bridge`, { method: 'POST', headers: { Authorization: `Bearer ${supabaseToken}`, 'Content-Type': 'application/json' } });
   if (!res.ok) throw new Error('Bridge failed');
@@ -45,7 +51,7 @@ async function callApi(path: string, opts: RequestInit = {}) {
     }
   }
 
-  const shouldTryFallback = !res || !res.ok;
+  const shouldTryFallback = !res || [404, 502, 503, 504].includes(res.status);
 
   if (shouldTryFallback) {
     try {
