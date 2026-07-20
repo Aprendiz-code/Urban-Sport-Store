@@ -9,7 +9,7 @@ import {
   RefreshCw, Award, Grid3X3, ThumbsUp, DollarSign
 } from "lucide-react";
 import PromoCarousel from "./components/PromoCarousel";
-import promoBanner from "../../10%/Promocion 10%.png";
+import promoBanner from "/images/promo-discount-10.png";
 import {
   ResponsiveContainer,
   AreaChart,
