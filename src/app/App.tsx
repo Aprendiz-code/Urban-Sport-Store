@@ -768,14 +768,14 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
                   src={promoBanner}
                   alt="Promoción Urban Sport Store"
                   loading="lazy"
-                  className="w-full max-w-full h-auto object-contain object-center"
+                  className="w-full max-w-full h-auto object-contain object-center transform translate-y-4"
                 />
               </div>
             </button>
           </div>
 
-          <div className="border-t border-slate-100 overflow-x-auto mt-4">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 hidden md:flex items-center justify-center gap-1 h-11">
+          <div className="border-t border-slate-100 overflow-x-auto mt-1">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 hidden md:flex items-center justify-center gap-1 h-9">
               {NAV_CATEGORIES.map((cat) => (
                 <button key={cat.name}
                   onClick={() => onCategorySelect(cat.name)}
@@ -786,8 +786,8 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
             </div>
           </div>
 
-          <div className="md:hidden border-t border-slate-100 overflow-x-auto mt-3">
-            <div className="max-w-7xl mx-auto px-4 flex items-center gap-1 h-11">
+          <div className="md:hidden border-t border-slate-100 overflow-x-auto mt-1">
+            <div className="max-w-7xl mx-auto px-3 flex items-center gap-1 h-9"> 
               {NAV_CATEGORIES.map((cat) => (
                 <button key={cat.name}
                   onClick={() => onCategorySelect(cat.name)}
