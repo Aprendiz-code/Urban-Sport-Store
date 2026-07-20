@@ -1120,11 +1120,11 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
       </section>
 
       {/* Newsletter */}
-      <section className="py-12 sm:py-14 md:py-16 bg-[#1d4ed8]">
+      <section className="py-5 sm:py-6 md:py-7 bg-[#1d4ed8]">
         <div className="max-w-xl mx-auto px-3 sm:px-4 text-center">
-          <p className="text-[10px] sm:text-xs font-bold text-blue-200 uppercase tracking-widest mb-2 sm:mb-3">Mantente al día</p>
-          <h2 className="text-xl sm:text-2xl font-extrabold text-white mb-1 sm:mb-2">Recibe ofertas exclusivas</h2>
-          <p className="text-blue-200 text-xs sm:text-sm mb-5 sm:mb-6">Suscríbete y obtén 10% de descuento en tu primera compra.</p>
+          <p className="text-[10px] sm:text-xs font-bold text-blue-200 uppercase tracking-widest mb-1 sm:mb-1.5">Mantente al día</p>
+          <h2 className="text-lg sm:text-xl font-extrabold text-white mb-1 sm:mb-1.5">Recibe ofertas exclusivas</h2>
+          <p className="text-blue-200 text-xs sm:text-sm mb-3 sm:mb-4">Suscríbete y obtén 10% de descuento en tu primera compra.</p>
           <div className="flex flex-col sm:flex-row gap-2 max-w-sm mx-auto">
             <input type="email" placeholder="tu@email.com"
               className="flex-1 px-4 py-3 rounded-xl text-sm text-slate-800 bg-white placeholder-slate-400 focus:outline-none" />
