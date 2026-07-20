@@ -972,7 +972,7 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
       </section>
 
       {/* Categories grid */}
-      <section className="pt-16 sm:pt-20 md:pt-24 pb-12 sm:pb-16 md:pb-20 max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
+      <section className="pt-8 sm:pt-10 md:pt-12 pb-2 sm:pb-3 md:pb-4 max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
         <div className="flex items-end justify-between mb-6 sm:mb-8">
           <div>
             <p className="text-[10px] sm:text-xs font-bold text-[#1d4ed8] tracking-widest uppercase mb-1 sm:mb-1.5">{content.categorySectionLabel}</p>
