@@ -1,8 +1,8 @@
 import type { Product } from '../../types';
 import { getAccessToken } from './supabase-auth';
 
-const API_ROOT = import.meta.env.VITE_API_URL ?? '/api/v1';
-const API_BASE = API_ROOT + '/admin';
+const API_ROOT = import.meta.env.VITE_API_URL?.trim().replace(/\/$/, '') || '/api/v1';
+const API_BASE = `${API_ROOT}/admin`;
 
 async function bridgeSupabaseToken(supabaseToken: string) {
   const res = await fetch(`${API_ROOT}/auth/bridge`, { method: 'POST', headers: { Authorization: `Bearer ${supabaseToken}`, 'Content-Type': 'application/json' } });
@@ -45,7 +45,7 @@ async function callApi(path: string, opts: RequestInit = {}) {
     }
   }
 
-  const shouldTryFallback = API_ROOT !== '/api/v1' && (!res || !res.ok);
+  const shouldTryFallback = !res || !res.ok;
 
   if (shouldTryFallback) {
     try {
