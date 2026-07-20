@@ -1056,6 +1056,27 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
         </div>
       </section>
 
+      {/* Recently arrived */}
+      {newArrivals.length > 0 && (
+        <section className="py-8 sm:py-12 md:py-16 max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
+          <div className="flex items-end justify-between mb-6 sm:mb-8 gap-4">
+            <div>
+              <p className="text-[10px] sm:text-xs font-bold text-blue-600 tracking-widest uppercase mb-1 sm:mb-1.5">Recién llegados</p>
+              <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">Novedades</h2>
+            </div>
+            <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="hidden sm:flex">Ver todos <ChevronRight size={14} /></Btn>
+          </div>
+          <AutoScrollCarousel>
+              {newArrivals.slice(0, 9).map((p, idx) => (
+              <div key={p.id + "-recent-" + idx} className="w-[84vw] max-w-[280px] sm:w-[16rem] lg:w-[18rem] shrink-0">
+                <ProductCard product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
+              </div>
+            ))}
+          </AutoScrollCarousel>
+          <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="sm:hidden w-full mt-6">Ver todos <ChevronRight size={14} /></Btn>
+        </section>
+      )}
+
       {/* New arrivals */}
       {newArrivals.length > 0 && (
         <section className="py-8 sm:py-12 md:py-16 max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
