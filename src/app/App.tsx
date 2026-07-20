@@ -768,7 +768,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
                   src={promoBanner}
                   alt="Promoción Urban Sport Store"
                   loading="lazy"
-                  className="w-full max-w-full h-full object-contain"
+                  className="w-full max-w-full h-full object-contain object-top"
                 />
               </div>
             </button>
