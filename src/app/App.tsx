@@ -941,14 +941,14 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
   return (
     <main className="pt-[100px] md:pt-[100px]">
       {/* Hero */}
-      <section className="relative min-h-[64vh] md:min-h-[58vh] flex items-center justify-center overflow-hidden bg-slate-900">
+      <section className="relative min-h-[52vh] md:min-h-[48vh] flex items-center justify-center overflow-hidden bg-slate-900">
         <img
           src="https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=1600&h=900&fit=crop&auto=format"
           alt="Atleta en acción" className="absolute inset-0 w-full h-full object-cover object-center md:object-top"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-slate-900/98 via-slate-900/70 to-slate-900/30 md:from-slate-900/95 md:via-slate-900/60 md:to-slate-900/20" />
 
-        <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-8 sm:py-10 md:py-14 w-full">
+        <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-6 sm:py-8 md:py-10 w-full">
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#f97316]/20 border border-[#f97316]/30 text-[#f97316] text-[10px] sm:text-xs font-bold tracking-widest uppercase mb-3 sm:mb-4 whitespace-nowrap">
               <Award size={12} /> Colección 2026
