@@ -750,7 +750,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
       </div>
 
       {(currentView === "home" || currentView === "catalog") && (
-        <div className="w-full bg-white border-t border-slate-100" style={{ marginTop: headerOffset ? `${headerOffset}px` : undefined }}>
+        <div className="w-full bg-white border-t border-slate-100" style={bannerMarginStyle}>
           <div className="w-full py-1">
             <button
               type="button"
@@ -3759,6 +3759,8 @@ export default function App() {
       window.removeEventListener('orientationchange', calcHeader);
     };
   }, []);
+
+  const bannerMarginStyle = headerOffset ? { marginTop: `${headerOffset}px` } : undefined;
 
   useEffect(() => {
     let isActive = true;
