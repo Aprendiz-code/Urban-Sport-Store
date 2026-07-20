@@ -763,12 +763,12 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
                 promoEntered ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2',
               ].join(' ')}
             >
-              <div className="relative w-full bg-gradient-to-b from-gray-50 to-gray-100 flex items-center justify-center px-0 min-h-[520px] sm:min-h-[680px] md:min-h-[880px] lg:min-h-[1120px] xl:min-h-[1280px]">
+              <div className="relative w-full bg-gradient-to-b from-gray-50 to-gray-100 flex items-start justify-center px-0 py-0">
                 <img
                   src={promoBanner}
                   alt="Promoción Urban Sport Store"
                   loading="lazy"
-                  className="w-full max-w-full h-full object-contain object-center"
+                  className="w-full max-w-full h-auto object-contain object-top"
                 />
               </div>
             </button>
