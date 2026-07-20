@@ -763,7 +763,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
                 promoEntered ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2',
               ].join(' ')}
             >
-              <div className="relative w-full overflow-visible bg-gradient-to-b from-gray-50 to-gray-100 flex items-center justify-center min-h-[340px] sm:min-h-[440px] md:min-h-[680px] lg:min-h-[820px] xl:min-h-[900px] py-4 sm:py-6 md:py-8 px-0">
+              <div className="relative w-full overflow-visible bg-gradient-to-b from-gray-50 to-gray-100 flex items-center justify-center min-h-[420px] sm:min-h-[560px] md:min-h-[880px] lg:min-h-[1040px] xl:min-h-[1120px] py-6 sm:py-8 md:py-10 px-0">
                 <img
                   src={promoBanner}
                   alt="Promoción Urban Sport Store"
