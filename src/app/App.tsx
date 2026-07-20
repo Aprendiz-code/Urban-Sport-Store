@@ -757,18 +757,18 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
               onClick={() => onNavigate('catalog')}
               aria-label="Ver promociones y productos con descuento"
               className={[
-                'block w-full overflow-hidden bg-white rounded-none',
+                'block w-full overflow-visible bg-white rounded-none',
                 'transition-transform duration-700 ease-out',
                 'motion-reduce:transform-none motion-reduce:transition-none',
                 promoEntered ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2',
               ].join(' ')}
             >
-              <div className="relative w-full overflow-visible bg-gradient-to-b from-gray-50 to-gray-100 flex items-center justify-center min-h-[260px] sm:min-h-[300px] md:min-h-[360px] lg:min-h-[430px] xl:min-h-[480px] py-3 sm:py-4 md:py-5 px-0">
+              <div className="relative w-full overflow-visible bg-gradient-to-b from-gray-50 to-gray-100 flex items-center justify-center min-h-[300px] sm:min-h-[360px] md:min-h-[420px] lg:min-h-[500px] xl:min-h-[560px] py-3 sm:py-4 md:py-5 px-0">
                 <img
                   src={promoBanner}
                   alt="Promoción Urban Sport Store"
                   loading="lazy"
-                  className="w-full max-w-full h-auto object-contain"
+                  className="w-full max-w-full h-full object-contain"
                 />
               </div>
             </button>
