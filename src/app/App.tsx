@@ -757,7 +757,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
               onClick={() => onNavigate('catalog')}
               aria-label="Ver promociones y productos con descuento"
               className={[
-                'block w-full overflow-hidden bg-white rounded-none',
+                'block w-full overflow-hidden bg-transparent rounded-none',
                 'transition-transform duration-700 ease-out',
                 'motion-reduce:transform-none motion-reduce:transition-none',
                 promoEntered ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2',
