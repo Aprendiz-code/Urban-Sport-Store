@@ -8,7 +8,21 @@
       <title>Urban Sport Store Tu Ecommerce de Moda Con Los Mejores Precios</title>
       <meta name="description" content="Automates tasks outlined in uploaded files, streamlining workflows and enhancing productivity for users seeking efficient file-based operations." />
       <meta name="robots" content="noindex, nofollow" />
-      <style>html, body { height: 100%; margin: 0; } #root { height: 100%; }</style>
+      <style>
+        html, body { height: 100%; margin: 0; } #root { height: 100%; }
+        /* Fix promo banner white gap: align promo image to top without cropping */
+        div.relative > img[src*="promo-discount-10.png"] {
+          position: absolute !important;
+          top: 0 !important;
+          left: 0 !important;
+          width: 100% !important;
+          height: auto !important;
+          object-fit: contain !important;
+          object-position: top !important;
+        }
+        /* ensure the promo container doesn't add extra padding */
+        div.relative > img[src*="promo-discount-10.png"]::before { display: none; }
+      </style>
       
     </head>
 
