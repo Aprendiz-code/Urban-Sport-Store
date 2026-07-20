@@ -10,7 +10,7 @@ describe('auth endpoints', () => {
   });
 
   it('rejects invalid credentials', async () => {
-    const response = await request(app).post('/api/v1/auth/login').send({ email: 'wrong@example.com', password: 'bad' });
+    const response = await request(app).post('/api/v1/auth/login').send({ email: 'wrong@example.com', password: 'StrongPass123!' });
     expect(response.status).toBe(401);
   });
 });

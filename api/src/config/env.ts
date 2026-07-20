@@ -2,19 +2,36 @@ import path from 'node:path';
 import dotenv from 'dotenv';
 
 export const loadEnvFiles = () => {
-  // Try to load from current directory first
-  dotenv.config({ path: path.resolve(process.cwd(), '.env') });
-  dotenv.config({ path: path.resolve(process.cwd(), '.env.local'), override: true });
-  
-  // Load development overrides if available
-  dotenv.config({ path: path.resolve(process.cwd(), '.env.development.local'), override: true });
-  
-  // If running from project root and in a monorepo structure, also try api/.env.local and api/.env.development.local
-  const apiEnvPath = path.resolve(process.cwd(), 'api', '.env.local');
-  const apiDevEnvPath = path.resolve(process.cwd(), 'api', '.env.development.local');
-  if (process.cwd() !== path.resolve(process.cwd(), 'api')) {
-    dotenv.config({ path: apiEnvPath, override: true });
-    dotenv.config({ path: apiDevEnvPath, override: true });
+  const cwd = process.cwd();
+  const parentDir = path.resolve(cwd, '..');
+  const isApiFolder = path.basename(cwd) === 'api';
+
+  const envPaths = (dir: string) => [
+    path.resolve(dir, '.env'),
+    path.resolve(dir, '.env.local'),
+    path.resolve(dir, '.env.development.local'),
+  ];
+
+  const load = (filePath: string, override = false) => dotenv.config({ path: filePath, override });
+
+  if (isApiFolder) {
+    // When running from api/, first load root-level env if available, then allow api/.env.* to override it.
+    for (const filePath of envPaths(parentDir)) {
+      load(filePath);
+    }
+    for (const filePath of envPaths(cwd)) {
+      load(filePath, true);
+    }
+  } else {
+    // Running from project root: load root env, then override with api env files if present.
+    for (const filePath of envPaths(cwd)) {
+      load(filePath);
+    }
+
+    const apiDir = path.resolve(cwd, 'api');
+    for (const filePath of envPaths(apiDir)) {
+      load(filePath, true);
+    }
   }
 };
 
@@ -35,6 +52,9 @@ const normalizeDatabaseUrl = (value: string): string => {
     if ((url.protocol === 'postgres:' || url.protocol === 'postgresql:') && url.hostname.endsWith('.supabase.co')) {
       if (!url.searchParams.has('sslmode')) {
         url.searchParams.set('sslmode', 'require');
+      }
+      if (!url.searchParams.has('connect_timeout')) {
+        url.searchParams.set('connect_timeout', '5');
       }
       return url.toString();
     }
@@ -70,10 +90,7 @@ const rawDatabaseUrl = getEnv('DATABASE_URL', '');
 let databaseUrl = rawDatabaseUrl;
 const nodeEnv = getEnv('NODE_ENV', 'development');
 
-if (nodeEnv === 'development' && databaseUrl.includes('supabase.co')) {
-  console.log('🔄 Supabase URL detected in development, using localhost fallback');
-  databaseUrl = 'postgresql://postgres:postgres@localhost:5432/urbansportstore';
-} else if (!databaseUrl) {
+if (!databaseUrl) {
   databaseUrl = 'postgresql://postgres:postgres@localhost:5432/urbansportstore';
 }
 

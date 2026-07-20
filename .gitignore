@@ -42,6 +42,9 @@ coverage/
 # Local postgres data
 api/pgdata/
 
+# Local Supabase CLI state
+supabase/
+
 # Misc
 *.log
 .vercel

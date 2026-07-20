@@ -22,12 +22,28 @@ export interface ProductFilters {
 export class ProductService {
   private shouldUseFallback(error: unknown): boolean {
     const message = error instanceof Error ? error.message : String(error ?? '');
-    return /econnrefused|timeout|p1001|p1002|p1003|connect|network|fetch failed|database|prisma/i.test(message);
+    return /econnrefused|timeout|p1001|p1002|p1003|connect|network|fetch failed|database|prisma|DB_OPERATION_TIMEOUT/i.test(message);
+  }
+
+  private withTimeout<T>(promise: Promise<T>, timeoutMs = 3000): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        reject(new Error('DB_OPERATION_TIMEOUT'));
+      }, timeoutMs);
+
+      promise.then((result) => {
+        clearTimeout(timer);
+        resolve(result);
+      }).catch((error) => {
+        clearTimeout(timer);
+        reject(error);
+      });
+    });
   }
 
   private async useDatabaseOrFallback<T>(operation: () => Promise<T>): Promise<T> {
     try {
-      return await operation();
+      return await this.withTimeout(operation());
     } catch (error) {
       if (this.shouldUseFallback(error)) {
         throw new Error('FALLBACK_REQUIRED');

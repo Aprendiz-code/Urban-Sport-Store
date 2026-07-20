@@ -33,6 +33,23 @@
       "id": "04a49786-e171-492c-9105-d87de37c884d",
       "createdAt": "2026-07-19T22:00:53.013Z",
       "updatedAt": "2026-07-19T22:00:53.015Z"
+    },
+    {
+      "name": "Fallback Product",
+      "slug": "fallback-product",
+      "sku": "FB-001",
+      "description": "",
+      "price": 129000,
+      "compareAtPrice": null,
+      "stock": 5,
+      "status": "ACTIVE",
+      "categoryId": "cat-1",
+      "brandId": "brand-1",
+      "category": "category-cat-1",
+      "brand": "brand-brand-1",
+      "id": "c5de63cb-300a-44be-857c-2ec00c83241d",
+      "createdAt": "2026-07-20T15:44:25.715Z",
+      "updatedAt": "2026-07-20T15:44:25.716Z"
     }
   ]
 }
