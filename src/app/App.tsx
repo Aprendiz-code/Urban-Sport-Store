@@ -1010,6 +1010,9 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
       {/* Categories Navigation Section - Independent Block */}
       <section className="w-full my-10 sm:my-12 md:my-14">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
+          <div className="mb-4 sm:mb-5 md:mb-6">
+            <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">Explora por categoría</h2>
+          </div>
           <div className="overflow-x-auto md:overflow-visible scrollbar-hide" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
             <nav className="flex flex-nowrap md:flex-wrap items-center justify-center w-full gap-3 sm:gap-4 md:gap-5 py-3 md:py-4">
               {NAV_CATEGORIES.map((cat) => (
