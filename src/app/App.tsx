@@ -947,24 +947,9 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
         <div className="relative w-full aspect-video md:aspect-auto md:min-h-[480px] flex items-center justify-center overflow-hidden">
           <img
             src={mainBannerImage}
-            alt="Oferta especial Urban Sport Store"
+            alt="Promoción Urban Sport Store"
             className="absolute inset-0 w-full h-full object-cover object-center"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-slate-900/40 via-slate-900/20 to-transparent" />
-          <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 md:px-8 py-6 sm:py-10 w-full flex items-center">
-            <div className="max-w-xl">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-500/20 border border-orange-400/40 text-orange-300 text-xs sm:text-sm font-bold tracking-widest uppercase mb-3 sm:mb-4 whitespace-nowrap">
-                <Award size={14} /> Oferta especial
-              </div>
-              <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white leading-tight tracking-tight mb-3 sm:mb-4">Descuentos exclusivos</h2>
-              <p className="text-sm sm:text-base md:text-lg text-slate-200 leading-relaxed mb-6 max-w-md">
-                Aprovecha nuestras promociones especiales en ropa, calzado y accesorios deportivos premium.
-              </p>
-              <Btn variant="primary" size="lg" onClick={() => onNavigate("catalog")} className="w-full sm:w-auto justify-center">
-                Explorar oferta <ArrowRight size={16} />
-              </Btn>
-            </div>
-          </div>
         </div>
       </section>
 
