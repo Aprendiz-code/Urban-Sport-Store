@@ -1007,15 +1007,15 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
 
       </section>
 
-      {/* Navigation bar */}
-      <section className="border-t border-b border-slate-200 bg-white sticky top-[60px] z-20 mt-16 sm:mt-20 md:mt-24 mb-12 sm:mb-16 md:mb-20">
+      {/* Categories Navigation Section - Independent Block */}
+      <section className="w-full bg-slate-50 border-t-4 border-b-4 border-slate-300 my-20 sm:my-24 md:my-28">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
-          <nav className="flex items-center gap-6 sm:gap-8 overflow-x-auto py-6 sm:py-8">
+          <nav className="flex items-center gap-6 sm:gap-8 overflow-x-auto py-12 sm:py-14 md:py-16">
             {NAV_CATEGORIES.map((cat) => (
               <button
                 key={cat.name}
                 onClick={() => onCategorySelect(cat.name as Category)}
-                className="text-sm sm:text-base font-semibold text-slate-600 hover:text-[#1d4ed8] whitespace-nowrap transition-colors duration-200 pb-3 border-b-2 border-transparent hover:border-[#1d4ed8]"
+                className="text-sm sm:text-base font-semibold text-slate-700 hover:text-[#1d4ed8] whitespace-nowrap transition-colors duration-200 pb-3 border-b-2 border-transparent hover:border-[#1d4ed8]"
               >
                 {cat.name}
               </button>
