@@ -942,17 +942,6 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
 
   return (
     <main className="pt-[100px] md:pt-[100px]">
-      {/* Main promotional banner */}
-      <section className="relative w-full overflow-hidden bg-gradient-to-br from-slate-900 to-slate-950">
-        <div className="relative w-full aspect-video md:aspect-auto md:min-h-[480px] flex items-center justify-center overflow-hidden">
-          <img
-            src={mainBannerImage}
-            alt="Promoción Urban Sport Store"
-            className="absolute inset-0 w-full h-full object-cover object-center"
-          />
-        </div>
-      </section>
-
       {/* Special offers - On sale now */}
       {onSale.length > 0 && (
         <section className="py-8 sm:py-12 md:py-16 bg-orange-50 border-y border-orange-100">
@@ -975,6 +964,17 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
           </div>
         </section>
       )}
+
+      {/* Main promotional banner */}
+      <section className="relative w-full overflow-hidden bg-gradient-to-br from-slate-900 to-slate-950">
+        <div className="relative w-full aspect-video md:aspect-auto md:min-h-[480px] flex items-center justify-center overflow-hidden">
+          <img
+            src={mainBannerImage}
+            alt="Promoción Urban Sport Store"
+            className="absolute inset-0 w-full h-full object-cover object-center"
+          />
+        </div>
+      </section>
 
       {/* Hero */}
       <section className="relative min-h-[48vh] md:min-h-[44vh] flex items-center justify-center overflow-hidden bg-slate-900 mt-8 sm:mt-12 md:mt-16">
