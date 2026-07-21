@@ -6,6 +6,7 @@ interface ProductCarouselProps {
   className?: string;
   showControls?: boolean;
   autoScroll?: boolean;
+  autoScrollDirection?: "ltr" | "rtl";
   gap?: "sm" | "md" | "lg";
 }
 
@@ -14,6 +15,7 @@ export default function ProductCarousel({
   className = "",
   showControls = true,
   autoScroll = false,
+  autoScrollDirection = "ltr",
   gap = "md",
 }: ProductCarouselProps) {
   const ref = useRef<HTMLDivElement | null>(null);
@@ -47,10 +49,21 @@ export default function ProductCarousel({
     autoScrollInterval.current = setInterval(() => {
       if (ref.current && !isDragging.current) {
         const { scrollLeft: sl, scrollWidth: sw, clientWidth: cw } = ref.current;
-        if (sl + cw >= sw - 10) {
-          ref.current.scrollTo({ left: 0, behavior: "smooth" });
+        // Auto-scroll direction handling
+        const amount = autoScrollDirection === "rtl" ? -200 : 200;
+        if (autoScrollDirection === "ltr") {
+          if (sl + cw >= sw - 10) {
+            ref.current.scrollTo({ left: 0, behavior: "smooth" });
+          } else {
+            ref.current.scrollBy({ left: amount, behavior: "smooth" });
+          }
         } else {
-          ref.current.scrollBy({ left: 200, behavior: "smooth" });
+          // rtl: if we reached the start, jump to the end
+          if (sl <= 0) {
+            ref.current.scrollTo({ left: sw - cw, behavior: "smooth" });
+          } else {
+            ref.current.scrollBy({ left: amount, behavior: "smooth" });
+          }
         }
       }
     }, 3000);
