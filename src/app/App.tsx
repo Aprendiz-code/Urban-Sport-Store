@@ -980,7 +980,7 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
       <section className="relative min-h-[48vh] md:min-h-[44vh] flex items-center justify-center overflow-hidden bg-slate-900 mt-8 sm:mt-12 md:mt-16">
         <img
           src="https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=1600&h=900&fit=crop&auto=format"
-          alt="Atleta en acción" className="absolute inset-0 w-full h-full object-contain object-center md:object-center"
+          alt="Atleta en acción" className="absolute inset-0 w-full h-full object-cover object-center"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-slate-900/98 via-slate-900/70 to-slate-900/30 md:from-slate-900/95 md:via-slate-900/60 md:to-slate-900/20" />
 
