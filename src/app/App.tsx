@@ -1008,15 +1008,15 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
       </section>
 
       {/* Categories Navigation Section - Independent Block */}
-      <section className="w-full bg-slate-50 border-t-2 border-b-2 border-slate-300 my-10 sm:my-12 md:my-14">
-        <div className="max-w-full px-0">
-          <div className="overflow-x-auto px-3 sm:px-4 md:px-6 py-2 sm:py-2.5 md:py-3 scrollbar-hide" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
-            <nav className="inline-flex min-w-max items-center justify-center gap-3 sm:gap-4 md:gap-5 rounded-full bg-white px-3 py-2 shadow-sm ring-1 ring-slate-200/70 mx-auto">
+      <section className="w-full border-t-2 border-b-2 border-slate-300 my-10 sm:my-12 md:my-14">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
+          <div className="overflow-x-auto md:overflow-visible scrollbar-hide" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
+            <nav className="flex flex-nowrap md:flex-wrap items-center justify-center w-full gap-3 sm:gap-4 md:gap-5 py-3 md:py-4">
               {NAV_CATEGORIES.map((cat) => (
                 <button
                   key={cat.name}
                   onClick={() => onCategorySelect(cat.name as Category)}
-                  className="flex-shrink-0 inline-flex items-center justify-center text-sm font-semibold text-slate-700 hover:text-[#1d4ed8] whitespace-nowrap transition-all duration-200 px-3 py-2 rounded-full border border-slate-200 bg-slate-50 hover:bg-slate-100 text-center shadow-sm"
+                  className="flex-shrink-0 md:flex-1 md:min-w-[10rem] md:max-w-[14rem] inline-flex items-center justify-center text-sm sm:text-base md:text-base font-semibold text-slate-700 hover:text-[#1d4ed8] whitespace-nowrap transition-all duration-200 px-4 py-3 rounded-full border border-slate-200 bg-white shadow-sm hover:bg-slate-50 text-center"
                 >
                   {cat.name}
                 </button>
