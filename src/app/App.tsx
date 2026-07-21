@@ -1001,6 +1001,23 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
 
       </section>
 
+      {/* Navigation bar */}
+      <section className="border-b border-slate-200 bg-white/95 sticky top-[60px] z-20">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
+          <nav className="flex items-center gap-6 sm:gap-8 overflow-x-auto py-3 sm:py-4">
+            {NAV_CATEGORIES.map((cat) => (
+              <button
+                key={cat.name}
+                onClick={() => onCategorySelect(cat.name as Category)}
+                className="text-sm sm:text-base font-semibold text-slate-600 hover:text-[#1d4ed8] whitespace-nowrap transition-colors duration-200 pb-3 border-b-2 border-transparent hover:border-[#1d4ed8]"
+              >
+                {cat.name}
+              </button>
+            ))}
+          </nav>
+        </div>
+      </section>
+
       {/* Categories grid */}
       <section className="pt-8 sm:pt-10 md:pt-12 pb-2 sm:pb-3 md:pb-4 max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
         <div className="flex items-end justify-between mb-6 sm:mb-8">
