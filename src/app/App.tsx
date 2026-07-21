@@ -944,7 +944,7 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
     <main className="pt-0">
       {/* Special offers - On sale now */}
       {onSale.length > 0 && (
-        <section className="mt-[100px] md:mt-[100px] py-8 sm:py-12 md:py-16 bg-orange-50 border-y border-orange-100">
+        <section className="mt-[180px] md:mt-[180px] py-8 sm:py-12 md:py-16 bg-orange-50 border-y border-orange-100">
           <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
             <div className="flex items-end justify-between mb-6 sm:mb-8 gap-4">
               <div>
