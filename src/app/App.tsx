@@ -1008,9 +1008,9 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
       </section>
 
       {/* Navigation bar */}
-      <section className="border-b border-slate-200 bg-white/95 sticky top-[60px] z-20 mt-12 sm:mt-16 md:mt-20 mb-8 sm:mb-12 md:mb-16">
+      <section className="border-t border-b border-slate-200 bg-white sticky top-[60px] z-20 mt-16 sm:mt-20 md:mt-24 mb-12 sm:mb-16 md:mb-20">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
-          <nav className="flex items-center gap-6 sm:gap-8 overflow-x-auto py-3 sm:py-4">
+          <nav className="flex items-center gap-6 sm:gap-8 overflow-x-auto py-6 sm:py-8">
             {NAV_CATEGORIES.map((cat) => (
               <button
                 key={cat.name}
