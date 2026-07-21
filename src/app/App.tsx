@@ -953,6 +953,23 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
         </div>
       </section>
 
+      {/* Categories Navigation Bar */}
+      <section className="w-full bg-white border-b border-slate-200">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
+          <div className="flex flex-wrap items-center justify-start gap-2 sm:gap-3 md:gap-4 py-3 sm:py-4">
+            {(["Zapatos", "Ropa Hombre", "Ropa Mujer", "Perfumes", "Relojes", "Gafas"] as Category[]).map((cat) => (
+              <button
+                key={cat}
+                onClick={() => onCategorySelect(cat)}
+                className="px-3 sm:px-4 md:px-6 py-2 sm:py-2.5 text-xs sm:text-sm md:text-base font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all duration-200"
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Hero */}
       <section className="relative min-h-[48vh] md:min-h-[44vh] flex items-center justify-center overflow-hidden bg-slate-900">
         <img
