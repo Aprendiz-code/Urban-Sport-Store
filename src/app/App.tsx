@@ -1064,10 +1064,12 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
           </div>
           <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="hidden sm:flex">Ver todos <ChevronRight size={14} /></Btn>
         </div>
-        <ProductCarousel autoScroll autoScrollDirection="rtl" gap="md">
+        <ProductCarousel autoScroll autoScrollDirection="rtl" gap="md" showControls>
             {featured.slice(0, 9).map((p) => (
-            <div key={p.id} className="w-[84vw] max-w-[280px] sm:w-[16rem] lg:w-[18rem] shrink-0">
-              <ProductCard product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
+            <div key={p.id} className="shrink-0 snap-start w-[84vw] max-w-[280px] sm:w-[15rem] md:w-[18rem] lg:w-[20rem]">
+              <div className="px-1 sm:px-2">
+                <ProductCard product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
+              </div>
             </div>
           ))}
         </ProductCarousel>
