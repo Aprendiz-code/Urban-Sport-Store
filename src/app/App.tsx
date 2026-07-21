@@ -953,6 +953,29 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
         </div>
       </section>
 
+      {/* Special offers - On sale now */}
+      {onSale.length > 0 && (
+        <section className="py-8 sm:py-12 md:py-16 bg-orange-50 border-y border-orange-100">
+          <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
+            <div className="flex items-end justify-between mb-6 sm:mb-8 gap-4">
+              <div>
+                <p className="text-[10px] sm:text-xs font-bold text-[#f97316] tracking-widest uppercase mb-1 sm:mb-1.5">Oferta especial</p>
+                <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">En descuento ahora</h2>
+              </div>
+              <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="hidden sm:flex">Ver todos <ChevronRight size={14} /></Btn>
+            </div>
+            <ProductCarousel>
+                {onSale.slice(0, 9).map((p) => (
+                <div key={p.id + "-sale"} className="w-[84vw] max-w-[280px] sm:w-[16rem] lg:w-[18rem] shrink-0">
+                  <ProductCard product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
+                </div>
+              ))}
+            </ProductCarousel>
+            <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="sm:hidden w-full mt-6">Ver todos <ChevronRight size={14} /></Btn>
+          </div>
+        </section>
+      )}
+
       {/* Hero */}
       <section className="relative min-h-[48vh] md:min-h-[44vh] flex items-center justify-center overflow-hidden bg-slate-900 mt-8 sm:mt-12 md:mt-16">
         <img
@@ -983,29 +1006,6 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
         </div>
 
       </section>
-
-      {/* Special offers - On sale now */}
-      {onSale.length > 0 && (
-        <section className="py-8 sm:py-12 md:py-16 bg-orange-50 border-y border-orange-100">
-          <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
-            <div className="flex items-end justify-between mb-6 sm:mb-8 gap-4">
-              <div>
-                <p className="text-[10px] sm:text-xs font-bold text-[#f97316] tracking-widest uppercase mb-1 sm:mb-1.5">Oferta especial</p>
-                <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">En descuento ahora</h2>
-              </div>
-              <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="hidden sm:flex">Ver todos <ChevronRight size={14} /></Btn>
-            </div>
-            <ProductCarousel>
-                {onSale.slice(0, 9).map((p) => (
-                <div key={p.id + "-sale"} className="w-[84vw] max-w-[280px] sm:w-[16rem] lg:w-[18rem] shrink-0">
-                  <ProductCard product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
-                </div>
-              ))}
-            </ProductCarousel>
-            <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="sm:hidden w-full mt-6">Ver todos <ChevronRight size={14} /></Btn>
-          </div>
-        </section>
-      )}
 
       {/* Navigation bar */}
       <section className="border-b border-slate-200 bg-white/95 sticky top-[60px] z-20 mb-8 sm:mb-12 md:mb-16">
