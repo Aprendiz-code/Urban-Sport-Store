@@ -9,7 +9,9 @@ import {
   RefreshCw, Award, Grid3X3, ThumbsUp, DollarSign
 } from "lucide-react";
 import PromoCarousel from "./components/PromoCarousel";
+import ProductCarousel from "./components/ProductCarousel";
 import promoBanner from "/images/promo-discount-10.png";
+import mainBannerImage from "../../10%/Promocion 10%.png";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -374,7 +376,7 @@ function SizeSelector({ sizes, selected, onSelect }: {
   );
 }
 
-function AutoScrollCarousel({ children }: { children: React.ReactNode }) {
+function ProductCarousel({ children }: { children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement | null>(null);
   const isDragging = useRef(false);
   const startX = useRef(0);
@@ -940,6 +942,32 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
 
   return (
     <main className="pt-[100px] md:pt-[100px]">
+      {/* Main promotional banner */}
+      <section className="relative w-full overflow-hidden bg-gradient-to-br from-slate-900 to-slate-950">
+        <div className="relative w-full aspect-video md:aspect-auto md:min-h-[480px] flex items-center justify-center overflow-hidden">
+          <img
+            src={mainBannerImage}
+            alt="Oferta especial Urban Sport Store"
+            className="absolute inset-0 w-full h-full object-cover object-center"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-slate-900/40 via-slate-900/20 to-transparent" />
+          <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 md:px-8 py-6 sm:py-10 w-full flex items-center">
+            <div className="max-w-xl">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-500/20 border border-orange-400/40 text-orange-300 text-xs sm:text-sm font-bold tracking-widest uppercase mb-3 sm:mb-4 whitespace-nowrap">
+                <Award size={14} /> Oferta especial
+              </div>
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white leading-tight tracking-tight mb-3 sm:mb-4">Descuentos exclusivos</h2>
+              <p className="text-sm sm:text-base md:text-lg text-slate-200 leading-relaxed mb-6 max-w-md">
+                Aprovecha nuestras promociones especiales en ropa, calzado y accesorios deportivos premium.
+              </p>
+              <Btn variant="primary" size="lg" onClick={() => onNavigate("catalog")} className="w-full sm:w-auto justify-center">
+                Explorar oferta <ArrowRight size={16} />
+              </Btn>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Hero */}
       <section className="relative min-h-[48vh] md:min-h-[44vh] flex items-center justify-center overflow-hidden bg-slate-900">
         <img
@@ -979,7 +1007,7 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
             <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">{content.categorySectionTitle}</h2>
           </div>
         </div>
-        <AutoScrollCarousel>
+        <ProductCarousel>
           {HOME_CATEGORIES.map((cat) => (
             <div key={cat.name} className="w-[84vw] max-w-[280px] sm:w-[16rem] lg:w-[20rem] shrink-0 snap-start">
               <button
@@ -994,7 +1022,7 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
               </button>
             </div>
           ))}
-        </AutoScrollCarousel>
+        </ProductCarousel>
       </section>
 
       {/* Featured */}
@@ -1006,13 +1034,13 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
           </div>
           <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="hidden sm:flex">Ver todos <ChevronRight size={14} /></Btn>
         </div>
-        <AutoScrollCarousel>
+        <ProductCarousel>
             {featured.slice(0, 9).map((p) => (
             <div key={p.id} className="w-[84vw] max-w-[280px] sm:w-[16rem] lg:w-[18rem] shrink-0">
               <ProductCard product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
             </div>
           ))}
-        </AutoScrollCarousel>
+        </ProductCarousel>
         <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="sm:hidden w-full mt-6">Ver todos <ChevronRight size={14} /></Btn>
       </section>
 
@@ -1066,13 +1094,13 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
             </div>
             <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="hidden sm:flex">Ver todos <ChevronRight size={14} /></Btn>
           </div>
-          <AutoScrollCarousel>
+          <ProductCarousel>
               {newArrivals.slice(0, 9).map((p, idx) => (
               <div key={p.id + "-recent-" + idx} className="w-[84vw] max-w-[280px] sm:w-[16rem] lg:w-[18rem] shrink-0">
                 <ProductCard product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
               </div>
             ))}
-          </AutoScrollCarousel>
+          </ProductCarousel>
           <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="sm:hidden w-full mt-6">Ver todos <ChevronRight size={14} /></Btn>
         </section>
       )}
@@ -1087,13 +1115,13 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
             </div>
             <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="hidden sm:flex">Ver todos <ChevronRight size={14} /></Btn>
           </div>
-          <AutoScrollCarousel>
+          <ProductCarousel>
               {arrivalsForCarousel.map((p, idx) => (
               <div key={p.id + "-" + idx} className="w-[84vw] max-w-[280px] sm:w-[16rem] lg:w-[18rem] shrink-0">
                 <ProductCard product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
               </div>
             ))}
-          </AutoScrollCarousel>
+          </ProductCarousel>
           <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="sm:hidden w-full mt-6">Ver todos <ChevronRight size={14} /></Btn>
         </section>
       )}
@@ -1108,13 +1136,13 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
             </div>
             <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="hidden sm:flex">Ver todos <ChevronRight size={14} /></Btn>
           </div>
-          <AutoScrollCarousel>
+          <ProductCarousel>
               {onSale.slice(0, 9).map((p) => (
               <div key={p.id} className="w-[84vw] max-w-[280px] sm:w-[16rem] lg:w-[18rem] shrink-0">
                 <ProductCard product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
               </div>
             ))}
-          </AutoScrollCarousel>
+          </ProductCarousel>
           <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="sm:hidden w-full mt-6">Ver todos <ChevronRight size={14} /></Btn>
         </div>
       </section>
@@ -1147,13 +1175,36 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
               </div>
               <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="hidden sm:flex">Ver todos <ChevronRight size={14} /></Btn>
             </div>
-            <AutoScrollCarousel>
+            <ProductCarousel>
                 {onSale.slice(0, 9).map((p) => (
                 <div key={p.id + "-sale"} className="w-[84vw] max-w-[280px] sm:w-[16rem] lg:w-[18rem] shrink-0">
                   <ProductCard product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
                 </div>
               ))}
-            </AutoScrollCarousel>
+            </ProductCarousel>
+            <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="sm:hidden w-full mt-6">Ver todos <ChevronRight size={14} /></Btn>
+          </div>
+        </section>
+      )}
+
+      {/* Premium accessories section */}
+      {featured.length > 3 && (
+        <section className="py-8 sm:py-12 md:py-16 bg-gradient-to-br from-slate-50 to-slate-100">
+          <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
+            <div className="flex items-end justify-between mb-6 sm:mb-8 gap-4">
+              <div>
+                <p className="text-[10px] sm:text-xs font-bold text-purple-600 tracking-widest uppercase mb-1 sm:mb-1.5">Colección premium</p>
+                <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">Accesorios y relojes</h2>
+              </div>
+              <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="hidden sm:flex">Ver todos <ChevronRight size={14} /></Btn>
+            </div>
+            <ProductCarousel>
+              {featured.slice(0, 8).map((p) => (
+                <div key={p.id + "-accessories"} className="w-[84vw] max-w-[280px] sm:w-[16rem] lg:w-[18rem] shrink-0">
+                  <ProductCard product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
+                </div>
+              ))}
+            </ProductCarousel>
             <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="sm:hidden w-full mt-6">Ver todos <ChevronRight size={14} /></Btn>
           </div>
         </section>
@@ -4293,3 +4344,4 @@ export default function App() {
     </div>
   );
 }
+
