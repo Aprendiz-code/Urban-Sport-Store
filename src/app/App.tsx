@@ -941,7 +941,7 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
   })();
 
   return (
-    <main className="pt-8 sm:pt-12 md:pt-16">
+    <main className="pt-16 sm:pt-20 md:pt-24">
       {/* Special offers - On sale now */}
       {onSale.length > 0 && (
         <section className="mt-[280px] md:mt-[280px] py-8 sm:py-12 md:py-16 bg-orange-50 border-y border-orange-100">
