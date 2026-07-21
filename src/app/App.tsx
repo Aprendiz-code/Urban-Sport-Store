@@ -1015,7 +1015,7 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
               <button
                 key={cat.name}
                 onClick={() => onCategorySelect(cat.name as Category)}
-                className="flex-shrink-0 text-sm font-semibold text-slate-700 hover:text-[#1d4ed8] whitespace-nowrap transition-all duration-200 px-3 py-2 rounded-full border border-transparent hover:border-[#1d4ed8] hover:bg-slate-100"
+                className="flex-shrink-0 inline-flex items-center justify-center text-sm font-semibold text-slate-700 hover:text-[#1d4ed8] whitespace-nowrap transition-all duration-200 px-3 py-2 rounded-full border border-transparent hover:border-[#1d4ed8] hover:bg-slate-100 text-center"
               >
                 {cat.name}
               </button>
