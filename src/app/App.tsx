@@ -1010,17 +1010,19 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
       {/* Categories Navigation Section - Independent Block */}
       <section className="w-full bg-slate-50 border-t-2 border-b-2 border-slate-300 my-10 sm:my-12 md:my-14">
         <div className="max-w-full px-0">
-          <nav className="flex items-center flex-nowrap overflow-x-auto py-3 sm:py-4 md:py-5 px-3 sm:px-4 md:px-6 gap-3 sm:gap-4 md:gap-5 scrollbar-hide" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
-            {NAV_CATEGORIES.map((cat) => (
-              <button
-                key={cat.name}
-                onClick={() => onCategorySelect(cat.name as Category)}
-                className="flex-shrink-0 inline-flex items-center justify-center text-sm font-semibold text-slate-700 hover:text-[#1d4ed8] whitespace-nowrap transition-all duration-200 px-3 py-2 rounded-full border border-transparent hover:border-[#1d4ed8] hover:bg-slate-100 text-center"
-              >
-                {cat.name}
-              </button>
-            ))}
-          </nav>
+          <div className="overflow-x-auto px-3 sm:px-4 md:px-6 py-2 sm:py-2.5 md:py-3 scrollbar-hide" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
+            <nav className="inline-flex min-w-max items-center justify-center gap-3 sm:gap-4 md:gap-5 rounded-full bg-white px-3 py-2 shadow-sm ring-1 ring-slate-200/70 mx-auto">
+              {NAV_CATEGORIES.map((cat) => (
+                <button
+                  key={cat.name}
+                  onClick={() => onCategorySelect(cat.name as Category)}
+                  className="flex-shrink-0 inline-flex items-center justify-center text-sm font-semibold text-slate-700 hover:text-[#1d4ed8] whitespace-nowrap transition-all duration-200 px-3 py-2 rounded-full border border-slate-200 bg-slate-50 hover:bg-slate-100 text-center shadow-sm"
+                >
+                  {cat.name}
+                </button>
+              ))}
+            </nav>
+          </div>
         </div>
       </section>
 
