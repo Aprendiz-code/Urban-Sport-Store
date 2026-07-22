@@ -60,3 +60,42 @@ begin
   end if;
 end
 $$;
+
+-- Storage bucket and object policies for product images
+-- The bucket `product-images` has been created in the Supabase project.
+-- Apply these policies with a Supabase owner account or from the Studio if the current CLI login role is not the table owner.
+
+alter table storage.objects enable row level security;
+
+create policy if not exists "Public read access to product-images"
+  on storage.objects
+  for select
+  using (
+    bucket_id = 'product-images'
+  );
+
+create policy if not exists "Admin write access to product-images"
+  on storage.objects
+  for insert, update, delete
+  to authenticated
+  using (
+    bucket_id = 'product-images'
+    and (
+      coalesce((auth.jwt() -> 'user_metadata' ->> 'isAdmin'), '') = 'true'
+      or coalesce((auth.jwt() -> 'user_metadata' ->> 'role'), '') = 'ADMIN'
+    )
+  )
+  with check (
+    bucket_id = 'product-images'
+    and (
+      coalesce((auth.jwt() -> 'user_metadata' ->> 'isAdmin'), '') = 'true'
+      or coalesce((auth.jwt() -> 'user_metadata' ->> 'role'), '') = 'ADMIN'
+    )
+  );
+
+create policy if not exists "Allow service role full access to storage objects"
+  on storage.objects
+  for all
+  to service_role
+  using (true)
+  with check (true);

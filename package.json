@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "dev": "vite"
-    ,"e2e": "playwright test"
+    "dev": "vite",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
