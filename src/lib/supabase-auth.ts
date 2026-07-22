@@ -4,8 +4,8 @@ import { getSupabaseClient, isSupabaseEnabled } from './supabase-client';
 const LOCAL_USER_KEY = 'urbansport_local_user';
 const LOCAL_TOKEN = 'local-admin-token';
 
-const adminEmail = (import.meta.env.VITE_ADMIN_EMAIL ?? 'Urbansportstore@outlook.com').toLowerCase();
-const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD ?? 'bM4_tX!8wK2#vP7$qR';
+const adminEmail = (import.meta.env.VITE_ADMIN_EMAIL ?? 'urbansportstoreQoutlook.com').toLowerCase();
+const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD ?? 'kP9#vF2$mX7!tQ5*';
 const adminMetadata = { full_name: 'Administrador', role: 'ADMIN', isAdmin: true };
 
 const getUserMetadata = (email: string, name?: string) => {
