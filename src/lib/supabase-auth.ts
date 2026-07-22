@@ -164,6 +164,11 @@ export const getAccessToken = async () => {
   // return null when not available
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const session = (data as any)?.session ?? null;
+  console.debug('[supabase-auth] getAccessToken', {
+    hasSession: Boolean(session),
+    accessTokenLength: session?.access_token?.length,
+    looksLikeJwt: typeof session?.access_token === 'string' && session.access_token.split('.').length === 3,
+  });
   return session?.access_token ?? null;
 };
 

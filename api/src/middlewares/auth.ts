@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from 'express';
 import { prisma } from '../db/prisma.js';
 import { HttpError } from './error-handler.js';
 import { verifyAccessToken } from '../utils/auth.js';
+import { logger } from '../config/logger.js';
 
 export const requireAuth = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -10,11 +11,25 @@ export const requireAuth = async (req: Request, _res: Response, next: NextFuncti
     const cookieToken = req.cookies?.token;
     const effectiveToken = token ?? cookieToken;
 
+    logger.debug({ hasAuthHeader: Boolean(authHeader), authHeaderPrefix: authHeader?.split(' ')[0], tokenLength: effectiveToken?.length }, 'requireAuth: auth header check');
+
     if (!effectiveToken) {
+      logger.warn({ hasAuthHeader: Boolean(authHeader), hasCookieToken: Boolean(cookieToken) }, 'requireAuth: missing authentication token');
       throw new HttpError(401, 'UNAUTHORIZED', 'Authentication required');
     }
 
-    const payload = verifyAccessToken(effectiveToken);
+    let payload;
+    try {
+      payload = verifyAccessToken(effectiveToken);
+    } catch (error) {
+      if (error instanceof Error && ['JsonWebTokenError', 'TokenExpiredError'].includes(error.name)) {
+        logger.warn({ error: error.message, errorName: error.name }, 'requireAuth: invalid access token');
+        next(new HttpError(401, 'INVALID_TOKEN', 'Authentication required')); 
+        return;
+      }
+      throw error;
+    }
+
     const user = await prisma.user.findUnique({
       where: { id: payload.id },
       include: { userRoles: { include: { role: true } } },

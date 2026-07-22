@@ -13,6 +13,17 @@ const API_ROOT = normalizeApiRoot(import.meta.env.VITE_API_URL);
 const API_BASE = `${API_ROOT}/admin`;
 
 async function bridgeSupabaseToken(supabaseToken: string) {
+  if (!supabaseToken) {
+    const error = new Error('No Supabase access token available for bridge exchange. Inicia sesión antes de realizar esta acción.');
+    console.error('[bridgeSupabaseToken] Error: missing supabase token');
+    throw error;
+  }
+
+  console.debug('[bridgeSupabaseToken] Requesting backend bridge token', {
+    tokenLength: supabaseToken.length,
+    tokenLooksLikeJwt: typeof supabaseToken === 'string' && supabaseToken.split('.').length === 3,
+  });
+
   try {
     const res = await fetch(`${API_ROOT}/auth/bridge`, { method: 'POST', headers: { Authorization: `Bearer ${supabaseToken}`, 'Content-Type': 'application/json' } });
     if (!res.ok) {
@@ -38,6 +49,14 @@ async function bridgeSupabaseToken(supabaseToken: string) {
 async function callApi(path: string, opts: RequestInit = {}) {
   const supabaseToken = await getAccessToken();
   const storedBackend = localStorage.getItem('urbansport_backend_token');
+  console.debug('[admin-api] callApi', {
+    path,
+    apiRoot: API_ROOT,
+    supabaseTokenExists: Boolean(supabaseToken),
+    backendTokenExists: Boolean(storedBackend),
+    supabaseTokenLength: supabaseToken?.length,
+    supabaseTokenLooksLikeJwt: typeof supabaseToken === 'string' && supabaseToken.split('.').length === 3,
+  });
 
   const makeRequest = async (url: string, bearer?: string) => {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -52,6 +71,12 @@ async function callApi(path: string, opts: RequestInit = {}) {
   let primaryError: unknown = null;
   let backendToken = storedBackend ?? undefined;
 
+  if (!backendToken && !supabaseToken) {
+    const error = new Error('No Supabase session token available. Por favor inicia sesión y recarga la aplicación.');
+    console.error('[admin-api] callApi no supabase token available', { path, storedBackendExists: Boolean(storedBackend) });
+    throw error;
+  }
+
   if (!backendToken && supabaseToken) {
     try {
       backendToken = await bridgeSupabaseToken(supabaseToken);
@@ -59,7 +84,7 @@ async function callApi(path: string, opts: RequestInit = {}) {
         localStorage.setItem('urbansport_backend_token', backendToken);
       }
     } catch (e) {
-      // ignore; backend requests should not be made with a Supabase access token
+      console.warn('[admin-api] bridge token exchange failed', e);
       backendToken = undefined;
     }
   }

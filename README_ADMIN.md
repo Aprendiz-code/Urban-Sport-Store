@@ -8,7 +8,7 @@ Frontend (`.env.local` at project root or Vite env):
 
 - VITE_SUPABASE_URL=https://your-supabase-project.supabase.co
 - VITE_SUPABASE_ANON_KEY=public-anon-key
-- VITE_SUPABASE_STORAGE_BUCKET=products
+- VITE_SUPABASE_STORAGE_BUCKET=product-images
 - VITE_API_URL=http://localhost:4000/api/v1
 - VITE_ADMIN_EMAIL=admin@urbansportstore.dev
 

@@ -30,3 +30,19 @@ export const getTestToken = async (req: Request, res: Response, next: NextFuncti
     next(err);
   }
 };
+
+export const getEnvDebug = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { secret } = req.body ?? {};
+    if (!env.e2eSecret || secret !== env.e2eSecret) {
+      throw new HttpError(403, 'FORBIDDEN', 'Invalid test secret');
+    }
+
+    // Return a masked version of the DATABASE_URL for debugging
+    const db = env.databaseUrl || process.env.DATABASE_URL || '';
+    const masked = db ? `${db.substring(0, 30)}...${db.slice(-10)}` : '';
+    res.status(200).json(successResponse({ databaseUrl: masked }));
+  } catch (err) {
+    next(err);
+  }
+};

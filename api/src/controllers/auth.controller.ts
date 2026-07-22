@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { AuthService } from '../services/auth.service.js';
 import { successResponse } from '../utils/responses.js';
+import { logger } from '../config/logger.js';
 
 const authService = new AuthService();
 
@@ -55,14 +56,20 @@ export const me = async (req: Request, res: Response, next: NextFunction): Promi
 
 export const bridge = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const token = req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization!.slice(7) : req.body?.access_token;
+    const authHeader = req.headers.authorization;
+    logger.info({ hasAuthorizationHeader: Boolean(authHeader), authorizationPrefix: authHeader?.split(' ')[0] }, 'bridge: received token header');
+    const token = authHeader?.startsWith('Bearer ') ? authHeader!.slice(7) : req.body?.access_token;
     if (!token) {
+      logger.warn('bridge: missing token in Authorization header or body');
       res.status(400).json({ ok: false, error: 'MISSING_TOKEN' });
       return;
     }
+    logger.info('bridge: exchanging supabase token for backend JWT');
     const data = await authService.exchangeSupabaseToken(token);
+    logger.info({ userId: data.user.id, email: data.user.email }, 'bridge: token exchange successful');
     res.status(200).json(successResponse(data));
   } catch (error) {
+    logger.error({ error: (error as any)?.message }, 'bridge: token exchange failed');
     next(error);
   }
 };

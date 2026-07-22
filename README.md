@@ -109,7 +109,7 @@ npm run dev
 ```env
 VITE_SUPABASE_URL=https://project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
-VITE_SUPABASE_STORAGE_BUCKET=products
+VITE_SUPABASE_STORAGE_BUCKET=product-images
 VITE_ADMIN_EMAIL=admin@urbansportstore.dev
 VITE_ADMIN_PASSWORD=your-password
 ```

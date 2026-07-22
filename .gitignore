@@ -9,8 +9,10 @@ api/dist/
 # Environment files
 .env
 .env.*
+!.env.example
 api/.env
 api/.env.*
+!api/.env.example
 
 # Vite cache
 .vite/
@@ -45,7 +47,12 @@ api/pgdata/
 # Local Supabase CLI state
 supabase/
 
+# Vercel local state
+.vercel
+.vercel.env
+.vercel.prod.env
+
 # Misc
 *.log
-.vercel
 .env*.local
+.env*

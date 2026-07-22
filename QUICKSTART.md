@@ -6,7 +6,7 @@
 ```env
 VITE_SUPABASE_URL=https://vgfvjmpaftiufykejagk.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJhbGc...  # Clave pública - segura en frontend
-VITE_SUPABASE_STORAGE_BUCKET=products
+VITE_SUPABASE_STORAGE_BUCKET=product-images
 VITE_ADMIN_EMAIL=Urbansportstore@outlook.com
 VITE_ADMIN_PASSWORD=bM4_tX!8wK2#vP7$qR
 VITE_API_URL=http://localhost:4000/api/v1
