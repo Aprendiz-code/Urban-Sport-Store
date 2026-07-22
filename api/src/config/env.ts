@@ -114,7 +114,7 @@ export const env = {
   rateLimitWindowMs: Number(getEnv('RATE_LIMIT_WINDOW_MS', '900000')),
   rateLimitMax: Number(getEnv('RATE_LIMIT_MAX', '120')),
   authRateLimitMax: Number(getEnv('AUTH_RATE_LIMIT_MAX', '10')),
-  seedAdminEmail: getEnv('SEED_ADMIN_EMAIL', 'urbansportstoreQoutlook.com'),
+  seedAdminEmail: getEnv('SEED_ADMIN_EMAIL', 'urbansportstore@outlook.com'),
   seedAdminPassword: getEnv('SEED_ADMIN_PASSWORD', 'kP9#vF2$mX7!tQ5*'),
   seedAdminName: getEnv('SEED_ADMIN_NAME', 'Admin Urban Sport Store'),
   secureCookies: parseBoolean(getEnv('SECURE_COOKIES', 'false'), false),
