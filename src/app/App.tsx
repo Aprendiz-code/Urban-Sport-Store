@@ -36,7 +36,7 @@ import {
 } from "../lib/supabase-auth";
 
 import adminApi, { createSupabaseProductApi, updateSupabaseProductApi, deleteSupabaseProductApi, updateHomeContentApi } from "../lib/admin-api";
-import { uploadProductImage, getPublicUrl } from "../lib/supabase-store";
+import { uploadProductImage, deleteProductImage, getPublicUrl, buildProductImagePath, getStoragePathFromPublicUrl, STORAGE_BUCKET } from "../lib/supabase-store";
 import { recordAction, getAudit } from "../lib/audit";
 import { productSchema } from '../lib/schemas';
 import Toaster from './components/LazyToaster';
@@ -2505,8 +2505,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
       const data = await uploadProductImage(file, `home/${field}-${Date.now()}-${file.name}`);
       const path = (data as any)?.path ?? (data as any)?.Key ?? null;
       if (path) {
-        const bucket = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET ?? 'products';
-        const publicUrl = getPublicUrl(bucket, path);
+        const publicUrl = getPublicUrl(STORAGE_BUCKET, path);
         updateHomeContentField(field, publicUrl as string);
         toast.success('Imagen subida y asignada.');
       }
@@ -3648,11 +3647,46 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
     setProductForm((prev) => ({ ...prev, [field]: value }));
   };
 
+  const validateImageFile = (file: File) => {
+    const supportedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    const maxSizeBytes = 5 * 1024 * 1024;
+
+    if (!supportedTypes.includes(file.type)) {
+      return 'Formato no válido. Usa JPG, JPEG, PNG o WebP.';
+    }
+
+    if (file.size > maxSizeBytes) {
+      return 'El archivo excede el límite de 5 MB.';
+    }
+
+    return null;
+  };
+
+  const cleanupStorageImage = async (url: string) => {
+    const path = getStoragePathFromPublicUrl(url);
+    if (!path) return;
+
+    try {
+      await deleteProductImage(path);
+    } catch (err) {
+      console.warn('No se pudo eliminar la imagen antigua en storage:', url, err);
+    }
+  };
+
   const handleImageFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
-    // Show preview immediately
+
+    const validationError = validateImageFile(file);
+    if (validationError) {
+      setFormErrors((prev) => ({ ...prev, image: validationError }));
+      toast.error(validationError);
+      return;
+    }
+
+    setFormErrors((prev) => ({ ...prev, image: '' }));
+    const previousImage = productForm.image;
+
     const reader = new FileReader();
     reader.onload = (event) => {
       setMainImagePreview(event.target?.result as string);
@@ -3661,13 +3695,15 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
 
     setIsUploadingImage(true);
     try {
-      const data = await uploadProductImage(file);
-      const path = (data as any)?.path ?? (data as any)?.Key ?? null;
-      if (path) {
-        const bucket = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET ?? 'products';
-        const publicUrl = getPublicUrl(bucket, path);
-        updateField('image', publicUrl as any);
-        toast.success('Imagen cargada exitosamente');
+      const filePath = buildProductImagePath(file, 'products');
+      const data = await uploadProductImage(file, filePath);
+      const path = (data as any)?.path ?? (data as any)?.Key ?? filePath;
+      const publicUrl = getPublicUrl(STORAGE_BUCKET, path);
+      updateField('image', publicUrl as any);
+      toast.success('Imagen cargada exitosamente');
+
+      if (previousImage && previousImage !== publicUrl) {
+        await cleanupStorageImage(previousImage);
       }
     } catch (err) {
       console.warn('Image upload failed', err);
@@ -3680,36 +3716,39 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
   const handleGalleryFilesChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files?.length) return;
-    const bucket = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET ?? 'products';
-    const uploadedUrls: string[] = [];
 
-    setIsUploadingGallery(true);
+    const uploadedUrls: string[] = [];
     const totalFiles = files.length;
     let uploadedCount = 0;
 
+    setIsUploadingGallery(true);
+
     for (const file of Array.from(files)) {
+      const validationError = validateImageFile(file);
+      if (validationError) {
+        toast.error(`Imagen ${file.name}: ${validationError}`);
+        continue;
+      }
+
+      const filePath = buildProductImagePath(file, 'products');
       try {
-        const data = await uploadProductImage(file, `products/${Date.now()}-${file.name}`);
-        const path = (data as any)?.path ?? (data as any)?.Key ?? null;
-        if (path) {
-          uploadedUrls.push(getPublicUrl(bucket, path) as string);
-        }
+        const data = await uploadProductImage(file, filePath);
+        const path = (data as any)?.path ?? (data as any)?.Key ?? filePath;
+        uploadedUrls.push(getPublicUrl(STORAGE_BUCKET, path) as string);
         uploadedCount++;
-        // Show progress
-        if (uploadedCount % Math.ceil(totalFiles / 3) === 0) {
+        if (uploadedCount % Math.ceil(totalFiles / 3) === 0 || uploadedCount === totalFiles) {
           toast.success(`Cargadas ${uploadedCount}/${totalFiles} imágenes`);
         }
       } catch (err) {
-        console.warn('Gallery image upload failed', err);
+        console.warn(`Gallery image upload failed for ${file.name}`, err);
       }
     }
 
     if (uploadedUrls.length > 0) {
       updateField('images', [...(productForm.images ?? []), ...uploadedUrls] as any);
       toast.success(`${uploadedUrls.length} imágenes cargadas a la galería`);
-    } else {
-      toast.error('No se pudieron cargar las imágenes. Intenta nuevamente.');
     }
+
     setIsUploadingGallery(false);
   };
 
@@ -3868,17 +3907,17 @@ export default function App() {
 
     const loadProducts = async () => {
       const isSupabaseConfigured = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
-      const isApiConfigured = Boolean(import.meta.env.VITE_API_URL);
 
       const tryLoadingFromAdminApi = async () => {
         try {
           const response = await adminApi.fetchSupabaseProducts();
           setBackendAdminAvailable(true);
           if (!isActive) return false;
-          if (Array.isArray(response) && response.length > 0) {
+          if (Array.isArray(response)) {
             setProducts(response.map(mapProductRecordToAppProduct));
             return true;
           }
+          throw new Error('Admin API returned invalid payload');
         } catch (error) {
           console.warn('No se pudo cargar productos desde el backend admin.', error);
           setBackendAdminAvailable(false);
@@ -3890,24 +3929,23 @@ export default function App() {
         try {
           const data = await fetchProductsFromSupabase(24);
           if (!isActive) return false;
-          if (data.length > 0) {
+          if (Array.isArray(data)) {
             setProducts(data.map(mapProductRecordToAppProduct));
             return true;
           }
+          throw new Error('Supabase returned invalid payload');
         } catch (error) {
           console.warn('No se pudo cargar productos desde Supabase.', error);
         }
         return false;
       };
 
-      if (isApiConfigured) {
-        const loaded = await tryLoadingFromAdminApi();
-        if (loaded) return;
-      }
+      const loaded = await tryLoadingFromAdminApi();
+      if (loaded) return;
 
       if (isSupabaseConfigured) {
-        const loaded = await tryLoadingFromSupabase();
-        if (loaded) return;
+        const loadedFromSupabase = await tryLoadingFromSupabase();
+        if (loadedFromSupabase) return;
       }
 
       console.warn('No se cargaron productos desde Supabase ni el backend admin. El catálogo quedará vacío hasta que haya datos en la base de datos.');

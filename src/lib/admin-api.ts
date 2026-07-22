@@ -13,10 +13,26 @@ const API_ROOT = normalizeApiRoot(import.meta.env.VITE_API_URL);
 const API_BASE = `${API_ROOT}/admin`;
 
 async function bridgeSupabaseToken(supabaseToken: string) {
-  const res = await fetch(`${API_ROOT}/auth/bridge`, { method: 'POST', headers: { Authorization: `Bearer ${supabaseToken}`, 'Content-Type': 'application/json' } });
-  if (!res.ok) throw new Error('Bridge failed');
-  const json = await res.json();
-  return json?.data?.token ?? null;
+  try {
+    const res = await fetch(`${API_ROOT}/auth/bridge`, { method: 'POST', headers: { Authorization: `Bearer ${supabaseToken}`, 'Content-Type': 'application/json' } });
+    if (!res.ok) {
+      const text = await res.text();
+      try {
+        const errorJson = JSON.parse(text);
+        const errorMsg = errorJson?.error?.message || errorJson?.message || 'Bridge exchange failed';
+        throw new Error(`Bridge [${res.status}]: ${errorMsg}`);
+      } catch {
+        throw new Error(`Bridge exchange failed [${res.status}]`);
+      }
+    }
+    const json = await res.json();
+    const token = json?.data?.token ?? null;
+    if (!token) throw new Error('Bridge returned no token');
+    return token;
+  } catch (err) {
+    console.error('[bridgeSupabaseToken] Error:', err);
+    throw err;
+  }
 }
 
 async function callApi(path: string, opts: RequestInit = {}) {
@@ -34,19 +50,32 @@ async function callApi(path: string, opts: RequestInit = {}) {
 
   let res: Response | null = null;
   let primaryError: unknown = null;
+  let backendToken = storedBackend ?? undefined;
+
+  if (!backendToken && supabaseToken) {
+    try {
+      backendToken = await bridgeSupabaseToken(supabaseToken);
+      if (backendToken) {
+        localStorage.setItem('urbansport_backend_token', backendToken);
+      }
+    } catch (e) {
+      // ignore; backend requests should not be made with a Supabase access token
+      backendToken = undefined;
+    }
+  }
 
   try {
-    res = storedBackend ? await makeRequest(primaryUrl, storedBackend) : await makeRequest(primaryUrl, supabaseToken ?? undefined);
+    res = await makeRequest(primaryUrl, backendToken);
   } catch (error) {
     primaryError = error;
   }
 
-  if (res && res.status === 401 && supabaseToken) {
+  if (res && res.status === 401 && backendToken && supabaseToken) {
     try {
-      const backendToken = await bridgeSupabaseToken(supabaseToken);
-      if (backendToken) {
-        localStorage.setItem('urbansport_backend_token', backendToken);
-        res = await makeRequest(primaryUrl, backendToken);
+      const newBackendToken = await bridgeSupabaseToken(supabaseToken);
+      if (newBackendToken) {
+        localStorage.setItem('urbansport_backend_token', newBackendToken);
+        res = await makeRequest(primaryUrl, newBackendToken);
       }
     } catch (e) {
       // ignore
@@ -57,7 +86,7 @@ async function callApi(path: string, opts: RequestInit = {}) {
 
   if (shouldTryFallback) {
     try {
-      const bearer = storedBackend ?? supabaseToken ?? undefined;
+      const bearer = backendToken;
       const fallbackRes = await makeRequest(fallbackUrl, bearer);
       if (fallbackRes.ok) {
         res = fallbackRes;
@@ -73,7 +102,14 @@ async function callApi(path: string, opts: RequestInit = {}) {
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`${res.status} ${res.statusText}: ${text}`);
+    try {
+      const json = JSON.parse(text);
+      const errorMessage = json?.error?.message || json?.message || `${res.status} ${res.statusText}`;
+      const errorCode = json?.error?.code || json?.code || 'UNKNOWN_ERROR';
+      throw new Error(`[${errorCode}] ${errorMessage}`);
+    } catch {
+      throw new Error(`${res.status} ${res.statusText}: ${text}`);
+    }
   }
 
   if (res.status === 204) return null;

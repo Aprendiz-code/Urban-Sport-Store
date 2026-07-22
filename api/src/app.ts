@@ -15,7 +15,7 @@ import adminRoutes from './routes/admin.routes.js';
 import testRoutes from './routes/test.routes.js';
 import { env } from './config/env.js';
 import { logger } from './config/logger.js';
-import { errorHandler } from './middlewares/error-handler.js';
+import { errorHandler, HttpError } from './middlewares/error-handler.js';
 import { globalLimiter, setRequestId } from './middlewares/security.js';
 import { successResponse } from './utils/responses.js';
 
@@ -49,14 +49,19 @@ const isAllowedOrigin = (origin: string): boolean => {
 app.set('trust proxy', 1);
 const helmetMiddleware = (helmet as any).default ?? helmet;
 app.use(helmetMiddleware());
-app.use(cors({
-  origin: (origin, callback) => {
+const corsOptions = {
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
     if (!origin) return callback(null, true);
     if (isAllowedOrigin(origin)) return callback(null, true);
     callback(new Error('Origin not allowed by CORS'));
   },
+  methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
   credentials: true,
-}));
+  optionsSuccessStatus: 204,
+};
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(cookieParser());
 app.use(express.json({ limit: '1mb' }));
 app.use(globalLimiter);
@@ -85,6 +90,10 @@ app.use('/api/v1/orders', orderRoutes);
 app.use('/api/v1/payments', paymentRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/test', testRoutes);
+
+app.use((req, _res, next) => {
+  next(new HttpError(404, 'NOT_FOUND', `Route not found: ${req.method} ${req.originalUrl}`));
+});
 
 app.use(errorHandler);
 

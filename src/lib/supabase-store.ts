@@ -24,6 +24,29 @@ export interface ProductRecord {
   specs?: string[] | null;
 }
 
+export const STORAGE_BUCKET = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET ?? 'product-images';
+const SUPPORTED_IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp'];
+
+const getFileExtension = (file: File) => {
+  const fileName = file.name.toLowerCase();
+  const extensionFromName = fileName.split('.').pop();
+  if (extensionFromName && SUPPORTED_IMAGE_EXTENSIONS.includes(extensionFromName)) {
+    return extensionFromName;
+  }
+
+  if (file.type === 'image/jpeg') return 'jpg';
+  if (file.type === 'image/png') return 'png';
+  if (file.type === 'image/webp') return 'webp';
+
+  return 'png';
+};
+
+export const buildProductImagePath = (file: File, prefix = 'products') => {
+  const extension = getFileExtension(file);
+  const timestamp = Date.now();
+  return `${prefix}/${crypto.randomUUID()}-${timestamp}.${extension}`;
+};
+
 export const fetchProductsFromSupabase = async (limit = 12): Promise<ProductRecord[]> => {
   const client = getSupabaseClient();
   const { data, error } = await client.from('products').select('*').order('id', { ascending: false }).limit(limit);
@@ -77,12 +100,12 @@ export const deleteProductInSupabase = async (productId: string) => {
   }
 };
 
-export const uploadProductImage = async (file: File, path = `${Date.now()}-${file.name}`) => {
+export const uploadProductImage = async (file: File, path = buildProductImagePath(file)) => {
   const client = getSupabaseClient();
-  const bucket = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET ?? 'products';
+  const bucket = STORAGE_BUCKET;
   const { data, error } = await client.storage.from(bucket).upload(path, file, {
     cacheControl: '3600',
-    upsert: true,
+    upsert: false,
   });
 
   if (error) {
@@ -92,7 +115,34 @@ export const uploadProductImage = async (file: File, path = `${Date.now()}-${fil
   return data;
 };
 
+export const deleteProductImage = async (path: string) => {
+  const client = getSupabaseClient();
+  const bucket = STORAGE_BUCKET;
+  const { error } = await client.storage.from(bucket).remove([path]);
+
+  if (error) {
+    throw error;
+  }
+};
+
 export const getPublicUrl = (bucket: string, path: string) => {
   const client = getSupabaseClient();
   return client.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+};
+
+export const getStoragePathFromPublicUrl = (url: string) => {
+  try {
+    const parsed = new URL(url);
+    const bucket = STORAGE_BUCKET;
+    const pattern = `/storage/v1/object/public/${bucket}/`;
+    const index = parsed.pathname.indexOf(pattern);
+    if (index !== -1) {
+      const path = parsed.pathname.slice(index + pattern.length);
+      return decodeURIComponent(path);
+    }
+  } catch {
+    // ignore invalid URLs
+  }
+
+  return null;
 };

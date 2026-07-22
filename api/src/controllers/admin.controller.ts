@@ -47,7 +47,7 @@ export const createProduct = async (req: Request, res: Response, next: NextFunct
 export const fetchSupabaseProducts = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const products = await supabaseAdminService.fetchProducts();
-    res.status(200).json(successResponse(products));
+    res.status(200).json(successResponse(Array.isArray(products) ? products : []));
   } catch (error) {
     next(error);
   }
