@@ -80,12 +80,15 @@ I added a small helper endpoint in the backend to support CI/local E2E runs with
 E2E_SECRET=your-local-secret
 ```
 
-2. Run backend and frontend locally, then run Playwright tests:
+2. Start the backend first, then run the API suite:
 
 ```pwsh
-# from repo root
+# in one terminal, start the backend
+cd api && npm run dev
+
+# in another terminal, from repo root
 npx playwright install
-E2E_API_BASE=http://localhost:4000 E2E_SECRET=your-local-secret pnpm e2e
+E2E_API_BASE=http://127.0.0.1:4000 E2E_SECRET=your-local-secret npm run e2e
 ```
 
 The tests will call `POST /api/v1/test/token` with the secret to get a backend JWT, then create a category, brand and product via the admin API.

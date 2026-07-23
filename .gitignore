@@ -56,3 +56,4 @@ supabase/
 *.log
 .env*.local
 .env*
+scripts/dev-api-runner.js

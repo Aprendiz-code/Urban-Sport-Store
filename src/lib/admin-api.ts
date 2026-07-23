@@ -3,10 +3,10 @@ import { getAccessToken } from './supabase-auth';
 
 const normalizeApiRoot = (url?: string) => {
   const trimmed = url?.trim().replace(/\/$/, '');
-  if (!trimmed) return '/api/v1';
-  if (trimmed.endsWith('/api/v1')) return trimmed;
-  if (trimmed.endsWith('/api')) return `${trimmed}/v1`;
-  return `${trimmed}/api/v1`;
+  if (!trimmed) return '/api';
+  if (trimmed.endsWith('/api/v1')) return trimmed.replace(/\/v1$/, '');
+  if (trimmed.endsWith('/api')) return trimmed;
+  return `${trimmed}/api`;
 };
 
 const API_ROOT = normalizeApiRoot(import.meta.env.VITE_API_URL);
@@ -71,45 +71,33 @@ async function callApi(path: string, opts: RequestInit = {}) {
   let primaryError: unknown = null;
   let backendToken = storedBackend ?? undefined;
 
-  if (!backendToken && !supabaseToken) {
+  if (!supabaseToken) {
     const error = new Error('No Supabase session token available. Por favor inicia sesión y recarga la aplicación.');
     console.error('[admin-api] callApi no supabase token available', { path, storedBackendExists: Boolean(storedBackend) });
     throw error;
   }
 
-  if (!backendToken && supabaseToken) {
-    try {
-      backendToken = await bridgeSupabaseToken(supabaseToken);
-      if (backendToken) {
-        localStorage.setItem('urbansport_backend_token', backendToken);
-      }
-    } catch (e) {
-      console.warn('[admin-api] bridge token exchange failed', e);
-      backendToken = undefined;
-    }
-  }
-
   try {
-    res = await makeRequest(primaryUrl, backendToken);
+    res = await makeRequest(primaryUrl, supabaseToken);
   } catch (error) {
     primaryError = error;
-  }
-
-  if (res && res.status === 401 && backendToken && supabaseToken) {
-    try {
-      const newBackendToken = await bridgeSupabaseToken(supabaseToken);
-      if (newBackendToken) {
-        localStorage.setItem('urbansport_backend_token', newBackendToken);
-        res = await makeRequest(primaryUrl, newBackendToken);
-      }
-    } catch (e) {
-      // ignore
-    }
   }
 
   const shouldTryFallback = !res || [404, 502, 503, 504].includes(res.status);
 
   if (shouldTryFallback) {
+    if (!backendToken && supabaseToken) {
+      try {
+        backendToken = await bridgeSupabaseToken(supabaseToken);
+        if (backendToken) {
+          localStorage.setItem('urbansport_backend_token', backendToken);
+        }
+      } catch (e) {
+        console.warn('[admin-api] bridge token exchange failed for legacy fallback', e);
+        backendToken = undefined;
+      }
+    }
+
     try {
       const bearer = backendToken;
       const fallbackRes = await makeRequest(fallbackUrl, bearer);

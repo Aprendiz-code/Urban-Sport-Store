@@ -5,9 +5,9 @@ import * as supabaseStore from './supabase-store';
 
 vi.mock('./admin-api', () => ({
   default: {
-    createSupabaseProductApi: vi.fn(),
-    updateSupabaseProductApi: vi.fn(),
-    deleteSupabaseProductApi: vi.fn(),
+    createProductApi: vi.fn(),
+    updateProductApi: vi.fn(),
+    deleteProductApi: vi.fn(),
   },
 }));
 
@@ -22,8 +22,8 @@ describe('admin product fallback helpers', () => {
     vi.clearAllMocks();
   });
 
-  it('falls back to Supabase when admin create fails', async () => {
-    vi.mocked(adminApi.createSupabaseProductApi).mockRejectedValueOnce(new Error('backend down'));
+  it('falls back to Supabase when admin create fails with a fallbackable error', async () => {
+    vi.mocked(adminApi.createProductApi).mockRejectedValueOnce(new Error('backend down'));
     vi.mocked(supabaseStore.createProductInSupabase).mockResolvedValueOnce({ id: 'p-1', name: 'Zapatilla' } as any);
 
     const result = await createProductWithFallback({ id: 'p-1', name: 'Zapatilla' } as any);
@@ -32,8 +32,22 @@ describe('admin product fallback helpers', () => {
     expect(result).toEqual({ id: 'p-1', name: 'Zapatilla' });
   });
 
-  it('falls back to Supabase when admin update fails', async () => {
-    vi.mocked(adminApi.updateSupabaseProductApi).mockRejectedValueOnce(new Error('backend down'));
+  it('does not fall back when admin create fails with 401', async () => {
+    vi.mocked(adminApi.createProductApi).mockRejectedValueOnce(new Error('401 Unauthorized'));
+
+    await expect(createProductWithFallback({ id: 'p-1', name: 'Zapatilla' } as any)).rejects.toThrow(/401/);
+    expect(supabaseStore.createProductInSupabase).not.toHaveBeenCalled();
+  });
+
+  it('does not fall back when admin create fails with 403', async () => {
+    vi.mocked(adminApi.createProductApi).mockRejectedValueOnce(new Error('403 Forbidden'));
+
+    await expect(createProductWithFallback({ id: 'p-1', name: 'Zapatilla' } as any)).rejects.toThrow(/403/);
+    expect(supabaseStore.createProductInSupabase).not.toHaveBeenCalled();
+  });
+
+  it('falls back to Supabase when admin update fails with a fallbackable error', async () => {
+    vi.mocked(adminApi.updateProductApi).mockRejectedValueOnce(new Error('backend down'));
     vi.mocked(supabaseStore.updateProductInSupabase).mockResolvedValueOnce({ id: 'p-1', name: 'Nuevo nombre' } as any);
 
     const result = await updateProductWithFallback('p-1', { name: 'Nuevo nombre' } as any);
@@ -42,8 +56,8 @@ describe('admin product fallback helpers', () => {
     expect(result).toEqual({ id: 'p-1', name: 'Nuevo nombre' });
   });
 
-  it('falls back to Supabase when admin delete fails', async () => {
-    vi.mocked(adminApi.deleteSupabaseProductApi).mockRejectedValueOnce(new Error('backend down'));
+  it('falls back to Supabase when admin delete fails with a fallbackable error', async () => {
+    vi.mocked(adminApi.deleteProductApi).mockRejectedValueOnce(new Error('backend down'));
     vi.mocked(supabaseStore.deleteProductInSupabase).mockResolvedValueOnce(undefined);
 
     await expect(deleteProductWithFallback('p-1')).resolves.toBeUndefined();

@@ -3910,7 +3910,7 @@ export default function App() {
 
       const tryLoadingFromAdminApi = async () => {
         try {
-          const response = await adminApi.fetchSupabaseProducts();
+          const response = await adminApi.fetchProducts();
           setBackendAdminAvailable(true);
           if (!isActive) return false;
           if (Array.isArray(response)) {
