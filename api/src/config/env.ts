@@ -120,5 +120,6 @@ export const env = {
   secureCookies: parseBoolean(getEnv('SECURE_COOKIES', 'false'), false),
   supabaseUrl: getEnv('SUPABASE_URL', ''),
   supabaseServiceRoleKey: getEnv('SUPABASE_SERVICE_ROLE_KEY', ''),
+  useHomeContentTable: getEnv('USE_HOME_CONTENT_TABLE', 'false') === 'true',
   e2eSecret: getEnv('E2E_SECRET', ''),
 };
