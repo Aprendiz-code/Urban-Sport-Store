@@ -15,31 +15,31 @@ const isFallbackableError = (error: unknown) => {
   return false;
 };
 
-export async function createProductWithFallback(product: Record<string, unknown>) {
+export async function createProductWithFallback(adminPayload: Record<string, unknown>, fallbackRecord: Record<string, unknown>) {
   try {
-    return await adminApi.createProductApi(product as any);
+    return await adminApi.createProductApi(adminPayload as any);
   } catch (error) {
     if (isAuthError(error)) {
       throw error;
     }
     if (isFallbackableError(error)) {
       console.warn('Admin API create failed, falling back to Supabase.', error);
-      return createProductInSupabase(product as any);
+      return createProductInSupabase(fallbackRecord as any);
     }
     throw error;
   }
 }
 
-export async function updateProductWithFallback(productId: string, updates: Record<string, unknown>) {
+export async function updateProductWithFallback(productId: string, adminUpdates: Record<string, unknown>, fallbackUpdates: Record<string, unknown>) {
   try {
-    return await adminApi.updateProductApi(productId, updates as any);
+    return await adminApi.updateProductApi(productId, adminUpdates as any);
   } catch (error) {
     if (isAuthError(error)) {
       throw error;
     }
     if (isFallbackableError(error)) {
       console.warn('Admin API update failed, falling back to Supabase.', error);
-      return updateProductInSupabase(productId, updates as any);
+      return updateProductInSupabase(productId, fallbackUpdates as any);
     }
     throw error;
   }

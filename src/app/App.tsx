@@ -48,13 +48,12 @@ type View =
   | "home" | "catalog" | "product" | "checkout"
   | "login" | "register" | "account" | "admin";
 
-type Category =
-  | "Zapatos" | "Ropa Hombre" | "Ropa Mujer" | "Perfumes" | "Relojes" | "Gafas";
+type Category = string;
 
 interface Product {
   id: string; name: string; brand: string; price: number;
   originalPrice?: number; discount?: number; rating: number; reviews: number;
-  image: string; category: Category; subcategory: string;
+  image: string; category: Category; categoryId?: string; subcategory: string;
   stock: number; sku: string; description: string;
   colors: { name: string; hex: string }[];
   sizes: string[];
@@ -161,7 +160,8 @@ const mapProductRecordToAppProduct = (record: ProductRecord): Product => ({
   reviews: record.reviews ?? 0,
   image: record.image,
   images: record.images ?? [],
-  category: record.category as Category,
+  category: record.category_id ?? "Zapatos",
+  categoryId: record.category_id ?? undefined,
   subcategory: record.subcategory ?? "",
   stock: record.stock ?? 0,
   sku: record.sku ?? record.id,
@@ -185,7 +185,7 @@ const mapAppProductToProductRecord = (product: Partial<Product> & { id?: string 
   reviews: Number(product.reviews ?? 0),
   image: product.image ?? "",
   images: product.images ?? [],
-  category: (product.category ?? "Zapatos") as string,
+  category_id: product.categoryId ?? null,
   subcategory: product.subcategory ?? "",
   stock: Number(product.stock ?? 0),
   sku: product.sku ?? "",
@@ -2411,7 +2411,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
   const [activeProduct, setActiveProduct] = useState<Product | null>(null);
   const [productForm, setProductForm] = useState<Omit<Product, "id">>({
     name: "", brand: "", price: 0, originalPrice: undefined, discount: undefined,
-    rating: 0, reviews: 0, image: "", images: [], category: "Zapatos", subcategory: "Running",
+    rating: 0, reviews: 0, image: "", images: [], category: "Zapatos", categoryId: undefined, subcategory: "Running",
     stock: 0, sku: "", description: "", colors: [], sizes: [], gender: "Unisex",
     isNew: false, isFeatured: false, specs: [],
   });
@@ -2622,7 +2622,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
     setActiveProduct(null);
     setProductForm({
       name: "", brand: "", price: 0, originalPrice: undefined, discount: undefined,
-      rating: 0, reviews: 0, image: "", images: [], category: "Zapatos", subcategory: "Running",
+      rating: 0, reviews: 0, image: "", images: [], category: "Zapatos", categoryId: undefined, subcategory: "Running",
       stock: 0, sku: "", description: "", colors: [], sizes: [], gender: "Unisex",
       isNew: false, isFeatured: false, specs: [],
     });
@@ -2661,6 +2661,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
       image: product.image,
       images: product.images ?? [],
       category: product.category,
+      categoryId: product.categoryId,
       subcategory: product.subcategory,
       stock: product.stock,
       sku: product.sku,
@@ -3808,7 +3809,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
         </div>
         {backendAdminAvailable === false ? (
           <div className="mb-6 p-4 rounded-lg bg-yellow-50 border border-yellow-100 text-yellow-800">
-            <strong>Backend admin no disponible.</strong> Algunas funciones administrativas pueden no estar disponibles. (Error 404 en /api/v1/admin/*)
+            <strong>Backend admin no disponible.</strong> Algunas funciones administrativas pueden no estar disponibles. (Error 404 en /api/admin/*)
           </div>
         ) : null}
 
@@ -3864,36 +3865,39 @@ export default function App() {
   useEffect(() => {
     let isActive = true;
 
+    const normalizeApiRoot = (url?: string) => {
+      const trimmed = url?.trim().replace(/\/$/, '');
+      if (!trimmed) return '/api';
+      if (trimmed.endsWith('/api')) return trimmed;
+      if (trimmed.endsWith('/api/v1')) return trimmed.replace(/\/v1$/, '');
+      return `${trimmed}/api`;
+    };
+
+    const normalizeHomeContentResponse = (data: Record<string, unknown>) => ({
+      ...data,
+      heroTitle: data.hero_title ?? data.heroTitle,
+      heroSubtitle: data.hero_subtitle ?? data.heroSubtitle,
+      heroImage: data.hero_image ?? data.heroImage,
+      featuredCategoryIds: data.featured_category_ids ?? data.featuredCategoryIds,
+      featuredProductIds: data.featured_product_ids ?? data.featuredProductIds,
+      discountedProductIds: data.discounted_product_ids ?? data.discountedProductIds,
+      promoBanner: data.promo_banner ?? data.promoBanner,
+      newsletterEnabled: data.newsletter_enabled ?? data.newsletterEnabled,
+    });
+
     const loadHomeContent = async () => {
-      const normalizeApiRoot = (url?: string) => {
-        const trimmed = url?.trim().replace(/\/$/, '');
-        if (!trimmed) return '/api/v1';
-        if (trimmed.endsWith('/api/v1')) return trimmed;
-        if (trimmed.endsWith('/api')) return `${trimmed}/v1`;
-        return `${trimmed}/api/v1`;
-      };
       const apiUrl = normalizeApiRoot(import.meta.env.VITE_API_URL);
       try {
-        const res = await fetch(`${apiUrl}/home-content`);
+        const res = await fetch(`${apiUrl}/home`);
         if (!res.ok) {
-          if (res.status === 404 && apiUrl !== '/api/v1') {
-            const fallbackRes = await fetch(`/api/v1/home-content`);
-            if (fallbackRes.ok) {
-              setBackendHomeAvailable(true);
-              const fallbackJson = await fallbackRes.json();
-              if (fallbackJson?.data) {
-                setHomeContent((prev) => ({ ...prev, ...fallbackJson.data }));
-              }
-              return;
-            }
-          }
           setBackendHomeAvailable(false);
           return;
         }
+
         setBackendHomeAvailable(true);
         const json = await res.json();
         if (json?.data) {
-          setHomeContent((prev) => ({ ...prev, ...json.data }));
+          setHomeContent((prev) => ({ ...prev, ...(normalizeHomeContentResponse(json.data)) }));
         }
       } catch (error) {
         console.warn('No se pudo cargar el contenido de la home desde backend.', error);
@@ -3906,49 +3910,28 @@ export default function App() {
     }
 
     const loadProducts = async () => {
-      const isSupabaseConfigured = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
+      const apiUrl = normalizeApiRoot(import.meta.env.VITE_API_URL);
 
-      const tryLoadingFromAdminApi = async () => {
-        try {
-          const response = await adminApi.fetchProducts();
-          setBackendAdminAvailable(true);
-          if (!isActive) return false;
-          if (Array.isArray(response)) {
-            setProducts(response.map(mapProductRecordToAppProduct));
-            return true;
-          }
-          throw new Error('Admin API returned invalid payload');
-        } catch (error) {
-          console.warn('No se pudo cargar productos desde el backend admin.', error);
+      try {
+        const res = await fetch(`${apiUrl}/products`);
+        if (!res.ok) {
           setBackendAdminAvailable(false);
+          console.warn('No se pudo cargar productos desde el backend público.', res.statusText);
+          return;
         }
-        return false;
-      };
 
-      const tryLoadingFromSupabase = async () => {
-        try {
-          const data = await fetchProductsFromSupabase(24);
-          if (!isActive) return false;
-          if (Array.isArray(data)) {
-            setProducts(data.map(mapProductRecordToAppProduct));
-            return true;
-          }
-          throw new Error('Supabase returned invalid payload');
-        } catch (error) {
-          console.warn('No se pudo cargar productos desde Supabase.', error);
+        const json = await res.json();
+        if (!isActive) return;
+        if (!Array.isArray(json?.data)) {
+          throw new Error('Public API returned invalid payload');
         }
-        return false;
-      };
 
-      const loaded = await tryLoadingFromAdminApi();
-      if (loaded) return;
-
-      if (isSupabaseConfigured) {
-        const loadedFromSupabase = await tryLoadingFromSupabase();
-        if (loadedFromSupabase) return;
+        setBackendAdminAvailable(true);
+        setProducts(json.data.map(mapProductRecordToAppProduct));
+      } catch (error) {
+        console.warn('No se pudo cargar productos desde el backend público.', error);
+        setBackendAdminAvailable(false);
       }
-
-      console.warn('No se cargaron productos desde Supabase ni el backend admin. El catálogo quedará vacío hasta que haya datos en la base de datos.');
     };
 
     void loadProducts();
@@ -3970,23 +3953,6 @@ export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   // Dev helper: force admin session when visiting URL with ?forceAdmin=1
   // Only active when VITE_ENABLE_FORCE_ADMIN === '1'
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      if (import.meta.env.VITE_ENABLE_FORCE_ADMIN !== '1') return;
-      const params = new URLSearchParams(window.location.search);
-      if (params.get('forceAdmin') === '1') {
-        const adminEmail = import.meta.env.VITE_ADMIN_EMAIL ?? 'admin@urbansportstore.dev';
-        const localUser = { id: 'local-admin', email: adminEmail, user_metadata: { full_name: 'Administrador local', role: 'ADMIN', isAdmin: true } } as unknown as User;
-        setAuthUser(localUser);
-        setIsAdmin(true);
-        setView('admin');
-        setInitialAdminSection('homepage');
-      }
-    } catch (e) {
-      // no-op
-    }
-  }, []);
   const [homeContent, setHomeContent] = useState<HomePageContent>({
     heroTitle: "Tu ritmo, Tu estilo, Tu mejor versión",
     heroSubtitle: "Zapatillas, ropa deportiva, perfumes y accesorios premium. Todo lo que necesitas para rendir al máximo y lucir increíble.",
@@ -4001,6 +3967,7 @@ export default function App() {
     categorySectionImage: "",
     featuredSectionImage: "",
     newArrivalsSectionImage: "",
+
     saleSectionImage: "",
     featuredSectionSubtitle: "Los productos más buscados por nuestros clientes.",
     featuredSectionDiscount: "",
@@ -4165,7 +4132,23 @@ export default function App() {
   const createProduct = async (product: Omit<Product, "id">) => {
     try {
       const record = mapAppProductToProductRecord({ ...product, id: crypto.randomUUID() });
-      const created = await createProductWithFallback(record);
+      const adminPayload: Record<string, unknown> = {
+        slug: record.slug,
+        name: record.name,
+        price: record.price,
+        description: record.description,
+        sku: record.sku,
+        stock: record.stock,
+        category_id: record.category_id ?? undefined,
+        compare_at_price: record.original_price ?? undefined,
+        is_active: true,
+      };
+
+      if (!adminPayload.category_id && product.category) {
+        adminPayload.category = product.category;
+      }
+
+      const created = await createProductWithFallback(adminPayload, record);
       const createdAppProduct = mapProductRecordToAppProduct(created);
       refreshProducts();
       toast.success("Producto creado y guardado correctamente.");
@@ -4179,9 +4162,23 @@ export default function App() {
 
   const updateProduct = async (productId: string, updates: Partial<Product>) => {
     try {
-      const record = mapAppProductToProductRecord({ ...products.find((product) => product.id === productId), ...updates, id: productId });
+      const productToUpdate = products.find((product) => product.id === productId);
+      if (!productToUpdate) {
+        throw new Error('Producto no encontrado');
+      }
+      const record = mapAppProductToProductRecord({ ...productToUpdate, ...updates, id: productId });
       const { id: _ignoredId, ...recordUpdates } = record;
-      const updated = await updateProductWithFallback(productId, recordUpdates);
+      const adminUpdates: Record<string, unknown> = {
+        ...recordUpdates,
+        category_id: recordUpdates.category_id ?? undefined,
+        compare_at_price: record.original_price ?? undefined,
+      };
+
+      if (!adminUpdates.category_id && (updates.category ?? productToUpdate.category)) {
+        adminUpdates.category = updates.category ?? productToUpdate.category;
+      }
+
+      const updated = await updateProductWithFallback(productId, adminUpdates, recordUpdates);
       const updatedAppProduct = mapProductRecordToAppProduct(updated);
       refreshProducts();
       toast.success("Producto actualizado correctamente.");

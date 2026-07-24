@@ -26,7 +26,7 @@ describe('admin product fallback helpers', () => {
     vi.mocked(adminApi.createProductApi).mockRejectedValueOnce(new Error('backend down'));
     vi.mocked(supabaseStore.createProductInSupabase).mockResolvedValueOnce({ id: 'p-1', name: 'Zapatilla' } as any);
 
-    const result = await createProductWithFallback({ id: 'p-1', name: 'Zapatilla' } as any);
+    const result = await createProductWithFallback({ id: 'p-1', name: 'Zapatilla' } as any, { id: 'p-1', name: 'Zapatilla' } as any);
 
     expect(supabaseStore.createProductInSupabase).toHaveBeenCalledWith({ id: 'p-1', name: 'Zapatilla' });
     expect(result).toEqual({ id: 'p-1', name: 'Zapatilla' });
@@ -35,14 +35,14 @@ describe('admin product fallback helpers', () => {
   it('does not fall back when admin create fails with 401', async () => {
     vi.mocked(adminApi.createProductApi).mockRejectedValueOnce(new Error('401 Unauthorized'));
 
-    await expect(createProductWithFallback({ id: 'p-1', name: 'Zapatilla' } as any)).rejects.toThrow(/401/);
+    await expect(createProductWithFallback({ id: 'p-1', name: 'Zapatilla' } as any, { id: 'p-1', name: 'Zapatilla' } as any)).rejects.toThrow(/401/);
     expect(supabaseStore.createProductInSupabase).not.toHaveBeenCalled();
   });
 
   it('does not fall back when admin create fails with 403', async () => {
     vi.mocked(adminApi.createProductApi).mockRejectedValueOnce(new Error('403 Forbidden'));
 
-    await expect(createProductWithFallback({ id: 'p-1', name: 'Zapatilla' } as any)).rejects.toThrow(/403/);
+    await expect(createProductWithFallback({ id: 'p-1', name: 'Zapatilla' } as any, { id: 'p-1', name: 'Zapatilla' } as any)).rejects.toThrow(/403/);
     expect(supabaseStore.createProductInSupabase).not.toHaveBeenCalled();
   });
 
@@ -50,7 +50,7 @@ describe('admin product fallback helpers', () => {
     vi.mocked(adminApi.updateProductApi).mockRejectedValueOnce(new Error('backend down'));
     vi.mocked(supabaseStore.updateProductInSupabase).mockResolvedValueOnce({ id: 'p-1', name: 'Nuevo nombre' } as any);
 
-    const result = await updateProductWithFallback('p-1', { name: 'Nuevo nombre' } as any);
+    const result = await updateProductWithFallback('p-1', { name: 'Nuevo nombre' } as any, { name: 'Nuevo nombre' } as any);
 
     expect(supabaseStore.updateProductInSupabase).toHaveBeenCalledWith('p-1', { name: 'Nuevo nombre' });
     expect(result).toEqual({ id: 'p-1', name: 'Nuevo nombre' });

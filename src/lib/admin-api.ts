@@ -4,7 +4,6 @@ import { getAccessToken } from './supabase-auth';
 const normalizeApiRoot = (url?: string) => {
   const trimmed = url?.trim().replace(/\/$/, '');
   if (!trimmed) return '/api';
-  if (trimmed.endsWith('/api/v1')) return trimmed.replace(/\/v1$/, '');
   if (trimmed.endsWith('/api')) return trimmed;
   return `${trimmed}/api`;
 };
@@ -12,48 +11,12 @@ const normalizeApiRoot = (url?: string) => {
 const API_ROOT = normalizeApiRoot(import.meta.env.VITE_API_URL);
 const API_BASE = `${API_ROOT}/admin`;
 
-async function bridgeSupabaseToken(supabaseToken: string) {
-  if (!supabaseToken) {
-    const error = new Error('No Supabase access token available for bridge exchange. Inicia sesión antes de realizar esta acción.');
-    console.error('[bridgeSupabaseToken] Error: missing supabase token');
-    throw error;
-  }
-
-  console.debug('[bridgeSupabaseToken] Requesting backend bridge token', {
-    tokenLength: supabaseToken.length,
-    tokenLooksLikeJwt: typeof supabaseToken === 'string' && supabaseToken.split('.').length === 3,
-  });
-
-  try {
-    const res = await fetch(`${API_ROOT}/auth/bridge`, { method: 'POST', headers: { Authorization: `Bearer ${supabaseToken}`, 'Content-Type': 'application/json' } });
-    if (!res.ok) {
-      const text = await res.text();
-      try {
-        const errorJson = JSON.parse(text);
-        const errorMsg = errorJson?.error?.message || errorJson?.message || 'Bridge exchange failed';
-        throw new Error(`Bridge [${res.status}]: ${errorMsg}`);
-      } catch {
-        throw new Error(`Bridge exchange failed [${res.status}]`);
-      }
-    }
-    const json = await res.json();
-    const token = json?.data?.token ?? null;
-    if (!token) throw new Error('Bridge returned no token');
-    return token;
-  } catch (err) {
-    console.error('[bridgeSupabaseToken] Error:', err);
-    throw err;
-  }
-}
-
 async function callApi(path: string, opts: RequestInit = {}) {
   const supabaseToken = await getAccessToken();
-  const storedBackend = localStorage.getItem('urbansport_backend_token');
   console.debug('[admin-api] callApi', {
     path,
     apiRoot: API_ROOT,
     supabaseTokenExists: Boolean(supabaseToken),
-    backendTokenExists: Boolean(storedBackend),
     supabaseTokenLength: supabaseToken?.length,
     supabaseTokenLooksLikeJwt: typeof supabaseToken === 'string' && supabaseToken.split('.').length === 3,
   });
@@ -65,15 +28,12 @@ async function callApi(path: string, opts: RequestInit = {}) {
   };
 
   const primaryUrl = `${API_BASE}${path}`;
-  const fallbackUrl = `/api/v1/admin${path}`;
-
   let res: Response | null = null;
   let primaryError: unknown = null;
-  let backendToken = storedBackend ?? undefined;
 
   if (!supabaseToken) {
     const error = new Error('No Supabase session token available. Por favor inicia sesión y recarga la aplicación.');
-    console.error('[admin-api] callApi no supabase token available', { path, storedBackendExists: Boolean(storedBackend) });
+    console.error('[admin-api] callApi no supabase token available', { path });
     throw error;
   }
 
@@ -81,32 +41,6 @@ async function callApi(path: string, opts: RequestInit = {}) {
     res = await makeRequest(primaryUrl, supabaseToken);
   } catch (error) {
     primaryError = error;
-  }
-
-  const shouldTryFallback = !res || [404, 502, 503, 504].includes(res.status);
-
-  if (shouldTryFallback) {
-    if (!backendToken && supabaseToken) {
-      try {
-        backendToken = await bridgeSupabaseToken(supabaseToken);
-        if (backendToken) {
-          localStorage.setItem('urbansport_backend_token', backendToken);
-        }
-      } catch (e) {
-        console.warn('[admin-api] bridge token exchange failed for legacy fallback', e);
-        backendToken = undefined;
-      }
-    }
-
-    try {
-      const bearer = backendToken;
-      const fallbackRes = await makeRequest(fallbackUrl, bearer);
-      if (fallbackRes.ok) {
-        res = fallbackRes;
-      }
-    } catch (e) {
-      // ignore fallback errors and continue to original error handling below
-    }
   }
 
   if (!res) {
