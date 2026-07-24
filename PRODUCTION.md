@@ -37,6 +37,23 @@
 - [ ] `JWT_SECRET`: Strong secret, different from development
 - [ ] `NODE_ENV=production`
 
+## Production API Reference
+
+- Canonical usable production API alias: `https://api-sigma-ruby.vercel.app`
+
+- Public endpoints validated:
+  - `GET /health`
+  - `GET /products`
+  - `GET /api/products`
+  - `GET /categories`
+  - `GET /api/categories`
+  - `GET /home`
+  - `GET /api/home`
+  - `POST /newsletter`
+  - `POST /api/newsletter`
+
+> Warning: another alias (`urban-sport-store-ezfburg3o.vercel.app`) is protected by SSO and should not be used as the operational reference for automated checks.
+
 ## Deployment Platform
 
 ### Vercel / Netlify (Frontend)
