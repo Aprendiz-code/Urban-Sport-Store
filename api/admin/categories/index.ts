@@ -1,5 +1,5 @@
 import { jsonError, jsonResponse, ApiError } from '../../lib/response.js';
-import { supabase } from '../../lib/supabase.js';
+import { supabaseAdmin } from '../../lib/supabase.js';
 import { requireAdmin } from '../../lib/admin.js';
 import { validateSupabaseToken } from '../../lib/auth.js';
 
@@ -43,7 +43,7 @@ export default async function handler(req: any, res: any) {
     await requireAdmin(user.id);
 
     if (req.method === 'GET') {
-      const { data, error } = await supabase.from('categories').select('*').order('sort_order', { ascending: true });
+      const { data, error } = await supabaseAdmin.from('categories').select('*').order('sort_order', { ascending: true });
       if (error) {
         return jsonError(res, 500, error.message || 'Unable to fetch categories.');
       }
@@ -58,17 +58,19 @@ export default async function handler(req: any, res: any) {
         throw new ApiError(400, 'Missing required fields: name, slug');
       }
 
-      const { data, error } = await supabase.from('categories').insert([payload]).select('*').single();
+      const { data, error } = await supabaseAdmin.from('categories').insert([payload]).select('*').single();
       if (error) {
         return jsonError(res, 500, error.message || 'Unable to create category.');
       }
 
-      await supabase.from('audit_logs').insert({
+      await supabaseAdmin.from('audit_logs').insert({
         actor_id: user.id,
         action: 'create_category',
         entity: 'category',
         entity_id: data.id,
-        changes: payload,
+        entity_id_uuid: data.id,
+        before_data: null,
+        after_data: data,
       });
 
       return jsonResponse(res, { data }, 201);

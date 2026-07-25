@@ -11,16 +11,15 @@ This backend provides a secure REST API for the Urban Sport Store e-commerce pla
 
 ## Scripts
 - npm install
-- npm run db:generate
-- npm run db:migrate
-- npm run db:seed
 - npm run dev
-- npm run test
 - npm run build
+- npm run validate
+- npm run typecheck
+- npm run lint
+- npm run format
+- npm run test
 
-## Local URLs
-- Health: http://localhost:4000/health
-- Swagger: http://localhost:4000/api/docs
+> Nota: `npm test` ya está configurado para pasar cuando no hay tests de `api/` definidos.
 
 ## Demo credentials
 - Admin: admin@urbansportstore.dev / ChangeMe123!

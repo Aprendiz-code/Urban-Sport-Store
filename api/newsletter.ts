@@ -1,5 +1,5 @@
 import { jsonResponse, jsonError, ApiError } from './lib/response.js';
-import { supabase } from './lib/supabase.js';
+import { supabasePublic } from './lib/supabase.js';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -34,7 +34,11 @@ export default async function handler(req: any, res: any) {
       throw new ApiError(400, 'Invalid email address');
     }
 
-    const { error } = await supabase.from('newsletter_subscribers').insert({ email });
+    const { error } = await supabasePublic.from('newsletter_subscribers').insert({
+      email,
+      source: source || null,
+      status: 'ACTIVE',
+    });
 
     if (error) {
       const message = error.message || 'Unable to subscribe to newsletter.';

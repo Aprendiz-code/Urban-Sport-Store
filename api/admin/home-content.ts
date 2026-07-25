@@ -1,5 +1,5 @@
 import { jsonError, jsonResponse, ApiError } from '../lib/response.js';
-import { supabase } from '../lib/supabase.js';
+import { supabaseAdmin } from '../lib/supabase.js';
 import { requireAdmin } from '../lib/admin.js';
 import { validateSupabaseToken } from '../lib/auth.js';
 
@@ -24,6 +24,23 @@ export default async function handler(req: any, res: any) {
   try {
     const user = await validateSupabaseToken(req);
     await requireAdmin(user.id);
+
+    if (req.method === 'GET') {
+      const { data, error } = await supabaseAdmin
+        .from('home_content')
+        .select('*')
+        .eq('key', 'homepage')
+        .maybeSingle();
+
+      if (error) {
+        return jsonError(res, 500, error.message || 'Unable to fetch home content.');
+      }
+      if (!data) {
+        return jsonError(res, 404, 'Home content not found.');
+      }
+
+      return jsonResponse(res, { data });
+    }
 
     if (req.method !== 'PATCH') {
       return jsonError(res, 405, 'Method not allowed.');
@@ -52,7 +69,17 @@ export default async function handler(req: any, res: any) {
       throw new ApiError(400, 'No update fields provided');
     }
 
-    const { data, error } = await supabase
+    // Fetch before state
+    const { data: beforeData, error: beforeError } = await supabaseAdmin
+      .from('home_content')
+      .select('*')
+      .eq('key', 'homepage')
+      .maybeSingle();
+    if (beforeError) {
+      return jsonError(res, 500, beforeError.message || 'Unable to fetch home content.');
+    }
+
+    const { data, error } = await supabaseAdmin
       .from('home_content')
       .update(updates)
       .eq('key', 'homepage')
@@ -66,12 +93,14 @@ export default async function handler(req: any, res: any) {
       return jsonError(res, 404, 'Home content not found.');
     }
 
-    await supabase.from('audit_logs').insert({
+    await supabaseAdmin.from('audit_logs').insert({
       actor_id: user.id,
       action: 'update_home_content',
       entity: 'home_content',
       entity_id: data.id,
-      changes: updates,
+      entity_id_uuid: data.id,
+      before_data: beforeData,
+      after_data: data,
     });
 
     return jsonResponse(res, { data });

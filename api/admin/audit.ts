@@ -1,5 +1,5 @@
 import { jsonError, jsonResponse, ApiError } from '../lib/response.js';
-import { supabase } from '../lib/supabase.js';
+import { supabaseAdmin } from '../lib/supabase.js';
 import { requireAdmin } from '../lib/admin.js';
 import { validateSupabaseToken } from '../lib/auth.js';
 
@@ -12,7 +12,7 @@ export default async function handler(req: any, res: any) {
       return jsonError(res, 405, 'Method not allowed.');
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('audit_logs')
       .select('*')
       .order('created_at', { ascending: false })

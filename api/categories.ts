@@ -1,5 +1,5 @@
 import { jsonResponse, jsonError } from './lib/response.js';
-import { supabase } from './lib/supabase.js';
+import { supabasePublic } from './lib/supabase.js';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'GET') {
@@ -7,7 +7,7 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabasePublic
       .from('categories')
       .select('*')
       .eq('is_active', true)

@@ -1,8 +1,11 @@
-import { supabase } from './supabase.js';
+import { supabaseAdmin } from './supabase.js';
 import { ApiError } from './response.js';
 
 export async function requireAdmin(userId: string): Promise<void> {
-  const { data, error } = await supabase
+  if (!supabaseAdmin) {
+    throw new ApiError(500, 'Admin client not configured');
+  }
+  const { data, error } = await supabaseAdmin
     .from('profiles')
     .select('role')
     .eq('id', userId)

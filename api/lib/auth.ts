@@ -1,4 +1,4 @@
-import { supabase } from './supabase.js';
+import { supabaseAdmin } from './supabase.js';
 import { ApiError } from './response.js';
 
 export interface AuthUser {
@@ -22,7 +22,10 @@ export async function getBearerToken(req: any): Promise<string> {
 
 export async function validateSupabaseToken(req: any): Promise<AuthUser> {
   const token = await getBearerToken(req);
-  const { data, error } = await supabase.auth.getUser(token);
+  if (!supabaseAdmin) {
+    throw new ApiError(500, 'Admin client not configured');
+  }
+  const { data, error } = await supabaseAdmin.auth.getUser(token);
 
   if (error || !data?.user) {
     throw new ApiError(401, 'Invalid or expired Supabase token');

@@ -1,5 +1,5 @@
 import { jsonError, jsonResponse, ApiError } from '../../lib/response.js';
-import { supabase } from '../../lib/supabase.js';
+import { supabaseAdmin } from '../../lib/supabase.js';
 import { requireAdmin } from '../../lib/admin.js';
 import { validateSupabaseToken } from '../../lib/auth.js';
 
@@ -53,6 +53,23 @@ export default async function handler(req: any, res: any) {
       throw new ApiError(400, 'Missing categoryId');
     }
 
+    if (req.method === 'GET') {
+      const { data, error } = await supabaseAdmin
+        .from('categories')
+        .select('*')
+        .eq('id', categoryId)
+        .maybeSingle();
+
+      if (error) {
+        return jsonError(res, 500, error.message || 'Unable to fetch category.');
+      }
+      if (!data) {
+        return jsonError(res, 404, 'Category not found.');
+      }
+
+      return jsonResponse(res, { data });
+    }
+
     if (req.method === 'PATCH') {
       const body = await parseJsonBody(req);
       const updates = buildCategoryUpdates(body);
@@ -60,7 +77,17 @@ export default async function handler(req: any, res: any) {
         throw new ApiError(400, 'No update fields provided');
       }
 
-      const { data, error } = await supabase.from('categories').update(updates).eq('id', categoryId).select('*').maybeSingle();
+      // Get before state
+      const { data: beforeData, error: beforeError } = await supabaseAdmin
+        .from('categories')
+        .select('*')
+        .eq('id', categoryId)
+        .maybeSingle();
+      if (beforeError || !beforeData) {
+        return jsonError(res, 404, 'Category not found.');
+      }
+
+      const { data, error } = await supabaseAdmin.from('categories').update(updates).eq('id', categoryId).select('*').maybeSingle();
       if (error) {
         return jsonError(res, 500, error.message || 'Unable to update category.');
       }
@@ -68,15 +95,55 @@ export default async function handler(req: any, res: any) {
         return jsonError(res, 404, 'Category not found.');
       }
 
-      await supabase.from('audit_logs').insert({
+      await supabaseAdmin.from('audit_logs').insert({
         actor_id: user.id,
         action: 'update_category',
         entity: 'category',
         entity_id: categoryId,
-        changes: updates,
+        entity_id_uuid: categoryId,
+        before_data: beforeData,
+        after_data: data,
       });
 
       return jsonResponse(res, { data });
+    }
+
+    if (req.method === 'DELETE') {
+      // Get before state
+      const { data: beforeData, error: beforeError } = await supabaseAdmin
+        .from('categories')
+        .select('*')
+        .eq('id', categoryId)
+        .maybeSingle();
+      if (beforeError || !beforeData) {
+        return jsonError(res, 404, 'Category not found.');
+      }
+
+      const { data, error } = await supabaseAdmin
+        .from('categories')
+        .update({ is_active: false })
+        .eq('id', categoryId)
+        .select('*')
+        .maybeSingle();
+      if (error) {
+        return jsonError(res, 500, error.message || 'Unable to delete category.');
+      }
+      if (!data) {
+        return jsonError(res, 404, 'Category not found.');
+      }
+
+      await supabaseAdmin.from('audit_logs').insert({
+        actor_id: user.id,
+        action: 'soft_delete_category',
+        entity: 'category',
+        entity_id: categoryId,
+        entity_id_uuid: categoryId,
+        before_data: beforeData,
+        after_data: data,
+      });
+
+      res.statusCode = 204;
+      return res.end();
     }
 
     return jsonError(res, 405, 'Method not allowed.');
