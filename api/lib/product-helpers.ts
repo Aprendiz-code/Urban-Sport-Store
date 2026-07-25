@@ -1,4 +1,4 @@
-import { supabaseAdmin } from '../../lib/supabase.js';
+import { supabaseAdmin } from './supabase.js';
 
 const ALLOWED_PRODUCT_COLUMNS = new Set([
   'slug',

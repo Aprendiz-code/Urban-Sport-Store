@@ -2,7 +2,7 @@ import { jsonError, jsonResponse, ApiError } from '../../lib/response.js';
 import { supabaseAdmin } from '../../lib/supabase.js';
 import { requireAdmin } from '../../lib/admin.js';
 import { validateSupabaseToken } from '../../lib/auth.js';
-import { normalizeProductPayload } from './helpers.js';
+import { normalizeProductPayload } from '../../lib/product-helpers.js';
 
 function parseJsonBody(req: any): Promise<any> {
   return new Promise((resolve, reject) => {
