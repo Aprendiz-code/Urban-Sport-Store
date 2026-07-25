@@ -1,1 +1,30 @@
+[The file is currently empty or contains only whitespace]
+# Exclude legacy API build artifacts and server snapshots from Vercel deployments
+# These folders contain legacy Express app artifacts and compiled bundles that
+# would conflict with the intended Vercel serverless functions in `api/*.ts`.
+
+# Exclude legacy compiled API artifacts
+api/dist/**
+
+# Exclude legacy Express app source (not used by serverless runtime)
+api/src/**
+
+# Exclude local env and Vercel local state
+api/.vercel/**
+
+# Exclude non-endpoint files under api/ so Vercel does not count them as
+# serverless functions (Hobby plan limit: 12 functions per deployment).
+# These are imported as modules by the endpoint files, not standalone functions.
+api/lib/**
+api/vitest.config.ts
+api/eslint.config.mjs
+api/tsconfig.json
+api/package.json
+api/README.md
+
+# Exclude example/legacy endpoint not used in production
+api/hello.js
+
+# Archive folder should not be deployed
+archive/**
 
