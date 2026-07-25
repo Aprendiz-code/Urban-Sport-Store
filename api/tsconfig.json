@@ -4,7 +4,7 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "outDir": "dist",
-    "rootDir": ".",
+    "rootDir": "..",
     "strict": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
@@ -12,6 +12,6 @@
     "resolveJsonModule": true,
     "types": ["node"]
   },
-  "include": ["*.ts", "admin/**/*.ts", "lib/**/*.ts"],
+  "include": ["*.ts", "admin/**/*.ts", "../lib/api-helpers/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

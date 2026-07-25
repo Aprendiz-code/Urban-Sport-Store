@@ -1,8 +1,8 @@
-import { jsonError, jsonResponse, ApiError } from '../../lib/response.js';
-import { supabaseAdmin } from '../../lib/supabase.js';
-import { requireAdmin } from '../../lib/admin.js';
-import { validateSupabaseToken } from '../../lib/auth.js';
-import { normalizeProductUpdates } from '../../lib/product-helpers.js';
+import { jsonError, jsonResponse, ApiError } from '../../../lib/api-helpers/response.js';
+import { supabaseAdmin } from '../../../lib/api-helpers/supabase.js';
+import { requireAdmin } from '../../../lib/api-helpers/admin.js';
+import { validateSupabaseToken } from '../../../lib/api-helpers/auth.js';
+import { normalizeProductUpdates } from '../../../lib/api-helpers/product-helpers.js';
 
 function parseJsonBody(req: any): Promise<any> {
   return new Promise((resolve, reject) => {

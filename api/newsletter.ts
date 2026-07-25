@@ -1,5 +1,5 @@
-import { jsonResponse, jsonError, ApiError } from './lib/response.js';
-import { supabasePublic } from './lib/supabase.js';
+import { jsonResponse, jsonError, ApiError } from '../lib/api-helpers/response.js';
+import { supabasePublic } from '../lib/api-helpers/supabase.js';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 

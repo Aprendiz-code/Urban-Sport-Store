@@ -1,4 +1,4 @@
-import { jsonResponse } from './lib/response.js';
+import { jsonResponse } from '../lib/api-helpers/response.js';
 
 export default function handler(_req: any, res: any) {
   jsonResponse(res, {
