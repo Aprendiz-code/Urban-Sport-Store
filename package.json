@@ -6,7 +6,8 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "smoke": "node test-runner/invoke-handler.mjs"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
