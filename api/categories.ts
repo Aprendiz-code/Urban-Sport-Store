@@ -10,7 +10,6 @@ export default async function handler(req: any, res: any) {
     const { data, error } = await supabasePublic
       .from('categories')
       .select('*')
-      .eq('is_active', true)
       .order('sort_order', { ascending: true });
 
     if (error) {

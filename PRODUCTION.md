@@ -39,17 +39,16 @@
 
 ## Production API Reference
 
+- Canonical active production API contract: `/api/*` and `/api/admin/*`
+- Runtime canónico actual: Vercel Functions en `api/*.ts` y `api/admin/*`
+- Nota: el directorio `api/src/*` existe en el repositorio como backend adicional/legacy, pero no es el runtime desplegado en producción hoy.
 - Canonical usable production API alias: `https://api-sigma-ruby.vercel.app`
 
-- Public endpoints validated:
-  - `GET /health`
-  - `GET /products`
+- Public endpoints validated (canonical `/api/*` paths):
+  - `GET /api/health`
   - `GET /api/products`
-  - `GET /categories`
   - `GET /api/categories`
-  - `GET /home`
   - `GET /api/home`
-  - `POST /newsletter`
   - `POST /api/newsletter`
 
 > Warning: another alias (`urban-sport-store-ezfburg3o.vercel.app`) is protected by SSO and should not be used as the operational reference for automated checks.

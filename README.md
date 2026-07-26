@@ -59,6 +59,10 @@ npm run dev
 
 **See**: [api/](api/) and [Backend Guide](api/README_BACKEND.md)
 
+> Runtime note: the current production runtime is served from Vercel Functions in `api/*.ts` and `api/admin/*`.
+> The `api/src/*` Express backend source exists in the repository, but it is not the deployed production runtime today.
+> The active production API contract is `/api/*` and `/api/admin/*`.
+
 ### Database (PostgreSQL + Prisma)
 - Product catalog
 - User accounts and roles
@@ -67,6 +71,35 @@ npm run dev
 - Audit trail
 
 **Schema**: [api/prisma/schema.prisma](api/prisma/schema.prisma)
+
+### SQL Source of Truth
+- **Fuente activa:** `supabase/migrations/` es la fuente de verdad SQL.
+- **Snapshot legacy / referencia:** `SUPABASE_INIT.sql` permanece en el repositorio como un snapshot histórico y no debe editarse directamente.
+- `supabase/migrations/*` son las migraciones activas; todas las validaciones locales deben partir de ellas.
+- `compare-schemas` es una verificación auxiliar contra el snapshot legacy, no la autoridad para cambios de esquema.
+- Algunas migraciones dependen de Supabase Auth, incluyendo referencias a `auth.users` y funciones como `auth.uid()`.
+- No se debe usar todavía: `supabase login`, `supabase link`, `supabase db push`.
+
+### SQL archivos clasificados
+- SQL activo:
+  - `supabase/migrations/0001_init.sql`
+  - `supabase/migrations/20260723_phase1_public_catalog.sql`
+  - `supabase/migrations/20260723_phase2_admin_base.sql`
+  - `supabase/migrations/20260724_phase4_align_schema.sql`
+  - `supabase/seed.sql`
+  - `supabase/seed_phase1_public.sql`
+  - `supabase/seed_phase2_admin_test.sql`
+- SQL legacy / referencia:
+  - `SUPABASE_INIT.sql`
+- Artefactos auxiliares:
+  - `supabase/generated_schema.sql`
+  - `supabase/schema_diff_executed.txt`
+  - `supabase/remote_schema.sql`
+
+### Current Integration Notes
+- El backend de newsletter ya existía en `api/newsletter.ts`; en este lote se conectó el formulario del frontend al endpoint real `POST /api/newsletter`.
+- El backend admin para CRUD de categorías existe en `api/admin/categories/*`, pero la UI de administración de categorías aún está pendiente de integrar.
+- El upload de imágenes hoy se realiza directamente desde el frontend a Supabase Storage usando `VITE_SUPABASE_STORAGE_BUCKET`. Esta ruta funciona, pero requiere revisión de seguridad y posiblemente un proxy backend en un lote futuro.
 
 ### Authentication (Supabase)
 - User sign-up/login with email confirmation

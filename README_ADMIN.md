@@ -9,7 +9,7 @@ Frontend (`.env.local` at project root or Vite env):
 - VITE_SUPABASE_URL=https://your-supabase-project.supabase.co
 - VITE_SUPABASE_ANON_KEY=public-anon-key
 - VITE_SUPABASE_STORAGE_BUCKET=product-images
-- VITE_API_URL=http://localhost:4000/api/v1
+- VITE_API_URL=http://localhost:4000/api
 - VITE_ADMIN_EMAIL=admin@urbansportstore.dev
 
 Backend (`api/.env`):
@@ -23,8 +23,10 @@ Backend (`api/.env`):
 - CORS_ORIGINS=http://localhost:5173
 
 Notes:
-- The backend uses `SUPABASE_URL` to validate a Supabase access token and exchange it for a backend JWT via `POST /api/v1/auth/bridge`.
+- The current active contract uses `/api/*` for public API calls and `/api/admin/*` for admin routes.
+- The backend uses `SUPABASE_URL` to validate a Supabase access token and exchange it for a backend JWT as part of the admin auth flow.
 - The frontend uses `VITE_API_URL` to call `/admin` endpoints and `VITE_SUPABASE_*` to perform auth and upload product images.
+- The `api/src/*` directory exists as legacy backend code and is not the deployed production runtime currently.
 
 ## Run locally (quick)
 
@@ -60,7 +62,7 @@ pnpm dev
 
 - The frontend authenticates users using Supabase Auth.
 - When the frontend calls admin endpoints it sends the Supabase access token in `Authorization: Bearer <supabase_token>` header.
-- The backend exposes `POST /api/v1/auth/bridge` which validates the Supabase token (`GET {SUPABASE_URL}/auth/v1/user`) and if the user exists in the backend it issues a backend JWT (signed with `JWT_SECRET`).
+- The backend exposes an auth bridge endpoint that validates the Supabase token and, if the user exists in the backend, issues a backend JWT (signed with `JWT_SECRET`).
 - The frontend client (`src/lib/admin-api.ts`) will attempt admin calls using a cached backend JWT (stored in `localStorage`) and will call the bridge endpoint to exchange the Supabase token if necessary.
 
 ## Testing admin flows manually
@@ -91,7 +93,7 @@ npx playwright install
 E2E_API_BASE=http://127.0.0.1:4000 E2E_SECRET=your-local-secret npm run e2e
 ```
 
-The tests will call `POST /api/v1/test/token` with the secret to get a backend JWT, then create a category, brand and product via the admin API.
+The tests will call the backend test token endpoint with the secret to get a backend JWT, then create a category, brand and product via the admin API.
 
 ## Security & deployment notes
 

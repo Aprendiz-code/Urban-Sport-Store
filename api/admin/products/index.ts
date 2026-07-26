@@ -24,7 +24,7 @@ function parseJsonBody(req: any): Promise<any> {
 export default async function handler(req: any, res: any) {
   try {
     const user = await validateSupabaseToken(req);
-    await requireAdmin(user.id);
+    await requireAdmin(user);
 
     if (req.method === 'GET') {
       const { data, error } = await supabaseAdmin.from('products').select('*').order('created_at', { ascending: false });

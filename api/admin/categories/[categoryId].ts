@@ -46,7 +46,7 @@ function extractCategoryId(req: any): string | null {
 export default async function handler(req: any, res: any) {
   try {
     const user = await validateSupabaseToken(req);
-    await requireAdmin(user.id);
+    await requireAdmin(user);
 
     const categoryId = extractCategoryId(req);
     if (!categoryId) {

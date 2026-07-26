@@ -9,7 +9,7 @@ VITE_SUPABASE_ANON_KEY=eyJhbGc...  # Clave pública - segura en frontend
 VITE_SUPABASE_STORAGE_BUCKET=product-images
 VITE_ADMIN_EMAIL=Urbansportstore@outlook.com
 VITE_ADMIN_PASSWORD=bM4_tX!8wK2#vP7$qR
-VITE_API_URL=http://localhost:4000/api/v1
+VITE_API_URL=http://localhost:4000/api
 ```
 
 **✓ Protección RLS activa**: El frontend solo puede leer productos, sin permisos de escritura
@@ -42,7 +42,7 @@ JWT_SECRET=dev-secret-change-in-production
          │  └─ No puede escribir ✗
          │
          └─ Backend API (JWT auth)
-            └─ POST /api/v1/admin/products (require admin role)
+            └─ POST /api/admin/products (require admin role)
                └─ Service role key
                   └─ Supabase (bypass RLS)
 
@@ -70,6 +70,9 @@ JWT_SECRET=dev-secret-change-in-production
 
 ## 📋 Flujo de Operaciones
 
+> Runtime activo actual: `/api/*` y `/api/admin/*`.
+> El directorio `api/src/*` existe en el repositorio como backend adicional/legacy, pero no es el runtime desplegado hoy.
+
 ### 1️⃣ Lectura de Productos (Público)
 ```
 User → Frontend (anon client) → Supabase RLS → products table
@@ -79,7 +82,7 @@ User → Frontend (anon client) → Supabase RLS → products table
 ### 2️⃣ Creación de Productos (Admin)
 ```
 Admin User → Frontend (login) → JWT token
-           → Backend API (POST /admin/products) → JWT verification
+           → Backend API (POST /api/admin/products) → JWT verification
            → Service role client → Supabase RLS bypass
            → Insert into products table
 ✓ Product visible en storefront
