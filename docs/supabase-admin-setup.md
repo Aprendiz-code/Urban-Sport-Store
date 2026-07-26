@@ -84,7 +84,7 @@ Frontend (Vite + React)
   └── Admin writes → Backend service → Service role client → Supabase
 
 Backend (Node.js + Express)
-  └── /api/v1/admin/* → Uses service role key for safe writes
+  └── /api/admin/* → Uses service role key for safe writes
       ├── POST /products
       ├── PATCH /products/:id
       └── DELETE /products/:id

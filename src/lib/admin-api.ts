@@ -5,6 +5,7 @@ const normalizeApiRoot = (url?: string) => {
   const trimmed = url?.trim().replace(/\/$/, '');
   if (!trimmed) return '/api';
   if (trimmed.endsWith('/api')) return trimmed;
+  if (trimmed.endsWith('/api/v1')) return trimmed.replace(/\/v1$/, '');
   return `${trimmed}/api`;
 };
 
@@ -83,32 +84,64 @@ export async function deleteProductApi(productId: string) {
   return callApi(`/products/${productId}`, { method: 'DELETE' });
 }
 
+export async function fetchCategories() {
+  return callApi('/categories', { method: 'GET' });
+}
+
+export async function createCategoryApi(payload: Record<string, unknown>) {
+  return callApi('/categories', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export async function updateCategoryApi(categoryId: string, payload: Record<string, unknown>) {
+  return callApi(`/categories/${categoryId}`, { method: 'PATCH', body: JSON.stringify(payload) });
+}
+
+export async function deleteCategoryApi(categoryId: string) {
+  return callApi(`/categories/${categoryId}`, { method: 'DELETE' });
+}
+
 export async function fetchSupabaseProducts() {
-  return callApi('/supabase-products', { method: 'GET' });
+  throw new Error('[TODO] /supabase-products is not available in the current serverless runtime. Use /admin/products for product management.');
 }
 
-export async function createSupabaseProductApi(payload: Partial<Product>) {
-  return callApi('/supabase-products', { method: 'POST', body: JSON.stringify(payload) });
+export async function createSupabaseProductApi(_payload: Partial<Product>) {
+  throw new Error('[TODO] /supabase-products is not available in the current serverless runtime. Use /admin/products for product management.');
 }
 
-export async function updateSupabaseProductApi(productId: string, payload: Partial<Product>) {
-  return callApi(`/supabase-products/${productId}`, { method: 'PATCH', body: JSON.stringify(payload) });
+export async function updateSupabaseProductApi(_productId: string, _payload: Partial<Product>) {
+  throw new Error('[TODO] /supabase-products is not available in the current serverless runtime. Use /admin/products for product management.');
 }
 
-export async function deleteSupabaseProductApi(productId: string) {
-  return callApi(`/supabase-products/${productId}`, { method: 'DELETE' });
+export async function deleteSupabaseProductApi(_productId: string) {
+  throw new Error('[TODO] /supabase-products is not available in the current serverless runtime. Use /admin/products for product management.');
 }
 
 export async function updateHomeContentApi(payload: Record<string, unknown>) {
   return callApi('/home-content', { method: 'PATCH', body: JSON.stringify(payload) });
 }
 
-export async function createInventoryMovement(productId: string, delta: number, reason?: string) {
-  return callApi('/inventory/movements', { method: 'POST', body: JSON.stringify({ productId, delta, reason }) });
+export async function createInventoryMovement(_productId: string, _delta: number, _reason?: string) {
+  throw new Error('[TODO] /inventory/movements is not available in the current runtime. Inventory mutations are not exposed yet through this client.');
 }
 
 export async function fetchAuditLogs(limit = 200) {
   return callApi(`/audit?limit=${limit}`, { method: 'GET' });
 }
 
-export default { fetchProducts, createProductApi, fetchSupabaseProducts, createSupabaseProductApi, updateSupabaseProductApi, deleteSupabaseProductApi, updateProductApi, deleteProductApi, updateHomeContentApi, createInventoryMovement, fetchAuditLogs };
+export default {
+  fetchProducts,
+  createProductApi,
+  fetchSupabaseProducts,
+  createSupabaseProductApi,
+  updateSupabaseProductApi,
+  deleteSupabaseProductApi,
+  updateProductApi,
+  deleteProductApi,
+  fetchCategories,
+  createCategoryApi,
+  updateCategoryApi,
+  deleteCategoryApi,
+  updateHomeContentApi,
+  createInventoryMovement,
+  fetchAuditLogs,
+};

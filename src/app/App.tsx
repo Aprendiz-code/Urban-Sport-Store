@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import type { User } from '@supabase/supabase-js';
 import {
   ShoppingCart, Search, Menu, X, Star, ChevronRight, Package,
@@ -35,7 +35,7 @@ import {
   isAdminUser,
 } from "../lib/supabase-auth";
 
-import adminApi, { createSupabaseProductApi, updateSupabaseProductApi, deleteSupabaseProductApi, updateHomeContentApi } from "../lib/admin-api";
+import adminApi, { fetchCategories, createCategoryApi, updateCategoryApi, deleteCategoryApi, updateHomeContentApi } from "../lib/admin-api";
 import { uploadProductImage, deleteProductImage, getPublicUrl, buildProductImagePath, getStoragePathFromPublicUrl, STORAGE_BUCKET } from "../lib/supabase-store";
 import { recordAction, getAudit } from "../lib/audit";
 import { productSchema } from '../lib/schemas';
@@ -49,6 +49,16 @@ type View =
   | "login" | "register" | "account" | "admin";
 
 type Category = string;
+
+interface AdminCategory {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  sort_order?: number;
+  is_active?: boolean;
+  image?: string;
+}
 
 interface Product {
   id: string; name: string; brand: string; price: number;
@@ -931,6 +941,58 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
   const featured = featuredProducts;
   const newArrivals = newArrivalsProducts;
   const onSale = saleProducts;
+  const [newsletterEmail, setNewsletterEmail] = useState('');
+  const [newsletterLoading, setNewsletterLoading] = useState(false);
+  const [newsletterSuccess, setNewsletterSuccess] = useState<string | null>(null);
+  const [newsletterError, setNewsletterError] = useState<string | null>(null);
+
+  const normalizeApiRoot = (url?: string) => {
+    const trimmed = url?.trim().replace(/\/$/, '');
+    if (!trimmed) return '/api';
+    if (trimmed.endsWith('/api')) return trimmed;
+    if (trimmed.endsWith('/api/v1')) return trimmed.replace(/\/v1$/, '');
+    return `${trimmed}/api`;
+  };
+
+  const handleNewsletterSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const email = newsletterEmail.trim();
+    setNewsletterError(null);
+    setNewsletterSuccess(null);
+
+    if (!email) {
+      setNewsletterError('Ingresa un correo válido para suscribirte.');
+      return;
+    }
+
+    setNewsletterLoading(true);
+    try {
+      const apiUrl = normalizeApiRoot(import.meta.env.VITE_API_URL);
+      const response = await fetch(`${apiUrl}/newsletter`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const json = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const message = json?.message || json?.error?.message || 'No se pudo enviar la suscripción. Intenta nuevamente.';
+        throw new Error(message);
+      }
+
+      setNewsletterSuccess('¡Gracias! Tu correo fue suscrito correctamente.');
+      setNewsletterEmail('');
+      toast.success('Te avisaremos cuando haya ofertas disponibles.');
+    } catch (error: any) {
+      const message = error?.message || 'No se pudo enviar tu suscripción. Intenta nuevamente.';
+      setNewsletterError(message);
+      toast.error(message);
+    } finally {
+      setNewsletterLoading(false);
+    }
+  };
+
   // Ensure carousel has enough items to scroll — duplicate if list is short
   const arrivalsForCarousel = (() => {
     const base = newArrivals.slice(0, 9);
@@ -1185,14 +1247,29 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
           <p className="text-[10px] sm:text-xs font-bold text-blue-200 uppercase tracking-widest mb-1 sm:mb-1.5">Mantente al día</p>
           <h2 className="text-lg sm:text-xl font-extrabold text-white mb-1 sm:mb-1.5">Recibe ofertas exclusivas</h2>
           <p className="text-blue-200 text-xs sm:text-sm mb-3 sm:mb-4">Suscríbete y obtén 10% de descuento en tu primera compra.</p>
-          <div className="flex flex-col sm:flex-row gap-2 max-w-sm mx-auto">
-            <input type="email" placeholder="tu@email.com"
-              className="flex-1 px-4 py-3 rounded-xl text-sm text-slate-800 bg-white placeholder-slate-400 focus:outline-none" />
-            <button onClick={() => toast.success('¡Gracias! Te notificaremos cuando haya ofertas disponibles.')}
-              className="px-5 py-3 rounded-xl bg-black/70 text-white text-sm font-bold hover:bg-black/90 transition-colors whitespace-nowrap w-full sm:w-auto">
-              Suscribirme
+          <form onSubmit={handleNewsletterSubmit} className="flex flex-col sm:flex-row gap-2 max-w-sm mx-auto">
+            <input
+              type="email"
+              value={newsletterEmail}
+              onChange={(event) => setNewsletterEmail(event.target.value)}
+              placeholder="tu@email.com"
+              className="flex-1 px-4 py-3 rounded-xl text-sm text-slate-800 bg-white placeholder-slate-400 focus:outline-none"
+              disabled={newsletterLoading}
+              aria-label="Correo de suscripción"
+            />
+            <button
+              type="submit"
+              disabled={newsletterLoading}
+              className="px-5 py-3 rounded-xl bg-black/70 text-white text-sm font-bold hover:bg-black/90 transition-colors whitespace-nowrap w-full sm:w-auto disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {newsletterLoading ? 'Enviando...' : 'Suscribirme'}
             </button>
-          </div>
+          </form>
+          {newsletterError ? (
+            <p className="mt-3 text-sm text-red-100">{newsletterError}</p>
+          ) : newsletterSuccess ? (
+            <p className="mt-3 text-sm text-emerald-100">{newsletterSuccess}</p>
+          ) : null}
         </div>
       </section>
 
@@ -2407,6 +2484,18 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
 }) {
   const [adminSection, setAdminSection] = useState(initialSection ?? "dashboard");
   const [searchTerm, setSearchTerm] = useState("");
+  const [categories, setCategories] = useState<AdminCategory[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
+  const [categoriesError, setCategoriesError] = useState<string | null>(null);
+  const [categoryFormMode, setCategoryFormMode] = useState<"create" | "edit">("create");
+  const [activeCategory, setActiveCategory] = useState<AdminCategory | null>(null);
+  const [categoryForm, setCategoryForm] = useState({ name: "", slug: "", description: "", sort_order: "", is_active: true });
+  const [categoryFormErrors, setCategoryFormErrors] = useState<Record<string, string>>({});
+  const [categoryErrorMessage, setCategoryErrorMessage] = useState<string | null>(null);
+  const [categorySuccessMessage, setCategorySuccessMessage] = useState<string | null>(null);
+  const [isCategorySubmitting, setIsCategorySubmitting] = useState(false);
+  const [categoryActionLoadingId, setCategoryActionLoadingId] = useState<string | null>(null);
+  const [isSlugTouched, setIsSlugTouched] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [activeProduct, setActiveProduct] = useState<Product | null>(null);
   const [productForm, setProductForm] = useState<Omit<Product, "id">>({
@@ -2439,6 +2528,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
     { id: "reports", icon: <BarChart2 size={16} />, label: "Reportes" },
     { id: "activity", icon: <Grid3X3 size={16} />, label: "Actividad" },
     { id: "settings", icon: <Settings size={16} />, label: "Ajustes" },
+    { id: "categories", icon: <Tag size={16} />, label: "Categorías" },
   ];
 
   const SECTION_TITLES: Record<string, string> = {
@@ -2451,6 +2541,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
     reports: "Reportes",
     activity: "Actividad",
     settings: "Ajustes",
+    categories: "Categorías",
   };
 
   const pageTitle = SECTION_TITLES[adminSection] ?? "Panel de administración";
@@ -2646,6 +2737,191 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
       }
     })();
   };
+
+  const normalizeSlug = (value: string) =>
+    value
+      .normalize('NFKD')
+      .replace(/[ -]/g, (char) => char)
+      .replace(/[ -]/g, '')
+      .toLowerCase()
+      .replace(/[ -]/g, (char) => char)
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-+|-+$/g, '');
+
+  const buildCategorySlug = (name: string) => {
+    const generated = name
+      .normalize('NFKD')
+      .replace(/\p{Diacritic}/gu, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-+|-+$/g, '');
+    return generated || name.trim().toLowerCase().replace(/\s+/g, '-');
+  };
+
+  const refreshCategories = async () => {
+    setCategoriesLoading(true);
+    setCategoriesError(null);
+    try {
+      const data = await fetchCategories();
+      if (Array.isArray(data)) {
+        setCategories(data as AdminCategory[]);
+      } else {
+        setCategories([]);
+        setCategoriesError('Respuesta inesperada del servidor al cargar categorías.');
+      }
+    } catch (error: any) {
+      console.error('Error cargando categorías:', error);
+      setCategories([]);
+      setCategoriesError(error?.message ?? 'No se pudo cargar las categorías.');
+    } finally {
+      setCategoriesLoading(false);
+    }
+  };
+
+  const resetCategoryForm = () => {
+    setCategoryFormMode('create');
+    setActiveCategory(null);
+    setCategoryForm({ name: '', slug: '', description: '', sort_order: '', is_active: true });
+    setCategoryFormErrors({});
+    setCategoryErrorMessage(null);
+    setCategorySuccessMessage(null);
+    setIsSlugTouched(false);
+  };
+
+  const handleCategoryFormChange = (field: keyof typeof categoryForm, value: string | boolean) => {
+    setCategoryForm((prev) => {
+      const newVal = (field === 'slug' && typeof value === 'string') ? normalizeSlug(value) : value;
+      const updated = { ...prev, [field]: newVal } as typeof categoryForm;
+      if (field === 'name' && categoryFormMode === 'create' && !isSlugTouched) {
+        updated.slug = buildCategorySlug(String(value));
+      }
+      return updated;
+    });
+
+    // Clear the specific field validation error when the user edits it
+    setCategoryFormErrors((prev) => {
+      if (!prev) return prev;
+      if (!(field as string in prev)) return prev;
+      const copy = { ...prev } as Record<string, string>;
+      delete copy[field as string];
+      return copy;
+    });
+
+    if (field === 'slug') setIsSlugTouched(true);
+  };
+
+  const validateCategoryForm = () => {
+    const errors: Record<string, string> = {};
+    if (!categoryForm.name.trim()) {
+      errors.name = 'El nombre es requerido';
+    }
+    if (!categoryForm.slug.trim()) {
+      errors.slug = 'El slug es requerido';
+    }
+    if (categoryForm.sort_order && Number.isNaN(Number(categoryForm.sort_order))) {
+      errors.sort_order = 'El orden debe ser un número válido';
+    }
+    return errors;
+  };
+
+  const handleCategoryFormSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setCategoryErrorMessage(null);
+    setCategorySuccessMessage(null);
+    // Clear any previous field errors before validating/submitting
+    setCategoryFormErrors({});
+    const errors = validateCategoryForm();
+    if (Object.keys(errors).length > 0) {
+      setCategoryFormErrors(errors);
+      return;
+    }
+
+    setIsCategorySubmitting(true);
+    try {
+      const payload: Record<string, unknown> = {
+        name: categoryForm.name.trim(),
+        slug: categoryForm.slug.trim(),
+        description: categoryForm.description.trim() || undefined,
+        is_active: categoryForm.is_active,
+      };
+
+      if (categoryForm.sort_order.trim() !== '') {
+        payload.sort_order = Number(categoryForm.sort_order);
+      }
+
+      if (categoryFormMode === 'edit' && activeCategory) {
+        await updateCategoryApi(activeCategory.id, payload);
+        toast.success('Categoría actualizada.');
+        setCategorySuccessMessage('Categoría actualizada correctamente.');
+      } else {
+        await createCategoryApi(payload);
+        toast.success('Categoría creada.');
+        setCategorySuccessMessage('Categoría creada correctamente.');
+      }
+
+      await refreshCategories();
+      resetCategoryForm();
+    } catch (error: any) {
+      console.error('Error guardando categoría:', error);
+      const message = error?.message ?? 'No se pudo guardar la categoría. Intenta nuevamente.';
+      setCategoryErrorMessage(message);
+      toast.error(message);
+    } finally {
+      setIsCategorySubmitting(false);
+    }
+  };
+
+  const handleEditCategory = (category: AdminCategory) => {
+    setCategoryFormMode('edit');
+    setActiveCategory(category);
+    setCategoryForm({
+      name: category.name ?? '',
+      slug: category.slug ?? '',
+      description: category.description ?? '',
+      sort_order: category.sort_order?.toString() ?? '',
+      is_active: category.is_active ?? true,
+    });
+    setCategoryFormErrors({});
+    setCategoryErrorMessage(null);
+    setCategorySuccessMessage(null);
+    setIsSlugTouched(true);
+  };
+
+  const handleDeleteCategory = async (categoryId: string) => {
+    if (!confirm('¿Eliminar esta categoría? Esta acción eliminará o marcará la categoría como inactiva en el backend y no puede deshacerse desde esta interfaz. ¿Deseas continuar?')) {
+      return;
+    }
+
+    setCategoryActionLoadingId(categoryId);
+    setCategoryErrorMessage(null);
+    setCategorySuccessMessage(null);
+    try {
+      await deleteCategoryApi(categoryId);
+      toast.success('Categoría eliminada.');
+      setCategorySuccessMessage('Categoría eliminada correctamente.');
+      if (activeCategory?.id === categoryId) {
+        resetCategoryForm();
+      }
+      await refreshCategories();
+    } catch (error: any) {
+      console.error('Error eliminando categoría:', error);
+      const message = error?.message ?? 'No se pudo eliminar la categoría. Intenta nuevamente.';
+      setCategoryErrorMessage(message);
+      toast.error(message);
+    } finally {
+      setCategoryActionLoadingId(null);
+    }
+  };
+
+  useEffect(() => {
+    if (adminSection === 'categories') {
+      void refreshCategories();
+    }
+  }, [adminSection]);
 
   const handleEditProduct = (product: Product) => {
     setActiveProduct(product);
@@ -3405,6 +3681,120 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                   >
                     ✕ Cancelar
                   </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        );
+
+      case "categories":
+        return (
+          <div className="grid grid-cols-1 xl:grid-cols-[1.7fr_0.95fr] gap-6 mb-6">
+            <div className="bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] p-6">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.24em] text-slate-400 font-semibold mb-2">Categorías</p>
+                  <h2 className="text-2xl font-extrabold text-slate-900">Listado de categorías</h2>
+                  <p className="text-sm text-slate-500 mt-1">Administra categorías con creación, edición y eliminación.</p>
+                </div>
+                <button onClick={() => { resetCategoryForm(); refreshCategories(); }} className="inline-flex items-center justify-center rounded-3xl bg-black px-4 py-3 text-sm font-semibold text-white hover:bg-slate-900">Actualizar categorías</button>
+              </div>
+
+              {categoriesLoading ? (
+                <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-500">Cargando categorías...</div>
+              ) : categoriesError ? (
+                <div className="rounded-3xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">{categoriesError}</div>
+              ) : categories.length === 0 ? (
+                <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">No se encontraron categorías. Usa el formulario para crear la primera categoría.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[640px]">
+                    <thead>
+                      <tr className="border-b border-slate-100 bg-slate-50">
+                        {['Nombre', 'Slug', 'Orden', 'Activo', 'Descripción', 'Acciones'].map((h) => (
+                          <th key={h} className="text-left px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wide">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {categories.map((category) => (
+                        <tr key={category.id} className="border-b border-slate-100 hover:bg-slate-50/80 transition-colors">
+                          <td className="px-4 py-3 text-sm font-semibold text-slate-800">{category.name}</td>
+                          <td className="px-4 py-3 text-sm text-slate-600">{category.slug}</td>
+                          <td className="px-4 py-3 text-sm text-slate-600">{category.sort_order ?? '-'}</td>
+                          <td className="px-4 py-3 text-sm">
+                            <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${category.is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                              {category.is_active ? 'Activo' : 'Inactivo'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-slate-600">{category.description ?? '—'}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex flex-wrap gap-2">
+                              <button type="button" onClick={() => handleEditCategory(category)} className="px-3 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold hover:bg-slate-200">Editar</button>
+                              <button type="button" onClick={() => handleDeleteCategory(category.id)} disabled={categoryActionLoadingId === category.id} className="px-3 py-2 rounded-xl bg-red-50 text-red-600 text-xs font-semibold hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed">Eliminar</button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] p-6">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.24em] text-slate-400 font-semibold mb-2">{categoryFormMode === 'edit' ? 'Editar categoría' : 'Nueva categoría'}</p>
+                  <h2 className="text-2xl font-extrabold text-slate-900">{categoryFormMode === 'edit' ? 'Edita la categoría' : 'Crea una categoría nueva'}</h2>
+                </div>
+                {categoryFormMode === 'edit' && (
+                  <button type="button" onClick={resetCategoryForm} className="inline-flex items-center justify-center rounded-3xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-200">Cancelar edición</button>
+                )}
+              </div>
+
+              {categoryErrorMessage ? (
+                <div className="rounded-3xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 mb-4">{categoryErrorMessage}</div>
+              ) : null}
+              {categorySuccessMessage ? (
+                <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700 mb-4">{categorySuccessMessage}</div>
+              ) : null}
+
+              <form onSubmit={handleCategoryFormSubmit} className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-600 uppercase block mb-2">Nombre *</label>
+                  <input value={categoryForm.name} onChange={(e) => handleCategoryFormChange('name', e.target.value)} className={`w-full px-4 py-3 rounded-xl border-2 ${categoryFormErrors.name ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-white hover:border-slate-300'} text-sm text-slate-700 focus:outline-none`} />
+                  {categoryFormErrors.name ? <p className="text-xs text-red-600 mt-1">{categoryFormErrors.name}</p> : null}
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-600 uppercase block mb-2">Slug *</label>
+                  <input value={categoryForm.slug} onChange={(e) => handleCategoryFormChange('slug', e.target.value)} className={`w-full px-4 py-3 rounded-xl border-2 ${categoryFormErrors.slug ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-white hover:border-slate-300'} text-sm text-slate-700 focus:outline-none`} />
+                  {categoryFormErrors.slug ? <p className="text-xs text-red-600 mt-1">{categoryFormErrors.slug}</p> : <p className="text-xs text-slate-500 mt-1">El slug se generará automáticamente desde el nombre si no lo editas.</p>}
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-600 uppercase block mb-2">Descripción</label>
+                  <textarea value={categoryForm.description} onChange={(e) => handleCategoryFormChange('description', e.target.value)} rows={3} className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 text-sm text-slate-700 focus:outline-none" />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-bold text-slate-600 uppercase block mb-2">Orden</label>
+                    <input type="number" value={categoryForm.sort_order} onChange={(e) => handleCategoryFormChange('sort_order', e.target.value)} className={`w-full px-4 py-3 rounded-xl border-2 ${categoryFormErrors.sort_order ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-white hover:border-slate-300'} text-sm text-slate-700 focus:outline-none`} />
+                    {categoryFormErrors.sort_order ? <p className="text-xs text-red-600 mt-1">{categoryFormErrors.sort_order}</p> : null}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-2 text-sm text-slate-600">
+                      <input type="checkbox" checked={categoryForm.is_active} onChange={(e) => handleCategoryFormChange('is_active', e.target.checked)} className="accent-[#1d4ed8]" />
+                      Activa
+                    </label>
+                  </div>
+                </div>
+                <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
+                  <button type="submit" disabled={isCategorySubmitting} className={`w-full sm:w-auto px-6 py-3 rounded-xl font-semibold transition-all ${isCategorySubmitting ? 'bg-slate-300 text-slate-600 cursor-not-allowed' : 'bg-black text-white hover:bg-slate-900'}`}>
+                    {isCategorySubmitting ? (categoryFormMode === 'edit' ? 'Guardando...' : 'Creando...') : (categoryFormMode === 'edit' ? 'Guardar categoría' : 'Crear categoría')}
+                  </button>
+                  {categoryFormMode === 'edit' && (
+                    <button type="button" onClick={resetCategoryForm} className="w-full sm:w-auto px-6 py-3 rounded-xl bg-slate-100 text-slate-700 font-semibold hover:bg-slate-200">Cancelar</button>
+                  )}
                 </div>
               </form>
             </div>
