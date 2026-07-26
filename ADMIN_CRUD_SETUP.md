@@ -53,7 +53,7 @@ All tests pass:
 ### 1. **Create Product**
 ```
 Admin Panel → [Form submit] → 
-Frontend: POST /api/v1/admin/supabase-products →
+Frontend: POST /api/admin/products →
 Backend: SupabaseAdminService.createProduct() →
 Supabase REST API: INSERT into products table →
 ✅ Product persisted to Supabase
@@ -62,7 +62,7 @@ Supabase REST API: INSERT into products table →
 ### 2. **Update Product**
 ```
 Admin Panel → [Edit & save] →
-Frontend: PATCH /api/v1/admin/supabase-products/:id →
+Frontend: PATCH /api/admin/products/:id →
 Backend: SupabaseAdminService.updateProduct() →
 Supabase REST API: UPDATE products table →
 ✅ Changes persisted to Supabase
@@ -71,7 +71,7 @@ Supabase REST API: UPDATE products table →
 ### 3. **Delete Product**
 ```
 Admin Panel → [Delete button] →
-Frontend: DELETE /api/v1/admin/supabase-products/:id →
+Frontend: DELETE /api/admin/products/:id →
 Backend: SupabaseAdminService.deleteProduct() →
 Supabase REST API: DELETE from products table →
 ✅ Product removed from Supabase
@@ -79,7 +79,7 @@ Supabase REST API: DELETE from products table →
 
 ### 4. **View Products in Storefront**
 ```
-Storefront loads → GET /api/v1/products →
+Storefront loads → GET /api/products →
 Backend fetches from Supabase →
 Products display immediately
 ✅ Persists across page refreshes
@@ -91,7 +91,7 @@ Products display immediately
 ```
 VITE_SUPABASE_URL=https://vgfvjmpaftiufykejagk.supabase.co
 VITE_SUPABASE_ANON_KEY=<public-key>
-VITE_API_URL=https://www.urbansportstore.online/api/v1  # or http://localhost:4000/api/v1
+VITE_API_URL=https://www.urbansportstore.online/api  # or http://localhost:4000/api
 ```
 
 **Backend config** (`/api/.env.local`):

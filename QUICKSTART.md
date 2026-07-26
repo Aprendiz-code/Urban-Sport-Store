@@ -1,123 +1,63 @@
-# 🚀 Urban Sport Store - Ready for Production
+# 🚀 Urban Sport Store - Quick Start
 
-## ✅ Configuración Activa
+## ✅ Configuración activa
 
 ### Frontend (`.env.local`)
 ```env
-VITE_SUPABASE_URL=https://vgfvjmpaftiufykejagk.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGc...  # Clave pública - segura en frontend
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
 VITE_SUPABASE_STORAGE_BUCKET=product-images
-VITE_ADMIN_EMAIL=Urbansportstore@outlook.com
-VITE_ADMIN_PASSWORD=bM4_tX!8wK2#vP7$qR
-VITE_API_URL=http://localhost:4000/api
+VITE_API_URL=http://localhost:3000/api
 ```
-
-**✓ Protección RLS activa**: El frontend solo puede leer productos, sin permisos de escritura
-
----
 
 ### Backend (`api/.env.local`)
 ```env
-PORT=4000
-SUPABASE_URL=https://vgfvjmpaftiufykejagk.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGc...  # Clave secreta - SOLO BACKEND ⚠️
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/urbansportstore
-JWT_SECRET=dev-secret-change-in-production
-```
-
-**✓ Service role configurada**: El backend puede crear/editar/eliminar productos con permiso de administración
-
----
-
-## 🏗️ Arquitectura de Seguridad
-
-```
-┌─────────────────┐
-│   FRONTEND      │
-│  (Vite + React) │
-└────────┬────────┘
-         │
-         ├─ Supabase Anon Client (RLS enforcement)
-         │  └─ Leer productos ✓
-         │  └─ No puede escribir ✗
-         │
-         └─ Backend API (JWT auth)
-            └─ POST /api/admin/products (require admin role)
-               └─ Service role key
-                  └─ Supabase (bypass RLS)
-
-┌─────────────────┐
-│    BACKEND      │
-│ (Express + ORM) │
-└────────┬────────┘
-         │
-         ├─ Service Role Client
-         │  └─ Crear/editar/eliminar productos
-         │
-         ├─ JWT Verification
-         │  └─ Validar token de Supabase
-         │
-         └─ PostgreSQL (Prisma)
-            └─ Persistencia de datos
-
-┌─────────────────┐
-│   SUPABASE      │
-│ (Auth + Storage)│
-└─────────────────┘
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+NODE_ENV=development
 ```
 
 ---
 
-## 📋 Flujo de Operaciones
+## 🏗️ Arquitectura actual
 
-> Runtime activo actual: `/api/*` y `/api/admin/*`.
-> El directorio `api/src/*` existe en el repositorio como backend adicional/legacy, pero no es el runtime desplegado hoy.
-
-### 1️⃣ Lectura de Productos (Público)
-```
-User → Frontend (anon client) → Supabase RLS → products table
-✓ SELECT * WHERE status = 'ACTIVE'
-```
-
-### 2️⃣ Creación de Productos (Admin)
-```
-Admin User → Frontend (login) → JWT token
-           → Backend API (POST /api/admin/products) → JWT verification
-           → Service role client → Supabase RLS bypass
-           → Insert into products table
-✓ Product visible en storefront
+```text
+Frontend (Vite + React) → Supabase Auth/Storage
+                         ↘
+                          Vercel Functions /api + /api/admin
+                         ↘
+                          Supabase Postgres + RLS
 ```
 
-### 3️⃣ Registro de Usuario
+### Runtime actual
+- El frontend corre en Vite/React.
+- Los endpoints públicos y admin viven en Vercel Functions bajo `/api/*` y `/api/admin/*`.
+- El acceso admin se valida contra Supabase y los claims del usuario autenticado.
+- Los artefactos legacy de Express/Prisma quedan como referencia, no como runtime activo.
+
+---
+
+## 📋 Flujo de operaciones
+
+### 1️⃣ Lectura de productos (público)
+```text
+Usuario → Frontend → Supabase RLS → products
 ```
-User → Frontend (form) → Supabase Auth (sign up)
-     → Email confirmation sent
-     → User clicks link
-     → Email marked confirmed
-     → Session created
-     ✓ User can browse
-     (requires admin role for mutations)
+
+### 2️⃣ Gestión de productos (admin)
+```text
+Admin → Frontend → /api/admin/products o /api/admin/categories → Supabase
+```
+
+### 3️⃣ Upload de imágenes
+```text
+Admin → Frontend → Supabase Storage → public URL
 ```
 
 ---
 
-## 🔐 Seguridad Implementada
-
-| Aspecto | Implementación | Status |
-|--------|-----------------|--------|
-| **Autenticación** | Supabase JWT + Custom claims | ✅ |
-| **Autorización** | RLS + Role checking | ✅ |
-| **Service Role** | Backend-only, no frontend | ✅ |
-| **Email Confirmation** | Supabase Auth enabled | ✅ |
-| **Admin Role** | Custom claim (role=ADMIN) | ✅ |
-| **Rate Limiting** | Express rate limiter | ✅ |
-| **Audit Logging** | Prisma auditLog table | ✅ |
-| **CORS Protection** | Whitelist origins | ✅ |
-| **Helmet Headers** | Security headers | ✅ |
-
----
-
-## 🧪 Testing Local
+## 🧪 Validación local
 
 ### Frontend
 ```bash
@@ -125,80 +65,28 @@ npm run dev
 # http://localhost:5173
 ```
 
-### Backend
-```bash
-cd api
-npm run dev
-# http://localhost:4000
-# API docs: http://localhost:4000/api/docs
-```
-
-### Test Admin Flow
-1. Abrir app en http://localhost:5173
-2. Clickear **Admin** (login local de demostración)
-   - Email: `Urbansportstore@outlook.com`
-   - Password: `bM4_tX!8wK2#vP7$qR`
-3. Acceso a **Admin Panel** > **Productos**
-4. Crear/editar/eliminar producto
-5. Verificar cambios en Supabase Dashboard
+### API serverless
+- El runtime activo se sirve desde Vercel Functions; el endpoint base esperado es `/api`.
+- Para pruebas locales, usa la variable `VITE_API_URL` apuntando a tu entorno local o de preview.
 
 ---
 
 ## 📦 Despliegue
 
-### Checklist Pre-Producción
-
-- [ ] **Database**: PostgreSQL running (Railway/Supabase)
-- [ ] **JWT_SECRET**: Cambiar a valor fuerte (openssl rand -base64 32)
-- [ ] **Email Confirmation**: Habilitado en Supabase Auth
-- [ ] **CORS_ORIGINS**: Actualizar a dominio real
-- [ ] **SECURE_COOKIES**: true en producción
-- [ ] **Admin User**: Crear y otorgar role ADMIN
-
-### Deployment Targets
-
-**Frontend**: Vercel / Netlify
-```bash
-npm run build
-# auto-deploy from GitHub
-```
-
-**Backend**: Railway / Render
-```bash
-npm install
-npm run db:migrate
-npm start
-```
+- [ ] Configurar `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` en Vercel
+- [ ] Configurar `SUPABASE_URL`, `SUPABASE_ANON_KEY` y `SUPABASE_SERVICE_ROLE_KEY` en el runtime de Vercel
+- [ ] Confirmar que los endpoints `/api/*` y `/api/admin/*` responden correctamente en producción
 
 ---
 
-## 📖 Documentación Completa
+## 📖 Documentación relevante
 
-- [PRODUCTION.md](PRODUCTION.md) - Checklist de despliegue
-- [docs/supabase-admin-setup.md](docs/supabase-admin-setup.md) - Setup de roles
-- [api/README_BACKEND.md](api/README_BACKEND.md) - API documentation
-- [README.md](README.md) - Project overview
-
----
-
-## 🎯 Próximas Mejoras (Roadmap)
-
-- [ ] Code splitting (reducir bundle de 1MB)
-- [ ] Image optimization (thumbnails)
-- [ ] Checkout payment flow (Stripe)
-- [ ] Email notifications (SendGrid)
-- [ ] Analytics (Mixpanel/Amplitude)
-- [ ] Admin dashboard (chart.js)
-- [ ] Mobile app (React Native)
+- [README.md](README.md)
+- [README_ADMIN.md](README_ADMIN.md)
+- [PRODUCTION.md](PRODUCTION.md)
+- [docs/supabase-admin-setup.md](docs/supabase-admin-setup.md)
 
 ---
 
-## 💬 Soporte
-
-**GitHub**: https://github.com/Aprendiz-code/Urban-Sport-Store
-**Issues**: Reportar en la página de issues
-
----
-
-**Last Updated**: 2026-07-17  
-**Status**: 🟢 Production Ready
+**Last Updated**: 2026-07-25
+**Status**: 🟢 Runtime aligned with current Vercel + Supabase setup

@@ -9,43 +9,33 @@ Frontend (`.env.local` at project root or Vite env):
 - VITE_SUPABASE_URL=https://your-supabase-project.supabase.co
 - VITE_SUPABASE_ANON_KEY=public-anon-key
 - VITE_SUPABASE_STORAGE_BUCKET=product-images
-- VITE_API_URL=http://localhost:4000/api
-- VITE_ADMIN_EMAIL=admin@urbansportstore.dev
+- VITE_API_URL=http://localhost:3000/api
 
 Backend (`api/.env`):
 
-- PORT=4000
-- DATABASE_URL=postgresql://user:pass@localhost:5432/urbansport
-- JWT_SECRET=change_this_dev_secret
 - SUPABASE_URL=https://your-supabase-project.supabase.co
-- SEED_ADMIN_EMAIL=admin@urbansportstore.dev
-- SEED_ADMIN_PASSWORD=ChangeMe123!
-- CORS_ORIGINS=http://localhost:5173
+- SUPABASE_ANON_KEY=public-anon-key
+- SUPABASE_SERVICE_ROLE_KEY=service-role-key
+- NODE_ENV=development
 
 Notes:
 - The current active contract uses `/api/*` for public API calls and `/api/admin/*` for admin routes.
-- The backend uses `SUPABASE_URL` to validate a Supabase access token and exchange it for a backend JWT as part of the admin auth flow.
-- The frontend uses `VITE_API_URL` to call `/admin` endpoints and `VITE_SUPABASE_*` to perform auth and upload product images.
+- The backend validates the Supabase access token and checks the authenticated user against the admin claims already configured in Supabase.
+- The frontend uses `VITE_API_URL` to reach `/admin` endpoints and `VITE_SUPABASE_*` to perform auth and upload product images.
 - The `api/src/*` directory exists as legacy backend code and is not the deployed production runtime currently.
 
 ## Run locally (quick)
 
-1. Start backend (inside `api/`):
+1. Start the current serverless API runtime (inside `api/`):
 
 ```pwsh
 cd api
 pnpm install
-# ensure DATABASE_URL is working and run prisma migrations if needed
-# if you don't have a DB, update DATABASE_URL to a local Postgres or use SQLite with a quick change
-pnpm dev # or npm run dev (depends on your setup)
+# configure the Supabase environment variables in api/.env.local
+pnpm build
 ```
 
-> Si no tienes Supabase configurado todavía, puedes usar el admin local con `VITE_ADMIN_EMAIL` y `VITE_ADMIN_PASSWORD`.
->
-> - Email: `admin@urbansportstore.dev`
-> - Contraseña: `Admin123!`
-> 
-> Esto mostrará el panel admin localmente sin requerir Supabase.
+> Nota: El runtime actual requiere Supabase Auth y un usuario admin con claims válidos para acceder a los endpoints de administración.
 
 2. Start frontend (root):
 
@@ -56,56 +46,38 @@ pnpm dev
 
 3. Seed admin (if not already seeded):
 
-- Backend repo contains seed logic (see `api/prisma/seed.ts`). Update `.env` with SEED_ADMIN_EMAIL/PASSWORD and run the seed script or start the backend which may auto-seed depending on project setup.
+- The current runtime uses the Supabase SQL seed files under `supabase/` as the source of truth. Apply the relevant migrations and seed scripts to your target project before testing admin flows.
 
 ## How admin login works (overview)
 
 - The frontend authenticates users using Supabase Auth.
-- When the frontend calls admin endpoints it sends the Supabase access token in `Authorization: Bearer <supabase_token>` header.
-- The backend exposes an auth bridge endpoint that validates the Supabase token and, if the user exists in the backend, issues a backend JWT (signed with `JWT_SECRET`).
-- The frontend client (`src/lib/admin-api.ts`) will attempt admin calls using a cached backend JWT (stored in `localStorage`) and will call the bridge endpoint to exchange the Supabase token if necessary.
+- When the frontend calls admin endpoints it sends the Supabase access token in the `Authorization: Bearer <supabase_token>` header.
+- The backend validates that token against Supabase and checks the connected admin claims before allowing the request.
+- The frontend client in `src/lib/admin-api.ts` calls the current serverless `/api/admin/*` endpoints directly; older bridge-style flows remain legacy and are not part of the active runtime.
 
 ## Testing admin flows manually
 
-1. Register or sign in with Supabase (use `VITE_ADMIN_EMAIL` for quick admin check).
+1. Register or sign in with Supabase.
 2. Open Admin dashboard in the app and create a product with the form: the image field accepts a file (uploads to Supabase Storage) or a public URL.
-3. The frontend will call the admin API; if bridge is required it will exchange the Supabase token and retry the request.
-4. Audit logs: the backend records create/update/delete/inventory actions in the `AuditLog` Prisma model; the Admin UI shows server logs or local `localStorage` fallback.
+3. The frontend will call the admin API directly using the Supabase access token in the `Authorization` header.
+4. Audit logs: the backend writes the relevant admin actions into the current Supabase-backed tables; the Admin UI shows server logs or local `localStorage` fallback.
 
 ## E2E tests (without Supabase)
 
-I added a small helper endpoint in the backend to support CI/local E2E runs without depending on Supabase auth. Set `E2E_SECRET` in `api/.env` to a secret string and run the seed so an admin user exists.
-
-1. Add to `api/.env`:
-
-```pwsh
-E2E_SECRET=your-local-secret
-```
-
-2. Start the backend first, then run the API suite:
-
-```pwsh
-# in one terminal, start the backend
-cd api && npm run dev
-
-# in another terminal, from repo root
-npx playwright install
-E2E_API_BASE=http://127.0.0.1:4000 E2E_SECRET=your-local-secret npm run e2e
-```
-
-The tests will call the backend test token endpoint with the secret to get a backend JWT, then create a category, brand and product via the admin API.
+> Note: The current runtime does not include a dedicated `/api/test/token` helper endpoint in this branch.
+> If you want a local test helper for admin API access, implement it explicitly or use a real Supabase admin account.
 
 ## Security & deployment notes
 
-- Use strong random `JWT_SECRET` in production and rotate keys periodically.
-- Configure `CORS_ORIGINS` in the backend to only allow your frontend domains in production.
-- Add rate-limiting and monitoring for the `/auth/bridge` endpoint to avoid token abuse.
-- Ensure secure cookies (`SECURE_COOKIES=true`) and HTTPS in production.
+- Keep the Supabase service-role and anon keys in secure environment variables and rotate them periodically.
+- Restrict the allowed frontend origins in your deployment configuration to the real production domain.
+- Monitor the `/api/admin/*` endpoints and review admin access logs regularly.
+- Ensure HTTPS is enforced in production and that the Supabase auth configuration is aligned with your admin claims.
 
 ## Next steps you may want me to implement
 
 - Full end-to-end tests (Playwright) for admin flows (login, create product, upload image).
 - Real-time inventory (Supabase Realtime or socket server) to sync stock across sessions.
-- Backend migration and CI setup for Prisma migrations and seed.
+- Supabase migration and CI setup for the current SQL-backed runtime.
 
 If you want, I can run the next step now: (A) run an end-to-end test script (requires you start both servers), or (B) implement Playwright tests and CI configuration.
