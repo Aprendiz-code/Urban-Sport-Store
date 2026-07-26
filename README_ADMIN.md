@@ -64,8 +64,8 @@ pnpm dev
 
 ## E2E tests (without Supabase)
 
-> Note: The current runtime does not include a dedicated `/api/test/token` helper endpoint in this branch.
-> If you want a local test helper for admin API access, implement it explicitly or use a real Supabase admin account.
+> Note: This branch includes a dedicated `/api/test/token` helper endpoint for E2E usage.
+> Configure `E2E_SECRET`, `E2E_ADMIN_EMAIL`, and `E2E_ADMIN_PASSWORD` in your local `.env` or CI environment.
 
 ## Security & deployment notes
 
