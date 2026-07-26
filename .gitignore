@@ -51,9 +51,18 @@ supabase/
 .vercel
 .vercel.env
 .vercel.prod.env
+.vercel-backend-*.env
+
+# Local diagnostics and temp artifacts
+.env*.local
+.env*
+.tmp-*.mjs
+supabase_token_response.json
+test-results/
 
 # Misc
 *.log
-.env*.local
-.env*
 scripts/dev-api-runner.js
+
+# Ignore legacy npm lock for backend api
+api/package-lock.json
