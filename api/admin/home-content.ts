@@ -48,20 +48,28 @@ export default async function handler(req: any, res: any) {
 
     const body = await parseJsonBody(req);
     const updates: any = {};
-    const writableFields = [
-      'hero_title',
-      'hero_subtitle',
-      'hero_image',
-      'featured_category_ids',
-      'featured_product_ids',
-      'discounted_product_ids',
-      'promo_banner',
-      'newsletter_enabled',
-    ];
+    const fieldMap: Record<string, string> = {
+      heroTitle: 'hero_title',
+      heroSubtitle: 'hero_subtitle',
+      heroImage: 'hero_image',
+      featuredCategoryIds: 'featured_category_ids',
+      featuredProductIds: 'featured_product_ids',
+      discountedProductIds: 'discounted_product_ids',
+      promoBanner: 'promo_banner',
+      newsletterEnabled: 'newsletter_enabled',
+      hero_title: 'hero_title',
+      hero_subtitle: 'hero_subtitle',
+      hero_image: 'hero_image',
+      featured_category_ids: 'featured_category_ids',
+      featured_product_ids: 'featured_product_ids',
+      discounted_product_ids: 'discounted_product_ids',
+      promo_banner: 'promo_banner',
+      newsletter_enabled: 'newsletter_enabled',
+    };
 
-    for (const field of writableFields) {
-      if (Object.prototype.hasOwnProperty.call(body, field)) {
-        updates[field] = body[field];
+    for (const key of Object.keys(body)) {
+      if (Object.prototype.hasOwnProperty.call(fieldMap, key)) {
+        updates[fieldMap[key]] = body[key];
       }
     }
 
