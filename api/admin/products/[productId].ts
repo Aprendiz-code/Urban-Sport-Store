@@ -2,7 +2,7 @@ import { jsonError, jsonResponse, ApiError } from '../../../lib/api-helpers/resp
 import { supabaseAdmin } from '../../../lib/api-helpers/supabase.js';
 import { requireAdmin } from '../../../lib/api-helpers/admin.js';
 import { validateSupabaseToken } from '../../../lib/api-helpers/auth.js';
-import { normalizeProductUpdates } from '../../../lib/api-helpers/product-helpers.js';
+import { normalizeProductUpdates, normalizeProduct } from '../../../lib/api-helpers/product-helpers.js';
 
 function parseJsonBody(req: any): Promise<any> {
   return new Promise((resolve, reject) => {
@@ -72,7 +72,7 @@ export default async function handler(req: any, res: any) {
         after_data: data,
       });
 
-      return jsonResponse(res, { data });
+      return jsonResponse(res, { data: normalizeProduct(data) });
     }
 
     if (req.method === 'DELETE') {

@@ -69,3 +69,38 @@ test('API: admin can update home content heroTitle', async ({ request }) => {
   expect(json?.data?.heroTitle).toBe(heroTitle);
   expect(json?.data?.hero_title).toBeUndefined();
 });
+
+test('API: admin categories return camelCase response shape', async ({ request }) => {
+  const token = await getAdminToken(request);
+  const slug = `e2e-category-${Date.now()}`;
+
+  const createRes = await request.post(`${API_BASE}/api/admin/categories`, {
+    headers: { Authorization: `Bearer ${token}` },
+    data: { name: 'E2E Category', slug, sortOrder: 10, isActive: true },
+  });
+
+  expect(createRes.ok()).toBeTruthy();
+  const createdJson = await createRes.json();
+  expect(createdJson?.data?.sortOrder).toBe(10);
+  expect(createdJson?.data?.isActive).toBe(true);
+  expect(createdJson?.data?.sort_order).toBeUndefined();
+  expect(createdJson?.data?.is_active).toBeUndefined();
+
+  const listRes = await request.get(`${API_BASE}/api/admin/categories`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  expect(listRes.ok()).toBeTruthy();
+  const listJson = await listRes.json();
+  expect(Array.isArray(listJson?.data)).toBe(true);
+
+  const createdCategory = Array.isArray(listJson.data)
+    ? listJson.data.find((item: any) => item.slug === slug)
+    : null;
+
+  expect(createdCategory).not.toBeNull();
+  expect(createdCategory?.sortOrder).toBe(10);
+  expect(createdCategory?.isActive).toBe(true);
+  expect(createdCategory?.sort_order).toBeUndefined();
+  expect(createdCategory?.is_active).toBeUndefined();
+});
