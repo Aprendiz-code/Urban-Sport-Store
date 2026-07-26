@@ -66,5 +66,6 @@ test('API: admin can update home content heroTitle', async ({ request }) => {
 
   expect(res.ok()).toBeTruthy();
   const json = await res.json();
-  expect(json?.data?.heroTitle ?? json?.heroTitle).toBe(heroTitle);
+  expect(json?.data?.heroTitle).toBe(heroTitle);
+  expect(json?.data?.hero_title).toBeUndefined();
 });

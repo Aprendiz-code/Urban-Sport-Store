@@ -100,28 +100,8 @@ export async function deleteCategoryApi(categoryId: string) {
   return callApi(`/categories/${categoryId}`, { method: 'DELETE' });
 }
 
-export async function fetchSupabaseProducts() {
-  throw new Error('[TODO] /supabase-products is not available in the current serverless runtime. Use /admin/products for product management.');
-}
-
-export async function createSupabaseProductApi(_payload: Partial<Product>) {
-  throw new Error('[TODO] /supabase-products is not available in the current serverless runtime. Use /admin/products for product management.');
-}
-
-export async function updateSupabaseProductApi(_productId: string, _payload: Partial<Product>) {
-  throw new Error('[TODO] /supabase-products is not available in the current serverless runtime. Use /admin/products for product management.');
-}
-
-export async function deleteSupabaseProductApi(_productId: string) {
-  throw new Error('[TODO] /supabase-products is not available in the current serverless runtime. Use /admin/products for product management.');
-}
-
 export async function updateHomeContentApi(payload: Record<string, unknown>) {
   return callApi('/home-content', { method: 'PATCH', body: JSON.stringify(payload) });
-}
-
-export async function createInventoryMovement(_productId: string, _delta: number, _reason?: string) {
-  throw new Error('[TODO] /inventory/movements is not available in the current runtime. Inventory mutations are not exposed yet through this client.');
 }
 
 export async function fetchAuditLogs(limit = 200) {
@@ -131,10 +111,6 @@ export async function fetchAuditLogs(limit = 200) {
 export default {
   fetchProducts,
   createProductApi,
-  fetchSupabaseProducts,
-  createSupabaseProductApi,
-  updateSupabaseProductApi,
-  deleteSupabaseProductApi,
   updateProductApi,
   deleteProductApi,
   fetchCategories,
@@ -142,6 +118,5 @@ export default {
   updateCategoryApi,
   deleteCategoryApi,
   updateHomeContentApi,
-  createInventoryMovement,
   fetchAuditLogs,
 };

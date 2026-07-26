@@ -25,6 +25,21 @@ export default async function handler(req: any, res: any) {
     const user = await validateSupabaseToken(req);
     await requireAdmin(user);
 
+    const mapHomeContentResponse = (record: any) => ({
+      id: record.id,
+      key: record.key,
+      heroTitle: record.hero_title,
+      heroSubtitle: record.hero_subtitle,
+      heroImage: record.hero_image,
+      featuredCategoryIds: record.featured_category_ids,
+      featuredProductIds: record.featured_product_ids,
+      discountedProductIds: record.discounted_product_ids,
+      promoBanner: record.promo_banner,
+      newsletterEnabled: record.newsletter_enabled,
+      createdAt: record.created_at,
+      updatedAt: record.updated_at,
+    });
+
     if (req.method === 'GET') {
       const { data, error } = await supabaseAdmin
         .from('home_content')
@@ -39,7 +54,7 @@ export default async function handler(req: any, res: any) {
         return jsonError(res, 404, 'Home content not found.');
       }
 
-      return jsonResponse(res, { data });
+      return jsonResponse(res, { data: mapHomeContentResponse(data) });
     }
 
     if (req.method !== 'PATCH') {
@@ -111,7 +126,7 @@ export default async function handler(req: any, res: any) {
       after_data: data,
     });
 
-    return jsonResponse(res, { data });
+    return jsonResponse(res, { data: mapHomeContentResponse(data) });
   } catch (error: any) {
     if (error instanceof ApiError) {
       return jsonError(res, error.status, error.message);
