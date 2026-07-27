@@ -2,8 +2,8 @@ import { test, expect } from '@playwright/test';
 
 const API_BASE = process.env.E2E_API_BASE ?? 'http://127.0.0.1:4000';
 const E2E_SECRET = process.env.E2E_SECRET ?? 'test-secret';
-const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? 'admin@urbansportstore.dev';
-const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? 'ChangeMe123!';
+const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? 'urbansportstore@outlook.com';
+const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? 'N4xF8jZ2wP9qL5vT';
 const CUSTOMER_EMAIL = process.env.E2E_NON_ADMIN_EMAIL ?? 'customer@urbansportstore.dev';
 const CUSTOMER_PASSWORD = process.env.E2E_NON_ADMIN_PASSWORD ?? 'Customer123!';
 

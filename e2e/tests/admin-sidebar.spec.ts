@@ -16,8 +16,8 @@ test('sidebar links navigate to admin sections', async ({ page, baseURL }) => {
   await page.goto(baseURL!);
   // Login as admin (env or fallback)
   await page.click('text=Iniciar sesión');
-  await page.fill('input[name="email"]', process.env.E2E_ADMIN_EMAIL ?? 'admin@urbansportstore.dev');
-  await page.fill('input[name="password"]', process.env.E2E_ADMIN_PASSWORD ?? 'ChangeMe123!');
+  await page.fill('input[name="email"]', process.env.E2E_ADMIN_EMAIL ?? 'urbansportstore@outlook.com');
+  await page.fill('input[name="password"]', process.env.E2E_ADMIN_PASSWORD ?? 'N4xF8jZ2wP9qL5vT');
   await page.click('button[type="submit"]');
   await page.waitForURL('**/admin');
 

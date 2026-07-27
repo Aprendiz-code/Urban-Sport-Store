@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
-const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? 'admin@urbansportstore.dev';
-const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? 'ChangeMe123!';
+const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? 'urbansportstore@outlook.com';
+const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? 'N4xF8jZ2wP9qL5vT';
 
 test('admin end-to-end: login, products CRUD, homepage heroTitle update and audit logs', async ({ page, baseURL }) => {
   const productName = `E2E Product ${Date.now()}`;
