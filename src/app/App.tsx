@@ -11,7 +11,7 @@ import {
 import PromoCarousel from "./components/PromoCarousel";
 import ProductCarousel from "./components/ProductCarousel";
 import promoBanner from "/images/promo-discount-10.png";
-import mainBannerImage from "../../10%/Promocion 10%.png";
+import mainBannerImage from "../../promo-10/Promocion 10.png";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -33,7 +33,9 @@ import {
   getCurrentUser,
   onAuthStateChange,
   isAdminUser,
+  requestPasswordRecovery,
 } from "../lib/supabase-auth";
+import { getSupabaseClient } from "../lib/supabase-client";
 
 import adminApi, { fetchCategories, createCategoryApi, updateCategoryApi, deleteCategoryApi, updateHomeContentApi } from "../lib/admin-api";
 import { uploadProductImage, deleteProductImage, getPublicUrl, buildProductImagePath, getStoragePathFromPublicUrl, STORAGE_BUCKET } from "../lib/supabase-store";
@@ -46,7 +48,8 @@ import { toast } from '../lib/lazyToast';
 
 type View =
   | "home" | "catalog" | "product" | "checkout"
-  | "login" | "register" | "account" | "admin";
+  | "login" | "register" | "account" | "admin"
+  | "reset-password";
 
 type Category = string;
 
@@ -112,6 +115,7 @@ interface HomePageContent {
   saleSectionDiscount?: string;
 }
 
+const BRAND_NAME = "Urban Sport Store";
 const LOCAL_ADDRESS_STORAGE = "urbansport_addresses";
 
 const DEFAULT_ADDRESSES: Address[] = [
@@ -386,7 +390,7 @@ function SizeSelector({ sizes, selected, onSelect }: {
   );
 }
 
-function ProductCarousel({ children }: { children: React.ReactNode }) {
+function CarouselScroller({ children }: { children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement | null>(null);
   const isDragging = useRef(false);
   const startX = useRef(0);
@@ -634,7 +638,8 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
             {/* Logo */}
             <button onClick={() => onNavigate("home")} className="flex items-center gap-2 shrink-0">
               <span className="text-xl sm:text-[2.1rem] font-extrabold text-slate-900 tracking-tight leading-none">
-                Urban<span className="text-[#1d4ed8]">Sport</span>
+                Urban{' '}
+                <span className="text-[#1d4ed8]">Sport</span>
                 <span className="block text-[12px] sm:text-[13px] font-semibold text-slate-400 tracking-widest uppercase">Store</span>
               </span>
             </button>
@@ -1345,7 +1350,7 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
             ))}
           </div>
           <div className="border-t border-slate-800 pt-6 flex flex-col sm:flex-row justify-between items-center gap-3">
-            <p className="text-xs text-slate-500">© 2026 UrbanSport Store. Todos los derechos reservados.</p>
+            <p className="text-xs text-slate-500">© 2026 {BRAND_NAME}. Todos los derechos reservados.</p>
             <div className="flex items-center gap-4 text-xs text-slate-500">
               <button onClick={() => toast('Privacidad próximamente disponible.')}
                 className="hover:text-slate-300 transition-colors text-left">Privacidad</button>
@@ -1730,7 +1735,7 @@ function ProductDetailPage({ product, onBack, onAddToCart, onNavigate }: {
           {[
             { name: "Diego P.", rating: 5, date: "10 Jul 2026", text: "Excelente producto, calidad de primera. La talla es exacta y el material es muy cómodo. Lo recomiendo al 100%." },
             { name: "Camila R.", rating: 4, date: "5 Jul 2026", text: "Muy buena calidad. El empaque llegó perfecto y en el tiempo prometido. Solo le doy 4 estrellas porque el color era un poco diferente al de la foto." },
-            { name: "Santiago M.", rating: 5, date: "28 Jun 2026", text: "Ya es mi segunda compra en UrbanSport y siempre quedé satisfecho. El servicio al cliente también es excelente." },
+            { name: "Santiago M.", rating: 5, date: "28 Jun 2026", text: `Ya es mi segunda compra en ${BRAND_NAME} y siempre quedé satisfecho. El servicio al cliente también es excelente.` },
           ].map((r) => (
             <div key={r.name} className="p-4 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_18px_48px_-40px_rgba(15,23,42,0.16)]">
               <div className="flex items-start justify-between mb-2">
@@ -2017,6 +2022,8 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [recoveryMode, setRecoveryMode] = useState(false);
+  const [recoverySuccess, setRecoverySuccess] = useState(false);
 
   const isLocalAuthFallback = !import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY;
 
@@ -2026,6 +2033,19 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
     setError(null);
 
     try {
+      if (recoveryMode) {
+        if (!email.trim()) {
+          throw new Error('Ingresa tu correo electrónico para recibir el enlace de recuperación.');
+        }
+        const recoveryResult = await requestPasswordRecovery(email.trim());
+        if (recoveryResult.error) throw recoveryResult.error;
+        setRecoverySuccess(true);
+        setError(null);
+        toast.success('Te enviamos un enlace para restablecer tu contraseña. Revisa tu bandeja de entrada.');
+        setPassword("");
+        return;
+      }
+
       let user = null;
       let adminStatus = false;
       if (isRegister) {
@@ -2077,7 +2097,7 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
             {isRegister ? "Crear cuenta" : "Bienvenido"}
           </h1>
           <p className="text-slate-600">
-            {isRegister ? "Únete a UrbanSport Store hoy" : "Continúa tu aventura deportiva"}
+            {isRegister ? "Únete a Urban Sport Store hoy" : "Continúa tu aventura deportiva"}
           </p>
         </div>
 
@@ -2109,37 +2129,65 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
               />
             </div>
 
-            {/* Password */}
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Contraseña</label>
-                {!isRegister && (
+            {!recoveryMode && (
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Contraseña</label>
+                  {!isRegister && (
+                    <button 
+                      type="button" 
+                      onClick={() => {
+                        setError(null);
+                        setRecoverySuccess(false);
+                        setRecoveryMode(true);
+                      }}
+                      className="text-xs text-[#1d4ed8] hover:text-blue-400 font-semibold transition-colors"
+                    >
+                      ¿Olvidaste?
+                    </button>
+                  )}
+                </div>
+                <div className="relative">
+                  <input 
+                    type={showPass ? "text" : "password"} 
+                    value={password} 
+                    onChange={(e) => setPassword(e.target.value)} 
+                    placeholder="••••••••"
+                    className="w-full px-4 py-3.5 bg-slate-50 border border-slate-300 rounded-xl text-base text-slate-900 placeholder-slate-500 focus:outline-none focus:border-[#1d4ed8] focus:bg-white transition-all duration-200" 
+                  />
                   <button 
                     type="button" 
-                    onClick={() => toast('Función de recuperación de contraseña próximamente disponible.')}
-                    className="text-xs text-[#1d4ed8] hover:text-blue-400 font-semibold transition-colors"
+                    onClick={() => setShowPass(!showPass)} 
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-900 transition-colors"
                   >
-                    ¿Olvidaste?
+                    {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
-                )}
+                </div>
               </div>
-              <div className="relative">
-                <input 
-                  type={showPass ? "text" : "password"} 
-                  value={password} 
-                  onChange={(e) => setPassword(e.target.value)} 
-                  placeholder="••••••••"
-                  className="w-full px-4 py-3.5 bg-slate-50 border border-slate-300 rounded-xl text-base text-slate-900 placeholder-slate-500 focus:outline-none focus:border-[#1d4ed8] focus:bg-white transition-all duration-200" 
-                />
-                <button 
-                  type="button" 
-                  onClick={() => setShowPass(!showPass)} 
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-900 transition-colors"
+            )}
+
+            {recoveryMode && (
+              <div className="p-4 rounded-3xl bg-blue-50 border border-blue-100 text-sm text-slate-700 space-y-3">
+                <p>Ingresa tu correo y te enviaremos un enlace para restablecer tu contraseña.</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRecoveryMode(false);
+                    setError(null);
+                    setRecoverySuccess(false);
+                  }}
+                  className="text-xs font-semibold text-[#1d4ed8] hover:text-blue-500 transition-colors"
                 >
-                  {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
+                  Volver al inicio de sesión
                 </button>
               </div>
-            </div>
+            )}
+
+            {recoverySuccess && (
+              <div className="p-4 rounded-3xl bg-emerald-50 border border-emerald-200 text-sm text-emerald-900">
+                Te enviamos un enlace para restablecer tu contraseña. Revisa tu bandeja de entrada.
+              </div>
+            )}
 
             {/* Terms checkbox for register */}
             {isRegister && (
@@ -2169,8 +2217,12 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
             >
               {loading ? (
                 <><RefreshCw size={18} className="animate-spin" /> Procesando…</>
+              ) : recoveryMode ? (
+                "Enviar enlace de recuperación"
+              ) : isRegister ? (
+                "Crear mi cuenta"
               ) : (
-                isRegister ? "Crear mi cuenta" : "Iniciar sesión"
+                "Iniciar sesión"
               )}
             </button>
           </form>
@@ -2202,6 +2254,131 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
             {isRegister ? "Inicia sesión" : "Regístrate"}
           </button>
         </p>
+      </div>
+    </main>
+  );
+}
+
+function ResetPasswordCallbackPage({ onNavigate }: { onNavigate: (v: View) => void }) {
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
+  const [recoveryParamsFound, setRecoveryParamsFound] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const searchParams = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+
+    const recoveryType = searchParams.get("type") ?? hashParams.get("type");
+    const accessToken = searchParams.get("access_token") ?? hashParams.get("access_token");
+    const refreshToken = searchParams.get("refresh_token") ?? hashParams.get("refresh_token");
+
+    if (recoveryType === "recovery" && accessToken) {
+      setRecoveryParamsFound(true);
+      const client = getSupabaseClient();
+      void client.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken ?? undefined,
+      }).finally(() => {
+        if (typeof window !== "undefined") {
+          const nextUrl = new URL(window.location.href);
+          nextUrl.hash = "";
+          nextUrl.search = "";
+          window.history.replaceState({}, "", nextUrl.pathname + nextUrl.search + nextUrl.hash);
+        }
+        setReady(true);
+      });
+      return;
+    }
+
+    setReady(true);
+  }, []);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    if (!password.trim()) {
+      setError("Ingresa una contraseña válida.");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const client = getSupabaseClient();
+      const { error } = await client.auth.updateUser({ password: password.trim() });
+      if (error) throw error;
+      setSuccess("Tu contraseña ha sido actualizada. Inicia sesión con tu nueva contraseña.");
+    } catch (err: any) {
+      setError(err?.message ?? "No se pudo actualizar la contraseña.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!ready) {
+    return (
+      <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 px-4 py-10">
+        <div className="rounded-3xl bg-white/95 border border-slate-200 p-8 shadow-xl text-center">
+          <p className="text-slate-600 font-medium">Preparando la página de restablecimiento...</p>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 px-4 py-10">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-extrabold text-slate-900">Restablecer contraseña</h1>
+          <p className="text-slate-600 mt-2">Usa el formulario para crear una nueva contraseña.</p>
+        </div>
+
+        {!recoveryParamsFound ? (
+          <div className="rounded-3xl bg-white/95 border border-slate-200 p-8 shadow-xl space-y-4">
+            <p className="text-slate-700">No se encontró un enlace de recuperación válido. Abre el enlace enviado a tu correo o vuelve a iniciar sesión.</p>
+            <div className="flex flex-col gap-3">
+              <button onClick={() => onNavigate("login")} className="w-full rounded-xl bg-[#1d4ed8] text-white py-3 font-semibold hover:bg-blue-700 transition-colors">Volver al inicio de sesión</button>
+              <button onClick={() => onNavigate("home")} className="w-full rounded-xl border border-slate-300 bg-white text-slate-900 py-3 font-semibold hover:bg-slate-50 transition-colors">Ir a inicio</button>
+            </div>
+          </div>
+        ) : success ? (
+          <div className="rounded-3xl bg-white/95 border border-slate-200 p-8 shadow-xl space-y-6 text-center">
+            <div className="text-emerald-700 font-semibold">¡Contraseña actualizada!</div>
+            <p className="text-slate-600">Ya puedes iniciar sesión con tu nueva contraseña.</p>
+            <button onClick={() => onNavigate("login")} className="w-full rounded-xl bg-[#1d4ed8] text-white py-3 font-semibold hover:bg-blue-700 transition-colors">Ir al inicio de sesión</button>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="rounded-3xl bg-white/95 border border-slate-200 p-8 shadow-xl space-y-5">
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-slate-700">Nueva contraseña</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="••••••••"
+                className="w-full px-4 py-3 rounded-2xl border border-slate-300 bg-slate-50 text-slate-900 focus:outline-none focus:border-[#1d4ed8]/50"
+              />
+            </div>
+
+            {error && (
+              <div className="rounded-2xl bg-red-50 border border-red-200 p-3 text-sm text-red-700">{error}</div>
+            )}
+
+            <button type="submit" disabled={loading} className="w-full rounded-xl bg-[#1d4ed8] text-white py-3 font-semibold hover:bg-blue-700 transition-colors disabled:opacity-70">
+              {loading ? "Restableciendo…" : "Guardar nueva contraseña"}
+            </button>
+
+            <button type="button" onClick={() => onNavigate("login")} className="w-full rounded-xl border border-slate-300 bg-white text-slate-900 py-3 font-semibold hover:bg-slate-50 transition-colors">
+              Volver al inicio de sesión
+            </button>
+          </form>
+        )}
       </div>
     </main>
   );
@@ -4411,6 +4588,14 @@ export default function App() {
       url.searchParams.delete("view");
       url.searchParams.delete("adminSection");
       window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+      setView("home");
+      setInitialAdminSection(undefined);
+      return;
+    }
+
+    if (paramView === "reset-password" || window.location.pathname === "/reset-password") {
+      setView("reset-password");
+      return;
     }
 
     setView("home");
@@ -4616,10 +4801,18 @@ export default function App() {
         const url = new URL(window.location.href);
         if (v === "admin") {
           url.searchParams.set("view", "admin");
+          url.searchParams.delete("adminSection");
         } else {
           url.searchParams.delete("view");
           url.searchParams.delete("adminSection");
         }
+
+        if (v === "reset-password") {
+          url.pathname = "/reset-password";
+        } else if (url.pathname === "/reset-password") {
+          url.pathname = "/";
+        }
+
         window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
       }
 
@@ -4731,6 +4924,7 @@ export default function App() {
       )}
       {view === "login" && <LoginPage isRegister={false} onNavigate={navigate} onLogin={handleAuthSuccess} />}
       {view === "register" && <LoginPage isRegister={true} onNavigate={navigate} onLogin={handleAuthSuccess} />}
+      {view === "reset-password" && <ResetPasswordCallbackPage onNavigate={navigate} />}
       {view === "account" && (
         <AccountPage
           onNavigate={navigate}

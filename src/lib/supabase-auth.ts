@@ -18,16 +18,45 @@ export const signInWithEmail = async (email: string, password: string) => {
 export const signUpWithEmail = async (email: string, password: string, options?: { name?: string }) => {
   const client = getSupabaseClient();
   const redirectUrl = typeof window !== 'undefined' ? window.location.origin : undefined;
-  const result = await client.auth.signUp({
-    email,
-    password,
-    options: {
-      data: { full_name: options?.name ?? '' },
-      emailRedirectTo: redirectUrl,
-    },
-  });
+  // Try direct client signup first (normal flow)
+  try {
+    const result = await client.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { full_name: options?.name ?? '' },
+        emailRedirectTo: redirectUrl,
+      },
+    });
 
-  return result;
+    // If signup succeeded or returned a composed result, return it
+    if (!result.error) return result;
+
+    // If Supabase rejects client-side signup due to project settings (anonymous/provider restrictions)
+    const msg = String(result.error?.message ?? result.error?.toString() ?? '');
+    if (msg.toLowerCase().includes('anonymous') || msg.toLowerCase().includes('disabled') || msg.toLowerCase().includes('not allowed')) {
+      // Try server-side register endpoint which can use the service role key
+      try {
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password, name: options?.name ?? '' }),
+        });
+        const json = await res.json().catch(() => null);
+        if (!res.ok) {
+          return { data: { user: null }, error: new Error(json?.message || json?.error || msg || 'Signup failed') };
+        }
+        return { data: { user: json?.user ?? null }, error: null, needsConfirmation: json?.needsConfirmation ?? false } as any;
+      } catch (err: any) {
+        return { data: { user: null }, error: err } as any;
+      }
+    }
+
+    return result;
+  } catch (err: any) {
+    // network or unexpected error - surface it
+    return { data: { user: null }, error: err } as any;
+  }
 };
 
 export const signOut = async () => {
@@ -65,4 +94,41 @@ export const isAdminUser = (user: User | null) => {
   if (!user) return false;
   const metadata = (user as any).user_metadata as Record<string, any> | undefined;
   return metadata?.role === 'ADMIN' || metadata?.is_admin === true || metadata?.isAdmin === true;
+};
+
+export const requestPasswordRecovery = async (email: string) => {
+  const client = getSupabaseClient();
+  const redirectUrl = typeof window !== 'undefined'
+    ? new URL('/reset-password', window.location.origin).toString()
+    : undefined;
+
+  if (!redirectUrl) {
+    return { error: new Error('No se pudo determinar la URL de redirección para recuperación de contraseña.') } as any;
+  }
+
+  try {
+    // Prefer client helper if available
+    // @ts-ignore
+    if (typeof client.auth.resetPasswordForEmail === 'function') {
+      // @ts-ignore
+      return await client.auth.resetPasswordForEmail(email, { redirectTo: redirectUrl });
+    }
+
+    const url = (import.meta.env.VITE_SUPABASE_URL ?? '') + '/auth/v1/recover';
+    const key = import.meta.env.VITE_SUPABASE_ANON_KEY ?? '';
+    if (!key) {
+      return { error: new Error('Falta VITE_SUPABASE_ANON_KEY para recuperación de contraseña.') } as any;
+    }
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: key },
+      body: JSON.stringify({ email, redirect_to: redirectUrl }),
+    });
+    const json = await res.json().catch(() => null);
+    if (!res.ok) return { error: new Error(json?.error || json?.message || 'Recovery request failed') } as any;
+    return { data: json, error: null } as any;
+  } catch (err: any) {
+    return { error: err } as any;
+  }
 };
