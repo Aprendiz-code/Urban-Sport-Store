@@ -2012,9 +2012,10 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
 
 // ─── LOGIN PAGE ───────────────────────────────────────────────────────────────
 
-function LoginPage({ isRegister, onNavigate, onLogin }: {
-  isRegister: boolean; onNavigate: (v: View) => void;
-  onLogin: (user: User | null, isAdmin: boolean) => void;
+function LoginPage({ isRegister, onNavigate = () => {}, onLogin = () => {} }: {
+  isRegister: boolean;
+  onNavigate?: (v: View) => void;
+  onLogin?: (user: User | null, isAdmin: boolean) => void;
 }) {
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -2259,7 +2260,7 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
   );
 }
 
-function ResetPasswordCallbackPage({ onNavigate }: { onNavigate: (v: View) => void }) {
+function ResetPasswordCallbackPage({ onNavigate = () => {} }: { onNavigate?: (v: View) => void }) {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
