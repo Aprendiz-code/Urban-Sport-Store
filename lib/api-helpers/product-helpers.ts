@@ -27,6 +27,16 @@ function parseString(value: unknown): string | undefined {
   return trimmed.length ? trimmed : undefined;
 }
 
+function slugify(text: string) {
+  return text
+    .toString()
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)+/g, '');
+}
+
 async function resolveCategoryId(body: any): Promise<string | undefined> {
   const explicitCategoryId = parseString(body.category_id) ?? parseString(body.categoryId);
   if (explicitCategoryId) return explicitCategoryId;
@@ -70,11 +80,11 @@ function filterProductColumns(payload: Record<string, unknown>): Record<string, 
 export async function normalizeProductPayload(body: any) {
   const payload: Record<string, unknown> = {};
 
-  const slug = parseString(body.slug);
-  if (slug) payload.slug = slug;
-
-  const name = parseString(body.name);
+  const slugFromBody = parseString(body.slug);
+  const name = parseString(body.name) ?? parseString(body.title) ?? parseString(body.product_name) ?? parseString(body.productName);
   if (name) payload.name = name;
+  if (slugFromBody) payload.slug = slugFromBody;
+  else if (name) payload.slug = slugify(name);
 
   const price = toNumber(body.price);
   if (price !== undefined) payload.price = price;
