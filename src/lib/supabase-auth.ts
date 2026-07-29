@@ -92,7 +92,9 @@ export const onAuthStateChange = (callback: (event: string, session: { user: Use
 
 export const isAdminUser = (user: User | null) => {
   if (!user) return false;
-  const metadata = (user as any).user_metadata as Record<string, any> | undefined;
+  const appMetadata = (user as any).app_metadata as Record<string, any> | undefined;
+  const userMetadata = (user as any).user_metadata as Record<string, any> | undefined;
+  const metadata = { ...(appMetadata || {}), ...(userMetadata || {}) };
   return metadata?.role === 'ADMIN' || metadata?.is_admin === true || metadata?.isAdmin === true;
 };
 

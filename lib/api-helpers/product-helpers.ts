@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { supabaseAdmin } from './supabase.js';
 
 const ALLOWED_PRODUCT_COLUMNS = new Set([
@@ -11,6 +12,19 @@ const ALLOWED_PRODUCT_COLUMNS = new Set([
   'description',
   'is_active',
 ]);
+
+function generateSkuFromText(text: string): string {
+  const normalized = text
+    .toString()
+    .toUpperCase()
+    .normalize('NFKD')
+    .replace(/[^A-Z0-9]+/g, '-')
+    .replace(/(^-|-$)+/g, '');
+
+  const hash = createHash('sha256').update(text.toString()).digest('hex').slice(0, 8).toUpperCase();
+  return `${normalized}-${hash}`;
+}
+
 
 function toNumber(value: unknown): number | undefined {
   if (typeof value === 'number') return value;
@@ -99,7 +113,11 @@ export async function normalizeProductPayload(body: any) {
   if (stock !== undefined) payload.stock = stock;
 
   const sku = parseString(body.sku);
-  if (sku) payload.sku = sku;
+  if (sku) {
+    payload.sku = sku;
+  } else if (name) {
+    payload.sku = generateSkuFromText(`${name}-${Date.now()}`);
+  }
 
   const description = parseString(body.description);
   if (description) payload.description = description;

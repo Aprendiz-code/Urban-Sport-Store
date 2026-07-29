@@ -24,7 +24,7 @@ export interface ProductRecord {
   specs?: string[] | null;
 }
 
-export const STORAGE_BUCKET = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET ?? 'product-images';
+export const STORAGE_BUCKET = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET ?? 'products';
 const SUPPORTED_IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp'];
 
 const getFileExtension = (file: File) => {

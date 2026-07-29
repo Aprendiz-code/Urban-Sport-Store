@@ -118,6 +118,21 @@ interface HomePageContent {
 const BRAND_NAME = "Urban Sport Store";
 const LOCAL_ADDRESS_STORAGE = "urbansport_addresses";
 
+const normalizeSlug = (value: string) =>
+  value
+    .normalize('NFKD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+const buildCategorySlug = (name: string) => {
+  const generated = normalizeSlug(name);
+  return generated || name.trim().toLowerCase().replace(/\s+/g, '-');
+};
+
 const DEFAULT_ADDRESSES: Address[] = [
   {
     id: "addr-1",
@@ -712,6 +727,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
               <div className="relative">
                 <button
                     type="button"
+                    aria-label="Abrir menú de usuario"
                     onClick={() => setUserOpen(!userOpen)}
                     className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
                   >
@@ -3096,10 +3112,30 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
   };
 
   useEffect(() => {
-    if (adminSection === 'categories') {
+    if (adminSection === 'categories' || adminSection === 'products') {
       void refreshCategories();
     }
   }, [adminSection]);
+
+  useEffect(() => {
+    if (categories.length === 0) return;
+
+    const matchedCategory = categories.find((cat) =>
+      cat.id === productForm.categoryId ||
+      cat.name === productForm.category ||
+      cat.slug === normalizeSlug(productForm.category)
+    );
+
+    if (matchedCategory) {
+      setProductForm((prev) => ({ ...prev, categoryId: matchedCategory.id, category: matchedCategory.name }));
+      return;
+    }
+
+    if (!productForm.categoryId && categories.length > 0) {
+      const defaultCategory = categories[0];
+      setProductForm((prev) => ({ ...prev, categoryId: defaultCategory.id, category: defaultCategory.name }));
+    }
+  }, [categories, productForm.category, productForm.categoryId]);
 
   const handleEditProduct = (product: Product) => {
     setActiveProduct(product);
@@ -3463,8 +3499,8 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
 
                 <div className="grid gap-4">
                   <div>
-                    <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Título hero</label>
-                    <input value={homeContent.heroTitle} onChange={(e) => updateHomeContentField("heroTitle", e.target.value)} className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
+                    <label htmlFor="hero-title-input" className="block text-xs font-bold uppercase text-slate-500 mb-2">Título hero</label>
+                    <input id="hero-title-input" aria-label="Título hero" value={homeContent.heroTitle} onChange={(e) => updateHomeContentField("heroTitle", e.target.value)} className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
                   </div>
                   <div>
                     <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Subtítulo hero</label>
@@ -3653,8 +3689,10 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                 {/* Nombre y Marca */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-xs font-bold text-slate-600 uppercase block mb-2">Nombre *</label>
+                    <label htmlFor="product-name-input" className="text-xs font-bold text-slate-600 uppercase block mb-2">Nombre *</label>
                     <input 
+                      id="product-name-input"
+                      aria-label="Nombre *"
                       value={productForm.name} 
                       onChange={(e) => { updateField('name', e.target.value); setFormErrors({...formErrors, name: ''}) }}
                       placeholder="Ej: Nike Air Force 1" 
@@ -3717,18 +3755,33 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                   <div>
                     <label className="text-xs font-bold text-slate-600 uppercase block mb-2">Categoría</label>
                     <select 
-                      value={productForm.category} 
+                      value={productForm.categoryId ?? productForm.category} 
                       onChange={(e) => {
-                        const category = e.target.value as Category;
+                        const selected = e.target.value;
+                        const selectedCategory = categories.find((cat) => cat.id === selected);
+                        if (selectedCategory) {
+                          updateField('category', selectedCategory.name);
+                          updateField('categoryId', selectedCategory.id);
+                          const [defaultSubcategory] = CATEGORY_SUBCATEGORIES[selectedCategory.name] || [''];
+                          if (!CATEGORY_SUBCATEGORIES[selectedCategory.name]?.includes(productForm.subcategory)) {
+                            updateField('subcategory', defaultSubcategory);
+                          }
+                          return;
+                        }
+
+                        const category = selected as Category;
                         updateField('category', category);
+                        updateField('categoryId', undefined);
                         const [defaultSubcategory] = CATEGORY_SUBCATEGORIES[category] || [''];
-                        if (!CATEGORY_SUBCATEGORIES[category].includes(productForm.subcategory)) {
+                        if (!CATEGORY_SUBCATEGORIES[category]?.includes(productForm.subcategory)) {
                           updateField('subcategory', defaultSubcategory);
                         }
                       }} 
                       className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-white hover:border-slate-300 focus:border-slate-500 focus:outline-none transition-colors text-slate-700"
                     >
-                      {Object.keys(CATEGORY_SUBCATEGORIES).map((cat) => (
+                      {categories.length > 0 ? categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                      )) : Object.keys(CATEGORY_SUBCATEGORIES).map((cat) => (
                         <option key={cat} value={cat}>{cat}</option>
                       ))}
                     </select>
@@ -4712,16 +4765,18 @@ export default function App() {
         slug: record.slug,
         name: record.name,
         price: record.price,
+        category_id: record.category_id ?? undefined,
         description: record.description,
         sku: record.sku,
         stock: record.stock,
-        category_id: record.category_id ?? undefined,
         compare_at_price: record.original_price ?? undefined,
         is_active: true,
       };
 
       if (!adminPayload.category_id && product.category) {
         adminPayload.category = product.category;
+        adminPayload.category_name = product.category;
+        adminPayload.category_slug = normalizeSlug(product.category);
       }
 
       const created = await createProductWithFallback(adminPayload, record);

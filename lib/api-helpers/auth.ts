@@ -5,6 +5,7 @@ export interface AuthUser {
   id: string;
   email: string | null;
   app_metadata?: Record<string, any>;
+  user_metadata?: Record<string, any>;
 }
 
 export async function getBearerToken(req: any): Promise<string> {
@@ -36,5 +37,6 @@ export async function validateSupabaseToken(req: any): Promise<AuthUser> {
     id: data.user.id,
     email: data.user.email ?? null,
     app_metadata: data.user.app_metadata as Record<string, any> | undefined,
+    user_metadata: data.user.user_metadata as Record<string, any> | undefined,
   };
 }
