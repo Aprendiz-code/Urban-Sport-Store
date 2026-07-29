@@ -44,7 +44,7 @@ test('admin end-to-end: login, products CRUD, homepage heroTitle update and audi
   const productsSidebarButton = page.locator('aside').getByRole('button', { name: 'Productos' });
   await expect(productsSidebarButton).toBeVisible({ timeout: 15000 });
   await productsSidebarButton.click();
-  await page.click('button:has-text("Nuevo producto")');
+  await page.getByRole('button', { name: 'Nuevo producto' }).click();
   await page.locator('input[placeholder="Ej: Nike Air Force 1"]').waitFor({ timeout: 15000 });
 
   await page.locator('input[placeholder="Ej: Nike Air Force 1"]').fill(productName);
@@ -77,8 +77,8 @@ test('admin end-to-end: login, products CRUD, homepage heroTitle update and audi
     try { (window as any).XMLHttpRequest = X as any; } catch (e) {}
   });
 
-  // click + capture POST to /api/admin/products (wait up to 7s)
-  await page.getByRole('button', { name: /crear producto|crear|nuevo producto|✅ Crear producto/i }).first().click();
+  // click the actual create product submit button and capture POST to /api/admin/products (wait up to 7s)
+  await page.getByRole('button', { name: /✅\s*Crear producto|Crear producto/i }).click();
   const createResp = await Promise.race([
     page.waitForResponse((r) => r.url().includes('/api/admin/products') && r.request().method() === 'POST', { timeout: 7000 }).catch(() => null),
     (async () => { await page.waitForTimeout(7000); return null; })(),
