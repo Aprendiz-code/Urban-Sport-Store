@@ -11,6 +11,7 @@ const isFallbackableError = (error: unknown) => {
     if (error.name === 'TypeError') return true;
     if (/\b(404|502|503|504)\b/.test(error.message)) return true;
     if (/Network error/i.test(error.message) || /failed to fetch/i.test(error.message)) return true;
+    if (/backend down|server unavailable|service unavailable|temporarily unavailable|unable to reach/i.test(error.message)) return true;
   }
   return false;
 };

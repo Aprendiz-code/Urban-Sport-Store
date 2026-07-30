@@ -4794,7 +4794,7 @@ export default function App() {
       try {
         const created = await createProductWithFallback(adminPayload, record);
         const createdAppProduct = mapProductRecordToAppProduct(created);
-        refreshProducts();
+        setProducts((prev) => [createdAppProduct, ...prev]);
         toast.success("Producto creado y guardado correctamente.");
         try { recordAction('create_product', { id: createdAppProduct.id, name: createdAppProduct.name }); } catch (e) { }
         return;
@@ -4830,7 +4830,7 @@ export default function App() {
 
       const updated = await updateProductWithFallback(productId, adminUpdates, recordUpdates);
       const updatedAppProduct = mapProductRecordToAppProduct(updated);
-      refreshProducts();
+      setProducts((prev) => prev.map((product) => product.id === productId ? updatedAppProduct : product));
       toast.success("Producto actualizado correctamente.");
       try { recordAction('update_product', { id: updatedAppProduct.id, name: updatedAppProduct.name }); } catch (e) { }
       return;
@@ -4843,7 +4843,7 @@ export default function App() {
   const deleteProduct = async (productId: string) => {
     try {
       await deleteProductWithFallback(productId);
-      refreshProducts();
+      setProducts((prev) => prev.filter((product) => product.id !== productId));
       toast.success("Producto eliminado correctamente.");
       try { recordAction('delete_product', { id: productId }); } catch (e) { }
       return;
