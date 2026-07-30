@@ -1,0 +1,27 @@
+[
+  {
+    "type": "fetch",
+    "args": [
+      "http://127.0.0.1:3000/api/admin/products",
+      {
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer eyJhbGciOiJFUzI1NiIsImtpZCI6ImYyNmE4M2YxLWMzMTYtNGRmMC1iODViLTVhYjE4NjAxYzc5MyIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2dlYXB4ZHl5Zm15Z3FycWZuaWVyLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiJhYWZhMDg1Zi1mOThiLTQ1ODgtYmQ0My1mMjM1NTIzMmRmZDIiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzg1NDI3OTI1LCJpYXQiOjE3ODU0MjQzMjUsImVtYWlsIjoidXJiYW5zcG9ydHN0b3JlQG91dGxvb2suY29tIiwicGhvbmUiOiIiLCJhcHBfbWV0YWRhdGEiOnsiaXNBZG1pbiI6dHJ1ZSwicHJvdmlkZXIiOiJlbWFpbCIsInByb3ZpZGVycyI6WyJlbWFpbCJdLCJyb2xlIjoiQURNSU4ifSwidXNlcl9tZXRhZGF0YSI6eyJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiaXNBZG1pbiI6dHJ1ZSwicm9sZSI6IkFETUlOIn0sInJvbGUiOiJhdXRoZW50aWNhdGVkIiwiYWFsIjoiYWFsMSIsImFtciI6W3sibWV0aG9kIjoicGFzc3dvcmQiLCJ0aW1lc3RhbXAiOjE3ODU0MjQzMjV9XSwic2Vzc2lvbl9pZCI6ImI1ZDhiOTE3LWViMmItNDMwYS05MjlhLTIzODRlMzZhYTZjMyIsImlzX2Fub255bW91cyI6ZmFsc2V9.AB6h55MQpRWcGC1MPIUFvbmpW1-OnikTaqffYlvpXAD4OlbcOiHPydbTuFqC3STh2xTR49YpvP_DkRtAEwRKoA"
+        },
+        "method": "POST",
+        "body": "{\"name\":\"E2E Product 1785424323951\",\"price\":19900,\"description\":\"\",\"sku\":\"E2E-SKU-1785424327576\",\"stock\":15,\"is_active\":true,\"category\":\"Zapatos\",\"category_name\":\"Zapatos\",\"category_slug\":\"zapatos\"}"
+      }
+    ]
+  },
+  {
+    "type": "fetch",
+    "args": [
+      "https://geapxdyyfmygqrqfnier.supabase.co/rest/v1/products?columns=%22id%22%2C%22name%22%2C%22price%22%2C%22subcategory%22%2C%22stock%22%2C%22sku%22%2C%22description%22%2C%22is_active%22&select=*",
+      {
+        "method": "POST",
+        "headers": {},
+        "body": "[{\"id\":\"fda29ebb-0bd7-4ed6-bef9-7740321b1834\",\"name\":\"E2E Product 1785424323951\",\"price\":19900,\"subcategory\":\"Running\",\"stock\":15,\"sku\":\"E2E-SKU-1785424327576\",\"description\":\"\",\"is_active\":true}]"
+      }
+    ]
+  }
+]

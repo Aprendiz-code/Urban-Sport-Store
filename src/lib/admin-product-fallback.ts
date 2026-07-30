@@ -24,7 +24,74 @@ export async function createProductWithFallback(adminPayload: Record<string, unk
     }
     if (isFallbackableError(error)) {
       console.warn('Admin API create failed, falling back to Supabase.', error);
-      return createProductInSupabase(fallbackRecord as any);
+      try {
+        const sanitized = { ...fallbackRecord } as Record<string, unknown>;
+        const removedKeys: string[] = [];
+
+        const allowed = new Set([
+          'id',
+          'slug',
+          'name',
+          'price',
+          'compare_at_price',
+          'category_id',
+          'stock',
+          'sku',
+          'description',
+          'is_active',
+          'created_at',
+          'updated_at',
+        ]);
+
+        const mappings: Record<string, string> = {
+          original_price: 'compare_at_price',
+          category: 'category_id',
+        };
+
+        for (const [from, to] of Object.entries(mappings)) {
+          if (Object.prototype.hasOwnProperty.call(sanitized, from)) {
+            const val = (sanitized as any)[from];
+            if (typeof val !== 'undefined' && val !== null) {
+              (sanitized as any)[to] = val;
+            }
+            delete (sanitized as any)[from];
+            removedKeys.push(from);
+          }
+        }
+
+        for (const [k, v] of Object.entries({ ...sanitized })) {
+          if (!allowed.has(k)) {
+            delete (sanitized as any)[k];
+            removedKeys.push(k);
+            continue;
+          }
+          if (Array.isArray(v) && v.length === 0) {
+            delete (sanitized as any)[k];
+            removedKeys.push(k);
+            continue;
+          }
+          if (typeof v === 'undefined' || v === null) {
+            delete (sanitized as any)[k];
+            removedKeys.push(k);
+            continue;
+          }
+        }
+
+        const fields = Object.keys(sanitized);
+        console.debug('[admin-fallback] preparing Supabase insert', {
+          originalFallbackKeys: Object.keys(fallbackRecord),
+          finalPayloadPreview: JSON.stringify(sanitized).slice(0, 2048),
+          fields,
+          removedKeys,
+        });
+
+        const result = await createProductInSupabase(sanitized as any);
+        console.debug('[admin-fallback] create succeeded', { result });
+        return result;
+      } catch (supErr) {
+        console.error('[admin-fallback] Supabase insert failed', { error: supErr });
+        throw supErr;
+      }
     }
     throw error;
   }

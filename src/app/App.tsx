@@ -31,6 +31,7 @@ import {
   signUpWithEmail,
   signOut,
   getCurrentUser,
+  getAccessToken,
   onAuthStateChange,
   isAdminUser,
   requestPasswordRecovery,
@@ -206,25 +207,14 @@ const mapProductRecordToAppProduct = (record: ProductRecord): Product => ({
 const mapAppProductToProductRecord = (product: Partial<Product> & { id?: string }): ProductRecord => ({
   id: product.id ?? crypto.randomUUID(),
   name: product.name ?? "",
-  brand: product.brand ?? "",
   price: Number(product.price ?? 0),
-  original_price: product.originalPrice ?? null,
-  discount: product.discount ?? null,
-  rating: Number(product.rating ?? 0),
-  reviews: Number(product.reviews ?? 0),
-  image: product.image ?? "",
-  images: product.images ?? [],
+  compare_at_price: product.originalPrice ?? null,
   category_id: product.categoryId ?? null,
   subcategory: product.subcategory ?? "",
   stock: Number(product.stock ?? 0),
   sku: product.sku ?? "",
   description: product.description ?? "",
-  colors: product.colors ?? [],
-  sizes: product.sizes ?? [],
-  gender: (product.gender ?? "Unisex") as string,
-  is_new: product.isNew ?? false,
-  is_featured: product.isFeatured ?? false,
-  specs: product.specs ?? [],
+  is_active: true,
 });
 
 // ─── DATA ────────────────────────────────────────────────────────────────────
@@ -4779,12 +4769,41 @@ export default function App() {
         adminPayload.category_slug = normalizeSlug(product.category);
       }
 
-      const created = await createProductWithFallback(adminPayload, record);
-      const createdAppProduct = mapProductRecordToAppProduct(created);
-      refreshProducts();
-      toast.success("Producto creado y guardado correctamente.");
-      try { recordAction('create_product', { id: createdAppProduct.id, name: createdAppProduct.name }); } catch (e) { }
-      return;
+      // Diagnostic preflight: log payload, endpoint, method and token state
+      try {
+        const endpoint = '/api/admin/products';
+        const bodyString = JSON.stringify(adminPayload);
+        const token = await getAccessToken();
+        // eslint-disable-next-line no-console
+        console.debug('[admin-create] preflight', {
+          sourceProduct: { name: product.name, sku: product.sku },
+          adminPayloadPreview: String(bodyString).slice(0, 2000),
+          method: 'POST',
+          endpoint,
+          bodyLength: bodyString.length,
+          supabaseTokenExists: Boolean(token),
+          tokenLooksLikeJwt: typeof token === 'string' && token.split('.').length === 3,
+        });
+        // Expose minimal last payload for external e2e collectors
+        try { (window as any).__LAST_ADMIN_CREATE = { adminPayload, productName: product.name, ts: Date.now() }; } catch (e) { }
+      } catch (diagErr) {
+        // eslint-disable-next-line no-console
+        console.warn('[admin-create] preflight failed', diagErr);
+      }
+
+      try {
+        const created = await createProductWithFallback(adminPayload, record);
+        const createdAppProduct = mapProductRecordToAppProduct(created);
+        refreshProducts();
+        toast.success("Producto creado y guardado correctamente.");
+        try { recordAction('create_product', { id: createdAppProduct.id, name: createdAppProduct.name }); } catch (e) { }
+        return;
+      } catch (callErr) {
+        // Log detailed error from admin API / fallback
+        // eslint-disable-next-line no-console
+        console.error('[admin-create] createProductWithFallback error', callErr);
+        throw callErr;
+      }
     } catch (err) {
       console.error("Backend create product failed:", err);
       toast.error("Error creando producto. Intenta nuevamente.");

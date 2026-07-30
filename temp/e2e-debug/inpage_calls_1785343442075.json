@@ -1,0 +1,55 @@
+[
+  {
+    "type": "fetch",
+    "args": [
+      "http://127.0.0.1:3000/api/home"
+    ]
+  },
+  {
+    "type": "fetch",
+    "args": [
+      "http://127.0.0.1:3000/api/products"
+    ]
+  },
+  {
+    "type": "fetch",
+    "args": [
+      "https://geapxdyyfmygqrqfnier.supabase.co/auth/v1/user",
+      {
+        "method": "GET",
+        "headers": {
+          "Authorization": "Bearer eyJhbGciOiJFUzI1NiIsImtpZCI6ImYyNmE4M2YxLWMzMTYtNGRmMC1iODViLTVhYjE4NjAxYzc5MyIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2dlYXB4ZHl5Zm15Z3FycWZuaWVyLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiJhYWZhMDg1Zi1mOThiLTQ1ODgtYmQ0My1mMjM1NTIzMmRmZDIiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzg1MzQ3MDMzLCJpYXQiOjE3ODUzNDM0MzMsImVtYWlsIjoidXJiYW5zcG9ydHN0b3JlQG91dGxvb2suY29tIiwicGhvbmUiOiIiLCJhcHBfbWV0YWRhdGEiOnsiaXNBZG1pbiI6dHJ1ZSwicHJvdmlkZXIiOiJlbWFpbCIsInByb3ZpZGVycyI6WyJlbWFpbCJdLCJyb2xlIjoiQURNSU4ifSwidXNlcl9tZXRhZGF0YSI6eyJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiaXNBZG1pbiI6dHJ1ZSwicm9sZSI6IkFETUlOIn0sInJvbGUiOiJhdXRoZW50aWNhdGVkIiwiYWFsIjoiYWFsMSIsImFtciI6W3sibWV0aG9kIjoicGFzc3dvcmQiLCJ0aW1lc3RhbXAiOjE3ODUzNDM0MzN9XSwic2Vzc2lvbl9pZCI6IjBhOGFjYzBlLWMyNmMtNDdmZS1iMmMzLTMwZjY5MmQ0NzllYiIsImlzX2Fub255bW91cyI6ZmFsc2V9.FmF9v5gtivMkTM8NKDuCOsIkw3hJVwC-Bpx9wVCru_LEunKT_Bp832g444X0b6Q6wHbFcJNxIGX3XTZFswmXPA",
+          "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdlYXB4ZHl5Zm15Z3FycWZuaWVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3NDYwNjksImV4cCI6MjEwMDMyMjA2OX0.9-Mrkcrr-u5ghCe6UpK3B-11P62fYEqwlHzRXalh5O0",
+          "X-Client-Info": "supabase-js/2.110.3; runtime=web",
+          "X-Supabase-Api-Version": "2024-01-01"
+        }
+      }
+    ]
+  },
+  {
+    "type": "fetch",
+    "args": [
+      "http://127.0.0.1:3000/api/admin/categories",
+      {
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer eyJhbGciOiJFUzI1NiIsImtpZCI6ImYyNmE4M2YxLWMzMTYtNGRmMC1iODViLTVhYjE4NjAxYzc5MyIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2dlYXB4ZHl5Zm15Z3FycWZuaWVyLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiJhYWZhMDg1Zi1mOThiLTQ1ODgtYmQ0My1mMjM1NTIzMmRmZDIiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzg1MzQ3MDMzLCJpYXQiOjE3ODUzNDM0MzMsImVtYWlsIjoidXJiYW5zcG9ydHN0b3JlQG91dGxvb2suY29tIiwicGhvbmUiOiIiLCJhcHBfbWV0YWRhdGEiOnsiaXNBZG1pbiI6dHJ1ZSwicHJvdmlkZXIiOiJlbWFpbCIsInByb3ZpZGVycyI6WyJlbWFpbCJdLCJyb2xlIjoiQURNSU4ifSwidXNlcl9tZXRhZGF0YSI6eyJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiaXNBZG1pbiI6dHJ1ZSwicm9sZSI6IkFETUlOIn0sInJvbGUiOiJhdXRoZW50aWNhdGVkIiwiYWFsIjoiYWFsMSIsImFtciI6W3sibWV0aG9kIjoicGFzc3dvcmQiLCJ0aW1lc3RhbXAiOjE3ODUzNDM0MzN9XSwic2Vzc2lvbl9pZCI6IjBhOGFjYzBlLWMyNmMtNDdmZS1iMmMzLTMwZjY5MmQ0NzllYiIsImlzX2Fub255bW91cyI6ZmFsc2V9.FmF9v5gtivMkTM8NKDuCOsIkw3hJVwC-Bpx9wVCru_LEunKT_Bp832g444X0b6Q6wHbFcJNxIGX3XTZFswmXPA"
+        },
+        "method": "GET"
+      }
+    ]
+  },
+  {
+    "type": "fetch",
+    "args": [
+      "http://127.0.0.1:3000/api/admin/audit?limit=200",
+      {
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer eyJhbGciOiJFUzI1NiIsImtpZCI6ImYyNmE4M2YxLWMzMTYtNGRmMC1iODViLTVhYjE4NjAxYzc5MyIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2dlYXB4ZHl5Zm15Z3FycWZuaWVyLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiJhYWZhMDg1Zi1mOThiLTQ1ODgtYmQ0My1mMjM1NTIzMmRmZDIiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzg1MzQ3MDMzLCJpYXQiOjE3ODUzNDM0MzMsImVtYWlsIjoidXJiYW5zcG9ydHN0b3JlQG91dGxvb2suY29tIiwicGhvbmUiOiIiLCJhcHBfbWV0YWRhdGEiOnsiaXNBZG1pbiI6dHJ1ZSwicHJvdmlkZXIiOiJlbWFpbCIsInByb3ZpZGVycyI6WyJlbWFpbCJdLCJyb2xlIjoiQURNSU4ifSwidXNlcl9tZXRhZGF0YSI6eyJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiaXNBZG1pbiI6dHJ1ZSwicm9sZSI6IkFETUlOIn0sInJvbGUiOiJhdXRoZW50aWNhdGVkIiwiYWFsIjoiYWFsMSIsImFtciI6W3sibWV0aG9kIjoicGFzc3dvcmQiLCJ0aW1lc3RhbXAiOjE3ODUzNDM0MzN9XSwic2Vzc2lvbl9pZCI6IjBhOGFjYzBlLWMyNmMtNDdmZS1iMmMzLTMwZjY5MmQ0NzllYiIsImlzX2Fub255bW91cyI6ZmFsc2V9.FmF9v5gtivMkTM8NKDuCOsIkw3hJVwC-Bpx9wVCru_LEunKT_Bp832g444X0b6Q6wHbFcJNxIGX3XTZFswmXPA"
+        },
+        "method": "GET"
+      }
+    ]
+  }
+]

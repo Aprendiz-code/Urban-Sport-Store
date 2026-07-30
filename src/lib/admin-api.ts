@@ -17,9 +17,12 @@ async function callApi(path: string, opts: RequestInit = {}) {
   console.debug('[admin-api] callApi', {
     path,
     apiRoot: API_ROOT,
+    method: opts.method || 'GET',
     supabaseTokenExists: Boolean(supabaseToken),
     supabaseTokenLength: supabaseToken?.length,
     supabaseTokenLooksLikeJwt: typeof supabaseToken === 'string' && supabaseToken.split('.').length === 3,
+    bodyLength: typeof opts.body === 'string' ? opts.body.length : undefined,
+    bodyPreview: typeof opts.body === 'string' ? opts.body.slice(0, 1024) : undefined,
   });
 
   const makeRequest = async (url: string, bearer?: string) => {
