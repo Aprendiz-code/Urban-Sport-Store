@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createProductWithFallback, deleteProductWithFallback, updateProductWithFallback } from './admin-product-fallback';
+import { buildAdminProductPayload, createProductWithFallback, deleteProductWithFallback, updateProductWithFallback } from './admin-product-fallback';
 import adminApi from './admin-api';
 import * as supabaseStore from './supabase-store';
 
@@ -24,12 +24,29 @@ describe('admin product fallback helpers', () => {
 
   it('falls back to Supabase when admin create fails with a fallbackable error', async () => {
     vi.mocked(adminApi.createProductApi).mockRejectedValueOnce(new Error('backend down'));
-    vi.mocked(supabaseStore.createProductInSupabase).mockResolvedValueOnce({ id: 'p-1', name: 'Zapatilla' } as any);
+    vi.mocked(supabaseStore.createProductInSupabase).mockResolvedValueOnce({ id: 'p-1', name: 'Zapatilla', slug: 'zapatilla' } as any);
 
-    const result = await createProductWithFallback({ id: 'p-1', name: 'Zapatilla' } as any, { id: 'p-1', name: 'Zapatilla' } as any);
+    const result = await createProductWithFallback(
+      { id: 'p-1', name: 'Zapatilla', category_id: '11111111-1111-1111-1111-111111111111' } as any,
+      { id: 'p-1', name: 'Zapatilla', category_id: '11111111-1111-1111-1111-111111111111', slug: 'zapatilla' } as any,
+    );
 
-    expect(supabaseStore.createProductInSupabase).toHaveBeenCalledWith({ id: 'p-1', name: 'Zapatilla' });
-    expect(result).toEqual({ id: 'p-1', name: 'Zapatilla' });
+    expect(supabaseStore.createProductInSupabase).toHaveBeenCalledWith({
+      id: 'p-1',
+      name: 'Zapatilla',
+      slug: 'zapatilla',
+      category_id: '11111111-1111-1111-1111-111111111111',
+    });
+    expect(result).toEqual({ id: 'p-1', name: 'Zapatilla', slug: 'zapatilla' });
+  });
+
+  it('builds an admin payload with required fields even when the source payload is sparse', () => {
+    const payload = buildAdminProductPayload({ name: 'Zapatilla', price: '180000', category: 'Zapatos' }, { id: 'p-1' } as any);
+
+    expect(payload.slug).toBe('zapatilla');
+    expect(payload.name).toBe('Zapatilla');
+    expect(payload.price).toBe(180000);
+    expect(payload.category_id).toBe('11111111-1111-1111-1111-111111111111');
   });
 
   it('does not fall back when admin create fails with 401', async () => {

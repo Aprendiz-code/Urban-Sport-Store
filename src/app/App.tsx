@@ -25,7 +25,7 @@ import {
 } from "./components/LazyRecharts";
 // promoRibbon moved to src/assets/cinta-10.png
 import { fetchProductsFromSupabase, type ProductRecord } from "../lib/supabase-store";
-import { createProductWithFallback, deleteProductWithFallback, updateProductWithFallback } from "../lib/admin-product-fallback";
+import { buildAdminProductPayload, createProductWithFallback, deleteProductWithFallback, updateProductWithFallback } from "../lib/admin-product-fallback";
 import {
   signInWithEmail,
   signUpWithEmail,
@@ -118,6 +118,24 @@ interface HomePageContent {
 
 const BRAND_NAME = "Urban Sport Store";
 const LOCAL_ADDRESS_STORAGE = "urbansport_addresses";
+const DEFAULT_FALLBACK_CATEGORY_ID = "11111111-1111-1111-1111-111111111111";
+
+const resolveProductCategoryId = (category?: Category, categoryId?: string) => {
+  if (categoryId) return categoryId;
+  const normalized = (category ?? "")
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  if (!normalized) return DEFAULT_FALLBACK_CATEGORY_ID;
+  if (normalized === 'running' || normalized === 'training' || normalized === 'zapatos') {
+    return DEFAULT_FALLBACK_CATEGORY_ID;
+  }
+  return DEFAULT_FALLBACK_CATEGORY_ID;
+};
 
 const normalizeSlug = (value: string) =>
   value
@@ -182,13 +200,13 @@ const loadStoredAddresses = (): Address[] => {
 const mapProductRecordToAppProduct = (record: ProductRecord): Product => ({
   id: record.id,
   name: record.name,
-  brand: record.brand,
+  brand: record.brand ?? "",
   price: record.price,
   originalPrice: record.original_price ?? undefined,
   discount: record.discount ?? undefined,
   rating: record.rating ?? 0,
   reviews: record.reviews ?? 0,
-  image: record.image,
+  image: record.image ?? "",
   images: record.images ?? [],
   category: record.category_id ?? "Zapatos",
   categoryId: record.category_id ?? undefined,
@@ -207,9 +225,10 @@ const mapProductRecordToAppProduct = (record: ProductRecord): Product => ({
 const mapAppProductToProductRecord = (product: Partial<Product> & { id?: string }): ProductRecord => ({
   id: product.id ?? crypto.randomUUID(),
   name: product.name ?? "",
+  slug: normalizeSlug(product.name ?? product.sku ?? product.category ?? "producto") || product.id || "producto",
   price: Number(product.price ?? 0),
   compare_at_price: product.originalPrice ?? null,
-  category_id: product.categoryId ?? null,
+  category_id: resolveProductCategoryId(product.category, product.categoryId),
   subcategory: product.subcategory ?? "",
   stock: Number(product.stock ?? 0),
   sku: product.sku ?? "",
@@ -4750,24 +4769,8 @@ export default function App() {
 
   const createProduct = async (product: Omit<Product, "id">) => {
     try {
-      const record = mapAppProductToProductRecord({ ...product, id: crypto.randomUUID() });
-      const adminPayload: Record<string, unknown> = {
-        slug: record.slug,
-        name: record.name,
-        price: record.price,
-        category_id: record.category_id ?? undefined,
-        description: record.description,
-        sku: record.sku,
-        stock: record.stock,
-        compare_at_price: record.original_price ?? undefined,
-        is_active: true,
-      };
-
-      if (!adminPayload.category_id && product.category) {
-        adminPayload.category = product.category;
-        adminPayload.category_name = product.category;
-        adminPayload.category_slug = normalizeSlug(product.category);
-      }
+      const record = mapAppProductToProductRecord({ ...product, id: crypto.randomUUID(), category: product.category, categoryId: product.categoryId });
+      const adminPayload = buildAdminProductPayload(product as Record<string, unknown>, record as Record<string, unknown>);
 
       // Diagnostic preflight: log payload, endpoint, method and token state
       try {
@@ -4793,7 +4796,21 @@ export default function App() {
 
       try {
         const created = await createProductWithFallback(adminPayload, record);
-        const createdAppProduct = mapProductRecordToAppProduct(created);
+        const createdRecord = (created as any)?.data ?? created;
+        const createdAppProduct = mapProductRecordToAppProduct({
+          ...record,
+          ...(createdRecord ?? {}),
+          brand: createdRecord?.brand ?? product.brand ?? "",
+          image: createdRecord?.image ?? product.image ?? "",
+          images: createdRecord?.images ?? product.images ?? [],
+          category_id: createdRecord?.category_id ?? product.categoryId ?? null,
+          subcategory: createdRecord?.subcategory ?? product.subcategory ?? "",
+          sku: createdRecord?.sku ?? product.sku,
+          description: createdRecord?.description ?? product.description ?? "",
+          stock: createdRecord?.stock ?? product.stock ?? 0,
+          price: createdRecord?.price ?? product.price ?? 0,
+          original_price: createdRecord?.original_price ?? product.originalPrice ?? null,
+        } as ProductRecord);
         setProducts((prev) => [createdAppProduct, ...prev]);
         toast.success("Producto creado y guardado correctamente.");
         try { recordAction('create_product', { id: createdAppProduct.id, name: createdAppProduct.name }); } catch (e) { }
@@ -4829,7 +4846,21 @@ export default function App() {
       }
 
       const updated = await updateProductWithFallback(productId, adminUpdates, recordUpdates);
-      const updatedAppProduct = mapProductRecordToAppProduct(updated);
+      const updatedRecord = (updated as any)?.data ?? updated;
+      const updatedAppProduct = mapProductRecordToAppProduct({
+        ...record,
+        ...(updatedRecord ?? {}),
+        brand: updatedRecord?.brand ?? productToUpdate.brand ?? "",
+        image: updatedRecord?.image ?? productToUpdate.image ?? "",
+        images: updatedRecord?.images ?? productToUpdate.images ?? [],
+        category_id: updatedRecord?.category_id ?? productToUpdate.categoryId ?? null,
+        subcategory: updatedRecord?.subcategory ?? productToUpdate.subcategory ?? "",
+        sku: updatedRecord?.sku ?? productToUpdate.sku,
+        description: updatedRecord?.description ?? productToUpdate.description ?? "",
+        stock: updatedRecord?.stock ?? productToUpdate.stock ?? 0,
+        price: updatedRecord?.price ?? productToUpdate.price ?? 0,
+        original_price: updatedRecord?.original_price ?? productToUpdate.originalPrice ?? null,
+      } as ProductRecord);
       setProducts((prev) => prev.map((product) => product.id === productId ? updatedAppProduct : product));
       toast.success("Producto actualizado correctamente.");
       try { recordAction('update_product', { id: updatedAppProduct.id, name: updatedAppProduct.name }); } catch (e) { }

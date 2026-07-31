@@ -1,0 +1,27 @@
+[
+  {
+    "type": "fetch",
+    "args": [
+      "http://127.0.0.1:3000/api/admin/products",
+      {
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer eyJhbGciOiJFUzI1NiIsImtpZCI6ImYyNmE4M2YxLWMzMTYtNGRmMC1iODViLTVhYjE4NjAxYzc5MyIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2dlYXB4ZHl5Zm15Z3FycWZuaWVyLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiJhYWZhMDg1Zi1mOThiLTQ1ODgtYmQ0My1mMjM1NTIzMmRmZDIiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzg1NDU2NTczLCJpYXQiOjE3ODU0NTI5NzMsImVtYWlsIjoidXJiYW5zcG9ydHN0b3JlQG91dGxvb2suY29tIiwicGhvbmUiOiIiLCJhcHBfbWV0YWRhdGEiOnsiaXNBZG1pbiI6dHJ1ZSwicHJvdmlkZXIiOiJlbWFpbCIsInByb3ZpZGVycyI6WyJlbWFpbCJdLCJyb2xlIjoiQURNSU4ifSwidXNlcl9tZXRhZGF0YSI6eyJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiaXNBZG1pbiI6dHJ1ZSwicm9sZSI6IkFETUlOIn0sInJvbGUiOiJhdXRoZW50aWNhdGVkIiwiYWFsIjoiYWFsMSIsImFtciI6W3sibWV0aG9kIjoicGFzc3dvcmQiLCJ0aW1lc3RhbXAiOjE3ODU0NTI5NzN9XSwic2Vzc2lvbl9pZCI6ImQ3NTliMzQ5LTk3YzItNDZiOS1iMjU5LWZhZTljNDcyMmY1YiIsImlzX2Fub255bW91cyI6ZmFsc2V9.oRDyGPFYvctV_Cumvpo-mVtAtnEaiu-mbXxOiBQFERevSRJSR7UTV5DQOozDcLfCjKKvUSfAx9AAsLGnXif20g"
+        },
+        "method": "POST",
+        "body": "{\"name\":\"E2E Product 1785452973001\",\"price\":19900,\"category_id\":\"11111111-1111-1111-1111-111111111111\",\"description\":\"\",\"sku\":\"E2E-SKU-1785452976715\",\"stock\":15,\"is_active\":true}"
+      }
+    ]
+  },
+  {
+    "type": "fetch",
+    "args": [
+      "https://geapxdyyfmygqrqfnier.supabase.co/rest/v1/products?columns=%22id%22%2C%22name%22%2C%22price%22%2C%22category_id%22%2C%22stock%22%2C%22sku%22%2C%22description%22%2C%22is_active%22&select=*",
+      {
+        "method": "POST",
+        "headers": {},
+        "body": "[{\"id\":\"e78a2a26-10e3-42e1-afc2-eae3d4a577fc\",\"name\":\"E2E Product 1785452973001\",\"price\":19900,\"category_id\":\"11111111-1111-1111-1111-111111111111\",\"stock\":15,\"sku\":\"E2E-SKU-1785452976715\",\"description\":\"\",\"is_active\":true}]"
+      }
+    ]
+  }
+]

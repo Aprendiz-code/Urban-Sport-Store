@@ -2,9 +2,11 @@ import { getSupabaseClient } from './supabase-client';
 
 export interface ProductRecord {
   id: string;
+  slug?: string | null;
   name: string;
   brand: string;
   price: number;
+  compare_at_price?: number | null;
   original_price?: number | null;
   discount?: number | null;
   rating?: number | null;
@@ -15,6 +17,7 @@ export interface ProductRecord {
   stock?: number | null;
   sku?: string | null;
   description?: string | null;
+  is_active?: boolean | null;
   colors?: Array<{ name: string; hex: string }> | null;
   sizes?: string[] | null;
   images?: string[] | null;

@@ -16,6 +16,75 @@ const isFallbackableError = (error: unknown) => {
   return false;
 };
 
+const normalizeSlug = (value: string) =>
+  value
+    .normalize('NFKD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+const DEFAULT_FALLBACK_CATEGORY_ID = '11111111-1111-1111-1111-111111111111';
+
+const toNumber = (value: unknown): number | undefined => {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
+};
+
+const toStringValue = (value: unknown): string | undefined => {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed.length ? trimmed : undefined;
+  }
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  return undefined;
+};
+
+export function buildAdminProductPayload(product: Record<string, unknown>, fallbackRecord: Record<string, unknown> = {}) {
+  const fallbackName = toStringValue(fallbackRecord.name) ?? toStringValue(product.name) ?? toStringValue(product.title);
+  const fallbackSlug = toStringValue(fallbackRecord.slug) ?? toStringValue(product.slug);
+  const fallbackCategoryId = toStringValue(fallbackRecord.category_id) ?? toStringValue(fallbackRecord.categoryId) ?? toStringValue(product.category_id) ?? toStringValue(product.categoryId);
+  const fallbackCategoryName = toStringValue(fallbackRecord.category) ?? toStringValue(product.category) ?? toStringValue(fallbackRecord.category_name) ?? toStringValue(product.category_name);
+  const fallbackSku = toStringValue(fallbackRecord.sku) ?? toStringValue(product.sku);
+  const fallbackDescription = toStringValue(fallbackRecord.description) ?? toStringValue(product.description);
+  const fallbackStock = toNumber(fallbackRecord.stock) ?? toNumber(product.stock);
+  const fallbackPrice = toNumber(fallbackRecord.price) ?? toNumber(product.price);
+  const fallbackOriginalPrice = toNumber(fallbackRecord.compare_at_price) ?? toNumber(fallbackRecord.original_price) ?? toNumber(product.compare_at_price) ?? toNumber(product.original_price) ?? toNumber(product.originalPrice);
+
+  const name = toStringValue(product.name) ?? fallbackName ?? 'Producto';
+  const price = toNumber(product.price) ?? fallbackPrice ?? 0;
+  const slug = fallbackSlug || normalizeSlug(name) || normalizeSlug(String(fallbackSku || 'producto')) || 'producto';
+  const categoryId = fallbackCategoryId || (fallbackCategoryName ? undefined : DEFAULT_FALLBACK_CATEGORY_ID);
+
+  const payload: Record<string, unknown> = {
+    slug,
+    name,
+    price,
+    category_id: categoryId || DEFAULT_FALLBACK_CATEGORY_ID,
+    description: fallbackDescription ?? toStringValue(product.description) ?? '',
+    sku: fallbackSku ?? toStringValue(product.sku) ?? `${Date.now().toString().slice(-6)}`,
+    stock: fallbackStock ?? toNumber(product.stock) ?? 0,
+    compare_at_price: fallbackOriginalPrice ?? undefined,
+    is_active: true,
+  };
+
+  if (!payload.category_id && fallbackCategoryName) {
+    payload.category = fallbackCategoryName;
+    payload.category_name = fallbackCategoryName;
+    payload.category_slug = normalizeSlug(String(fallbackCategoryName));
+  }
+
+  return payload;
+}
+
 export async function createProductWithFallback(adminPayload: Record<string, unknown>, fallbackRecord: Record<string, unknown>) {
   try {
     return await adminApi.createProductApi(adminPayload as any);
@@ -28,6 +97,14 @@ export async function createProductWithFallback(adminPayload: Record<string, unk
       try {
         const sanitized = { ...fallbackRecord } as Record<string, unknown>;
         const removedKeys: string[] = [];
+
+        const fallbackSlug = typeof sanitized.slug === 'string' && sanitized.slug.trim().length
+          ? sanitized.slug
+          : normalizeSlug(String(sanitized.name ?? sanitized.sku ?? 'producto').trim() || 'producto');
+
+        if (fallbackSlug) {
+          sanitized.slug = fallbackSlug;
+        }
 
         const allowed = new Set([
           'id',
