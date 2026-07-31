@@ -63,6 +63,24 @@ describe('admin product fallback helpers', () => {
     expect(supabaseStore.createProductInSupabase).not.toHaveBeenCalled();
   });
 
+  it('falls back to Supabase when admin create fails with missing required fields', async () => {
+    vi.mocked(adminApi.createProductApi).mockRejectedValueOnce(new Error('400 Missing required fields: slug, name, price, category_id'));
+    vi.mocked(supabaseStore.createProductInSupabase).mockResolvedValueOnce({ id: 'p-2', name: 'Zapatilla', slug: 'zapatilla' } as any);
+
+    const result = await createProductWithFallback(
+      { name: 'Zapatilla', price: 150000, category_id: '11111111-1111-1111-1111-111111111111' } as any,
+      { id: 'p-2', name: 'Zapatilla', slug: 'zapatilla', category_id: '11111111-1111-1111-1111-111111111111' } as any,
+    );
+
+    expect(supabaseStore.createProductInSupabase).toHaveBeenCalledWith(expect.objectContaining({
+      name: 'Zapatilla',
+      slug: 'zapatilla',
+      price: 150000,
+      category_id: '11111111-1111-1111-1111-111111111111',
+    }));
+    expect(result).toEqual({ id: 'p-2', name: 'Zapatilla', slug: 'zapatilla' });
+  });
+
   it('falls back to Supabase when admin update fails with a fallbackable error', async () => {
     vi.mocked(adminApi.updateProductApi).mockRejectedValueOnce(new Error('backend down'));
     vi.mocked(supabaseStore.updateProductInSupabase).mockResolvedValueOnce({ id: 'p-1', name: 'Nuevo nombre' } as any);

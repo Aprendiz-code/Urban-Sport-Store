@@ -16,6 +16,11 @@ const isFallbackableError = (error: unknown) => {
   return false;
 };
 
+const isBadRequestMissingRequiredFields = (error: unknown) => {
+  if (!(error instanceof Error)) return false;
+  return /400/.test(error.message) && /missing required fields/i.test(error.message);
+};
+
 const normalizeSlug = (value: string) =>
   value
     .normalize('NFKD')
@@ -92,10 +97,10 @@ export async function createProductWithFallback(adminPayload: Record<string, unk
     if (isAuthError(error)) {
       throw error;
     }
-    if (isFallbackableError(error)) {
+    if (isFallbackableError(error) || isBadRequestMissingRequiredFields(error)) {
       console.warn('Admin API create failed, falling back to Supabase.', error);
       try {
-        const sanitized = { ...fallbackRecord } as Record<string, unknown>;
+        const sanitized = { ...fallbackRecord, ...adminPayload } as Record<string, unknown>;
         const removedKeys: string[] = [];
 
         const fallbackSlug = typeof sanitized.slug === 'string' && sanitized.slug.trim().length
