@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import type { User } from '@supabase/supabase-js';
 import {
   ShoppingCart, Search, Menu, X, Star, ChevronRight, Package,
@@ -11,7 +11,7 @@ import {
 import PromoCarousel from "./components/PromoCarousel";
 import ProductCarousel from "./components/ProductCarousel";
 import promoBanner from "/images/promo-discount-10.png";
-import mainBannerImage from "../../10%/Promocion 10%.png";
+import mainBannerImage from "../../promo-10/Promocion 10.png";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -25,17 +25,20 @@ import {
 } from "./components/LazyRecharts";
 // promoRibbon moved to src/assets/cinta-10.png
 import { fetchProductsFromSupabase, type ProductRecord } from "../lib/supabase-store";
-import { createProductWithFallback, deleteProductWithFallback, updateProductWithFallback } from "../lib/admin-product-fallback";
+import { buildAdminProductPayload, createProductWithFallback, deleteProductWithFallback, updateProductWithFallback } from "../lib/admin-product-fallback";
 import {
   signInWithEmail,
   signUpWithEmail,
   signOut,
   getCurrentUser,
+  getAccessToken,
   onAuthStateChange,
   isAdminUser,
+  requestPasswordRecovery,
 } from "../lib/supabase-auth";
+import { getSupabaseClient } from "../lib/supabase-client";
 
-import adminApi, { createSupabaseProductApi, updateSupabaseProductApi, deleteSupabaseProductApi, updateHomeContentApi } from "../lib/admin-api";
+import adminApi, { fetchCategories, createCategoryApi, updateCategoryApi, deleteCategoryApi, updateHomeContentApi } from "../lib/admin-api";
 import { uploadProductImage, deleteProductImage, getPublicUrl, buildProductImagePath, getStoragePathFromPublicUrl, STORAGE_BUCKET } from "../lib/supabase-store";
 import { recordAction, getAudit } from "../lib/audit";
 import { productSchema } from '../lib/schemas';
@@ -46,9 +49,20 @@ import { toast } from '../lib/lazyToast';
 
 type View =
   | "home" | "catalog" | "product" | "checkout"
-  | "login" | "register" | "account" | "admin";
+  | "login" | "register" | "account" | "admin"
+  | "reset-password";
 
 type Category = string;
+
+interface AdminCategory {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  sort_order?: number;
+  is_active?: boolean;
+  image?: string;
+}
 
 interface Product {
   id: string; name: string; brand: string; price: number;
@@ -102,7 +116,41 @@ interface HomePageContent {
   saleSectionDiscount?: string;
 }
 
+const BRAND_NAME = "Urban Sport Store";
 const LOCAL_ADDRESS_STORAGE = "urbansport_addresses";
+const DEFAULT_FALLBACK_CATEGORY_ID = "11111111-1111-1111-1111-111111111111";
+
+const resolveProductCategoryId = (category?: Category, categoryId?: string) => {
+  if (categoryId) return categoryId;
+  const normalized = (category ?? "")
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  if (!normalized) return DEFAULT_FALLBACK_CATEGORY_ID;
+  if (normalized === 'running' || normalized === 'training' || normalized === 'zapatos') {
+    return DEFAULT_FALLBACK_CATEGORY_ID;
+  }
+  return DEFAULT_FALLBACK_CATEGORY_ID;
+};
+
+const normalizeSlug = (value: string) =>
+  value
+    .normalize('NFKD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+const buildCategorySlug = (name: string) => {
+  const generated = normalizeSlug(name);
+  return generated || name.trim().toLowerCase().replace(/\s+/g, '-');
+};
 
 const DEFAULT_ADDRESSES: Address[] = [
   {
@@ -152,13 +200,13 @@ const loadStoredAddresses = (): Address[] => {
 const mapProductRecordToAppProduct = (record: ProductRecord): Product => ({
   id: record.id,
   name: record.name,
-  brand: record.brand,
+  brand: record.brand ?? "",
   price: record.price,
   originalPrice: record.original_price ?? undefined,
   discount: record.discount ?? undefined,
   rating: record.rating ?? 0,
   reviews: record.reviews ?? 0,
-  image: record.image,
+  image: record.image ?? "",
   images: record.images ?? [],
   category: record.category_id ?? "Zapatos",
   categoryId: record.category_id ?? undefined,
@@ -177,25 +225,15 @@ const mapProductRecordToAppProduct = (record: ProductRecord): Product => ({
 const mapAppProductToProductRecord = (product: Partial<Product> & { id?: string }): ProductRecord => ({
   id: product.id ?? crypto.randomUUID(),
   name: product.name ?? "",
-  brand: product.brand ?? "",
+  slug: normalizeSlug(product.name ?? product.sku ?? product.category ?? "producto") || product.id || "producto",
   price: Number(product.price ?? 0),
-  original_price: product.originalPrice ?? null,
-  discount: product.discount ?? null,
-  rating: Number(product.rating ?? 0),
-  reviews: Number(product.reviews ?? 0),
-  image: product.image ?? "",
-  images: product.images ?? [],
-  category_id: product.categoryId ?? null,
+  compare_at_price: product.originalPrice ?? null,
+  category_id: resolveProductCategoryId(product.category, product.categoryId),
   subcategory: product.subcategory ?? "",
   stock: Number(product.stock ?? 0),
   sku: product.sku ?? "",
   description: product.description ?? "",
-  colors: product.colors ?? [],
-  sizes: product.sizes ?? [],
-  gender: (product.gender ?? "Unisex") as string,
-  is_new: product.isNew ?? false,
-  is_featured: product.isFeatured ?? false,
-  specs: product.specs ?? [],
+  is_active: true,
 });
 
 // ─── DATA ────────────────────────────────────────────────────────────────────
@@ -376,7 +414,7 @@ function SizeSelector({ sizes, selected, onSelect }: {
   );
 }
 
-function ProductCarousel({ children }: { children: React.ReactNode }) {
+function CarouselScroller({ children }: { children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement | null>(null);
   const isDragging = useRef(false);
   const startX = useRef(0);
@@ -624,7 +662,8 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
             {/* Logo */}
             <button onClick={() => onNavigate("home")} className="flex items-center gap-2 shrink-0">
               <span className="text-xl sm:text-[2.1rem] font-extrabold text-slate-900 tracking-tight leading-none">
-                Urban<span className="text-[#1d4ed8]">Sport</span>
+                Urban{' '}
+                <span className="text-[#1d4ed8]">Sport</span>
                 <span className="block text-[12px] sm:text-[13px] font-semibold text-slate-400 tracking-widest uppercase">Store</span>
               </span>
             </button>
@@ -697,6 +736,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
               <div className="relative">
                 <button
                     type="button"
+                    aria-label="Abrir menú de usuario"
                     onClick={() => setUserOpen(!userOpen)}
                     className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
                   >
@@ -931,6 +971,58 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
   const featured = featuredProducts;
   const newArrivals = newArrivalsProducts;
   const onSale = saleProducts;
+  const [newsletterEmail, setNewsletterEmail] = useState('');
+  const [newsletterLoading, setNewsletterLoading] = useState(false);
+  const [newsletterSuccess, setNewsletterSuccess] = useState<string | null>(null);
+  const [newsletterError, setNewsletterError] = useState<string | null>(null);
+
+  const normalizeApiRoot = (url?: string) => {
+    const trimmed = url?.trim().replace(/\/$/, '');
+    if (!trimmed) return '/api';
+    if (trimmed.endsWith('/api')) return trimmed;
+    if (trimmed.endsWith('/api/v1')) return trimmed.replace(/\/v1$/, '');
+    return `${trimmed}/api`;
+  };
+
+  const handleNewsletterSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const email = newsletterEmail.trim();
+    setNewsletterError(null);
+    setNewsletterSuccess(null);
+
+    if (!email) {
+      setNewsletterError('Ingresa un correo válido para suscribirte.');
+      return;
+    }
+
+    setNewsletterLoading(true);
+    try {
+      const apiUrl = normalizeApiRoot(import.meta.env.VITE_API_URL);
+      const response = await fetch(`${apiUrl}/newsletter`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const json = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const message = json?.message || json?.error?.message || 'No se pudo enviar la suscripción. Intenta nuevamente.';
+        throw new Error(message);
+      }
+
+      setNewsletterSuccess('¡Gracias! Tu correo fue suscrito correctamente.');
+      setNewsletterEmail('');
+      toast.success('Te avisaremos cuando haya ofertas disponibles.');
+    } catch (error: any) {
+      const message = error?.message || 'No se pudo enviar tu suscripción. Intenta nuevamente.';
+      setNewsletterError(message);
+      toast.error(message);
+    } finally {
+      setNewsletterLoading(false);
+    }
+  };
+
   // Ensure carousel has enough items to scroll — duplicate if list is short
   const arrivalsForCarousel = (() => {
     const base = newArrivals.slice(0, 9);
@@ -1185,14 +1277,29 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
           <p className="text-[10px] sm:text-xs font-bold text-blue-200 uppercase tracking-widest mb-1 sm:mb-1.5">Mantente al día</p>
           <h2 className="text-lg sm:text-xl font-extrabold text-white mb-1 sm:mb-1.5">Recibe ofertas exclusivas</h2>
           <p className="text-blue-200 text-xs sm:text-sm mb-3 sm:mb-4">Suscríbete y obtén 10% de descuento en tu primera compra.</p>
-          <div className="flex flex-col sm:flex-row gap-2 max-w-sm mx-auto">
-            <input type="email" placeholder="tu@email.com"
-              className="flex-1 px-4 py-3 rounded-xl text-sm text-slate-800 bg-white placeholder-slate-400 focus:outline-none" />
-            <button onClick={() => toast.success('¡Gracias! Te notificaremos cuando haya ofertas disponibles.')}
-              className="px-5 py-3 rounded-xl bg-black/70 text-white text-sm font-bold hover:bg-black/90 transition-colors whitespace-nowrap w-full sm:w-auto">
-              Suscribirme
+          <form onSubmit={handleNewsletterSubmit} className="flex flex-col sm:flex-row gap-2 max-w-sm mx-auto">
+            <input
+              type="email"
+              value={newsletterEmail}
+              onChange={(event) => setNewsletterEmail(event.target.value)}
+              placeholder="tu@email.com"
+              className="flex-1 px-4 py-3 rounded-xl text-sm text-slate-800 bg-white placeholder-slate-400 focus:outline-none"
+              disabled={newsletterLoading}
+              aria-label="Correo de suscripción"
+            />
+            <button
+              type="submit"
+              disabled={newsletterLoading}
+              className="px-5 py-3 rounded-xl bg-black/70 text-white text-sm font-bold hover:bg-black/90 transition-colors whitespace-nowrap w-full sm:w-auto disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {newsletterLoading ? 'Enviando...' : 'Suscribirme'}
             </button>
-          </div>
+          </form>
+          {newsletterError ? (
+            <p className="mt-3 text-sm text-red-100">{newsletterError}</p>
+          ) : newsletterSuccess ? (
+            <p className="mt-3 text-sm text-emerald-100">{newsletterSuccess}</p>
+          ) : null}
         </div>
       </section>
 
@@ -1268,7 +1375,7 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
             ))}
           </div>
           <div className="border-t border-slate-800 pt-6 flex flex-col sm:flex-row justify-between items-center gap-3">
-            <p className="text-xs text-slate-500">© 2026 UrbanSport Store. Todos los derechos reservados.</p>
+            <p className="text-xs text-slate-500">© 2026 {BRAND_NAME}. Todos los derechos reservados.</p>
             <div className="flex items-center gap-4 text-xs text-slate-500">
               <button onClick={() => toast('Privacidad próximamente disponible.')}
                 className="hover:text-slate-300 transition-colors text-left">Privacidad</button>
@@ -1653,7 +1760,7 @@ function ProductDetailPage({ product, onBack, onAddToCart, onNavigate }: {
           {[
             { name: "Diego P.", rating: 5, date: "10 Jul 2026", text: "Excelente producto, calidad de primera. La talla es exacta y el material es muy cómodo. Lo recomiendo al 100%." },
             { name: "Camila R.", rating: 4, date: "5 Jul 2026", text: "Muy buena calidad. El empaque llegó perfecto y en el tiempo prometido. Solo le doy 4 estrellas porque el color era un poco diferente al de la foto." },
-            { name: "Santiago M.", rating: 5, date: "28 Jun 2026", text: "Ya es mi segunda compra en UrbanSport y siempre quedé satisfecho. El servicio al cliente también es excelente." },
+            { name: "Santiago M.", rating: 5, date: "28 Jun 2026", text: `Ya es mi segunda compra en ${BRAND_NAME} y siempre quedé satisfecho. El servicio al cliente también es excelente.` },
           ].map((r) => (
             <div key={r.name} className="p-4 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_18px_48px_-40px_rgba(15,23,42,0.16)]">
               <div className="flex items-start justify-between mb-2">
@@ -1930,9 +2037,10 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
 
 // ─── LOGIN PAGE ───────────────────────────────────────────────────────────────
 
-function LoginPage({ isRegister, onNavigate, onLogin }: {
-  isRegister: boolean; onNavigate: (v: View) => void;
-  onLogin: (user: User | null, isAdmin: boolean) => void;
+function LoginPage({ isRegister, onNavigate = () => {}, onLogin = () => {} }: {
+  isRegister: boolean;
+  onNavigate?: (v: View) => void;
+  onLogin?: (user: User | null, isAdmin: boolean) => void;
 }) {
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -1940,6 +2048,8 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [recoveryMode, setRecoveryMode] = useState(false);
+  const [recoverySuccess, setRecoverySuccess] = useState(false);
 
   const isLocalAuthFallback = !import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY;
 
@@ -1949,6 +2059,19 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
     setError(null);
 
     try {
+      if (recoveryMode) {
+        if (!email.trim()) {
+          throw new Error('Ingresa tu correo electrónico para recibir el enlace de recuperación.');
+        }
+        const recoveryResult = await requestPasswordRecovery(email.trim());
+        if (recoveryResult.error) throw recoveryResult.error;
+        setRecoverySuccess(true);
+        setError(null);
+        toast.success('Te enviamos un enlace para restablecer tu contraseña. Revisa tu bandeja de entrada.');
+        setPassword("");
+        return;
+      }
+
       let user = null;
       let adminStatus = false;
       if (isRegister) {
@@ -2000,7 +2123,7 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
             {isRegister ? "Crear cuenta" : "Bienvenido"}
           </h1>
           <p className="text-slate-600">
-            {isRegister ? "Únete a UrbanSport Store hoy" : "Continúa tu aventura deportiva"}
+            {isRegister ? "Únete a Urban Sport Store hoy" : "Continúa tu aventura deportiva"}
           </p>
         </div>
 
@@ -2032,37 +2155,65 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
               />
             </div>
 
-            {/* Password */}
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Contraseña</label>
-                {!isRegister && (
+            {!recoveryMode && (
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Contraseña</label>
+                  {!isRegister && (
+                    <button 
+                      type="button" 
+                      onClick={() => {
+                        setError(null);
+                        setRecoverySuccess(false);
+                        setRecoveryMode(true);
+                      }}
+                      className="text-xs text-[#1d4ed8] hover:text-blue-400 font-semibold transition-colors"
+                    >
+                      ¿Olvidaste?
+                    </button>
+                  )}
+                </div>
+                <div className="relative">
+                  <input 
+                    type={showPass ? "text" : "password"} 
+                    value={password} 
+                    onChange={(e) => setPassword(e.target.value)} 
+                    placeholder="••••••••"
+                    className="w-full px-4 py-3.5 bg-slate-50 border border-slate-300 rounded-xl text-base text-slate-900 placeholder-slate-500 focus:outline-none focus:border-[#1d4ed8] focus:bg-white transition-all duration-200" 
+                  />
                   <button 
                     type="button" 
-                    onClick={() => toast('Función de recuperación de contraseña próximamente disponible.')}
-                    className="text-xs text-[#1d4ed8] hover:text-blue-400 font-semibold transition-colors"
+                    onClick={() => setShowPass(!showPass)} 
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-900 transition-colors"
                   >
-                    ¿Olvidaste?
+                    {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
-                )}
+                </div>
               </div>
-              <div className="relative">
-                <input 
-                  type={showPass ? "text" : "password"} 
-                  value={password} 
-                  onChange={(e) => setPassword(e.target.value)} 
-                  placeholder="••••••••"
-                  className="w-full px-4 py-3.5 bg-slate-50 border border-slate-300 rounded-xl text-base text-slate-900 placeholder-slate-500 focus:outline-none focus:border-[#1d4ed8] focus:bg-white transition-all duration-200" 
-                />
-                <button 
-                  type="button" 
-                  onClick={() => setShowPass(!showPass)} 
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-900 transition-colors"
+            )}
+
+            {recoveryMode && (
+              <div className="p-4 rounded-3xl bg-blue-50 border border-blue-100 text-sm text-slate-700 space-y-3">
+                <p>Ingresa tu correo y te enviaremos un enlace para restablecer tu contraseña.</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRecoveryMode(false);
+                    setError(null);
+                    setRecoverySuccess(false);
+                  }}
+                  className="text-xs font-semibold text-[#1d4ed8] hover:text-blue-500 transition-colors"
                 >
-                  {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
+                  Volver al inicio de sesión
                 </button>
               </div>
-            </div>
+            )}
+
+            {recoverySuccess && (
+              <div className="p-4 rounded-3xl bg-emerald-50 border border-emerald-200 text-sm text-emerald-900">
+                Te enviamos un enlace para restablecer tu contraseña. Revisa tu bandeja de entrada.
+              </div>
+            )}
 
             {/* Terms checkbox for register */}
             {isRegister && (
@@ -2092,8 +2243,12 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
             >
               {loading ? (
                 <><RefreshCw size={18} className="animate-spin" /> Procesando…</>
+              ) : recoveryMode ? (
+                "Enviar enlace de recuperación"
+              ) : isRegister ? (
+                "Crear mi cuenta"
               ) : (
-                isRegister ? "Crear mi cuenta" : "Iniciar sesión"
+                "Iniciar sesión"
               )}
             </button>
           </form>
@@ -2125,6 +2280,131 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
             {isRegister ? "Inicia sesión" : "Regístrate"}
           </button>
         </p>
+      </div>
+    </main>
+  );
+}
+
+function ResetPasswordCallbackPage({ onNavigate = () => {} }: { onNavigate?: (v: View) => void }) {
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
+  const [recoveryParamsFound, setRecoveryParamsFound] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const searchParams = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+
+    const recoveryType = searchParams.get("type") ?? hashParams.get("type");
+    const accessToken = searchParams.get("access_token") ?? hashParams.get("access_token");
+    const refreshToken = searchParams.get("refresh_token") ?? hashParams.get("refresh_token");
+
+    if (recoveryType === "recovery" && accessToken) {
+      setRecoveryParamsFound(true);
+      const client = getSupabaseClient();
+      void client.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken ?? undefined,
+      }).finally(() => {
+        if (typeof window !== "undefined") {
+          const nextUrl = new URL(window.location.href);
+          nextUrl.hash = "";
+          nextUrl.search = "";
+          window.history.replaceState({}, "", nextUrl.pathname + nextUrl.search + nextUrl.hash);
+        }
+        setReady(true);
+      });
+      return;
+    }
+
+    setReady(true);
+  }, []);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    if (!password.trim()) {
+      setError("Ingresa una contraseña válida.");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const client = getSupabaseClient();
+      const { error } = await client.auth.updateUser({ password: password.trim() });
+      if (error) throw error;
+      setSuccess("Tu contraseña ha sido actualizada. Inicia sesión con tu nueva contraseña.");
+    } catch (err: any) {
+      setError(err?.message ?? "No se pudo actualizar la contraseña.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!ready) {
+    return (
+      <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 px-4 py-10">
+        <div className="rounded-3xl bg-white/95 border border-slate-200 p-8 shadow-xl text-center">
+          <p className="text-slate-600 font-medium">Preparando la página de restablecimiento...</p>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 px-4 py-10">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-extrabold text-slate-900">Restablecer contraseña</h1>
+          <p className="text-slate-600 mt-2">Usa el formulario para crear una nueva contraseña.</p>
+        </div>
+
+        {!recoveryParamsFound ? (
+          <div className="rounded-3xl bg-white/95 border border-slate-200 p-8 shadow-xl space-y-4">
+            <p className="text-slate-700">No se encontró un enlace de recuperación válido. Abre el enlace enviado a tu correo o vuelve a iniciar sesión.</p>
+            <div className="flex flex-col gap-3">
+              <button onClick={() => onNavigate("login")} className="w-full rounded-xl bg-[#1d4ed8] text-white py-3 font-semibold hover:bg-blue-700 transition-colors">Volver al inicio de sesión</button>
+              <button onClick={() => onNavigate("home")} className="w-full rounded-xl border border-slate-300 bg-white text-slate-900 py-3 font-semibold hover:bg-slate-50 transition-colors">Ir a inicio</button>
+            </div>
+          </div>
+        ) : success ? (
+          <div className="rounded-3xl bg-white/95 border border-slate-200 p-8 shadow-xl space-y-6 text-center">
+            <div className="text-emerald-700 font-semibold">¡Contraseña actualizada!</div>
+            <p className="text-slate-600">Ya puedes iniciar sesión con tu nueva contraseña.</p>
+            <button onClick={() => onNavigate("login")} className="w-full rounded-xl bg-[#1d4ed8] text-white py-3 font-semibold hover:bg-blue-700 transition-colors">Ir al inicio de sesión</button>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="rounded-3xl bg-white/95 border border-slate-200 p-8 shadow-xl space-y-5">
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-slate-700">Nueva contraseña</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="••••••••"
+                className="w-full px-4 py-3 rounded-2xl border border-slate-300 bg-slate-50 text-slate-900 focus:outline-none focus:border-[#1d4ed8]/50"
+              />
+            </div>
+
+            {error && (
+              <div className="rounded-2xl bg-red-50 border border-red-200 p-3 text-sm text-red-700">{error}</div>
+            )}
+
+            <button type="submit" disabled={loading} className="w-full rounded-xl bg-[#1d4ed8] text-white py-3 font-semibold hover:bg-blue-700 transition-colors disabled:opacity-70">
+              {loading ? "Restableciendo…" : "Guardar nueva contraseña"}
+            </button>
+
+            <button type="button" onClick={() => onNavigate("login")} className="w-full rounded-xl border border-slate-300 bg-white text-slate-900 py-3 font-semibold hover:bg-slate-50 transition-colors">
+              Volver al inicio de sesión
+            </button>
+          </form>
+        )}
       </div>
     </main>
   );
@@ -2407,6 +2687,18 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
 }) {
   const [adminSection, setAdminSection] = useState(initialSection ?? "dashboard");
   const [searchTerm, setSearchTerm] = useState("");
+  const [categories, setCategories] = useState<AdminCategory[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
+  const [categoriesError, setCategoriesError] = useState<string | null>(null);
+  const [categoryFormMode, setCategoryFormMode] = useState<"create" | "edit">("create");
+  const [activeCategory, setActiveCategory] = useState<AdminCategory | null>(null);
+  const [categoryForm, setCategoryForm] = useState({ name: "", slug: "", description: "", sort_order: "", is_active: true });
+  const [categoryFormErrors, setCategoryFormErrors] = useState<Record<string, string>>({});
+  const [categoryErrorMessage, setCategoryErrorMessage] = useState<string | null>(null);
+  const [categorySuccessMessage, setCategorySuccessMessage] = useState<string | null>(null);
+  const [isCategorySubmitting, setIsCategorySubmitting] = useState(false);
+  const [categoryActionLoadingId, setCategoryActionLoadingId] = useState<string | null>(null);
+  const [isSlugTouched, setIsSlugTouched] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [activeProduct, setActiveProduct] = useState<Product | null>(null);
   const [productForm, setProductForm] = useState<Omit<Product, "id">>({
@@ -2439,6 +2731,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
     { id: "reports", icon: <BarChart2 size={16} />, label: "Reportes" },
     { id: "activity", icon: <Grid3X3 size={16} />, label: "Actividad" },
     { id: "settings", icon: <Settings size={16} />, label: "Ajustes" },
+    { id: "categories", icon: <Tag size={16} />, label: "Categorías" },
   ];
 
   const SECTION_TITLES: Record<string, string> = {
@@ -2451,6 +2744,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
     reports: "Reportes",
     activity: "Actividad",
     settings: "Ajustes",
+    categories: "Categorías",
   };
 
   const pageTitle = SECTION_TITLES[adminSection] ?? "Panel de administración";
@@ -2646,6 +2940,211 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
       }
     })();
   };
+
+  const normalizeSlug = (value: string) =>
+    value
+      .normalize('NFKD')
+      .replace(/[ -]/g, (char) => char)
+      .replace(/[ -]/g, '')
+      .toLowerCase()
+      .replace(/[ -]/g, (char) => char)
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-+|-+$/g, '');
+
+  const buildCategorySlug = (name: string) => {
+    const generated = name
+      .normalize('NFKD')
+      .replace(/\p{Diacritic}/gu, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-+|-+$/g, '');
+    return generated || name.trim().toLowerCase().replace(/\s+/g, '-');
+  };
+
+  const refreshCategories = async () => {
+    setCategoriesLoading(true);
+    setCategoriesError(null);
+    try {
+      const data = await fetchCategories();
+      if (Array.isArray(data)) {
+        setCategories(data as AdminCategory[]);
+      } else {
+        setCategories([]);
+        setCategoriesError('Respuesta inesperada del servidor al cargar categorías.');
+      }
+    } catch (error: any) {
+      console.error('Error cargando categorías:', error);
+      setCategories([]);
+      setCategoriesError(error?.message ?? 'No se pudo cargar las categorías.');
+    } finally {
+      setCategoriesLoading(false);
+    }
+  };
+
+  const resetCategoryForm = () => {
+    setCategoryFormMode('create');
+    setActiveCategory(null);
+    setCategoryForm({ name: '', slug: '', description: '', sort_order: '', is_active: true });
+    setCategoryFormErrors({});
+    setCategoryErrorMessage(null);
+    setCategorySuccessMessage(null);
+    setIsSlugTouched(false);
+  };
+
+  const handleCategoryFormChange = (field: keyof typeof categoryForm, value: string | boolean) => {
+    setCategoryForm((prev) => {
+      const newVal = (field === 'slug' && typeof value === 'string') ? normalizeSlug(value) : value;
+      const updated = { ...prev, [field]: newVal } as typeof categoryForm;
+      if (field === 'name' && categoryFormMode === 'create' && !isSlugTouched) {
+        updated.slug = buildCategorySlug(String(value));
+      }
+      return updated;
+    });
+
+    // Clear the specific field validation error when the user edits it
+    setCategoryFormErrors((prev) => {
+      if (!prev) return prev;
+      if (!(field as string in prev)) return prev;
+      const copy = { ...prev } as Record<string, string>;
+      delete copy[field as string];
+      return copy;
+    });
+
+    if (field === 'slug') setIsSlugTouched(true);
+  };
+
+  const validateCategoryForm = () => {
+    const errors: Record<string, string> = {};
+    if (!categoryForm.name.trim()) {
+      errors.name = 'El nombre es requerido';
+    }
+    if (!categoryForm.slug.trim()) {
+      errors.slug = 'El slug es requerido';
+    }
+    if (categoryForm.sort_order && Number.isNaN(Number(categoryForm.sort_order))) {
+      errors.sort_order = 'El orden debe ser un número válido';
+    }
+    return errors;
+  };
+
+  const handleCategoryFormSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setCategoryErrorMessage(null);
+    setCategorySuccessMessage(null);
+    // Clear any previous field errors before validating/submitting
+    setCategoryFormErrors({});
+    const errors = validateCategoryForm();
+    if (Object.keys(errors).length > 0) {
+      setCategoryFormErrors(errors);
+      return;
+    }
+
+    setIsCategorySubmitting(true);
+    try {
+      const payload: Record<string, unknown> = {
+        name: categoryForm.name.trim(),
+        slug: categoryForm.slug.trim(),
+        description: categoryForm.description.trim() || undefined,
+        is_active: categoryForm.is_active,
+      };
+
+      if (categoryForm.sort_order.trim() !== '') {
+        payload.sort_order = Number(categoryForm.sort_order);
+      }
+
+      if (categoryFormMode === 'edit' && activeCategory) {
+        await updateCategoryApi(activeCategory.id, payload);
+        toast.success('Categoría actualizada.');
+        setCategorySuccessMessage('Categoría actualizada correctamente.');
+      } else {
+        await createCategoryApi(payload);
+        toast.success('Categoría creada.');
+        setCategorySuccessMessage('Categoría creada correctamente.');
+      }
+
+      await refreshCategories();
+      resetCategoryForm();
+    } catch (error: any) {
+      console.error('Error guardando categoría:', error);
+      const message = error?.message ?? 'No se pudo guardar la categoría. Intenta nuevamente.';
+      setCategoryErrorMessage(message);
+      toast.error(message);
+    } finally {
+      setIsCategorySubmitting(false);
+    }
+  };
+
+  const handleEditCategory = (category: AdminCategory) => {
+    setCategoryFormMode('edit');
+    setActiveCategory(category);
+    setCategoryForm({
+      name: category.name ?? '',
+      slug: category.slug ?? '',
+      description: category.description ?? '',
+      sort_order: category.sort_order?.toString() ?? '',
+      is_active: category.is_active ?? true,
+    });
+    setCategoryFormErrors({});
+    setCategoryErrorMessage(null);
+    setCategorySuccessMessage(null);
+    setIsSlugTouched(true);
+  };
+
+  const handleDeleteCategory = async (categoryId: string) => {
+    if (!confirm('¿Eliminar esta categoría? Esta acción eliminará o marcará la categoría como inactiva en el backend y no puede deshacerse desde esta interfaz. ¿Deseas continuar?')) {
+      return;
+    }
+
+    setCategoryActionLoadingId(categoryId);
+    setCategoryErrorMessage(null);
+    setCategorySuccessMessage(null);
+    try {
+      await deleteCategoryApi(categoryId);
+      toast.success('Categoría eliminada.');
+      setCategorySuccessMessage('Categoría eliminada correctamente.');
+      if (activeCategory?.id === categoryId) {
+        resetCategoryForm();
+      }
+      await refreshCategories();
+    } catch (error: any) {
+      console.error('Error eliminando categoría:', error);
+      const message = error?.message ?? 'No se pudo eliminar la categoría. Intenta nuevamente.';
+      setCategoryErrorMessage(message);
+      toast.error(message);
+    } finally {
+      setCategoryActionLoadingId(null);
+    }
+  };
+
+  useEffect(() => {
+    if (adminSection === 'categories' || adminSection === 'products') {
+      void refreshCategories();
+    }
+  }, [adminSection]);
+
+  useEffect(() => {
+    if (categories.length === 0) return;
+
+    const matchedCategory = categories.find((cat) =>
+      cat.id === productForm.categoryId ||
+      cat.name === productForm.category ||
+      cat.slug === normalizeSlug(productForm.category)
+    );
+
+    if (matchedCategory) {
+      setProductForm((prev) => ({ ...prev, categoryId: matchedCategory.id, category: matchedCategory.name }));
+      return;
+    }
+
+    if (!productForm.categoryId && categories.length > 0) {
+      const defaultCategory = categories[0];
+      setProductForm((prev) => ({ ...prev, categoryId: defaultCategory.id, category: defaultCategory.name }));
+    }
+  }, [categories, productForm.category, productForm.categoryId]);
 
   const handleEditProduct = (product: Product) => {
     setActiveProduct(product);
@@ -3009,8 +3508,8 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
 
                 <div className="grid gap-4">
                   <div>
-                    <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Título hero</label>
-                    <input value={homeContent.heroTitle} onChange={(e) => updateHomeContentField("heroTitle", e.target.value)} className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
+                    <label htmlFor="hero-title-input" className="block text-xs font-bold uppercase text-slate-500 mb-2">Título hero</label>
+                    <input id="hero-title-input" aria-label="Título hero" value={homeContent.heroTitle} onChange={(e) => updateHomeContentField("heroTitle", e.target.value)} className="w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
                   </div>
                   <div>
                     <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Subtítulo hero</label>
@@ -3199,8 +3698,10 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                 {/* Nombre y Marca */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-xs font-bold text-slate-600 uppercase block mb-2">Nombre *</label>
+                    <label htmlFor="product-name-input" className="text-xs font-bold text-slate-600 uppercase block mb-2">Nombre *</label>
                     <input 
+                      id="product-name-input"
+                      aria-label="Nombre *"
                       value={productForm.name} 
                       onChange={(e) => { updateField('name', e.target.value); setFormErrors({...formErrors, name: ''}) }}
                       placeholder="Ej: Nike Air Force 1" 
@@ -3263,18 +3764,33 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                   <div>
                     <label className="text-xs font-bold text-slate-600 uppercase block mb-2">Categoría</label>
                     <select 
-                      value={productForm.category} 
+                      value={productForm.categoryId ?? productForm.category} 
                       onChange={(e) => {
-                        const category = e.target.value as Category;
+                        const selected = e.target.value;
+                        const selectedCategory = categories.find((cat) => cat.id === selected);
+                        if (selectedCategory) {
+                          updateField('category', selectedCategory.name);
+                          updateField('categoryId', selectedCategory.id);
+                          const [defaultSubcategory] = CATEGORY_SUBCATEGORIES[selectedCategory.name] || [''];
+                          if (!CATEGORY_SUBCATEGORIES[selectedCategory.name]?.includes(productForm.subcategory)) {
+                            updateField('subcategory', defaultSubcategory);
+                          }
+                          return;
+                        }
+
+                        const category = selected as Category;
                         updateField('category', category);
+                        updateField('categoryId', undefined);
                         const [defaultSubcategory] = CATEGORY_SUBCATEGORIES[category] || [''];
-                        if (!CATEGORY_SUBCATEGORIES[category].includes(productForm.subcategory)) {
+                        if (!CATEGORY_SUBCATEGORIES[category]?.includes(productForm.subcategory)) {
                           updateField('subcategory', defaultSubcategory);
                         }
                       }} 
                       className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-white hover:border-slate-300 focus:border-slate-500 focus:outline-none transition-colors text-slate-700"
                     >
-                      {Object.keys(CATEGORY_SUBCATEGORIES).map((cat) => (
+                      {categories.length > 0 ? categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                      )) : Object.keys(CATEGORY_SUBCATEGORIES).map((cat) => (
                         <option key={cat} value={cat}>{cat}</option>
                       ))}
                     </select>
@@ -3405,6 +3921,120 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                   >
                     ✕ Cancelar
                   </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        );
+
+      case "categories":
+        return (
+          <div className="grid grid-cols-1 xl:grid-cols-[1.7fr_0.95fr] gap-6 mb-6">
+            <div className="bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] p-6">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.24em] text-slate-400 font-semibold mb-2">Categorías</p>
+                  <h2 className="text-2xl font-extrabold text-slate-900">Listado de categorías</h2>
+                  <p className="text-sm text-slate-500 mt-1">Administra categorías con creación, edición y eliminación.</p>
+                </div>
+                <button onClick={() => { resetCategoryForm(); refreshCategories(); }} className="inline-flex items-center justify-center rounded-3xl bg-black px-4 py-3 text-sm font-semibold text-white hover:bg-slate-900">Actualizar categorías</button>
+              </div>
+
+              {categoriesLoading ? (
+                <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-500">Cargando categorías...</div>
+              ) : categoriesError ? (
+                <div className="rounded-3xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">{categoriesError}</div>
+              ) : categories.length === 0 ? (
+                <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">No se encontraron categorías. Usa el formulario para crear la primera categoría.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[640px]">
+                    <thead>
+                      <tr className="border-b border-slate-100 bg-slate-50">
+                        {['Nombre', 'Slug', 'Orden', 'Activo', 'Descripción', 'Acciones'].map((h) => (
+                          <th key={h} className="text-left px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wide">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {categories.map((category) => (
+                        <tr key={category.id} className="border-b border-slate-100 hover:bg-slate-50/80 transition-colors">
+                          <td className="px-4 py-3 text-sm font-semibold text-slate-800">{category.name}</td>
+                          <td className="px-4 py-3 text-sm text-slate-600">{category.slug}</td>
+                          <td className="px-4 py-3 text-sm text-slate-600">{category.sort_order ?? '-'}</td>
+                          <td className="px-4 py-3 text-sm">
+                            <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${category.is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                              {category.is_active ? 'Activo' : 'Inactivo'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-slate-600">{category.description ?? '—'}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex flex-wrap gap-2">
+                              <button type="button" onClick={() => handleEditCategory(category)} className="px-3 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold hover:bg-slate-200">Editar</button>
+                              <button type="button" onClick={() => handleDeleteCategory(category.id)} disabled={categoryActionLoadingId === category.id} className="px-3 py-2 rounded-xl bg-red-50 text-red-600 text-xs font-semibold hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed">Eliminar</button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] p-6">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.24em] text-slate-400 font-semibold mb-2">{categoryFormMode === 'edit' ? 'Editar categoría' : 'Nueva categoría'}</p>
+                  <h2 className="text-2xl font-extrabold text-slate-900">{categoryFormMode === 'edit' ? 'Edita la categoría' : 'Crea una categoría nueva'}</h2>
+                </div>
+                {categoryFormMode === 'edit' && (
+                  <button type="button" onClick={resetCategoryForm} className="inline-flex items-center justify-center rounded-3xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-200">Cancelar edición</button>
+                )}
+              </div>
+
+              {categoryErrorMessage ? (
+                <div className="rounded-3xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 mb-4">{categoryErrorMessage}</div>
+              ) : null}
+              {categorySuccessMessage ? (
+                <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700 mb-4">{categorySuccessMessage}</div>
+              ) : null}
+
+              <form onSubmit={handleCategoryFormSubmit} className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-600 uppercase block mb-2">Nombre *</label>
+                  <input value={categoryForm.name} onChange={(e) => handleCategoryFormChange('name', e.target.value)} className={`w-full px-4 py-3 rounded-xl border-2 ${categoryFormErrors.name ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-white hover:border-slate-300'} text-sm text-slate-700 focus:outline-none`} />
+                  {categoryFormErrors.name ? <p className="text-xs text-red-600 mt-1">{categoryFormErrors.name}</p> : null}
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-600 uppercase block mb-2">Slug *</label>
+                  <input value={categoryForm.slug} onChange={(e) => handleCategoryFormChange('slug', e.target.value)} className={`w-full px-4 py-3 rounded-xl border-2 ${categoryFormErrors.slug ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-white hover:border-slate-300'} text-sm text-slate-700 focus:outline-none`} />
+                  {categoryFormErrors.slug ? <p className="text-xs text-red-600 mt-1">{categoryFormErrors.slug}</p> : <p className="text-xs text-slate-500 mt-1">El slug se generará automáticamente desde el nombre si no lo editas.</p>}
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-600 uppercase block mb-2">Descripción</label>
+                  <textarea value={categoryForm.description} onChange={(e) => handleCategoryFormChange('description', e.target.value)} rows={3} className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 text-sm text-slate-700 focus:outline-none" />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-bold text-slate-600 uppercase block mb-2">Orden</label>
+                    <input type="number" value={categoryForm.sort_order} onChange={(e) => handleCategoryFormChange('sort_order', e.target.value)} className={`w-full px-4 py-3 rounded-xl border-2 ${categoryFormErrors.sort_order ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-white hover:border-slate-300'} text-sm text-slate-700 focus:outline-none`} />
+                    {categoryFormErrors.sort_order ? <p className="text-xs text-red-600 mt-1">{categoryFormErrors.sort_order}</p> : null}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-2 text-sm text-slate-600">
+                      <input type="checkbox" checked={categoryForm.is_active} onChange={(e) => handleCategoryFormChange('is_active', e.target.checked)} className="accent-[#1d4ed8]" />
+                      Activa
+                    </label>
+                  </div>
+                </div>
+                <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
+                  <button type="submit" disabled={isCategorySubmitting} className={`w-full sm:w-auto px-6 py-3 rounded-xl font-semibold transition-all ${isCategorySubmitting ? 'bg-slate-300 text-slate-600 cursor-not-allowed' : 'bg-black text-white hover:bg-slate-900'}`}>
+                    {isCategorySubmitting ? (categoryFormMode === 'edit' ? 'Guardando...' : 'Creando...') : (categoryFormMode === 'edit' ? 'Guardar categoría' : 'Crear categoría')}
+                  </button>
+                  {categoryFormMode === 'edit' && (
+                    <button type="button" onClick={resetCategoryForm} className="w-full sm:w-auto px-6 py-3 rounded-xl bg-slate-100 text-slate-700 font-semibold hover:bg-slate-200">Cancelar</button>
+                  )}
                 </div>
               </form>
             </div>
@@ -4021,6 +4651,14 @@ export default function App() {
       url.searchParams.delete("view");
       url.searchParams.delete("adminSection");
       window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+      setView("home");
+      setInitialAdminSection(undefined);
+      return;
+    }
+
+    if (paramView === "reset-password" || window.location.pathname === "/reset-password") {
+      setView("reset-password");
+      return;
     }
 
     setView("home");
@@ -4131,29 +4769,58 @@ export default function App() {
 
   const createProduct = async (product: Omit<Product, "id">) => {
     try {
-      const record = mapAppProductToProductRecord({ ...product, id: crypto.randomUUID() });
-      const adminPayload: Record<string, unknown> = {
-        slug: record.slug,
-        name: record.name,
-        price: record.price,
-        description: record.description,
-        sku: record.sku,
-        stock: record.stock,
-        category_id: record.category_id ?? undefined,
-        compare_at_price: record.original_price ?? undefined,
-        is_active: true,
-      };
+      const record = mapAppProductToProductRecord({ ...product, id: crypto.randomUUID(), category: product.category, categoryId: product.categoryId });
+      const adminPayload = buildAdminProductPayload(product as Record<string, unknown>, record as Record<string, unknown>);
 
-      if (!adminPayload.category_id && product.category) {
-        adminPayload.category = product.category;
+      // Diagnostic preflight: log payload, endpoint, method and token state
+      try {
+        const endpoint = '/api/admin/products';
+        const bodyString = JSON.stringify(adminPayload);
+        const token = await getAccessToken();
+        // eslint-disable-next-line no-console
+        console.debug('[admin-create] preflight', {
+          sourceProduct: { name: product.name, sku: product.sku },
+          adminPayloadPreview: String(bodyString).slice(0, 2000),
+          method: 'POST',
+          endpoint,
+          bodyLength: bodyString.length,
+          supabaseTokenExists: Boolean(token),
+          tokenLooksLikeJwt: typeof token === 'string' && token.split('.').length === 3,
+        });
+        // Expose minimal last payload for external e2e collectors
+        try { (window as any).__LAST_ADMIN_CREATE = { adminPayload, productName: product.name, ts: Date.now() }; } catch (e) { }
+      } catch (diagErr) {
+        // eslint-disable-next-line no-console
+        console.warn('[admin-create] preflight failed', diagErr);
       }
 
-      const created = await createProductWithFallback(adminPayload, record);
-      const createdAppProduct = mapProductRecordToAppProduct(created);
-      refreshProducts();
-      toast.success("Producto creado y guardado correctamente.");
-      try { recordAction('create_product', { id: createdAppProduct.id, name: createdAppProduct.name }); } catch (e) { }
-      return;
+      try {
+        const created = await createProductWithFallback(adminPayload, record);
+        const createdRecord = (created as any)?.data ?? created;
+        const createdAppProduct = mapProductRecordToAppProduct({
+          ...record,
+          ...(createdRecord ?? {}),
+          brand: createdRecord?.brand ?? product.brand ?? "",
+          image: createdRecord?.image ?? product.image ?? "",
+          images: createdRecord?.images ?? product.images ?? [],
+          category_id: createdRecord?.category_id ?? product.categoryId ?? null,
+          subcategory: createdRecord?.subcategory ?? product.subcategory ?? "",
+          sku: createdRecord?.sku ?? product.sku,
+          description: createdRecord?.description ?? product.description ?? "",
+          stock: createdRecord?.stock ?? product.stock ?? 0,
+          price: createdRecord?.price ?? product.price ?? 0,
+          original_price: createdRecord?.original_price ?? product.originalPrice ?? null,
+        } as ProductRecord);
+        setProducts((prev) => [createdAppProduct, ...prev]);
+        toast.success("Producto creado y guardado correctamente.");
+        try { recordAction('create_product', { id: createdAppProduct.id, name: createdAppProduct.name }); } catch (e) { }
+        return;
+      } catch (callErr) {
+        // Log detailed error from admin API / fallback
+        // eslint-disable-next-line no-console
+        console.error('[admin-create] createProductWithFallback error', callErr);
+        throw callErr;
+      }
     } catch (err) {
       console.error("Backend create product failed:", err);
       toast.error("Error creando producto. Intenta nuevamente.");
@@ -4179,8 +4846,22 @@ export default function App() {
       }
 
       const updated = await updateProductWithFallback(productId, adminUpdates, recordUpdates);
-      const updatedAppProduct = mapProductRecordToAppProduct(updated);
-      refreshProducts();
+      const updatedRecord = (updated as any)?.data ?? updated;
+      const updatedAppProduct = mapProductRecordToAppProduct({
+        ...record,
+        ...(updatedRecord ?? {}),
+        brand: updatedRecord?.brand ?? productToUpdate.brand ?? "",
+        image: updatedRecord?.image ?? productToUpdate.image ?? "",
+        images: updatedRecord?.images ?? productToUpdate.images ?? [],
+        category_id: updatedRecord?.category_id ?? productToUpdate.categoryId ?? null,
+        subcategory: updatedRecord?.subcategory ?? productToUpdate.subcategory ?? "",
+        sku: updatedRecord?.sku ?? productToUpdate.sku,
+        description: updatedRecord?.description ?? productToUpdate.description ?? "",
+        stock: updatedRecord?.stock ?? productToUpdate.stock ?? 0,
+        price: updatedRecord?.price ?? productToUpdate.price ?? 0,
+        original_price: updatedRecord?.original_price ?? productToUpdate.originalPrice ?? null,
+      } as ProductRecord);
+      setProducts((prev) => prev.map((product) => product.id === productId ? updatedAppProduct : product));
       toast.success("Producto actualizado correctamente.");
       try { recordAction('update_product', { id: updatedAppProduct.id, name: updatedAppProduct.name }); } catch (e) { }
       return;
@@ -4193,7 +4874,7 @@ export default function App() {
   const deleteProduct = async (productId: string) => {
     try {
       await deleteProductWithFallback(productId);
-      refreshProducts();
+      setProducts((prev) => prev.filter((product) => product.id !== productId));
       toast.success("Producto eliminado correctamente.");
       try { recordAction('delete_product', { id: productId }); } catch (e) { }
       return;
@@ -4226,10 +4907,18 @@ export default function App() {
         const url = new URL(window.location.href);
         if (v === "admin") {
           url.searchParams.set("view", "admin");
+          url.searchParams.delete("adminSection");
         } else {
           url.searchParams.delete("view");
           url.searchParams.delete("adminSection");
         }
+
+        if (v === "reset-password") {
+          url.pathname = "/reset-password";
+        } else if (url.pathname === "/reset-password") {
+          url.pathname = "/";
+        }
+
         window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
       }
 
@@ -4341,6 +5030,7 @@ export default function App() {
       )}
       {view === "login" && <LoginPage isRegister={false} onNavigate={navigate} onLogin={handleAuthSuccess} />}
       {view === "register" && <LoginPage isRegister={true} onNavigate={navigate} onLogin={handleAuthSuccess} />}
+      {view === "reset-password" && <ResetPasswordCallbackPage onNavigate={navigate} />}
       {view === "account" && (
         <AccountPage
           onNavigate={navigate}

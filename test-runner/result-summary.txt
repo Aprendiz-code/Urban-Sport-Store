@@ -1,0 +1,6 @@
+Health: 200 OK
+Products: 500 fetch failed (dummy SUPABASE_URL)
+Newsletter POST: handler invoked (status unknown without valid supabase)
+Admin products GET: admin operations unavailable (missing SUPABASE_SERVICE_ROLE_KEY)
+
+Notes: No migrations changed. Did not run any supabase CLI commands. To resolve migration drift for 20260725, run `supabase migration fetch` locally and paste the fetched file for comparison before any repair.

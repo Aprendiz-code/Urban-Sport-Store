@@ -2,19 +2,22 @@ import { getSupabaseClient } from './supabase-client';
 
 export interface ProductRecord {
   id: string;
+  slug?: string | null;
   name: string;
   brand: string;
   price: number;
+  compare_at_price?: number | null;
   original_price?: number | null;
   discount?: number | null;
   rating?: number | null;
   reviews?: number | null;
   image: string;
-  category: string;
+  category_id?: string | null;
   subcategory?: string | null;
   stock?: number | null;
   sku?: string | null;
   description?: string | null;
+  is_active?: boolean | null;
   colors?: Array<{ name: string; hex: string }> | null;
   sizes?: string[] | null;
   images?: string[] | null;
@@ -24,7 +27,7 @@ export interface ProductRecord {
   specs?: string[] | null;
 }
 
-export const STORAGE_BUCKET = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET ?? 'product-images';
+export const STORAGE_BUCKET = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET ?? 'products';
 const SUPPORTED_IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp'];
 
 const getFileExtension = (file: File) => {

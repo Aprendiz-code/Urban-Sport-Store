@@ -1,79 +1,7 @@
 import type { RealtimeSubscription, User } from '@supabase/supabase-js';
-import { getSupabaseClient, isSupabaseEnabled } from './supabase-client';
-
-const LOCAL_USER_KEY = 'urbansport_local_user';
-const LOCAL_TOKEN = 'local-admin-token';
-
-const adminEmail = (import.meta.env.VITE_ADMIN_EMAIL ?? 'urbansportstore@outlook.com').toLowerCase();
-const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD ?? 'kP9#vF2$mX7!tQ5*';
-const adminMetadata = { full_name: 'Administrador', role: 'ADMIN', isAdmin: true };
-
-const getUserMetadata = (email: string, name?: string) => {
-  const isAdmin = email.toLowerCase() === adminEmail;
-  return {
-    full_name: name ?? (isAdmin ? 'Administrador' : email),
-    role: isAdmin ? 'ADMIN' : 'CUSTOMER',
-    isAdmin: isAdmin,
-  };
-};
-
-const isAdminCredentials = (email: string, password: string) => {
-  const isAdmin = email.toLowerCase() === adminEmail && password === adminPassword;
-  // Debug log to help troubleshoot
-  if (!isAdmin && email.toLowerCase().includes('urban')) {
-    console.debug('[Admin Auth Debug]', {
-      inputEmail: email.toLowerCase(),
-      expectedEmail: adminEmail,
-      emailMatch: email.toLowerCase() === adminEmail,
-      inputPassword: `${password.substring(0, 3)}...${password.substring(password.length - 3)}`,
-      expectedPassword: `${adminPassword.substring(0, 3)}...${adminPassword.substring(password.length - 3)}`,
-      passwordMatch: password === adminPassword,
-      passwordLength: { input: password.length, expected: adminPassword.length }
-    });
-  }
-  return isAdmin;
-};
-
-const getLocalUser = (): User | null => {
-  if (typeof window === 'undefined') return null;
-  try {
-    const raw = window.localStorage.getItem(LOCAL_USER_KEY);
-    return raw ? JSON.parse(raw) as User : null;
-  } catch {
-    return null;
-  }
-};
-
-const setLocalUser = (user: User | null) => {
-  if (typeof window === 'undefined') return;
-  if (!user) {
-    window.localStorage.removeItem(LOCAL_USER_KEY);
-  } else {
-    window.localStorage.setItem(LOCAL_USER_KEY, JSON.stringify(user));
-  }
-};
+import { getSupabaseClient } from './supabase-client';
 
 export const signInWithEmail = async (email: string, password: string) => {
-  if (!isSupabaseEnabled()) {
-    if (isAdminCredentials(email, password)) {
-      const user = {
-        id: 'local-admin',
-        email,
-        user_metadata: adminMetadata,
-      } as unknown as User;
-      setLocalUser(user);
-      return { data: { user }, error: null };
-    }
-
-    const user = {
-      id: `local-${Date.now()}`,
-      email,
-      user_metadata: { full_name: email, role: 'CUSTOMER' },
-    } as unknown as User;
-    setLocalUser(user);
-    return { data: { user }, error: null };
-  }
-
   const client = getSupabaseClient();
   const result = await client.auth.signInWithPassword({ email, password });
 
@@ -84,85 +12,67 @@ export const signInWithEmail = async (email: string, password: string) => {
     return result;
   }
 
-  if (result.data.user) {
-    setLocalUser(result.data.user);
-  }
-
   return result;
 };
 
 export const signUpWithEmail = async (email: string, password: string, options?: { name?: string }) => {
-  if (!isSupabaseEnabled()) {
-    const user = {
-      id: `local-${Date.now()}`,
-      email,
-      user_metadata: getUserMetadata(email, options?.name),
-    } as unknown as User;
-    setLocalUser(user);
-    return { data: { user }, error: null, needsConfirmation: false };
-  }
-
   const client = getSupabaseClient();
   const redirectUrl = typeof window !== 'undefined' ? window.location.origin : undefined;
-  const result = await client.auth.signUp({
-    email,
-    password,
-    options: {
-      data: { full_name: options?.name ?? '' },
-      emailRedirectTo: redirectUrl,
-    },
-  });
+  // Try direct client signup first (normal flow)
+  try {
+    const result = await client.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { full_name: options?.name ?? '' },
+        emailRedirectTo: redirectUrl,
+      },
+    });
 
-  if (!result.error && result.data.user && !result.data.session) {
-    const { error: signInError } = await client.auth.signInWithPassword({ email, password });
-    if (!signInError) {
-      const refreshedUser = await client.auth.getUser();
-      if (refreshedUser.data.user) {
-        setLocalUser(refreshedUser.data.user);
+    // If signup succeeded or returned a composed result, return it
+    if (!result.error) return result;
+
+    // If Supabase rejects client-side signup due to project settings (anonymous/provider restrictions)
+    const msg = String(result.error?.message ?? result.error?.toString() ?? '');
+    if (msg.toLowerCase().includes('anonymous') || msg.toLowerCase().includes('disabled') || msg.toLowerCase().includes('not allowed')) {
+      // Try server-side register endpoint which can use the service role key
+      try {
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password, name: options?.name ?? '' }),
+        });
+        const json = await res.json().catch(() => null);
+        if (!res.ok) {
+          return { data: { user: null }, error: new Error(json?.message || json?.error || msg || 'Signup failed') };
+        }
+        return { data: { user: json?.user ?? null }, error: null, needsConfirmation: json?.needsConfirmation ?? false } as any;
+      } catch (err: any) {
+        return { data: { user: null }, error: err } as any;
       }
-      return { ...result, data: { ...result.data, user: refreshedUser.data.user ?? result.data.user }, needsConfirmation: false };
     }
-  }
 
-  if (!result.error && result.data.user) {
-    setLocalUser(result.data.user);
-    return { ...result, data: { ...result.data, user: result.data.user }, needsConfirmation: !result.data.session };
+    return result;
+  } catch (err: any) {
+    // network or unexpected error - surface it
+    return { data: { user: null }, error: err } as any;
   }
-
-  return result;
 };
 
 export const signOut = async () => {
-  if (!isSupabaseEnabled()) {
-    setLocalUser(null);
-    return { error: null, data: null };
-  }
-
   const client = getSupabaseClient();
   return client.auth.signOut();
 };
 
 export const getCurrentUser = async () => {
-  if (!isSupabaseEnabled()) {
-    return getLocalUser();
-  }
-
   const client = getSupabaseClient();
   const { data: { user } } = await client.auth.getUser();
   return user;
 };
 
 export const getAccessToken = async () => {
-  if (!isSupabaseEnabled()) {
-    return LOCAL_TOKEN;
-  }
-
   const client = getSupabaseClient();
   const { data } = await client.auth.getSession();
-  // session may be null
-  // access_token is required for backend auth bridging
-  // return null when not available
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const session = (data as any)?.session ?? null;
   console.debug('[supabase-auth] getAccessToken', {
     hasSession: Boolean(session),
@@ -173,10 +83,6 @@ export const getAccessToken = async () => {
 };
 
 export const onAuthStateChange = (callback: (event: string, session: { user: User | null } | null) => void) => {
-  if (!isSupabaseEnabled()) {
-    return { unsubscribe: () => { /* no-op */ } } as RealtimeSubscription;
-  }
-
   const client = getSupabaseClient();
   const { data } = client.auth.onAuthStateChange((event, session) => {
     callback(event, session);
@@ -186,11 +92,45 @@ export const onAuthStateChange = (callback: (event: string, session: { user: Use
 
 export const isAdminUser = (user: User | null) => {
   if (!user) return false;
-  const metadata = (user as any).user_metadata as Record<string, any> | undefined;
-  return (
-    user.email?.toLowerCase() === adminEmail ||
-    metadata?.role === 'ADMIN' ||
-    metadata?.is_admin === true ||
-    metadata?.isAdmin === true
-  );
+  const appMetadata = (user as any).app_metadata as Record<string, any> | undefined;
+  const userMetadata = (user as any).user_metadata as Record<string, any> | undefined;
+  const metadata = { ...(appMetadata || {}), ...(userMetadata || {}) };
+  return metadata?.role === 'ADMIN' || metadata?.is_admin === true || metadata?.isAdmin === true;
+};
+
+export const requestPasswordRecovery = async (email: string) => {
+  const client = getSupabaseClient();
+  const redirectUrl = typeof window !== 'undefined'
+    ? new URL('/reset-password', window.location.origin).toString()
+    : undefined;
+
+  if (!redirectUrl) {
+    return { error: new Error('No se pudo determinar la URL de redirección para recuperación de contraseña.') } as any;
+  }
+
+  try {
+    // Prefer client helper if available
+    // @ts-ignore
+    if (typeof client.auth.resetPasswordForEmail === 'function') {
+      // @ts-ignore
+      return await client.auth.resetPasswordForEmail(email, { redirectTo: redirectUrl });
+    }
+
+    const url = (import.meta.env.VITE_SUPABASE_URL ?? '') + '/auth/v1/recover';
+    const key = import.meta.env.VITE_SUPABASE_ANON_KEY ?? '';
+    if (!key) {
+      return { error: new Error('Falta VITE_SUPABASE_ANON_KEY para recuperación de contraseña.') } as any;
+    }
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: key },
+      body: JSON.stringify({ email, redirect_to: redirectUrl }),
+    });
+    const json = await res.json().catch(() => null);
+    if (!res.ok) return { error: new Error(json?.error || json?.message || 'Recovery request failed') } as any;
+    return { data: json, error: null } as any;
+  } catch (err: any) {
+    return { error: err } as any;
+  }
 };

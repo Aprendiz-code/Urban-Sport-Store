@@ -3,6 +3,13 @@
 # These folders contain legacy Express app artifacts and compiled bundles that
 # would conflict with the intended Vercel serverless functions in `api/*.ts`.
 
+# Exclude local env and temporary validation artifacts from deployment
+.env*.local
+.vercel-backend-*.env
+.tmp-*.mjs
+supabase_token_response.json
+test-results/**
+
 # Exclude legacy compiled API artifacts
 api/dist/**
 

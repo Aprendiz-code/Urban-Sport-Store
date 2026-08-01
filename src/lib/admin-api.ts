@@ -5,6 +5,7 @@ const normalizeApiRoot = (url?: string) => {
   const trimmed = url?.trim().replace(/\/$/, '');
   if (!trimmed) return '/api';
   if (trimmed.endsWith('/api')) return trimmed;
+  if (trimmed.endsWith('/api/v1')) return trimmed.replace(/\/v1$/, '');
   return `${trimmed}/api`;
 };
 
@@ -16,9 +17,12 @@ async function callApi(path: string, opts: RequestInit = {}) {
   console.debug('[admin-api] callApi', {
     path,
     apiRoot: API_ROOT,
+    method: opts.method || 'GET',
     supabaseTokenExists: Boolean(supabaseToken),
     supabaseTokenLength: supabaseToken?.length,
     supabaseTokenLooksLikeJwt: typeof supabaseToken === 'string' && supabaseToken.split('.').length === 3,
+    bodyLength: typeof opts.body === 'string' ? opts.body.length : undefined,
+    bodyPreview: typeof opts.body === 'string' ? opts.body.slice(0, 1024) : undefined,
   });
 
   const makeRequest = async (url: string, bearer?: string) => {
@@ -83,32 +87,39 @@ export async function deleteProductApi(productId: string) {
   return callApi(`/products/${productId}`, { method: 'DELETE' });
 }
 
-export async function fetchSupabaseProducts() {
-  return callApi('/supabase-products', { method: 'GET' });
+export async function fetchCategories() {
+  return callApi('/categories', { method: 'GET' });
 }
 
-export async function createSupabaseProductApi(payload: Partial<Product>) {
-  return callApi('/supabase-products', { method: 'POST', body: JSON.stringify(payload) });
+export async function createCategoryApi(payload: Record<string, unknown>) {
+  return callApi('/categories', { method: 'POST', body: JSON.stringify(payload) });
 }
 
-export async function updateSupabaseProductApi(productId: string, payload: Partial<Product>) {
-  return callApi(`/supabase-products/${productId}`, { method: 'PATCH', body: JSON.stringify(payload) });
+export async function updateCategoryApi(categoryId: string, payload: Record<string, unknown>) {
+  return callApi(`/categories/${categoryId}`, { method: 'PATCH', body: JSON.stringify(payload) });
 }
 
-export async function deleteSupabaseProductApi(productId: string) {
-  return callApi(`/supabase-products/${productId}`, { method: 'DELETE' });
+export async function deleteCategoryApi(categoryId: string) {
+  return callApi(`/categories/${categoryId}`, { method: 'DELETE' });
 }
 
 export async function updateHomeContentApi(payload: Record<string, unknown>) {
   return callApi('/home-content', { method: 'PATCH', body: JSON.stringify(payload) });
 }
 
-export async function createInventoryMovement(productId: string, delta: number, reason?: string) {
-  return callApi('/inventory/movements', { method: 'POST', body: JSON.stringify({ productId, delta, reason }) });
-}
-
 export async function fetchAuditLogs(limit = 200) {
   return callApi(`/audit?limit=${limit}`, { method: 'GET' });
 }
 
-export default { fetchProducts, createProductApi, fetchSupabaseProducts, createSupabaseProductApi, updateSupabaseProductApi, deleteSupabaseProductApi, updateProductApi, deleteProductApi, updateHomeContentApi, createInventoryMovement, fetchAuditLogs };
+export default {
+  fetchProducts,
+  createProductApi,
+  updateProductApi,
+  deleteProductApi,
+  fetchCategories,
+  createCategoryApi,
+  updateCategoryApi,
+  deleteCategoryApi,
+  updateHomeContentApi,
+  fetchAuditLogs,
+};
