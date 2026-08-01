@@ -46,6 +46,9 @@ api/pgdata/
 
 # Local Supabase CLI state
 supabase/
+!supabase/migrations/
+!supabase/migrations/*.sql
+!supabase/migrations/**/*.sql
 
 # Vercel local state
 .vercel
