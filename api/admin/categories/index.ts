@@ -20,6 +20,21 @@ function parseJsonBody(req: any): Promise<any> {
   });
 }
 
+function normalizeCategory(record: any) {
+  if (!record) return null;
+  return {
+    id: record.id,
+    name: record.name,
+    slug: record.slug,
+    description: record.description ?? null,
+    image: record.image ?? null,
+    sortOrder: record.sort_order ?? null,
+    isActive: record.is_active ?? null,
+    createdAt: record.created_at,
+    updatedAt: record.updated_at,
+  };
+}
+
 function buildCategoryPayload(body: any) {
   const payload: any = {};
 
@@ -27,12 +42,20 @@ function buildCategoryPayload(body: any) {
   if (typeof body.slug === 'string') payload.slug = body.slug.trim();
   if (typeof body.description === 'string') payload.description = body.description.trim();
   if (typeof body.image === 'string') payload.image = body.image.trim();
+
   if (typeof body.sort_order === 'number') payload.sort_order = body.sort_order;
   if (typeof body.sort_order === 'string' && body.sort_order.trim() !== '') {
     const parsed = Number(body.sort_order);
     if (!Number.isNaN(parsed)) payload.sort_order = parsed;
   }
+  if (typeof body.sortOrder === 'number') payload.sort_order = body.sortOrder;
+  if (typeof body.sortOrder === 'string' && body.sortOrder.trim() !== '') {
+    const parsed = Number(body.sortOrder);
+    if (!Number.isNaN(parsed)) payload.sort_order = parsed;
+  }
+
   if (typeof body.is_active === 'boolean') payload.is_active = body.is_active;
+  if (typeof body.isActive === 'boolean') payload.is_active = body.isActive;
 
   return payload;
 }
@@ -47,7 +70,7 @@ export default async function handler(req: any, res: any) {
       if (error) {
         return jsonError(res, 500, error.message || 'Unable to fetch categories.');
       }
-      return jsonResponse(res, { data });
+      return jsonResponse(res, { data: Array.isArray(data) ? data.map(normalizeCategory) : [] });
     }
 
     if (req.method === 'POST') {
@@ -73,7 +96,7 @@ export default async function handler(req: any, res: any) {
         after_data: data,
       });
 
-      return jsonResponse(res, { data }, 201);
+      return jsonResponse(res, { data: normalizeCategory(data) }, 201);
     }
 
     return jsonError(res, 405, 'Method not allowed.');

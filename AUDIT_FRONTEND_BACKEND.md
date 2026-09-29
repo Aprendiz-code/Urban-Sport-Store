@@ -9,8 +9,8 @@
 ## ✅ Validaciones Completadas
 
 ### 1. Endpoints Admin Verificados
-- **Ruta**: `GET /api/v1/admin/supabase-products` ✅ Existe
-- **Ruta**: `GET /api/v1/admin/audit` ✅ Existe (corregida - ahora usa import directo)
+- **Ruta**: `GET /api/admin/products` ✅ Existe
+- **Ruta**: `GET /api/admin/audit` ✅ Existe (corregida - ahora usa import directo)
 - **Autenticación**: Ambos requieren `requireAuth` + `requireRole('ADMIN')` ✅
 - **Respuestas**: JSON estructurado con `{ ok: boolean, data: {...}, error?: {...} }` ✅
 
@@ -74,9 +74,9 @@
 
 | Endpoint | Ruta | Autenticación | Respuesta | Estado |
 |----------|------|---------------|-----------|--------|
-| Bridge | `POST /api/v1/auth/bridge` | Supabase Token | Backend JWT | ⏳ Bloqueado (DB) |
-| Admin - Productos | `GET /api/v1/admin/supabase-products` | Backend JWT | Array<Product> | ⏳ Bloqueado (Auth) |
-| Admin - Audit | `GET /api/v1/admin/audit` | Backend JWT | Array<AuditLog> | ⏳ Bloqueado (Auth) |
+| Bridge | `POST /api/auth/bridge` | Supabase Token | Backend JWT | ⏳ Bloqueado (DB) |
+| Admin - Productos | `GET /api/admin/products` | Backend JWT | Array<Product> | ⏳ Bloqueado (Auth) |
+| Admin - Audit | `GET /api/admin/audit` | Backend JWT | Array<AuditLog> | ⏳ Bloqueado (Auth) |
 
 **Bloqueador**: Bridge devuelve 503 "DATABASE_UNAVAILABLE" porque DATABASE_URL no está en Vercel Production
 
@@ -184,7 +184,7 @@ npx vercel --prod --yes
 
 ### 3. Prueba Bridge Endpoint
 ```bash
-curl -X POST https://api-sigma-ruby.vercel.app/api/v1/auth/bridge \
+curl -X POST https://api-sigma-ruby.vercel.app/api/auth/bridge \
   -H "Authorization: Bearer {SUPABASE_TOKEN}" \
   -H "Content-Type: application/json"
 ```
@@ -192,7 +192,7 @@ curl -X POST https://api-sigma-ruby.vercel.app/api/v1/auth/bridge \
 
 ### 4. Prueba Admin Endpoints
 ```bash
-curl https://api-sigma-ruby.vercel.app/api/v1/admin/supabase-products \
+curl https://api-sigma-ruby.vercel.app/api/admin/products \
   -H "Authorization: Bearer {BACKEND_JWT}"
 ```
 **Esperado**: Status 200, array de productos
@@ -241,9 +241,9 @@ Image Storage (Supabase)      ⏳ Espera éxito de productos
 - `400 BAD_REQUEST`: Validación de entrada falló
 
 ### URLs Configuradas
-- **Frontend API Root**: `${import.meta.env.VITE_API_URL}/api/v1`
-- **Producción**: `https://api-sigma-ruby.vercel.app/api/v1`
-- **Local Dev**: `/api/v1` (relativa)
+- **Frontend API Root**: `${import.meta.env.VITE_API_URL}`
+- **Producción**: `https://api-sigma-ruby.vercel.app/api`
+- **Local Dev**: `/api` (relativa)
 - **Fallback**: Frontend intenta Supabase directo si admin API falla
 
 ---

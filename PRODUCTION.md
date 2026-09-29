@@ -18,31 +18,31 @@
 
 ## Database
 
-- [ ] Run `npm run db:migrate` to apply Prisma migrations
-- [ ] Run `npm run db:seed` to create initial roles and admin user
-- [ ] Backup database before production deployment
+- [ ] Apply the required Supabase migrations from `supabase/migrations/`
+- [ ] Run the relevant seed scripts under `supabase/` for the target environment
+- [ ] Backup the production database before deployment
 
 ## Frontend Environment
 
 - [ ] `VITE_SUPABASE_URL`: Set to production Supabase project
 - [ ] `VITE_SUPABASE_ANON_KEY`: Set to production anon key (safe to expose)
-- [ ] `VITE_ADMIN_EMAIL`: Optional, defaults to configured value
-- [ ] `VITE_ADMIN_PASSWORD`: Optional local admin fallback (not recommended for production)
+- [ ] `VITE_SUPABASE_STORAGE_BUCKET`: Match the production storage bucket name
+- [ ] `VITE_API_URL`: Point to the deployed Vercel API base (for example `/api` or the deployed domain + `/api`)
 
 ## Backend Environment
 
 - [ ] `SUPABASE_URL`: Set to production project
+- [ ] `SUPABASE_ANON_KEY`: Public anon key for frontend-facing access
 - [ ] `SUPABASE_SERVICE_ROLE_KEY`: ⚠️ SENSITIVE - Keep secure
-- [ ] `DATABASE_URL`: Production PostgreSQL connection
-- [ ] `JWT_SECRET`: Strong secret, different from development
 - [ ] `NODE_ENV=production`
+
+> Note: The current Vercel serverless runtime validates Supabase access tokens directly for admin requests. A separate `JWT_SECRET` is not required by the active `/api/admin/*` implementation.
 
 ## Production API Reference
 
 - Canonical active production API contract: `/api/*` and `/api/admin/*`
 - Runtime canónico actual: Vercel Functions en `api/*.ts` y `api/admin/*`
 - Nota: el directorio `api/src/*` existe en el repositorio como backend adicional/legacy, pero no es el runtime desplegado en producción hoy.
-- Canonical usable production API alias: `https://api-sigma-ruby.vercel.app`
 
 - Public endpoints validated (canonical `/api/*` paths):
   - `GET /api/health`
@@ -55,17 +55,15 @@
 
 ## Deployment Platform
 
-### Vercel / Netlify (Frontend)
+### Vercel (Frontend + Serverless API)
 ```bash
 npm run build  # Creates optimized dist/
 ```
 
-### Railway / Render (Backend)
-```bash
-npm install
-npm run db:migrate
-npm start  # Runs on PORT env variable
-```
+### Runtime actual
+- El frontend se despliega como app Vite en Vercel.
+- Los endpoints públicos y admin se despliegan como Vercel Functions desde `api/*.ts` y `api/admin/*`.
+- No se requiere un proceso separado de backend Express/Prisma para el runtime activo.
 
 ## Post-Deployment Testing
 

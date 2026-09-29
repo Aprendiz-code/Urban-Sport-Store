@@ -16,26 +16,18 @@ npm run dev
 # Opens at http://localhost:5173
 ```
 
-### Backend
+### Backend / API serverless
 
 ```bash
 cd api
-
-# Install dependencies
 npm install
 
-# Set up environment
+# Configure the serverless runtime environment
 cp .env.example .env.local
-# Edit .env.local with your database and Supabase credentials
+# Edit .env.local with your Supabase credentials
 
-# Set up database
-npm run db:migrate
-npm run db:seed
-
-# Start API server
-npm run dev
-# Runs at http://localhost:4000
-# API docs at http://localhost:4000/api/docs
+# The active runtime is Vercel Functions under /api and /api/admin
+# No separate Express/Prisma backend process is required for the current deployment
 ```
 
 ## Architecture
@@ -49,28 +41,28 @@ npm run dev
 
 **See**: [src/](src/) and [Frontend Guide](README.md)
 
-### Backend (Node.js + Express + Prisma)
-- REST API with JWT authentication
-- Product CRUD operations
-- Order management
-- Inventory tracking
-- Audit logging
-- Swagger API documentation
+### Backend (Vercel Functions + Supabase)
+- Public endpoints under `/api/*`
+- Admin endpoints under `/api/admin/*`
+- Supabase token validation for admin access
+- Product and category CRUD through serverless handlers
+- Home content and audit log support
+- Supabase Storage for product images
 
-**See**: [api/](api/) and [Backend Guide](api/README_BACKEND.md)
+**See**: [api/](api/) and [api/README.md](api/README.md)
 
 > Runtime note: the current production runtime is served from Vercel Functions in `api/*.ts` and `api/admin/*`.
-> The `api/src/*` Express backend source exists in the repository, but it is not the deployed production runtime today.
+> Legacy Express/Prisma artifacts remain in the repository as historical reference only and are not part of the deployed runtime today.
 > The active production API contract is `/api/*` and `/api/admin/*`.
 
-### Database (PostgreSQL + Prisma)
+### Database (Supabase Postgres)
 - Product catalog
 - User accounts and roles
-- Orders and payments
-- Inventory movements
-- Audit trail
+- Storage buckets and public URLs
+- Audit trail in Supabase tables
+- RLS policies enforced by Supabase
 
-**Schema**: [api/prisma/schema.prisma](api/prisma/schema.prisma)
+**Schema**: [supabase/migrations](supabase/migrations)
 
 ### SQL Source of Truth
 - **Fuente activa:** `supabase/migrations/` es la fuente de verdad SQL.
@@ -140,24 +132,24 @@ npm run dev
 ### Frontend (.env.local)
 
 ```env
-VITE_SUPABASE_URL=https://project.supabase.co
+VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
 VITE_SUPABASE_STORAGE_BUCKET=product-images
-VITE_ADMIN_EMAIL=admin@urbansportstore.dev
-VITE_ADMIN_PASSWORD=your-password
+VITE_API_URL=http://localhost:3000/api
 ```
 
 ### Backend (api/.env.local)
 
 ```env
-DATABASE_URL=postgresql://user:password@localhost/urbansportstore
-SUPABASE_URL=https://project.supabase.co
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-JWT_SECRET=your-jwt-secret
-CORS_ORIGINS=http://localhost:5173
+NODE_ENV=development
 ```
 
 **See**: [api/.env.example](api/.env.example)
+
+> Legacy values such as `DATABASE_URL`, `JWT_SECRET` and `CORS_ORIGINS` are not part of the current serverless runtime and should be removed from local setups unless a legacy path is explicitly being exercised.
 
 ## Documentation
 
@@ -181,11 +173,9 @@ npm run e2e        # Playwright tests
 
 **Backend**:
 ```bash
-npm run dev           # Start dev server
+npm run dev           # Start local TypeScript build/watch
 npm run build         # TypeScript compilation
 npm test              # Run tests (vitest)
-npm run db:migrate    # Apply migrations
-npm run db:seed       # Seed database
 npm run lint          # ESLint
 ```
 
@@ -198,24 +188,17 @@ npm run lint          # ESLint
 │   │   ├── App.tsx
 │   │   └── components/
 │   ├── lib/
-│   │   ├── supabase-client.ts
 │   │   ├── supabase-auth.ts
 │   │   ├── supabase-store.ts
 │   │   └── admin-api.ts
 │   └── styles/
-├── api/                    # Backend source
-│   ├── src/
-│   │   ├── app.ts
-│   │   ├── server.ts
-│   │   ├── routes/
-│   │   ├── controllers/
-│   │   ├── services/
-│   │   ├── middlewares/
-│   │   └── config/
-│   ├── prisma/
-│   │   ├── schema.prisma
-│   │   └── migrations/
-│   └── package.json
+├── api/                    # Serverless runtime source
+│   ├── products.ts
+│   ├── categories.ts
+│   ├── home.ts
+│   ├── newsletter.ts
+│   └── admin/
+├── supabase/               # SQL migrations and seeds
 ├── docs/                   # Documentation
 ├── e2e/                    # End-to-end tests
 └── package.json
@@ -226,8 +209,8 @@ npm run lint          # ESLint
 See [PRODUCTION.md](PRODUCTION.md) for:
 - Security hardening checklist
 - Environment variables setup
-- Database migration strategy
-- Deployment to Vercel / Railway
+- Supabase migration strategy
+- Deployment to Vercel with the current serverless API contract
 - Monitoring and rollback procedures
 
 ## Troubleshooting
@@ -243,9 +226,9 @@ See [PRODUCTION.md](PRODUCTION.md) for:
 - Ensure RLS policies are applied
 
 ### Database connection errors
-- Verify `DATABASE_URL` format: `postgresql://user:password@host:port/database`
-- Check PostgreSQL service is running
-- Run migrations: `npm run db:migrate`
+- Verify the Supabase project URL and anon/service-role keys in the active environment
+- Check that the required Supabase migrations have been applied to the target project
+- Confirm that the relevant tables and RLS policies exist before calling the admin endpoints
 
 ## Contributing
 
@@ -262,5 +245,5 @@ MIT - See LICENSE file for details
 
 - [GitHub Issues](https://github.com/Aprendiz-code/Urban-Sport-Store/issues)
 - [Supabase Documentation](https://supabase.com/docs)
-- [Prisma Documentation](https://www.prisma.io/docs)
+- [Supabase Documentation](https://supabase.com/docs)
   

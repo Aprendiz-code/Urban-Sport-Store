@@ -1,0 +1,10 @@
+NotFound: FileSystem.readFile (C:\Users\crist\.supabase\profile)
+Using access token for profile: supabase
+Supabase CLI 2.109.1
+Using profile: supabase (supabase.co)
+Using access token for profile: supabase
+Initialising login role...
+2026/07/27 19:46:59 HTTP POST: https://api.supabase.com/v1/projects/geapxdyyfmygqrqfnier/cli/login-role
+Connecting to remote database...
+Skipping migration README.md... (file name must match pattern "<timestamp>_name.sql")
+{"migrations":[{"local":"0001","remote":"0001","time":"0001"},{"local":"202607230002","remote":"202607230002","time":"202607230002"},{"local":"20260723171916","remote":"20260723171916","time":"2026-07-23 17:19:16"},{"local":"20260724","remote":"20260724","time":"20260724"},{"local":"","remote":"20260725","time":"20260725"},{"local":"202607250001","remote":"202607250001","time":"202607250001"},{"local":"20260725","remote":"","time":"20260725"},{"local":"20260727123000","remote":"","time":"2026-07-27 12:30:00"}],"message":"Migrations listed"}

@@ -20,6 +20,21 @@ function parseJsonBody(req: any): Promise<any> {
   });
 }
 
+function normalizeCategory(record: any) {
+  if (!record) return null;
+  return {
+    id: record.id,
+    name: record.name,
+    slug: record.slug,
+    description: record.description ?? null,
+    image: record.image ?? null,
+    sortOrder: record.sort_order ?? null,
+    isActive: record.is_active ?? null,
+    createdAt: record.created_at,
+    updatedAt: record.updated_at,
+  };
+}
+
 function buildCategoryUpdates(body: any) {
   const updates: any = {};
 
@@ -27,12 +42,20 @@ function buildCategoryUpdates(body: any) {
   if (typeof body.slug === 'string') updates.slug = body.slug.trim();
   if (typeof body.description === 'string') updates.description = body.description.trim();
   if (typeof body.image === 'string') updates.image = body.image.trim();
+
   if (typeof body.sort_order === 'number') updates.sort_order = body.sort_order;
   if (typeof body.sort_order === 'string' && body.sort_order.trim() !== '') {
     const parsed = Number(body.sort_order);
     if (!Number.isNaN(parsed)) updates.sort_order = parsed;
   }
+  if (typeof body.sortOrder === 'number') updates.sort_order = body.sortOrder;
+  if (typeof body.sortOrder === 'string' && body.sortOrder.trim() !== '') {
+    const parsed = Number(body.sortOrder);
+    if (!Number.isNaN(parsed)) updates.sort_order = parsed;
+  }
+
   if (typeof body.is_active === 'boolean') updates.is_active = body.is_active;
+  if (typeof body.isActive === 'boolean') updates.is_active = body.isActive;
 
   return updates;
 }
@@ -67,7 +90,7 @@ export default async function handler(req: any, res: any) {
         return jsonError(res, 404, 'Category not found.');
       }
 
-      return jsonResponse(res, { data });
+      return jsonResponse(res, { data: normalizeCategory(data) });
     }
 
     if (req.method === 'PATCH') {
@@ -105,7 +128,7 @@ export default async function handler(req: any, res: any) {
         after_data: data,
       });
 
-      return jsonResponse(res, { data });
+      return jsonResponse(res, { data: normalizeCategory(data) });
     }
 
     if (req.method === 'DELETE') {

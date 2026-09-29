@@ -1,5 +1,5 @@
 import { jsonResponse, jsonError } from '../lib/api-helpers/response.js';
-import { supabasePublic } from '../lib/api-helpers/supabase.js';
+import { supabaseAdmin, supabasePublic } from '../lib/api-helpers/supabase.js';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'GET') {
@@ -7,7 +7,8 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    const { data, error } = await supabasePublic
+    const db = supabaseAdmin ?? supabasePublic;
+    const { data, error } = await db
       .from('home_content')
       .select('*')
       .eq('key', 'homepage')

@@ -1,5 +1,5 @@
 import { jsonResponse, jsonError } from '../lib/api-helpers/response.js';
-import { supabasePublic } from '../lib/api-helpers/supabase.js';
+import { supabaseAdmin, supabasePublic } from '../lib/api-helpers/supabase.js';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'GET') {
@@ -7,11 +7,12 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
+    const db = supabaseAdmin ?? supabasePublic;
     const url = new URL(req.url ?? '', 'http://localhost');
     const id = url.searchParams.get('id');
     const slug = url.searchParams.get('slug');
 
-    let query = supabasePublic.from('products').select('*').eq('is_active', true).order('created_at', { ascending: false });
+    let query = db.from('products').select('*').eq('is_active', true).order('created_at', { ascending: false });
 
     if (id) {
       query = query.eq('id', id);

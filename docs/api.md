@@ -1,6 +1,6 @@
 # API Guide
 
-Base URL: /api/v1
+Base URL: /api
 
 ## Authentication
 - POST /auth/register

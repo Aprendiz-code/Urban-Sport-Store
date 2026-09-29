@@ -2,7 +2,7 @@ import { jsonError, jsonResponse, ApiError } from '../../../lib/api-helpers/resp
 import { supabaseAdmin } from '../../../lib/api-helpers/supabase.js';
 import { requireAdmin } from '../../../lib/api-helpers/admin.js';
 import { validateSupabaseToken } from '../../../lib/api-helpers/auth.js';
-import { normalizeProductPayload } from '../../../lib/api-helpers/product-helpers.js';
+import { normalizeProductPayload, normalizeProduct, normalizeProducts } from '../../../lib/api-helpers/product-helpers.js';
 
 function parseJsonBody(req: any): Promise<any> {
   return new Promise((resolve, reject) => {
@@ -31,7 +31,7 @@ export default async function handler(req: any, res: any) {
       if (error) {
         return jsonError(res, 500, error.message || 'Unable to fetch products.');
       }
-      return jsonResponse(res, { data });
+      return jsonResponse(res, { data: normalizeProducts(data) });
     }
 
     if (req.method === 'POST') {
@@ -57,7 +57,7 @@ export default async function handler(req: any, res: any) {
         after_data: data,
       });
 
-      return jsonResponse(res, { data }, 201);
+      return jsonResponse(res, { data: normalizeProduct(data) }, 201);
     }
 
     return jsonError(res, 405, 'Method not allowed.');

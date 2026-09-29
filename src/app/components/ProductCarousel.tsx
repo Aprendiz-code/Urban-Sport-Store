@@ -20,7 +20,7 @@ export default function ProductCarousel({
 }: ProductCarouselProps) {
   const ref = useRef<HTMLDivElement | null>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(true);
+  const [canScrollRight, setCanScrollRight] = useState(false);
   const autoScrollInterval = useRef<NodeJS.Timeout | null>(null);
   const isDragging = useRef(false);
   const startX = useRef(0);
@@ -29,8 +29,8 @@ export default function ProductCarousel({
   const checkScroll = () => {
     if (!ref.current) return;
     const { scrollLeft: sl, scrollWidth: sw, clientWidth: cw } = ref.current;
-    setCanScrollLeft(sl > 0);
-    setCanScrollRight(sl + cw < sw - 10);
+    setCanScrollLeft(sl > 1);
+    setCanScrollRight(sl + cw < sw - 1);
   };
 
   const scroll = (direction: "left" | "right") => {
@@ -80,14 +80,7 @@ export default function ProductCarousel({
     checkScroll();
     window.addEventListener("resize", checkScroll);
     return () => window.removeEventListener("resize", checkScroll);
-  }, []);
-
-  useEffect(() => {
-    const carousel = ref.current;
-    if (!carousel) return;
-    carousel.addEventListener("scroll", checkScroll);
-    return () => carousel.removeEventListener("scroll", checkScroll);
-  }, []);
+  }, [children]);
 
   const gapClass = {
     sm: "gap-2",
@@ -100,12 +93,12 @@ export default function ProductCarousel({
       {/* Carousel */}
       <div
         ref={ref}
-        className={`flex overflow-x-auto scroll-smooth snap-x snap-mandatory ${gapClass} pb-2`}
+        className={`flex overflow-x-auto scrollbar-hide scroll-smooth snap-x snap-mandatory ${gapClass} pb-2`}
         style={{
           scrollBehavior: "smooth",
           WebkitOverflowScrolling: "touch",
-          scrollbarWidth: "none",
         }}
+        onScroll={checkScroll}
         onMouseDown={(e) => {
           isDragging.current = true;
           startX.current = e.pageX - (ref.current?.offsetLeft || 0);
@@ -127,37 +120,34 @@ export default function ProductCarousel({
           checkScroll();
         }}
       >
-        <style>{`
-          div::-webkit-scrollbar { display: none; }
-        `}</style>
         {children}
       </div>
 
       {/* Controls */}
       {showControls && (
-        <>
-          {/* Left button */}
+        <div className="mt-3 flex justify-end gap-2">
           {canScrollLeft && (
             <button
+              type="button"
               onClick={() => scroll("left")}
-              className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-12 md:-translate-x-16 z-10 p-2 rounded-full bg-white shadow-lg border border-slate-200 text-slate-700 hover:bg-slate-50 transition-all opacity-0 group-hover:opacity-100"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-md border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
               aria-label="Desplazar izquierda"
             >
               <ChevronLeft size={20} />
             </button>
           )}
 
-          {/* Right button */}
           {canScrollRight && (
             <button
+              type="button"
               onClick={() => scroll("right")}
-              className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-12 md:translate-x-16 z-10 p-2 rounded-full bg-white shadow-lg border border-slate-200 text-slate-700 hover:bg-slate-50 transition-all opacity-0 group-hover:opacity-100"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-md border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
               aria-label="Desplazar derecha"
             >
               <ChevronRight size={20} />
             </button>
           )}
-        </>
+        </div>
       )}
     </div>
   );

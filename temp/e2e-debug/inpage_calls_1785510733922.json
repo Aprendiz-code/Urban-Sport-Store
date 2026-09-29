@@ -1,0 +1,27 @@
+[
+  {
+    "type": "fetch",
+    "args": [
+      "http://127.0.0.1:3000/api/admin/products",
+      {
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer eyJhbGciOiJFUzI1NiIsImtpZCI6ImYyNmE4M2YxLWMzMTYtNGRmMC1iODViLTVhYjE4NjAxYzc5MyIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2dlYXB4ZHl5Zm15Z3FycWZuaWVyLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiJhYWZhMDg1Zi1mOThiLTQ1ODgtYmQ0My1mMjM1NTIzMmRmZDIiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzg1NTE0MzI1LCJpYXQiOjE3ODU1MTA3MjUsImVtYWlsIjoidXJiYW5zcG9ydHN0b3JlQG91dGxvb2suY29tIiwicGhvbmUiOiIiLCJhcHBfbWV0YWRhdGEiOnsiaXNBZG1pbiI6dHJ1ZSwicHJvdmlkZXIiOiJlbWFpbCIsInByb3ZpZGVycyI6WyJlbWFpbCJdLCJyb2xlIjoiQURNSU4ifSwidXNlcl9tZXRhZGF0YSI6eyJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiaXNBZG1pbiI6dHJ1ZSwicm9sZSI6IkFETUlOIn0sInJvbGUiOiJhdXRoZW50aWNhdGVkIiwiYWFsIjoiYWFsMSIsImFtciI6W3sibWV0aG9kIjoicGFzc3dvcmQiLCJ0aW1lc3RhbXAiOjE3ODU1MTA3MjV9XSwic2Vzc2lvbl9pZCI6ImU5MmU0MjA2LTlkM2UtNDQ3My1hMWRjLTA2Y2ZiYjYwNDkyOCIsImlzX2Fub255bW91cyI6ZmFsc2V9.VneDX4NkuF78ZgUqq1Sks9CewZpdNRC7aPNpsQtk3tXpUCIO7_N8f8vKNKEE66CE33mg4PW3x0sPUX_DSHHIrw"
+        },
+        "method": "POST",
+        "body": "{\"slug\":\"e2e-product-1785510720472\",\"name\":\"E2E Product 1785510720472\",\"price\":19900,\"category_id\":\"11111111-1111-1111-1111-111111111111\",\"description\":\"\",\"sku\":\"E2E-SKU-1785510726740\",\"stock\":15,\"is_active\":true}"
+      }
+    ]
+  },
+  {
+    "type": "fetch",
+    "args": [
+      "https://geapxdyyfmygqrqfnier.supabase.co/rest/v1/products?columns=%22id%22%2C%22name%22%2C%22slug%22%2C%22price%22%2C%22category_id%22%2C%22stock%22%2C%22sku%22%2C%22description%22%2C%22is_active%22&select=*",
+      {
+        "method": "POST",
+        "headers": {},
+        "body": "[{\"id\":\"e5b73635-df3d-4337-a285-21a70484ed0d\",\"name\":\"E2E Product 1785510720472\",\"slug\":\"e2e-product-1785510720472\",\"price\":19900,\"category_id\":\"11111111-1111-1111-1111-111111111111\",\"stock\":15,\"sku\":\"E2E-SKU-1785510726740\",\"description\":\"\",\"is_active\":true}]"
+      }
+    ]
+  }
+]

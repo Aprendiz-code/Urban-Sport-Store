@@ -1,0 +1,24 @@
+import { createClient } from '@supabase/supabase-js';
+import { normalizeProductPayload, normalizeProductUpdates } from './lib/api-helpers/product-helpers.ts';
+
+const url = 'https://geapxdyyfmygqrqfnier.supabase.co';
+const anon = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdlYXB4ZHl5Zm15Z3FycWZuaWVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3NDYwNjksImV4cCI6MjEwMDMyMjA2OX0.9-Mrkcrr-u5ghCe6UpK3B-11P62fYEqwlHzRXalh5O0';
+const client = createClient(url, anon, { auth: { persistSession: false, autoRefreshToken: false } });
+const { data: signInData, error: signInError } = await client.auth.signInWithPassword({ email: 'urbansportstore@outlook.com', password: 'N4xF8jZ2wP9qL5vT' });
+if (signInError) throw signInError;
+const token = signInData.session.access_token;
+const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+const timestamp = Date.now();
+const productName = `API CRUD Product ${timestamp}`;
+const payload = await normalizeProductPayload({ name: productName, price: 19900, category_id: '11111111-1111-1111-1111-111111111111', stock: 15, description: 'created via verification', sku: '' });
+console.log(JSON.stringify({ normalizedCreate: payload }, null, 2));
+const createResp = await fetch('http://127.0.0.1:3000/api/admin/products', { method: 'POST', headers, body: JSON.stringify(payload) });
+const createText = await createResp.text();
+console.log(JSON.stringify({ createStatus: createResp.status, createBody: createText }, null, 2));
+const created = JSON.parse(createText).data;
+const updatePayload = await normalizeProductUpdates({ description: 'updated via verification' });
+console.log(JSON.stringify({ normalizedUpdate: updatePayload }, null, 2));
+const updateResp = await fetch(`http://127.0.0.1:3000/api/admin/products/${created.id}`, { method: 'PATCH', headers, body: JSON.stringify(updatePayload) });
+console.log(JSON.stringify({ updateStatus: updateResp.status, updateBody: await updateResp.text() }, null, 2));
+const deleteResp = await fetch(`http://127.0.0.1:3000/api/admin/products/${created.id}`, { method: 'DELETE', headers });
+console.log(JSON.stringify({ deleteStatus: deleteResp.status, deleteBody: await deleteResp.text() }, null, 2));

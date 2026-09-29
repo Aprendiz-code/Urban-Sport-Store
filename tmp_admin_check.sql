@@ -1,0 +1,1 @@
+select id, email, raw_app_meta_data, raw_user_meta_data, raw_app_meta_data- as app_role, raw_app_meta_data- as app_isAdmin, raw_app_meta_data- as app_is_admin, raw_user_meta_data- as user_role, raw_user_meta_data- as user_isAdmin, raw_user_meta_data- as user_is_admin from auth.users where email = 'urbansportstore@outlook.com';  

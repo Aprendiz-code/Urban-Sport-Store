@@ -22,5 +22,5 @@ This backend provides a secure REST API for the Urban Sport Store e-commerce pla
 > Nota: `npm test` ya está configurado para pasar cuando no hay tests de `api/` definidos.
 
 ## Demo credentials
-- Admin: admin@urbansportstore.dev / ChangeMe123!
+- Admin: urbansportstore@outlook.com / N4xF8jZ2wP9qL5vT
 - Customer: customer@urbansportstore.dev / Customer123!

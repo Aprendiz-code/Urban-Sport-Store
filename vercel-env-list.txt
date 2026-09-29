@@ -1,0 +1,8 @@
+
+ name                               value               environments        created    
+ VITE_SUPABASE_ANON_KEY             Encrypted           Production          2d ago     
+ VITE_SUPABASE_URL                  Encrypted           Production          2d ago     
+ SUPABASE_SERVICE_ROLE_KEY          Encrypted           Production          2d ago     
+ SUPABASE_ANON_KEY                  Encrypted           Production          2d ago     
+ SUPABASE_URL                       Encrypted           Production          2d ago     
+

@@ -4,7 +4,7 @@ const ToasterLazy = React.lazy(() => import('sonner').then((m) => ({ default: m.
 
 export default function LazyToaster(props: any) {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<div aria-hidden />}> 
       <ToasterLazy {...props} />
     </Suspense>
   );
