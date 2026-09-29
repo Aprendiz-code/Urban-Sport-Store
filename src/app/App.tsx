@@ -9,6 +9,7 @@ import {
   RefreshCw, Award, Grid3X3, ThumbsUp, DollarSign
 } from "lucide-react";
 import PromoCarousel from "./components/PromoCarousel";
+import ProductCarousel from "./components/ProductCarousel";
 import promoBanner from "/images/promo-discount-10.png";
 import {
   ResponsiveContainer,
@@ -262,6 +263,26 @@ const HOME_CATEGORIES = [
   { name: "Perfumes", sub: "Hombre · Mujer · Unisex", image: "https://images.unsplash.com/photo-1541643600914-78b084683702?w=500&h=380&fit=crop&auto=format" },
   { name: "Relojes", sub: "Smartwatch · Deportivo · Casual", image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&h=380&fit=crop&auto=format" },
   { name: "Gafas", sub: "Running · Ciclismo · Outdoor", image: "https://images.unsplash.com/photo-1577803645773-f96470509666?w=500&h=380&fit=crop&auto=format" },
+];
+
+type HomeCollection = { title: string; description: string; category: Category; image: string };
+
+const FEATURED_COLLECTIONS: HomeCollection[] = [
+  { title: "Running urbano", description: "Ligereza para cada kilómetro", category: "Zapatos", image: HOME_CATEGORIES[0].image },
+  { title: "Entrenamiento", description: "Prendas para moverte mejor", category: "Ropa Hombre", image: HOME_CATEGORIES[1].image },
+  { title: "Estilo en movimiento", description: "Comodidad activa para diario", category: "Ropa Mujer", image: HOME_CATEGORIES[2].image },
+  { title: "Fragancias premium", description: "Notas frescas para tu rutina", category: "Perfumes", image: HOME_CATEGORIES[3].image },
+  { title: "Tiempo y rendimiento", description: "Tecnología en tu muñeca", category: "Relojes", image: HOME_CATEGORIES[4].image },
+  { title: "Visión outdoor", description: "Protección para salir", category: "Gafas", image: HOME_CATEGORIES[5].image },
+];
+
+const NEW_CATEGORIES: HomeCollection[] = [
+  { title: "Trail", description: "Tracción para rutas exigentes", category: "Zapatos", image: HOME_CATEGORIES[0].image },
+  { title: "Hoodies", description: "Capas ligeras para entrenar", category: "Ropa Hombre", image: HOME_CATEGORIES[1].image },
+  { title: "Leggings", description: "Ajuste flexible y cómodo", category: "Ropa Mujer", image: HOME_CATEGORIES[2].image },
+  { title: "Aromas unisex", description: "Encuentra tu esencia", category: "Perfumes", image: HOME_CATEGORIES[3].image },
+  { title: "Smartwatch", description: "Funciones para cada actividad", category: "Relojes", image: HOME_CATEGORIES[4].image },
+  { title: "Ciclismo", description: "Diseño pensado para la ruta", category: "Gafas", image: HOME_CATEGORIES[5].image },
 ];
 
 const SALES_DATA = [
@@ -959,6 +980,38 @@ function ProductGrid({ children }: { children: React.ReactNode }) {
   return <div className="grid grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">{children}</div>;
 }
 
+function CategoryCarouselSection({ title, items, onCategorySelect }: {
+  title: string;
+  items: HomeCollection[];
+  onCategorySelect: (category: Category) => void;
+}) {
+  return (
+    <section className="py-6 sm:py-8 max-w-7xl mx-auto px-3 sm:px-4 md:px-6" aria-label={title}>
+      <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 mb-4 sm:mb-5">{title}</h2>
+      <ProductCarousel gap="md">
+        {items.map((item) => (
+          <div key={item.title} className="w-[78%] min-[480px]:w-[46%] md:w-[31%] xl:w-[23%] 2xl:w-[19%] shrink-0 snap-start">
+            <button
+              type="button"
+              onClick={() => onCategorySelect(item.category)}
+              aria-label={`Explorar ${item.title}, categoría ${item.category}`}
+              className="group relative block aspect-[4/3] w-full overflow-hidden rounded-2xl bg-slate-200 text-left shadow-sm"
+            >
+              <img src={item.image} alt="" className="absolute inset-0 h-full w-full object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-900/20 to-transparent" />
+              <div className="absolute inset-x-0 bottom-0 p-3 sm:p-4">
+                <p className="text-xs sm:text-sm font-semibold text-orange-300">{item.category}</p>
+                <h3 className="mt-1 text-base sm:text-lg font-extrabold leading-tight text-white">{item.title}</h3>
+                <p className="mt-1 text-xs sm:text-sm leading-snug text-slate-200">{item.description}</p>
+              </div>
+            </button>
+          </div>
+        ))}
+      </ProductCarousel>
+    </section>
+  );
+}
+
 function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, content, featuredProducts, newArrivalsProducts, saleProducts }: {
   onNavigate: (v: View) => void; onSelectProduct: (p: Product) => void;
   onAddToCart: (p: Product, size: string, color: string) => void;
@@ -1034,6 +1087,9 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
 
   return (
     <main className="pt-16 sm:pt-20 md:pt-24">
+      <CategoryCarouselSection title="Colecciones destacadas" items={FEATURED_COLLECTIONS} onCategorySelect={onCategorySelect} />
+      <CategoryCarouselSection title="Nuevas categorías" items={NEW_CATEGORIES} onCategorySelect={onCategorySelect} />
+
       {/* Special offers - On sale now */}
       {onSale.length > 0 && (
         <section className="py-8 sm:py-12 md:py-16 bg-orange-50 border-y border-orange-100">
