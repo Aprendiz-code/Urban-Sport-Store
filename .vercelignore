@@ -29,3 +29,6 @@ api/hello.js
 # Archive folder should not be deployed
 archive/**
 
+# Production environment files must never be included in deployment uploads
+.vercel-production.env
+

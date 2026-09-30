@@ -9,9 +9,8 @@ import {
   RefreshCw, Award, Grid3X3, ThumbsUp, DollarSign
 } from "lucide-react";
 import PromoCarousel from "./components/PromoCarousel";
-import ProductCarousel from "./components/ProductCarousel";
+import HorizontalProductCarousel from "./components/ProductCarousel";
 import promoBanner from "/images/promo-discount-10.png";
-import mainBannerImage from "../../10%/Promocion 10%.png";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -226,6 +225,26 @@ const HOME_CATEGORIES = [
   { name: "Perfumes", sub: "Hombre · Mujer · Unisex", image: "https://images.unsplash.com/photo-1541643600914-78b084683702?w=500&h=380&fit=crop&auto=format" },
   { name: "Relojes", sub: "Smartwatch · Deportivo · Casual", image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&h=380&fit=crop&auto=format" },
   { name: "Gafas", sub: "Running · Ciclismo · Outdoor", image: "https://images.unsplash.com/photo-1577803645773-f96470509666?w=500&h=380&fit=crop&auto=format" },
+];
+
+type HomeCollection = { title: string; description: string; category: Category; image: string };
+
+const FEATURED_COLLECTIONS: HomeCollection[] = [
+  { title: "Running urbano", description: "Ligereza para cada kilómetro", category: "Zapatos", image: HOME_CATEGORIES[0].image },
+  { title: "Entrenamiento", description: "Prendas para moverte mejor", category: "Ropa Hombre", image: HOME_CATEGORIES[1].image },
+  { title: "Estilo en movimiento", description: "Comodidad activa para diario", category: "Ropa Mujer", image: HOME_CATEGORIES[2].image },
+  { title: "Fragancias premium", description: "Notas frescas para tu rutina", category: "Perfumes", image: HOME_CATEGORIES[3].image },
+  { title: "Tiempo y rendimiento", description: "Tecnología en tu muñeca", category: "Relojes", image: HOME_CATEGORIES[4].image },
+  { title: "Visión outdoor", description: "Protección para salir", category: "Gafas", image: HOME_CATEGORIES[5].image },
+];
+
+const NEW_CATEGORIES: HomeCollection[] = [
+  { title: "Trail", description: "Tracción para rutas exigentes", category: "Zapatos", image: HOME_CATEGORIES[0].image },
+  { title: "Hoodies", description: "Capas ligeras para entrenar", category: "Ropa Hombre", image: HOME_CATEGORIES[1].image },
+  { title: "Leggings", description: "Ajuste flexible y cómodo", category: "Ropa Mujer", image: HOME_CATEGORIES[2].image },
+  { title: "Aromas unisex", description: "Encuentra tu esencia", category: "Perfumes", image: HOME_CATEGORIES[3].image },
+  { title: "Smartwatch", description: "Funciones para cada actividad", category: "Relojes", image: HOME_CATEGORIES[4].image },
+  { title: "Ciclismo", description: "Diseño pensado para la ruta", category: "Gafas", image: HOME_CATEGORIES[5].image },
 ];
 
 const SALES_DATA = [
@@ -474,7 +493,7 @@ function ProductCarousel({ children }: { children: React.ReactNode }) {
   return (
     <div 
       ref={ref} 
-      className="overflow-hidden pb-4 -mx-4 px-4 sm:px-0 cursor-grab active:cursor-grabbing"
+      className="overflow-hidden pb-4 -mx-3 px-3 sm:-mx-4 sm:px-4 cursor-grab active:cursor-grabbing"
       style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
@@ -507,9 +526,9 @@ function ProductCard({ product, onSelect, onAddToCart }: {
       className="group relative w-full max-w-full h-full bg-white rounded-[20px] sm:rounded-[30px] overflow-hidden cursor-pointer border border-slate-200/80 shadow-[0_15px_40px_-28px_rgba(15,23,42,0.35)] hover:-translate-y-1 hover:shadow-[0_20px_60px_-30px_rgba(15,23,42,0.45)] transition-all duration-300 flex flex-col"
     >
       {/* Image */}
-      <div className="relative h-44 sm:h-56 bg-slate-100 overflow-hidden">
+      <div className="relative w-full aspect-[4/3] bg-slate-100 overflow-hidden">
         <img src={product.image} alt={product.name}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
         />
         {/* Badges */}
         <div className="absolute top-3 left-3 flex flex-col gap-1.5">
@@ -520,7 +539,7 @@ function ProductCard({ product, onSelect, onAddToCart }: {
         {/* Wishlist */}
         <button
           onClick={(e) => { e.stopPropagation(); setWished(!wished); }}
-          className="absolute top-3 right-3 w-10 h-10 rounded-full bg-white/95 backdrop-blur flex items-center justify-center shadow-md hover:bg-white transition-colors"
+          className="absolute top-3 right-3 w-11 h-11 rounded-full bg-white/95 backdrop-blur flex items-center justify-center shadow-md hover:bg-white transition-colors"
         >
           <Heart size={15} className={wished ? "fill-red-500 text-red-500" : "text-slate-400"} />
         </button>
@@ -529,8 +548,8 @@ function ProductCard({ product, onSelect, onAddToCart }: {
       {/* Info */}
       <div className="p-4 sm:p-5 space-y-3 sm:space-y-4 flex flex-col flex-1">
         <div>
-          <p className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-[#1d4ed8] mb-2">{product.brand}</p>
-          <h3 className="text-sm sm:text-base font-extrabold text-slate-900 line-clamp-2 leading-snug">{product.name}</h3>
+          <p className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-[#1d4ed8] mb-2">{product.brand}</p>
+          <h3 className="text-base font-extrabold text-slate-900 line-clamp-2 leading-snug">{product.name}</h3>
           <p className="text-sm text-slate-500 mt-1">{product.subcategory}{product.gender ? ` · ${product.gender}` : ""}</p>
         </div>
         <StarRating rating={product.rating} reviews={product.reviews} />
@@ -554,7 +573,7 @@ function ProductCard({ product, onSelect, onAddToCart }: {
 
         <button
           onClick={(e) => { e.stopPropagation(); onAddToCart(product, defaultSize, defaultColor); }}
-          className="mt-auto w-full py-2.5 sm:py-3 rounded-full text-xs sm:text-sm font-bold bg-black text-white hover:bg-slate-900 transition-all duration-200 flex items-center justify-center gap-2 shadow-sm shadow-slate-200"
+          className="mt-auto w-full min-h-11 py-3 rounded-full text-sm font-bold bg-black text-white hover:bg-slate-900 transition-all duration-200 flex items-center justify-center gap-2 shadow-sm shadow-slate-200"
         >
           <ShoppingCart size={14} /> Agregar al carrito
         </button>
@@ -752,25 +771,25 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
       </div>
 
       {(currentView === "home" || currentView === "catalog") && (
-        <div className="w-full bg-transparent" style={{ marginTop: typeof headerOffset === 'number' && headerOffset > 0 ? `${headerOffset}px` : undefined }}>
+        <div className="w-full bg-transparent pt-[6.75rem]">
           <div className="w-full py-0">
             <button
               type="button"
               onClick={() => onNavigate('catalog')}
               aria-label="Ver promociones y productos con descuento"
               className={[
-                'block w-full overflow-hidden bg-transparent rounded-none',
+                'block w-full bg-transparent rounded-none',
                 'transition-transform duration-700 ease-out',
                 'motion-reduce:transform-none motion-reduce:transition-none',
                 promoEntered ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2',
               ].join(' ')}
             >
-              <div className="relative w-full bg-gradient-to-b from-gray-50 to-gray-100 flex items-start justify-center px-0 py-0">
+              <div className="relative mx-auto w-full max-w-6xl bg-gradient-to-b from-gray-50 to-gray-100">
                 <img
                   src={promoBanner}
                   alt="Promoción Urban Sport Store"
                   loading="lazy"
-                  className="w-full max-w-full h-auto object-contain object-top"
+                  className="mx-auto block h-auto w-full object-contain object-center"
                 />
               </div>
             </button>
@@ -919,7 +938,43 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
 
 // ─── HOME PAGE ────────────────────────────────────────────────────────────────
 
-function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, content, featuredProducts, newArrivalsProducts, saleProducts }: {
+  function ProductGrid({ children }: { children: React.ReactNode }) {
+    return <div className="grid grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">{children}</div>;
+  }
+
+  function CategoryCarouselSection({ title, items, onCategorySelect }: {
+    title: string;
+    items: HomeCollection[];
+    onCategorySelect: (category: Category) => void;
+  }) {
+    return (
+      <section className="py-6 sm:py-8 max-w-7xl mx-auto px-3 sm:px-4 md:px-6" aria-label={title}>
+        <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 mb-4 sm:mb-5">{title}</h2>
+        <HorizontalProductCarousel gap="md">
+          {items.map((item) => (
+            <div key={item.title} className="w-[78%] min-[480px]:w-[46%] md:w-[31%] xl:w-[23%] 2xl:w-[19%] shrink-0 snap-start">
+              <button
+                type="button"
+                onClick={() => onCategorySelect(item.category)}
+                aria-label={`Explorar ${item.title}, categoría ${item.category}`}
+                className="group relative block aspect-[4/3] w-full overflow-hidden rounded-2xl bg-slate-200 text-left shadow-sm"
+              >
+                <img src={item.image} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-900/20 to-transparent" />
+                <div className="absolute inset-x-0 bottom-0 p-3 sm:p-4">
+                  <p className="text-xs sm:text-sm font-semibold text-orange-300">{item.category}</p>
+                  <h3 className="mt-1 text-base sm:text-lg font-extrabold leading-tight text-white">{item.title}</h3>
+                  <p className="mt-1 text-xs sm:text-sm leading-snug text-slate-200">{item.description}</p>
+                </div>
+              </button>
+            </div>
+          ))}
+        </HorizontalProductCarousel>
+      </section>
+    );
+  }
+
+  function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, content, featuredProducts, newArrivalsProducts, saleProducts }: {
   onNavigate: (v: View) => void; onSelectProduct: (p: Product) => void;
   onAddToCart: (p: Product, size: string, color: string) => void;
   onCategorySelect: (c: Category) => void;
@@ -942,9 +997,12 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
 
   return (
     <main className="pt-16 sm:pt-20 md:pt-24">
+      <CategoryCarouselSection title="Colecciones destacadas" items={FEATURED_COLLECTIONS} onCategorySelect={onCategorySelect} />
+      <CategoryCarouselSection title="Nuevas categorías" items={NEW_CATEGORIES} onCategorySelect={onCategorySelect} />
+
       {/* Special offers - On sale now */}
       {onSale.length > 0 && (
-        <section className="mt-[280px] md:mt-[280px] py-8 sm:py-12 md:py-16 bg-orange-50 border-y border-orange-100">
+        <section className="py-8 sm:py-12 md:py-16 bg-orange-50 border-y border-orange-100">
           <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
             <div className="flex items-end justify-between mb-6 sm:mb-8 gap-4">
               <div>
@@ -953,31 +1011,21 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
               </div>
               <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="hidden sm:flex">Ver todos <ChevronRight size={14} /></Btn>
             </div>
-            <ProductCarousel>
+            <ProductGrid>
                 {onSale.slice(0, 9).map((p) => (
-                <div key={p.id + "-sale"} className="w-[84vw] max-w-[280px] sm:w-[16rem] lg:w-[18rem] shrink-0">
+              <div key={p.id + "-sale"} className="min-w-0">
                   <ProductCard product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
                 </div>
               ))}
-            </ProductCarousel>
+            </ProductGrid>
             <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="sm:hidden w-full mt-6">Ver todos <ChevronRight size={14} /></Btn>
           </div>
         </section>
       )}
 
       {/* Main promotional banner */}
-      <section className="relative w-full overflow-hidden bg-gradient-to-br from-slate-900 to-slate-950">
-        <div className="relative w-full aspect-video md:aspect-auto md:min-h-[480px] flex items-center justify-center overflow-hidden">
-          <img
-            src={mainBannerImage}
-            alt="Promoción Urban Sport Store"
-            className="absolute inset-0 w-full h-full object-cover object-center"
-          />
-        </div>
-      </section>
-
       {/* Hero */}
-      <section className="relative min-h-[48vh] md:min-h-[44vh] flex items-center justify-center overflow-hidden bg-slate-900 mt-8 sm:mt-12 md:mt-16">
+      <section className="relative min-h-[360px] sm:min-h-[400px] md:min-h-[440px] lg:min-h-[480px] flex items-center justify-center overflow-hidden bg-slate-900 mt-6 sm:mt-10 md:mt-12">
         <img
           src="https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=1600&h=900&fit=crop&auto=format"
           alt="Atleta en acción" className="absolute inset-0 w-full h-full object-cover object-center"
@@ -989,16 +1037,16 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#f97316]/20 border border-[#f97316]/30 text-[#f97316] text-[10px] sm:text-xs font-bold tracking-widest uppercase mb-3 sm:mb-4 whitespace-nowrap">
               <Award size={12} /> Colección 2026
             </div>
-            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-6xl font-extrabold text-white leading-tight tracking-tight mb-3 sm:mb-4">{content.heroTitle}</h1>
-            <p className="text-sm sm:text-base md:text-lg text-slate-300 leading-relaxed mb-6 max-w-md">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold text-white leading-tight tracking-tight mb-3 sm:mb-4">{content.heroTitle}</h1>
+            <p className="text-base sm:text-lg md:text-xl text-slate-300 leading-relaxed mb-6 max-w-md">
               {content.heroSubtitle}
             </p>
-            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-              <Btn variant="primary" size="lg" onClick={() => onNavigate("catalog")} className="w-full sm:w-auto justify-center">
+            <div className="flex flex-col min-[480px]:flex-row gap-3 w-full min-[480px]:w-auto">
+              <Btn variant="primary" size="lg" onClick={() => onNavigate("catalog")} className="w-full min-[480px]:w-auto justify-center">
                 Comprar ahora <ArrowRight size={16} />
               </Btn>
               <button onClick={() => onNavigate("catalog")}
-                className="px-6 py-3.5 text-sm sm:text-base font-bold text-white border-2 border-white/30 rounded-xl hover:bg-white/10 transition-all">
+                className="px-6 py-3.5 min-h-12 text-base font-bold text-white border-2 border-white/30 rounded-xl hover:bg-white/10 transition-all">
                 Ver novedades
               </button>
             </div>
@@ -1013,13 +1061,13 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
           <div className="mb-4 sm:mb-5 md:mb-6">
             <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">Compra por categoría</h2>
           </div>
-          <div className="overflow-x-auto md:overflow-visible scrollbar-hide" style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}>
-            <nav className="flex flex-nowrap md:flex-wrap items-center justify-center w-full gap-3 sm:gap-4 md:gap-5 py-3 md:py-4">
+          <div>
+            <nav className="grid grid-cols-2 min-[480px]:grid-cols-3 lg:grid-cols-4 items-stretch w-full gap-2 sm:gap-3 py-3 md:py-4">
               {NAV_CATEGORIES.map((cat) => (
                 <button
                   key={cat.name}
                   onClick={() => onCategorySelect(cat.name as Category)}
-                  className="flex-shrink-0 md:flex-1 md:min-w-[10rem] md:max-w-[14rem] inline-flex items-center justify-center text-sm sm:text-base md:text-base font-semibold text-slate-700 hover:text-[#1d4ed8] whitespace-nowrap transition-all duration-200 px-4 py-3 rounded-full bg-white shadow-sm hover:bg-slate-50 text-center"
+                  className="min-w-0 inline-flex items-center justify-center text-sm sm:text-base font-semibold text-slate-700 hover:text-[#1d4ed8] transition-all duration-200 px-3 sm:px-4 py-3 min-h-12 rounded-xl bg-white shadow-sm hover:bg-slate-50 text-center"
                 >
                   {cat.name}
                 </button>
@@ -1037,22 +1085,22 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
             <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">{content.categorySectionTitle}</h2>
           </div>
         </div>
-        <ProductCarousel>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
           {HOME_CATEGORIES.map((cat) => (
-            <div key={cat.name} className="w-[84vw] max-w-[280px] sm:w-[16rem] lg:w-[20rem] shrink-0 snap-start">
+            <div key={cat.name} className="min-w-0">
               <button
                 onClick={() => onCategorySelect(cat.name as Category)}
                 className="group relative rounded-2xl sm:rounded-3xl overflow-hidden aspect-[4/3] w-full bg-slate-200 hover:shadow-lg transition-all duration-300">
                 <img src={cat.image} alt={cat.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent" />
                 <div className="absolute bottom-0 left-0 right-0 p-2 sm:p-3">
-                  <p className="text-[11px] sm:text-xs font-extrabold text-white leading-tight">{cat.name}</p>
-                  <p className="text-[8px] sm:text-[9px] text-slate-300">{cat.sub}</p>
+                  <p className="text-sm sm:text-base font-extrabold text-white leading-tight">{cat.name}</p>
+                  <p className="text-xs sm:text-sm text-slate-300">{cat.sub}</p>
                 </div>
               </button>
             </div>
           ))}
-        </ProductCarousel>
+        </div>
       </section>
 
       {/* Featured */}
@@ -1064,15 +1112,13 @@ function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, 
           </div>
           <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="hidden sm:flex">Ver todos <ChevronRight size={14} /></Btn>
         </div>
-        <ProductCarousel autoScroll autoScrollDirection="rtl" gap="md" showControls>
+        <ProductGrid>
             {featured.slice(0, 9).map((p) => (
-            <div key={p.id} className="shrink-0 snap-start w-[84vw] max-w-[280px] sm:w-[15rem] md:w-[18rem] lg:w-[20rem]">
-              <div className="px-1 sm:px-2">
-                <ProductCard product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
-              </div>
+          <div key={p.id} className="min-w-0">
+              <ProductCard product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
             </div>
           ))}
-        </ProductCarousel>
+        </ProductGrid>
         <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="sm:hidden w-full mt-6">Ver todos <ChevronRight size={14} /></Btn>
       </section>
 
