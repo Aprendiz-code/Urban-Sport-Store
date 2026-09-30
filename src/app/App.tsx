@@ -997,6 +997,32 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
 
   return (
     <main className="pt-16 sm:pt-20 md:pt-24">
+      {/* Categories grid */}
+      <section className="pt-8 sm:pt-10 md:pt-12 pb-2 sm:pb-3 md:pb-4 max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
+        <div className="flex items-end justify-between mb-6 sm:mb-8">
+          <div>
+            <p className="text-[10px] sm:text-xs font-bold text-[#1d4ed8] tracking-widest uppercase mb-1 sm:mb-1.5">{content.categorySectionLabel}</p>
+            <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">{content.categorySectionTitle}</h2>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+          {HOME_CATEGORIES.map((cat) => (
+            <div key={cat.name} className="min-w-0">
+              <button
+                onClick={() => onCategorySelect(cat.name as Category)}
+                className="group relative rounded-2xl sm:rounded-3xl overflow-hidden aspect-[4/3] w-full bg-slate-200 hover:shadow-lg transition-all duration-300">
+                <img src={cat.image} alt={cat.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 p-2 sm:p-3">
+                  <p className="text-sm sm:text-base font-extrabold text-white leading-tight">{cat.name}</p>
+                  <p className="text-xs sm:text-sm text-slate-300">{cat.sub}</p>
+                </div>
+              </button>
+            </div>
+          ))}
+        </div>
+      </section>
+
       <CategoryCarouselSection title="Colecciones destacadas" items={FEATURED_COLLECTIONS} onCategorySelect={onCategorySelect} />
       <CategoryCarouselSection title="Nuevas categorías" items={NEW_CATEGORIES} onCategorySelect={onCategorySelect} />
 
@@ -1074,32 +1100,6 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
               ))}
             </nav>
           </div>
-        </div>
-      </section>
-
-      {/* Categories grid */}
-      <section className="pt-8 sm:pt-10 md:pt-12 pb-2 sm:pb-3 md:pb-4 max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
-        <div className="flex items-end justify-between mb-6 sm:mb-8">
-          <div>
-            <p className="text-[10px] sm:text-xs font-bold text-[#1d4ed8] tracking-widest uppercase mb-1 sm:mb-1.5">{content.categorySectionLabel}</p>
-            <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">{content.categorySectionTitle}</h2>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-          {HOME_CATEGORIES.map((cat) => (
-            <div key={cat.name} className="min-w-0">
-              <button
-                onClick={() => onCategorySelect(cat.name as Category)}
-                className="group relative rounded-2xl sm:rounded-3xl overflow-hidden aspect-[4/3] w-full bg-slate-200 hover:shadow-lg transition-all duration-300">
-                <img src={cat.image} alt={cat.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-2 sm:p-3">
-                  <p className="text-sm sm:text-base font-extrabold text-white leading-tight">{cat.name}</p>
-                  <p className="text-xs sm:text-sm text-slate-300">{cat.sub}</p>
-                </div>
-              </button>
-            </div>
-          ))}
         </div>
       </section>
 
