@@ -51,6 +51,7 @@ supabase/
 .vercel
 .vercel.env
 .vercel.prod.env
+.vercel-production.env
 
 # Misc
 *.log
