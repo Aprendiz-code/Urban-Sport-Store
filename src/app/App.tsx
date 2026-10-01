@@ -1203,9 +1203,9 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
             <h2 className="font-display text-[28px] sm:text-[32px] md:text-[40px] text-[#0b1220] leading-[1.05]">{content.categorySectionTitle}</h2>
           </div>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="flex flex-wrap justify-center gap-3 sm:gap-4">
           {HOME_CATEGORIES.map((cat) => (
-            <div key={cat.name} className="min-w-0">
+            <div key={cat.name} className="min-w-0 basis-[calc(50%_-_0.375rem)] sm:basis-[calc(33.333333%_-_0.667rem)] lg:basis-[calc(25%_-_0.75rem)]">
               <button
                 onClick={() => onCategorySelect(cat.name as Category)}
                 className="group relative rounded-2xl sm:rounded-3xl overflow-hidden aspect-[4/3] w-full bg-white shadow-[0_12px_30px_-18px_rgba(15,23,42,0.38)] ring-1 ring-slate-200 hover:shadow-[0_18px_40px_-18px_rgba(15,23,42,0.4)] transition-all duration-300">
