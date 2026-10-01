@@ -1180,15 +1180,15 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
 
       <section aria-label="Beneficios de compra" className="border-y border-slate-200 bg-[#f4f6f8]">
         <div className="mx-auto grid max-w-7xl grid-cols-1 divide-y divide-slate-200 px-3 sm:grid-cols-3 sm:divide-y-0 sm:divide-x sm:px-4 md:px-6">
-          <div className="flex items-center justify-center gap-3 px-3 py-4 text-sm font-semibold text-slate-800 sm:py-5">
+          <div className="flex items-center justify-start gap-3 px-3 py-4 text-sm font-semibold text-slate-800 sm:justify-center sm:py-5">
             <Truck size={24} strokeWidth={2} color="#111111" aria-hidden="true" className="shrink-0" />
             <span>Envío gratis desde {fmt(STORE_CONFIG.freeShippingMinimumSubtotalCop)}</span>
           </div>
-          <div className="flex items-center justify-center gap-3 px-3 py-4 text-sm font-semibold text-slate-800 sm:py-5">
+          <div className="flex items-center justify-start gap-3 px-3 py-4 text-sm font-semibold text-slate-800 sm:justify-center sm:py-5">
             <CreditCard size={24} strokeWidth={2} color="#111111" aria-hidden="true" className="shrink-0" />
             <span>Medios de pago: consulta disponibilidad</span>
           </div>
-          <div className="flex items-center justify-center gap-3 px-3 py-4 text-sm font-semibold text-slate-800 sm:py-5">
+          <div className="flex items-center justify-start gap-3 px-3 py-4 text-sm font-semibold text-slate-800 sm:justify-center sm:py-5">
             <RefreshCw size={24} strokeWidth={2} color="#111111" aria-hidden="true" className="shrink-0" />
             <span>Consulta condiciones de cambio de talla</span>
           </div>
