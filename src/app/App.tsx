@@ -879,7 +879,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
       </div>
 
       {(currentView === "home" || currentView === "catalog") && (
-        <div className="w-full bg-transparent pt-[6.75rem]">
+        <div className="w-full bg-transparent pt-[9.75rem] sm:pt-[6.75rem]">
           {currentView === "catalog" && (
             <div className="w-full py-0">
               <button
@@ -900,14 +900,14 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
             </div>
           )}
 
-          <div className="overflow-x-auto mt-6">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 hidden md:flex items-center justify-center gap-1 h-9">
+          <div className="category-navigation-scroll overflow-x-auto border-b border-slate-100 bg-white overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <nav aria-label="Categorías de productos" className="mx-auto flex min-h-11 max-w-7xl items-center justify-start gap-1 px-4 sm:min-h-14 sm:px-6 md:justify-center">
               {NAV_CATEGORIES.map((cat) => (
-                <button key={cat.name} type="button" onClick={() => onCategorySelect(cat.name)} className="min-h-10 flex items-center gap-1.5 px-4 rounded-lg text-sm font-semibold text-slate-600 hover:text-[#1d4ed8] hover:bg-blue-50 transition-colors whitespace-nowrap">
+                <button key={cat.name} type="button" onClick={() => onCategorySelect(cat.name)} className="min-h-10 flex shrink-0 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-blue-50 hover:text-[#1d4ed8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8] sm:px-4 whitespace-nowrap">
                   {cat.name}
                 </button>
               ))}
-            </div>
+            </nav>
           </div>
         </div>
       )}
@@ -1144,7 +1144,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
   };
 
   return (
-    <main className="pt-16 sm:pt-20 md:pt-24">
+    <main>
       {/* Hero */}
       <section className="relative min-h-[360px] sm:min-h-[400px] md:min-h-[440px] lg:min-h-[480px] flex items-center justify-center overflow-hidden bg-[#0b1220]">
         <img
