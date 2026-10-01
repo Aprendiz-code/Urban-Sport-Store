@@ -11,6 +11,8 @@ import {
 import PromoCarousel from "./components/PromoCarousel";
 import HorizontalProductCarousel from "./components/ProductCarousel";
 import promoBanner from "/images/promo-discount-10.png";
+import { STORE_CONFIG } from "./store-config";
+import { subscribeToNewsletter } from "../lib/newsletter";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -46,6 +48,7 @@ import { toast } from '../lib/lazyToast';
 type View =
   | "home" | "catalog" | "product" | "checkout"
   | "login" | "register" | "account" | "admin";
+type ProductsStatus = "loading" | "ready" | "error";
 
 type Category = string;
 
@@ -63,6 +66,32 @@ interface Product {
 
 interface CartItem {
   product: Product; qty: number; selectedSize: string; selectedColor: string;
+}
+
+const LOCAL_CART_STORAGE = "urbansport_cart_v1";
+
+function isStoredCartItem(value: unknown): value is CartItem {
+  if (!value || typeof value !== "object") return false;
+  const item = value as Partial<CartItem>;
+  return Boolean(
+    item.product &&
+    typeof item.product.id === "string" &&
+    typeof item.product.name === "string" &&
+    typeof item.product.price === "number" &&
+    Number.isFinite(item.qty) && item.qty! > 0 &&
+    typeof item.selectedSize === "string" &&
+    typeof item.selectedColor === "string",
+  );
+}
+
+function loadStoredCart(): CartItem[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const stored = JSON.parse(window.localStorage.getItem(LOCAL_CART_STORAGE) ?? "null");
+    return Array.isArray(stored) ? stored.filter(isStoredCartItem) : [];
+  } catch {
+    return [];
+  }
 }
 
 interface Address {
@@ -103,48 +132,28 @@ interface HomePageContent {
 
 const LOCAL_ADDRESS_STORAGE = "urbansport_addresses";
 
-const DEFAULT_ADDRESSES: Address[] = [
-  {
-    id: "addr-1",
-    label: "Casa",
-    line1: "Cra 15 #82-56",
-    line2: "Apto 402",
-    city: "Bogotá",
-    state: "Cundinamarca",
-    postalCode: "110221",
-    country: "Colombia",
-    phone: "+57 311 234 5678",
-    isDefault: true,
-  },
-  {
-    id: "addr-2",
-    label: "Oficina",
-    line1: "Av. El Dorado #68B-31",
-    city: "Bogotá",
-    state: "Cundinamarca",
-    postalCode: "111071",
-    country: "Colombia",
-    phone: "+57 312 876 5432",
-  },
-];
-
 const loadStoredAddresses = (): Address[] => {
-  if (typeof window === "undefined") return DEFAULT_ADDRESSES;
+  if (typeof window === "undefined") return [];
 
   try {
     const stored = window.localStorage.getItem(LOCAL_ADDRESS_STORAGE);
-    if (!stored) return DEFAULT_ADDRESSES;
+    if (!stored) return [];
 
-    const parsed = JSON.parse(stored) as Address[];
-    if (!Array.isArray(parsed) || parsed.length === 0) return DEFAULT_ADDRESSES;
+    const parsed = JSON.parse(stored) as unknown;
+    if (!Array.isArray(parsed)) return [];
 
-    return parsed.map((address) => ({
+    return parsed.filter((value): value is Address => {
+      if (!value || typeof value !== "object") return false;
+      const address = value as Partial<Address>;
+      return [address.id, address.label, address.line1, address.city, address.state, address.postalCode, address.country, address.phone]
+        .every((field) => typeof field === "string");
+    }).map((address) => ({
       ...address,
       isDefault: address.isDefault ?? false,
     }));
   } catch (error) {
     console.warn("Error cargando direcciones desde localStorage.", error);
-    return DEFAULT_ADDRESSES;
+    return [];
   }
 };
 
@@ -227,51 +236,19 @@ const HOME_CATEGORIES = [
   { name: "Gafas", sub: "Running · Ciclismo · Outdoor", image: "https://images.unsplash.com/photo-1577803645773-f96470509666?w=500&h=380&fit=crop&auto=format" },
 ];
 
-type HomeCollection = { title: string; description: string; category: Category; image: string };
+const SALES_DATA: { day: string; ventas: number; pedidos: number }[] = [];
+const CAT_DATA: { name: string; valor: number }[] = [];
 
-const FEATURED_COLLECTIONS: HomeCollection[] = [
-  { title: "Running urbano", description: "Ligereza para cada kilómetro", category: "Zapatos", image: HOME_CATEGORIES[0].image },
-  { title: "Entrenamiento", description: "Prendas para moverte mejor", category: "Ropa Hombre", image: HOME_CATEGORIES[1].image },
-  { title: "Estilo en movimiento", description: "Comodidad activa para diario", category: "Ropa Mujer", image: HOME_CATEGORIES[2].image },
-  { title: "Fragancias premium", description: "Notas frescas para tu rutina", category: "Perfumes", image: HOME_CATEGORIES[3].image },
-  { title: "Tiempo y rendimiento", description: "Tecnología en tu muñeca", category: "Relojes", image: HOME_CATEGORIES[4].image },
-  { title: "Visión outdoor", description: "Protección para salir", category: "Gafas", image: HOME_CATEGORIES[5].image },
-];
+interface OrderSummary {
+  id: string;
+  customer: string;
+  date: string;
+  status: string;
+  total: number;
+  items: number;
+}
 
-const NEW_CATEGORIES: HomeCollection[] = [
-  { title: "Trail", description: "Tracción para rutas exigentes", category: "Zapatos", image: HOME_CATEGORIES[0].image },
-  { title: "Hoodies", description: "Capas ligeras para entrenar", category: "Ropa Hombre", image: HOME_CATEGORIES[1].image },
-  { title: "Leggings", description: "Ajuste flexible y cómodo", category: "Ropa Mujer", image: HOME_CATEGORIES[2].image },
-  { title: "Aromas unisex", description: "Encuentra tu esencia", category: "Perfumes", image: HOME_CATEGORIES[3].image },
-  { title: "Smartwatch", description: "Funciones para cada actividad", category: "Relojes", image: HOME_CATEGORIES[4].image },
-  { title: "Ciclismo", description: "Diseño pensado para la ruta", category: "Gafas", image: HOME_CATEGORIES[5].image },
-];
-
-const SALES_DATA = [
-  { day: "Lun", ventas: 3820000, pedidos: 32 },
-  { day: "Mar", ventas: 4450000, pedidos: 41 },
-  { day: "Mié", ventas: 3100000, pedidos: 27 },
-  { day: "Jue", ventas: 5680000, pedidos: 52 },
-  { day: "Vie", ventas: 7230000, pedidos: 68 },
-  { day: "Sáb", ventas: 9500000, pedidos: 87 },
-  { day: "Dom", ventas: 6410000, pedidos: 59 },
-];
-
-const CAT_DATA = [
-  { name: "Zapatos", valor: 42 },
-  { name: "Ropa H.", valor: 20 },
-  { name: "Ropa M.", valor: 18 },
-  { name: "Relojes", valor: 11 },
-  { name: "Perfumes", valor: 9 },
-];
-
-const ORDERS = [
-  { id: "#US-3194", customer: "Valentina Torres", date: "14 Jul 2026", status: "Enviado", total: 899900, items: 1 },
-  { id: "#US-3193", customer: "Diego Martínez", date: "14 Jul 2026", status: "Procesando", total: 449900, items: 1 },
-  { id: "#US-3192", customer: "Camila Rodríguez", date: "13 Jul 2026", status: "Entregado", total: 779800, items: 2 },
-  { id: "#US-3191", customer: "Santiago Gómez", date: "13 Jul 2026", status: "Entregado", total: 219900, items: 1 },
-  { id: "#US-3190", customer: "Mariana López", date: "12 Jul 2026", status: "Cancelado", total: 399900, items: 1 },
-];
+const ORDERS: OrderSummary[] = [];
 
 // ─── UTILS ───────────────────────────────────────────────────────────────────
 
@@ -315,7 +292,7 @@ function Badge({ children, variant = "default" }: {
     free:    "bg-emerald-100 text-emerald-700",
   }[variant];
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold tracking-wide ${cls}`}>
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold tracking-wide ${variant === "sale" || variant === "new" ? "font-display text-sm uppercase tracking-[0.04em]" : ""} ${cls}`}>
       {children}
     </span>
   );
@@ -507,7 +484,7 @@ function ProductCarousel({ children }: { children: React.ReactNode }) {
         {children}
       </div>
     </div>
-  );
+    );
 }
 
 // ─── PRODUCT CARD ─────────────────────────────────────────────────────────────
@@ -521,13 +498,10 @@ function ProductCard({ product, onSelect, onAddToCart }: {
   const savings = product.originalPrice ? product.originalPrice - product.price : 0;
 
   return (
-    <div
-      onClick={() => onSelect(product)}
-      className="group relative w-full max-w-full h-full bg-white rounded-[20px] sm:rounded-[30px] overflow-hidden cursor-pointer border border-slate-200/80 shadow-[0_15px_40px_-28px_rgba(15,23,42,0.35)] hover:-translate-y-1 hover:shadow-[0_20px_60px_-30px_rgba(15,23,42,0.45)] transition-all duration-300 flex flex-col"
-    >
+        <article className="group relative w-full max-w-full h-full bg-white rounded-[20px] sm:rounded-[30px] overflow-hidden border border-slate-200/80 shadow-[0_15px_40px_-28px_rgba(15,23,42,0.35)] hover:-translate-y-1 hover:shadow-[0_20px_60px_-30px_rgba(15,23,42,0.45)] transition-all duration-300 flex flex-col">
       {/* Image */}
       <div className="relative w-full aspect-[4/3] bg-slate-100 overflow-hidden">
-        <img src={product.image} alt={product.name}
+        <img src={product.image} alt={product.name} onError={(event) => { event.currentTarget.style.display = "none"; }}
           className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
         />
         {/* Badges */}
@@ -538,8 +512,11 @@ function ProductCard({ product, onSelect, onAddToCart }: {
         </div>
         {/* Wishlist */}
         <button
-          onClick={(e) => { e.stopPropagation(); setWished(!wished); }}
-          className="absolute top-3 right-3 w-11 h-11 rounded-full bg-white/95 backdrop-blur flex items-center justify-center shadow-md hover:bg-white transition-colors"
+          type="button"
+          aria-label={wished ? `Quitar ${product.name} de favoritos` : `Agregar ${product.name} a favoritos`}
+          aria-pressed={wished}
+          onClick={() => setWished((value) => !value)}
+          className="absolute top-3 right-3 w-11 h-11 rounded-full bg-white/95 backdrop-blur flex items-center justify-center shadow-md hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8] transition-colors"
         >
           <Heart size={15} className={wished ? "fill-red-500 text-red-500" : "text-slate-400"} />
         </button>
@@ -549,10 +526,12 @@ function ProductCard({ product, onSelect, onAddToCart }: {
       <div className="p-4 sm:p-5 space-y-3 sm:space-y-4 flex flex-col flex-1">
         <div>
           <p className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-[#1d4ed8] mb-2">{product.brand}</p>
-          <h3 className="text-base font-extrabold text-slate-900 line-clamp-2 leading-snug">{product.name}</h3>
+          <h3 className="font-display text-[22px] sm:text-2xl text-slate-900 line-clamp-2 leading-[1.05]">
+            <button type="button" onClick={() => onSelect(product)} className="font-display text-left hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8]">{product.name}</button>
+          </h3>
           <p className="text-sm text-slate-500 mt-1">{product.subcategory}{product.gender ? ` · ${product.gender}` : ""}</p>
         </div>
-        <StarRating rating={product.rating} reviews={product.reviews} />
+        {product.reviews > 0 && product.rating > 0 && <StarRating rating={product.rating} reviews={product.reviews} />}
 
         {product.colors.length > 0 && (
           <div className="flex gap-2">
@@ -564,21 +543,23 @@ function ProductCard({ product, onSelect, onAddToCart }: {
         )}
 
         <div className="flex items-baseline gap-3">
-          <span className="text-lg font-extrabold text-slate-900">{fmt(product.price)}</span>
+          <span className="price text-lg text-slate-900">{fmt(product.price)}</span>
           {product.originalPrice && (
-            <span className="text-xs text-slate-400 line-through">{fmt(product.originalPrice)}</span>
+            <span className="price text-xs text-slate-400 line-through">{fmt(product.originalPrice)}</span>
           )}
         </div>
-        {savings > 0 && <p className="text-xs text-emerald-600 font-semibold -mt-1">Ahorras {fmt(savings)}</p>}
+        {savings > 0 && <p className="price text-xs text-emerald-600 -mt-1">Ahorras {fmt(savings)}</p>}
 
         <button
-          onClick={(e) => { e.stopPropagation(); onAddToCart(product, defaultSize, defaultColor); }}
-          className="mt-auto w-full min-h-11 py-3 rounded-full text-sm font-bold bg-black text-white hover:bg-slate-900 transition-all duration-200 flex items-center justify-center gap-2 shadow-sm shadow-slate-200"
+          type="button"
+          disabled={product.stock <= 0}
+          onClick={() => onAddToCart(product, defaultSize, defaultColor)}
+          className="mt-auto w-full min-h-11 py-3 rounded-full text-sm font-bold bg-black text-white hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600 transition-all duration-200 flex items-center justify-center gap-2 shadow-sm shadow-slate-200"
         >
-          <ShoppingCart size={14} /> Agregar al carrito
+          {product.stock <= 0 ? "Agotado" : <><ShoppingCart size={14} /> Agregar al carrito</>}
         </button>
       </div>
-    </div>
+    </article>
   );
 }
 
@@ -597,6 +578,9 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
   const [suggestions, setSuggestions] = useState<Product[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const suggestTimer = useRef<number | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
+  const mobileMenuPanelRef = useRef<HTMLDivElement>(null);
   const cartCount = cart.reduce((s, i) => s + i.qty, 0);
   const showCustomerOrders = !isAdmin && !isAdminUser(authUser);
   const [promoEntered, setPromoEntered] = useState(false);
@@ -605,6 +589,43 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
     const frame = requestAnimationFrame(() => setPromoEntered(true));
     return () => cancelAnimationFrame(frame);
   }, []);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const focusFirst = () => mobileMenuPanelRef.current?.querySelector<HTMLElement>("button:not([disabled])")?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setMobileMenuOpen(false);
+        mobileMenuButtonRef.current?.focus();
+        return;
+      }
+      if (event.key !== "Tab" || !mobileMenuPanelRef.current) return;
+
+      const focusable = Array.from(mobileMenuPanelRef.current.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), a[href], input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ));
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+    requestAnimationFrame(focusFirst);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [mobileMenuOpen]);
 
   // suggestions effect
   useEffect(() => {
@@ -631,20 +652,21 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
           variant="marquee"
           intervalMs={7800}
           messages={[
-            "Envíos gratis a toda Colombia por compras superiores a $299.999",
-            "Aceptamos todos los medios de pago: Tarjeta de crédito, débito y PSE. ¡Compra 100% segura!",
-            "Soporte y atención al cliente las 24 horas",
+            `Envío gratis en compras desde ${fmt(STORE_CONFIG.freeShippingMinimumSubtotalCop)}`,
+            "Consulta los medios de pago disponibles antes de confirmar tu pedido",
           ]}
         />
 
         {/* Main Navbar */}
         <nav className="bg-white border-b border-slate-100 shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-4">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-2 sm:gap-4">
             {/* Logo */}
-            <button onClick={() => onNavigate("home")} className="flex items-center gap-2 shrink-0">
-              <span className="text-xl sm:text-[2.1rem] font-extrabold text-slate-900 tracking-tight leading-none">
-                Urban<span className="text-[#1d4ed8]">Sport</span>
-                <span className="block text-[12px] sm:text-[13px] font-semibold text-slate-400 tracking-widest uppercase">Store</span>
+            <button onClick={() => onNavigate("home")} className="flex items-center shrink-0">
+              <span className="brand-lockup">
+                <span className="brand-wordmark">
+                  <span className="brand-urban">Urban</span><span className="brand-sport">Sport</span>
+                </span>
+                <span className="brand-sub">Store</span>
               </span>
             </button>
 
@@ -673,35 +695,22 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
               )}
             </div>
 
-            {/* Mobile search (visible on xs) */}
-            <div className="flex-1 sm:hidden">
-              <div className="relative">
-                <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  value={searchVal} onChange={(e) => setSearchVal(e.target.value)}
-                  placeholder="Buscar zapatillas, ropa, relojes…"
-                  className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none"
-                  onFocus={() => setShowSuggestions(true)}
-                  onBlur={() => setTimeout(() => setShowSuggestions(false), 180)}
-                />
-
-                {showSuggestions && suggestions.length > 0 && (
-                  <div className="absolute left-0 right-0 mt-2 bg-white border border-slate-100 rounded-xl shadow-lg z-50 max-h-60 overflow-auto">
-                    {suggestions.map((s) => (
-                      <button key={s.id} onMouseDown={(e) => { e.preventDefault(); onSelectProduct(s); setSearchVal(''); setSuggestions([]); }}
-                        className="w-full text-left px-4 py-3 hover:bg-slate-50 transition-colors">
-                        <div className="text-sm font-semibold">{s.name}</div>
-                        <div className="text-xs text-slate-400">{s.brand} · {s.subcategory}</div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
             {/* Actions */}
             <div className="flex items-center gap-1 ml-auto">
               <button
+                ref={mobileMenuButtonRef}
+                type="button"
+                aria-label={mobileMenuOpen ? "Cerrar menú" : "Abrir menú"}
+                aria-expanded={mobileMenuOpen}
+                aria-controls="mobile-category-menu"
+                onClick={() => setMobileMenuOpen((open) => !open)}
+                className="md:hidden w-10 h-10 rounded-xl flex items-center justify-center text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8]"
+              >
+                {mobileMenuOpen ? <X size={19} /> : <Menu size={19} />}
+              </button>
+              <button
+                type="button"
+                aria-label={`Abrir carrito, ${cartCount} artículos`}
                 onClick={onCartOpen}
                 className="relative w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
               >
@@ -767,52 +776,105 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
               </div>
             </div>
           </div>
+          <div className="relative px-4 pb-3 sm:hidden">
+            <Search size={15} aria-hidden="true" className="absolute left-7 top-1/2 -translate-y-1/2 text-slate-400" />
+            <label htmlFor="mobile-product-search" className="sr-only">Buscar productos</label>
+            <input
+              id="mobile-product-search"
+              value={searchVal}
+              onChange={(event) => setSearchVal(event.target.value)}
+              placeholder="Buscar zapatillas, ropa, relojes…"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-10 pr-4 text-sm text-slate-700 placeholder-slate-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1d4ed8]"
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 180)}
+            />
+            {showSuggestions && suggestions.length > 0 && (
+              <div className="absolute left-4 right-4 top-full z-50 max-h-60 overflow-auto rounded-xl border border-slate-100 bg-white shadow-lg">
+                {suggestions.map((product) => (
+                  <button key={product.id} type="button" onMouseDown={(event) => { event.preventDefault(); onSelectProduct?.(product); setSearchVal(""); setSuggestions([]); }} className="w-full px-4 py-3 text-left hover:bg-slate-50">
+                    <span className="block text-sm font-semibold">{product.name}</span>
+                    <span className="block text-xs text-slate-400">{product.brand} · {product.subcategory}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </nav>
       </div>
 
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-[60] md:hidden" onClick={() => { setMobileMenuOpen(false); mobileMenuButtonRef.current?.focus(); }}>
+          <div className="absolute inset-0 bg-slate-950/40" />
+          <div
+            ref={mobileMenuPanelRef}
+            id="mobile-category-menu"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navegación de la tienda"
+            tabIndex={-1}
+            onClick={(event) => event.stopPropagation()}
+            className="absolute inset-y-0 left-0 flex w-[min(86vw,360px)] flex-col overflow-y-auto bg-white p-5 shadow-2xl"
+          >
+            <div className="mb-5 flex items-center justify-between border-b border-slate-200 pb-4">
+              <h2 className="text-lg font-extrabold text-slate-900">Categorías</h2>
+              <button type="button" onClick={() => { setMobileMenuOpen(false); mobileMenuButtonRef.current?.focus(); }} aria-label="Cerrar menú" className="flex h-11 w-11 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1d4ed8]">
+                <X size={19} />
+              </button>
+            </div>
+            <nav aria-label="Categorías de productos" className="grid gap-1">
+              {NAV_CATEGORIES.map((category) => (
+                <button
+                  key={category.name}
+                  type="button"
+                  onClick={() => {
+                    onCategorySelect(category.name);
+                    setMobileMenuOpen(false);
+                    mobileMenuButtonRef.current?.focus();
+                  }}
+                  className="min-h-12 rounded-lg px-3 text-left text-base font-semibold text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1d4ed8]"
+                >
+                  {category.name}
+                </button>
+              ))}
+            </nav>
+            <div className="mt-auto grid gap-2 border-t border-slate-200 pt-4">
+              <button type="button" onClick={() => { onNavigate(isLoggedIn ? "account" : "login"); setMobileMenuOpen(false); }} className="min-h-12 rounded-lg bg-slate-100 px-3 text-left text-sm font-semibold text-slate-800">
+                {isLoggedIn ? "Mi cuenta" : "Iniciar sesión"}
+              </button>
+              <button type="button" onClick={() => { onCartOpen(); setMobileMenuOpen(false); }} className="min-h-12 rounded-lg bg-slate-900 px-3 text-left text-sm font-semibold text-white">
+                Carrito ({cartCount})
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {(currentView === "home" || currentView === "catalog") && (
         <div className="w-full bg-transparent pt-[6.75rem]">
-          <div className="w-full py-0">
-            <button
-              type="button"
-              onClick={() => onNavigate('catalog')}
-              aria-label="Ver promociones y productos con descuento"
-              className={[
-                'block w-full bg-transparent rounded-none',
-                'transition-transform duration-700 ease-out',
-                'motion-reduce:transform-none motion-reduce:transition-none',
-                promoEntered ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2',
-              ].join(' ')}
-            >
-              <div className="relative mx-auto w-full max-w-6xl bg-gradient-to-b from-gray-50 to-gray-100">
-                <img
-                  src={promoBanner}
-                  alt="Promoción Urban Sport Store"
-                  loading="lazy"
-                  className="mx-auto block h-auto w-full object-contain object-center"
-                />
-              </div>
-            </button>
-          </div>
+          {currentView === "catalog" && (
+            <div className="w-full py-0">
+              <button
+                type="button"
+                onClick={() => onNavigate("catalog")}
+                aria-label="Ver promociones y productos con descuento"
+                className={[
+                  "block w-full bg-transparent rounded-none",
+                  "transition-transform duration-700 ease-out",
+                  "motion-reduce:transform-none motion-reduce:transition-none",
+                  promoEntered ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2",
+                ].join(" ")}
+              >
+                <div className="relative mx-auto w-full max-w-6xl bg-gradient-to-b from-gray-50 to-gray-100">
+                  <img src={promoBanner} alt="Promoción Urban Sport Store" loading="lazy" className="mx-auto block h-auto w-full object-contain object-center" />
+                </div>
+              </button>
+            </div>
+          )}
 
           <div className="overflow-x-auto mt-6">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 hidden md:flex items-center justify-center gap-1 h-9">
               {NAV_CATEGORIES.map((cat) => (
-                <button key={cat.name}
-                  onClick={() => onCategorySelect(cat.name)}
-                  className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-semibold text-slate-600 hover:text-[#1d4ed8] hover:bg-blue-50 transition-colors whitespace-nowrap">
-                  {cat.name}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="md:hidden overflow-x-auto mt-6">
-            <div className="max-w-7xl mx-auto px-3 flex items-center gap-1 h-9"> 
-              {NAV_CATEGORIES.map((cat) => (
-                <button key={cat.name}
-                  onClick={() => onCategorySelect(cat.name)}
-                  className="flex items-center gap-1.5 px-4 h-9 rounded-lg text-sm font-semibold text-slate-600 hover:text-[#1d4ed8] hover:bg-blue-50 transition-colors whitespace-nowrap">
+                <button key={cat.name} type="button" onClick={() => onCategorySelect(cat.name)} className="min-h-10 flex items-center gap-1.5 px-4 rounded-lg text-sm font-semibold text-slate-600 hover:text-[#1d4ed8] hover:bg-blue-50 transition-colors whitespace-nowrap">
                   {cat.name}
                 </button>
               ))}
@@ -824,26 +886,66 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
   );
 }
 
-// ─── CART DRAWER ──────────────────────────────────────────────────────────────
-
 function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
-  cart: CartItem[]; onClose: () => void;
-  onUpdate: (id: string, size: string, qty: number) => void;
-  onRemove: (id: string, size: string) => void;
+  cart: CartItem[];
+  onClose: () => void;
+  onUpdate: (id: string, size: string, color: string, qty: number) => void;
+  onRemove: (id: string, size: string, color: string) => void;
   onCheckout: () => void;
 }) {
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    panelRef.current?.querySelector<HTMLElement>("button:not([disabled])")?.focus();
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        previouslyFocused?.focus();
+        return;
+      }
+      if (event.key !== "Tab" || !panelRef.current) return;
+
+      const focusable = Array.from(panelRef.current.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), a[href], input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ));
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", onKeyDown);
+      previouslyFocused?.focus();
+    };
+  }, []);
+
   const subtotal = cart.reduce((s, i) => s + i.product.price * i.qty, 0);
-  const shipping = subtotal >= 250000 ? 0 : 15900;
+  const shipping = subtotal >= STORE_CONFIG.freeShippingMinimumSubtotalCop
+    ? 0
+    : STORE_CONFIG.standardShippingPriceCop;
   const total = subtotal + shipping;
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50" onClick={onClose} />
-      <div className="fixed right-0 top-0 bottom-0 w-full max-w-md bg-white z-50 flex flex-col shadow-2xl">
+      <button type="button" aria-label="Cerrar carrito" className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50" onClick={onClose} />
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="cart-drawer-title" tabIndex={-1} className="fixed right-0 top-0 bottom-0 w-full max-w-md bg-white z-50 flex flex-col shadow-2xl">
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
           <div className="flex items-center gap-2">
             <ShoppingCart size={18} className="text-[#1d4ed8]" />
-            <h2 className="text-base font-bold text-slate-900">Mi carrito</h2>
+            <h2 id="cart-drawer-title" className="text-base font-bold text-slate-900">Mi carrito</h2>
             <span className="text-sm text-slate-400">({cart.reduce((s, i) => s + i.qty, 0)} artículos)</span>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-colors">
@@ -862,9 +964,9 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
             </div>
           ) : (
             cart.map((item) => (
-              <div key={`${item.product.id}-${item.selectedSize}`}
+              <div key={`${item.product.id}-${item.selectedSize}-${item.selectedColor}`}
                 className="flex gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
-                <img src={item.product.image} alt={item.product.name}
+                <img src={item.product.image} alt={item.product.name} onError={(event) => { event.currentTarget.style.display = "none"; }}
                   className="w-16 h-16 object-cover rounded-lg bg-white shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-[11px] font-bold text-[#1d4ed8] uppercase">{item.product.brand}</p>
@@ -877,20 +979,20 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
                       <span className="text-xs text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded-md">{item.selectedColor}</span>
                     )}
                   </div>
-                  <p className="text-sm font-extrabold text-slate-900 mt-1">{fmt(item.product.price)}</p>
+                  <p className="price text-sm text-slate-900 mt-1">{fmt(item.product.price)}</p>
                   <div className="flex items-center gap-2 mt-1.5">
                     <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-white">
-                      <button onClick={() => onUpdate(item.product.id, item.selectedSize, item.qty - 1)}
+                      <button type="button" aria-label={`Reducir cantidad de ${item.product.name}`} onClick={() => onUpdate(item.product.id, item.selectedSize, item.selectedColor, item.qty - 1)}
                         className="w-7 h-7 flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-colors">
                         <Minus size={12} />
                       </button>
                       <span className="w-7 text-center text-sm font-bold text-slate-800">{item.qty}</span>
-                      <button onClick={() => onUpdate(item.product.id, item.selectedSize, item.qty + 1)}
+                      <button type="button" aria-label={`Aumentar cantidad de ${item.product.name}`} onClick={() => onUpdate(item.product.id, item.selectedSize, item.selectedColor, item.qty + 1)}
                         className="w-7 h-7 flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-colors">
                         <Plus size={12} />
                       </button>
                     </div>
-                    <button onClick={() => onRemove(item.product.id, item.selectedSize)}
+                    <button type="button" aria-label={`Eliminar ${item.product.name} del carrito`} onClick={() => onRemove(item.product.id, item.selectedSize, item.selectedColor)}
                       className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors">
                       <Trash2 size={13} />
                     </button>
@@ -903,23 +1005,23 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
 
         {cart.length > 0 && (
           <div className="px-5 py-4 border-t border-slate-100 space-y-3">
-            {subtotal < 250000 && (
+            {subtotal < STORE_CONFIG.freeShippingMinimumSubtotalCop && (
               <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-xl text-xs text-blue-700 font-medium">
-                <Truck size={14} /> Agrega {fmt(250000 - subtotal)} más para envío gratis
+                <Truck size={14} /> Agrega {fmt(STORE_CONFIG.freeShippingMinimumSubtotalCop - subtotal)} para envío gratis
               </div>
             )}
             <div className="space-y-1.5 text-sm">
               <div className="flex justify-between text-slate-500">
-                <span>Subtotal</span><span className="font-semibold text-slate-800">{fmt(subtotal)}</span>
+                <span>Subtotal</span><span className="price text-slate-800">{fmt(subtotal)}</span>
               </div>
               <div className="flex justify-between text-slate-500">
                 <span>Envío</span>
-                <span className={shipping === 0 ? "text-emerald-600 font-bold" : "font-semibold text-slate-800"}>
+                <span className={`price ${shipping === 0 ? "text-emerald-600" : "text-slate-800"}`}>
                   {shipping === 0 ? "Gratis" : fmt(shipping)}
                 </span>
               </div>
               <div className="flex justify-between font-extrabold text-slate-900 text-base border-t border-slate-100 pt-1.5">
-                <span>Total</span><span>{fmt(total)} COP</span>
+                <span>Total</span><span className="price">{fmt(total)} COP</span>
               </div>
             </div>
             <Btn variant="primary" className="w-full" size="lg" onClick={onCheckout}>
@@ -927,7 +1029,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
             </Btn>
             <div className="flex items-center justify-center gap-4 text-xs text-slate-400">
               <span className="flex items-center gap-1"><Shield size={11} /> Pago seguro</span>
-              <span className="flex items-center gap-1"><RefreshCw size={11} /> 30 días devolución</span>
+              <span className="flex items-center gap-1"><RefreshCw size={11} /> Consulta condiciones de cambio</span>
             </div>
           </div>
         )}
@@ -942,39 +1044,33 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
     return <div className="grid grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">{children}</div>;
   }
 
-  function CategoryCarouselSection({ title, items, onCategorySelect }: {
-    title: string;
-    items: HomeCollection[];
-    onCategorySelect: (category: Category) => void;
-  }) {
-    return (
-      <section className="py-6 sm:py-8 max-w-7xl mx-auto px-3 sm:px-4 md:px-6" aria-label={title}>
-        <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 mb-4 sm:mb-5">{title}</h2>
-        <HorizontalProductCarousel gap="md">
-          {items.map((item) => (
-            <div key={item.title} className="w-[78%] min-[480px]:w-[46%] md:w-[31%] xl:w-[23%] 2xl:w-[19%] shrink-0 snap-start">
-              <button
-                type="button"
-                onClick={() => onCategorySelect(item.category)}
-                aria-label={`Explorar ${item.title}, categoría ${item.category}`}
-                className="group relative block aspect-[4/3] w-full overflow-hidden rounded-2xl bg-slate-200 text-left shadow-sm"
-              >
-                <img src={item.image} alt="" className="absolute inset-0 h-full w-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-900/20 to-transparent" />
-                <div className="absolute inset-x-0 bottom-0 p-3 sm:p-4">
-                  <p className="text-xs sm:text-sm font-semibold text-orange-300">{item.category}</p>
-                  <h3 className="mt-1 text-base sm:text-lg font-extrabold leading-tight text-white">{item.title}</h3>
-                  <p className="mt-1 text-xs sm:text-sm leading-snug text-slate-200">{item.description}</p>
-                </div>
-              </button>
-            </div>
+  function ProductStatusNotice({ status, onRetry }: { status: ProductsStatus; onRetry: () => void }) {
+    if (status === "loading") {
+      return (
+        <div role="status" aria-busy="true" className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 sm:gap-4">
+          <span className="sr-only">Cargando productos</span>
+          {Array.from({ length: 4 }, (_, index) => (
+            <div key={index} className="aspect-[4/5] animate-pulse rounded-2xl bg-slate-200" />
           ))}
-        </HorizontalProductCarousel>
-      </section>
-    );
+        </div>
+      );
+    }
+
+    if (status === "error") {
+      return (
+        <div role="alert" className="flex flex-col items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-950 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm">No pudimos cargar el catálogo. Intenta de nuevo en unos momentos.</p>
+          <button type="button" onClick={onRetry} className="min-h-11 rounded-lg border border-amber-300 bg-white px-4 text-sm font-bold hover:bg-amber-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-700">
+            Reintentar
+          </button>
+        </div>
+      );
+    }
+
+    return null;
   }
 
-  function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, content, featuredProducts, newArrivalsProducts, saleProducts }: {
+  function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, content, featuredProducts, newArrivalsProducts, saleProducts, productsStatus, onRetryProducts }: {
   onNavigate: (v: View) => void; onSelectProduct: (p: Product) => void;
   onAddToCart: (p: Product, size: string, color: string) => void;
   onCategorySelect: (c: Category) => void;
@@ -982,76 +1078,46 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
   featuredProducts: Product[];
   newArrivalsProducts: Product[];
   saleProducts: Product[];
+  productsStatus: ProductsStatus;
+  onRetryProducts: () => void;
 }) {
   const featured = featuredProducts;
   const newArrivals = newArrivalsProducts;
   const onSale = saleProducts;
-  // Ensure carousel has enough items to scroll — duplicate if list is short
-  const arrivalsForCarousel = (() => {
-    const base = newArrivals.slice(0, 9);
-    if (base.length === 0) return base;
-    let arr = [...base];
-    while (arr.length < 6) arr = arr.concat(base);
-    return arr.slice(0, 9);
-  })();
+  const [newsletterEmail, setNewsletterEmail] = useState("");
+  const [newsletterLoading, setNewsletterLoading] = useState(false);
+  const [newsletterMessage, setNewsletterMessage] = useState("");
+  const [newsletterError, setNewsletterError] = useState(false);
+  const [newsletterConsent, setNewsletterConsent] = useState(false);
+  const privacyPolicyUrl = import.meta.env.VITE_PRIVACY_POLICY_URL?.trim() ?? "";
+
+  const handleNewsletterSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!privacyPolicyUrl || !newsletterConsent) {
+      setNewsletterError(true);
+      setNewsletterMessage("La suscripción requiere una política de privacidad publicada y tu aceptación.");
+      return;
+    }
+    setNewsletterLoading(true);
+    setNewsletterMessage("");
+    setNewsletterError(false);
+
+    try {
+      await subscribeToNewsletter(newsletterEmail.trim());
+      setNewsletterEmail("");
+      setNewsletterMessage("Tu correo quedó registrado para recibir novedades.");
+    } catch (error) {
+      setNewsletterError(true);
+      setNewsletterMessage(error instanceof Error ? error.message : "No se pudo registrar el correo. Intenta nuevamente.");
+    } finally {
+      setNewsletterLoading(false);
+    }
+  };
 
   return (
     <main className="pt-16 sm:pt-20 md:pt-24">
-      {/* Categories grid */}
-      <section className="pt-8 sm:pt-10 md:pt-12 pb-2 sm:pb-3 md:pb-4 max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
-        <div className="flex items-end justify-between mb-6 sm:mb-8">
-          <div>
-            <p className="text-[10px] sm:text-xs font-bold text-[#1d4ed8] tracking-widest uppercase mb-1 sm:mb-1.5">{content.categorySectionLabel}</p>
-            <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">{content.categorySectionTitle}</h2>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-          {HOME_CATEGORIES.map((cat) => (
-            <div key={cat.name} className="min-w-0">
-              <button
-                onClick={() => onCategorySelect(cat.name as Category)}
-                className="group relative rounded-2xl sm:rounded-3xl overflow-hidden aspect-[4/3] w-full bg-slate-200 hover:shadow-lg transition-all duration-300">
-                <img src={cat.image} alt={cat.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-2 sm:p-3">
-                  <p className="text-sm sm:text-base font-extrabold text-white leading-tight">{cat.name}</p>
-                  <p className="text-xs sm:text-sm text-slate-300">{cat.sub}</p>
-                </div>
-              </button>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <CategoryCarouselSection title="Colecciones destacadas" items={FEATURED_COLLECTIONS} onCategorySelect={onCategorySelect} />
-      <CategoryCarouselSection title="Nuevas categorías" items={NEW_CATEGORIES} onCategorySelect={onCategorySelect} />
-
-      {/* Special offers - On sale now */}
-      {onSale.length > 0 && (
-        <section className="py-8 sm:py-12 md:py-16 bg-orange-50 border-y border-orange-100">
-          <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
-            <div className="flex items-end justify-between mb-6 sm:mb-8 gap-4">
-              <div>
-                <p className="text-[10px] sm:text-xs font-bold text-[#f97316] tracking-widest uppercase mb-1 sm:mb-1.5">Oferta especial</p>
-                <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">En descuento ahora</h2>
-              </div>
-              <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="hidden sm:flex">Ver todos <ChevronRight size={14} /></Btn>
-            </div>
-            <ProductGrid>
-                {onSale.slice(0, 9).map((p) => (
-              <div key={p.id + "-sale"} className="min-w-0">
-                  <ProductCard product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
-                </div>
-              ))}
-            </ProductGrid>
-            <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="sm:hidden w-full mt-6">Ver todos <ChevronRight size={14} /></Btn>
-          </div>
-        </section>
-      )}
-
-      {/* Main promotional banner */}
       {/* Hero */}
-      <section className="relative min-h-[360px] sm:min-h-[400px] md:min-h-[440px] lg:min-h-[480px] flex items-center justify-center overflow-hidden bg-slate-900 mt-6 sm:mt-10 md:mt-12">
+      <section className="relative min-h-[360px] sm:min-h-[400px] md:min-h-[440px] lg:min-h-[480px] flex items-center justify-center overflow-hidden bg-slate-900">
         <img
           src="https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=1600&h=900&fit=crop&auto=format"
           alt="Atleta en acción" className="absolute inset-0 w-full h-full object-cover object-center"
@@ -1060,15 +1126,15 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
 
         <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-6 sm:py-8 md:py-10 w-full">
           <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#f97316]/20 border border-[#f97316]/30 text-[#f97316] text-[10px] sm:text-xs font-bold tracking-widest uppercase mb-3 sm:mb-4 whitespace-nowrap">
+            <div className="font-display inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#f97316]/20 border border-[#f97316]/30 text-[#f97316] text-sm sm:text-base tracking-[0.04em] uppercase mb-3 sm:mb-4 whitespace-nowrap">
               <Award size={12} /> Colección 2026
             </div>
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold text-white leading-tight tracking-tight mb-3 sm:mb-4">{content.heroTitle}</h1>
+            <h1 className="font-display text-[40px] sm:text-[52px] md:text-[60px] lg:text-[72px] text-white leading-[1.02] tracking-normal mb-3 sm:mb-4">{content.heroTitle}</h1>
             <p className="text-base sm:text-lg md:text-xl text-slate-300 leading-relaxed mb-6 max-w-md">
               {content.heroSubtitle}
             </p>
             <div className="flex flex-col min-[480px]:flex-row gap-3 w-full min-[480px]:w-auto">
-              <Btn variant="primary" size="lg" onClick={() => onNavigate("catalog")} className="w-full min-[480px]:w-auto justify-center">
+              <Btn variant="primary" size="lg" onClick={() => onNavigate("catalog")} className="w-full min-[480px]:w-auto justify-center !bg-[#00e676] !text-slate-950 hover:!bg-[#00c853]">
                 Comprar ahora <ArrowRight size={16} />
               </Btn>
               <button onClick={() => onNavigate("catalog")}
@@ -1078,28 +1144,48 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
             </div>
           </div>
         </div>
-
       </section>
 
-      {/* Categories Navigation Section - Independent Block */}
-      <section className="w-full my-10 sm:my-12 md:my-14">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
-          <div className="mb-4 sm:mb-5 md:mb-6">
-            <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">Compra por categoría</h2>
+      <section aria-label="Beneficios de compra" className="border-y border-slate-200 bg-white">
+        <div className="mx-auto grid max-w-7xl grid-cols-1 divide-y divide-slate-200 px-3 sm:grid-cols-3 sm:divide-y-0 sm:divide-x sm:px-4 md:px-6">
+          <div className="flex items-center justify-center gap-3 px-3 py-4 text-sm font-semibold text-slate-800 sm:py-5">
+            <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-800"><Truck size={19} /></span>
+            <span>Envío gratis desde {fmt(STORE_CONFIG.freeShippingMinimumSubtotalCop)}</span>
           </div>
+          <div className="flex items-center justify-center gap-3 px-3 py-4 text-sm font-semibold text-slate-800 sm:py-5">
+            <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-800"><CreditCard size={19} /></span>
+            <span>Medios de pago: consulta disponibilidad</span>
+          </div>
+          <div className="flex items-center justify-center gap-3 px-3 py-4 text-sm font-semibold text-slate-800 sm:py-5">
+            <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-100 text-orange-800"><RefreshCw size={19} /></span>
+            <span>Consulta condiciones de cambio de talla</span>
+          </div>
+        </div>
+      </section>
+
+      {/* Categories grid */}
+      <section className="pt-8 sm:pt-10 md:pt-12 pb-2 sm:pb-3 md:pb-4 max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
+        <div className="flex items-end justify-between mb-6 sm:mb-8">
           <div>
-            <nav className="grid grid-cols-2 min-[480px]:grid-cols-3 lg:grid-cols-4 items-stretch w-full gap-2 sm:gap-3 py-3 md:py-4">
-              {NAV_CATEGORIES.map((cat) => (
-                <button
-                  key={cat.name}
-                  onClick={() => onCategorySelect(cat.name as Category)}
-                  className="min-w-0 inline-flex items-center justify-center text-sm sm:text-base font-semibold text-slate-700 hover:text-[#1d4ed8] transition-all duration-200 px-3 sm:px-4 py-3 min-h-12 rounded-xl bg-white shadow-sm hover:bg-slate-50 text-center"
-                >
-                  {cat.name}
-                </button>
-              ))}
-            </nav>
+            <p className="font-display text-sm sm:text-base text-[#1d4ed8] tracking-[0.04em] uppercase mb-1 sm:mb-1.5">{content.categorySectionLabel}</p>
+            <h2 className="font-display text-[28px] sm:text-[32px] md:text-[40px] text-slate-900 leading-[1.05]">{content.categorySectionTitle}</h2>
           </div>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+          {HOME_CATEGORIES.map((cat) => (
+            <div key={cat.name} className="min-w-0">
+              <button
+                onClick={() => onCategorySelect(cat.name as Category)}
+                className="group relative rounded-2xl sm:rounded-3xl overflow-hidden aspect-[4/3] w-full bg-gradient-to-br from-slate-200 via-slate-300 to-slate-400 hover:shadow-lg transition-all duration-300">
+                <img src={cat.image} alt={cat.name} onError={(event) => { event.currentTarget.style.display = "none"; }} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 p-2 sm:p-3">
+                  <p className="font-display text-[22px] sm:text-[24px] text-white leading-[1.05]">{cat.name}</p>
+                  <p className="text-xs sm:text-sm text-slate-300">{cat.sub}</p>
+                </div>
+              </button>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -1107,19 +1193,33 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
       <section className="py-8 sm:py-12 md:py-16 max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
         <div className="flex items-end justify-between mb-6 sm:mb-8 gap-4">
           <div>
-            <p className="text-[10px] sm:text-xs font-bold text-[#1d4ed8] tracking-widest uppercase mb-1 sm:mb-1.5">{content.featuredSectionLabel}</p>
-            <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">{content.featuredSectionTitle}</h2>
+            <p className="font-display text-sm sm:text-base text-[#1d4ed8] tracking-[0.04em] uppercase mb-1 sm:mb-1.5">{content.featuredSectionLabel}</p>
+            <h2 className="font-display text-[28px] sm:text-[32px] md:text-[40px] text-slate-900 leading-[1.05]">{content.featuredSectionTitle}</h2>
           </div>
-          <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="hidden sm:flex">Ver todos <ChevronRight size={14} /></Btn>
+          {productsStatus === "ready" && featured.length > 0 && <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="hidden sm:flex">Ver todos <ChevronRight size={14} /></Btn>}
         </div>
-        <ProductGrid>
-            {featured.slice(0, 9).map((p) => (
-          <div key={p.id} className="min-w-0">
-              <ProductCard product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
-            </div>
-          ))}
-        </ProductGrid>
-        <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="sm:hidden w-full mt-6">Ver todos <ChevronRight size={14} /></Btn>
+        {productsStatus === "ready" ? (
+          featured.length > 0 ? (
+            <>
+              <ProductGrid>
+                {featured.slice(0, 9).map((p) => (
+                  <div key={p.id} className="min-w-0">
+                    <ProductCard product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
+                  </div>
+                ))}
+              </ProductGrid>
+              <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="sm:hidden w-full mt-6">Ver todos <ChevronRight size={14} /></Btn>
+            </>
+          ) : (
+            <p className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600">Aún no hay productos publicados.</p>
+          )
+        ) : <ProductStatusNotice status={productsStatus} onRetry={onRetryProducts} />}
+      </section>
+
+      <section className="mx-auto max-w-7xl px-3 pt-2 sm:px-4 md:px-6" aria-label="Promoción de primera compra">
+        <button type="button" onClick={() => onNavigate("catalog")} aria-label="Ver promociones y productos con descuento" className="block w-full overflow-hidden bg-slate-100">
+          <img src={promoBanner} alt="Promoción de primera compra: 10% de descuento" loading="lazy" className="mx-auto block h-auto w-full object-contain" />
+        </button>
       </section>
 
       {/* Promo banners */}
@@ -1134,8 +1234,8 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
             </picture>
             <div className="absolute inset-0 bg-gradient-to-r from-black/30 to-slate-900/10" />
             <div className="absolute inset-0 p-4 sm:p-6 md:p-8 flex flex-col justify-end">
-              <p className="text-[10px] sm:text-xs font-semibold text-[#fbbf24] uppercase tracking-[0.2em] sm:tracking-[0.3em] mb-1 sm:mb-1.5">Temporada 2026</p>
-              <h3 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-white mb-2 sm:mb-3">Ropa Hombre</h3>
+              <p className="font-display text-sm sm:text-base text-[#fbbf24] uppercase tracking-[0.04em] mb-1 sm:mb-1.5">Temporada 2026</p>
+              <h3 className="font-display text-2xl sm:text-[28px] md:text-[30px] text-white leading-[1.05] mb-2 sm:mb-3">Ropa Hombre</h3>
               <button onClick={() => onCategorySelect("Ropa Hombre")}
                 className="inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-slate-900 bg-white px-3 sm:px-5 py-2 sm:py-3 rounded-full hover:bg-slate-100 transition-all w-fit">
                 Explorar <ArrowRight size={13} />
@@ -1151,8 +1251,8 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
             </picture>
             <div className="absolute inset-0 bg-gradient-to-r from-white/80 to-transparent" />
             <div className="absolute inset-0 p-4 sm:p-6 md:p-8 flex flex-col justify-end">
-              <p className="text-[10px] sm:text-xs font-semibold text-[#1d4ed8] uppercase tracking-[0.2em] sm:tracking-[0.3em] mb-1 sm:mb-1.5">Colección nueva</p>
-              <h3 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-slate-900 mb-2 sm:mb-3">Ropa Mujer</h3>
+              <p className="font-display text-sm sm:text-base text-[#1d4ed8] uppercase tracking-[0.04em] mb-1 sm:mb-1.5">Colección nueva</p>
+              <h3 className="font-display text-2xl sm:text-[28px] md:text-[30px] text-slate-900 leading-[1.05] mb-2 sm:mb-3">Ropa Mujer</h3>
               <button onClick={() => onCategorySelect("Ropa Mujer")}
                 className="inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-white bg-black px-3 sm:px-5 py-2 sm:py-3 rounded-full hover:bg-slate-900 transition-all w-fit">
                 Explorar <ArrowRight size={13} />
@@ -1162,39 +1262,18 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
         </div>
       </section>
 
-      {/* Recently arrived */}
-      {newArrivals.length > 0 && (
-        <section className="py-8 sm:py-12 md:py-16 max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
-          <div className="flex items-end justify-between mb-6 sm:mb-8 gap-4">
-            <div>
-              <p className="text-[10px] sm:text-xs font-bold text-blue-600 tracking-widest uppercase mb-1 sm:mb-1.5">Recién llegados</p>
-              <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">Novedades</h2>
-            </div>
-            <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="hidden sm:flex">Ver todos <ChevronRight size={14} /></Btn>
-          </div>
-          <ProductCarousel>
-              {newArrivals.slice(0, 9).map((p, idx) => (
-              <div key={p.id + "-recent-" + idx} className="w-[84vw] max-w-[280px] sm:w-[16rem] lg:w-[18rem] shrink-0">
-                <ProductCard product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
-              </div>
-            ))}
-          </ProductCarousel>
-          <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="sm:hidden w-full mt-6">Ver todos <ChevronRight size={14} /></Btn>
-        </section>
-      )}
-
       {/* New arrivals */}
       {newArrivals.length > 0 && (
         <section className="py-8 sm:py-12 md:py-16 max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
           <div className="flex items-end justify-between mb-6 sm:mb-8 gap-4">
             <div>
-              <p className="text-[10px] sm:text-xs font-bold text-emerald-600 tracking-widest uppercase mb-1 sm:mb-1.5">{content.newArrivalsLabel}</p>
-              <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">{content.newArrivalsSectionTitle}</h2>
+              <p className="font-display text-sm sm:text-base text-emerald-700 tracking-[0.04em] uppercase mb-1 sm:mb-1.5">{content.newArrivalsLabel}</p>
+              <h2 className="font-display text-[28px] sm:text-[32px] md:text-[40px] text-slate-900 leading-[1.05]">{content.newArrivalsSectionTitle}</h2>
             </div>
             <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="hidden sm:flex">Ver todos <ChevronRight size={14} /></Btn>
           </div>
           <ProductCarousel>
-              {arrivalsForCarousel.map((p, idx) => (
+              {newArrivals.slice(0, 9).map((p, idx) => (
               <div key={p.id + "-" + idx} className="w-[84vw] max-w-[280px] sm:w-[16rem] lg:w-[18rem] shrink-0">
                 <ProductCard product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
               </div>
@@ -1209,8 +1288,8 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
         <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
           <div className="flex items-end justify-between mb-6 sm:mb-8 gap-4">
             <div>
-              <p className="text-[10px] sm:text-xs font-bold text-[#f97316] tracking-widest uppercase mb-1 sm:mb-1.5">{content.saleSectionLabel}</p>
-              <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">{content.saleSectionTitle}</h2>
+              <p className="font-display text-sm sm:text-base text-[#c2410c] tracking-[0.04em] uppercase mb-1 sm:mb-1.5">{content.saleSectionLabel}</p>
+              <h2 className="font-display text-[28px] sm:text-[32px] md:text-[40px] text-slate-900 leading-[1.05]">{content.saleSectionTitle}</h2>
             </div>
             <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="hidden sm:flex">Ver todos <ChevronRight size={14} /></Btn>
           </div>
@@ -1229,56 +1308,55 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
       <section className="py-5 sm:py-6 md:py-7 bg-[#1d4ed8]">
         <div className="max-w-xl mx-auto px-3 sm:px-4 text-center">
           <p className="text-[10px] sm:text-xs font-bold text-blue-200 uppercase tracking-widest mb-1 sm:mb-1.5">Mantente al día</p>
-          <h2 className="text-lg sm:text-xl font-extrabold text-white mb-1 sm:mb-1.5">Recibe ofertas exclusivas</h2>
-          <p className="text-blue-200 text-xs sm:text-sm mb-3 sm:mb-4">Suscríbete y obtén 10% de descuento en tu primera compra.</p>
-          <div className="flex flex-col sm:flex-row gap-2 max-w-sm mx-auto">
-            <input type="email" placeholder="tu@email.com"
-              className="flex-1 px-4 py-3 rounded-xl text-sm text-slate-800 bg-white placeholder-slate-400 focus:outline-none" />
-            <button onClick={() => toast.success('¡Gracias! Te notificaremos cuando haya ofertas disponibles.')}
-              className="px-5 py-3 rounded-xl bg-black/70 text-white text-sm font-bold hover:bg-black/90 transition-colors whitespace-nowrap w-full sm:w-auto">
-              Suscribirme
+          <h2 className="font-display text-2xl sm:text-3xl text-white leading-[1.05] mb-1 sm:mb-1.5">Recibe ofertas exclusivas</h2>
+          <p className="text-blue-200 text-xs sm:text-sm mb-3 sm:mb-4">Suscríbete para recibir novedades y promociones disponibles.</p>
+          <form onSubmit={handleNewsletterSubmit} className="flex flex-col sm:flex-row gap-2 max-w-sm mx-auto">
+            <label htmlFor="newsletter-email" className="sr-only">Correo electrónico</label>
+            <input
+              id="newsletter-email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+              disabled={!privacyPolicyUrl}
+              value={newsletterEmail}
+              onChange={(event) => setNewsletterEmail(event.target.value)}
+              placeholder="tu@email.com"
+              className="flex-1 px-4 py-3 rounded-xl text-sm text-slate-800 bg-white placeholder-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+            />
+            <button type="submit" disabled={newsletterLoading || !privacyPolicyUrl || !newsletterConsent}
+              className="px-5 py-3 rounded-xl bg-[#00e676] text-slate-950 text-sm font-bold hover:bg-[#00c853] disabled:cursor-wait disabled:opacity-70 transition-colors whitespace-nowrap w-full sm:w-auto">
+              {newsletterLoading ? "Enviando…" : "Suscribirme"}
             </button>
-          </div>
+          </form>
+          {privacyPolicyUrl ? (
+            <label className="mx-auto mt-3 flex max-w-sm items-start gap-2 text-left text-xs text-blue-100">
+              <input type="checkbox" required checked={newsletterConsent} onChange={(event) => setNewsletterConsent(event.target.checked)} className="mt-0.5 accent-emerald-500" />
+              <span>Acepto el uso de mi correo para recibir novedades y he leído la <a href={privacyPolicyUrl} target="_blank" rel="noreferrer" className="font-bold underline">política de privacidad</a>.</span>
+            </label>
+          ) : (
+            <p role="status" className="mx-auto mt-3 max-w-sm text-xs text-blue-100">Suscripción pendiente: falta publicar y configurar la política de privacidad.</p>
+          )}
+          {newsletterMessage && (
+            <p role={newsletterError ? "alert" : "status"} className={`mt-3 text-sm ${newsletterError ? "text-red-100" : "text-emerald-100"}`}>
+              {newsletterMessage}
+            </p>
+          )}
         </div>
       </section>
-
-      {/* Premium accessories section */}
-      {featured.length > 3 && (
-        <section className="py-8 sm:py-12 md:py-16 bg-gradient-to-br from-slate-50 to-slate-100">
-          <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
-            <div className="flex items-end justify-between mb-6 sm:mb-8 gap-4">
-              <div>
-                <p className="text-[10px] sm:text-xs font-bold text-purple-600 tracking-widest uppercase mb-1 sm:mb-1.5">Colección premium</p>
-                <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">Accesorios y relojes</h2>
-              </div>
-              <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="hidden sm:flex">Ver todos <ChevronRight size={14} /></Btn>
-            </div>
-            <ProductCarousel>
-              {featured.slice(0, 8).map((p) => (
-                <div key={p.id + "-accessories"} className="w-[84vw] max-w-[280px] sm:w-[16rem] lg:w-[18rem] shrink-0">
-                  <ProductCard product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
-                </div>
-              ))}
-            </ProductCarousel>
-            <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="sm:hidden w-full mt-6">Ver todos <ChevronRight size={14} /></Btn>
-          </div>
-        </section>
-      )}
 
       {/* Footer */}
       <footer className="bg-slate-900 text-slate-300 pt-10 sm:pt-14 pb-6 sm:pb-8">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-8 mb-8 sm:mb-10">
-            <div className="col-span-2 sm:col-span-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8 mb-8 sm:mb-10">
+            <div>
               <div className="flex items-center gap-2 mb-3 sm:mb-4">
                 <span className="font-extrabold text-white text-xs sm:text-sm">Urban<span className="text-[#f97316]">Sport</span></span>
               </div>
               <p className="text-[11px] sm:text-xs leading-relaxed text-slate-400">Moda deportiva y accesorios premium. Tu mejor versión empieza aquí.</p>
             </div>
             {[
-              { title: "Productos", links: ["Zapatos deportivos", "Ropa Hombre", "Ropa Mujer", "Perfumes", "Relojes", "Gafas"] },
-              { title: "Empresa", links: ["Sobre nosotros", "Blog", "Trabaja con nosotros", "Afiliados"] },
-              { title: "Soporte", links: ["Centro de ayuda", "Devoluciones", "Rastreo de pedidos", "Contacto"] },
+              { title: "Comprar", links: ["Zapatos deportivos", "Ropa Hombre", "Ropa Mujer", "Perfumes", "Relojes", "Gafas"] },
             ].map((col) => (
               <div key={col.title}>
                 <p className="text-xs font-bold text-white uppercase tracking-widest mb-3">{col.title}</p>
@@ -1295,14 +1373,9 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
                     const category = categoryMap[l] ?? null;
                     return (
                       <li key={l}>
-                        {category ? (
-                          <button onClick={() => { onCategorySelect(category); onNavigate("catalog"); }}
-                            className="text-left w-full text-xs text-slate-400 hover:text-white transition-colors">
-                            {l}
-                          </button>
-                        ) : (
-                          <button onClick={() => toast('Próximamente: ' + l)}
-                            className="text-left w-full text-xs text-slate-400 hover:text-white transition-colors">
+                        {category && (
+                          <button type="button" onClick={() => { onCategorySelect(category); onNavigate("catalog"); }}
+                            className="min-h-10 text-left w-full text-xs text-slate-400 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-white transition-colors">
                             {l}
                           </button>
                         )}
@@ -1313,16 +1386,8 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
               </div>
             ))}
           </div>
-          <div className="border-t border-slate-800 pt-6 flex flex-col sm:flex-row justify-between items-center gap-3">
-            <p className="text-xs text-slate-500">© 2026 UrbanSport Store. Todos los derechos reservados.</p>
-            <div className="flex items-center gap-4 text-xs text-slate-500">
-              <button onClick={() => toast('Privacidad próximamente disponible.')}
-                className="hover:text-slate-300 transition-colors text-left">Privacidad</button>
-              <button onClick={() => toast('Términos próximamente disponible.')}
-                className="hover:text-slate-300 transition-colors text-left">Términos</button>
-              <button onClick={() => toast('Cookies próximamente disponible.')}
-                className="hover:text-slate-300 transition-colors text-left">Cookies</button>
-            </div>
+          <div className="border-t border-slate-800 pt-6 flex flex-col sm:flex-row justify-center sm:justify-between items-center gap-3">
+            <p className="text-xs text-slate-500">© {new Date().getFullYear()} Urban Sport Store. Todos los derechos reservados.</p>
           </div>
         </div>
       </footer>
@@ -1332,12 +1397,14 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
 
 // ─── CATALOG PAGE ─────────────────────────────────────────────────────────────
 
-function CatalogPage({ filterCategory, onSelectProduct, onAddToCart, onNavigate, onCategorySelect, products }: {
+function CatalogPage({ filterCategory, onSelectProduct, onAddToCart, onNavigate, onCategorySelect, products, productsStatus, onRetryProducts }: {
   filterCategory: Category | null; onSelectProduct: (p: Product) => void;
   onAddToCart: (p: Product, size: string, color: string) => void;
   onNavigate: (v: View) => void;
   onCategorySelect: (c: Category | null) => void;
   products: Product[];
+  productsStatus: ProductsStatus;
+  onRetryProducts: () => void;
 }) {
   const selectedCat = filterCategory;
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
@@ -1355,10 +1422,10 @@ function CatalogPage({ filterCategory, onSelectProduct, onAddToCart, onNavigate,
     if (sortBy === "rating") list = [...list].sort((a, b) => b.rating - a.rating);
     if (sortBy === "novedades") list = [...list].sort((a) => a.isNew ? -1 : 1);
     return list;
-  }, [selectedCat, selectedBrand, sortBy]);
+  }, [products, selectedCat, selectedBrand, sortBy]);
 
   return (
-    <main className="pt-[312px] min-h-screen max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-6 sm:py-8">
+    <main className="pt-8 sm:pt-10 md:pt-12 pb-6 sm:pb-8 min-h-screen max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
       {/* Breadcrumbs */}
       <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-6 overflow-x-auto pb-2">
           <button onClick={() => onNavigate("home")} className="hover:text-slate-600 cursor-pointer whitespace-nowrap">Inicio</button>
@@ -1422,7 +1489,9 @@ function CatalogPage({ filterCategory, onSelectProduct, onAddToCart, onNavigate,
           <div className="flex flex-wrap items-center gap-3 mb-5">
             <h1 className="text-lg font-extrabold text-slate-900 flex-1">
               {selectedCat ?? "Todos los productos"}
-              <span className="text-sm font-normal text-slate-400 ml-2">({filtered.length} resultados)</span>
+              <span className="text-sm font-normal text-slate-400 ml-2">
+                {productsStatus === "loading" ? "(cargando)" : productsStatus === "error" ? "(sin conexión)" : `(${filtered.length} resultados)`}
+              </span>
             </h1>
             <button onClick={() => setMobileFiltersOpen((open) => !open)} className="lg:hidden flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-slate-200 text-sm text-slate-600 shadow-sm">
               <Filter size={14} /> Filtros
@@ -1500,12 +1569,14 @@ function CatalogPage({ filterCategory, onSelectProduct, onAddToCart, onNavigate,
             </div>
           )}
 
-          {filtered.length === 0 ? (
+          {productsStatus !== "ready" ? (
+            <ProductStatusNotice status={productsStatus} onRetry={onRetryProducts} />
+          ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 sm:py-24 gap-4">
               <div className="w-14 sm:w-16 h-14 sm:h-16 rounded-2xl bg-slate-100 flex items-center justify-center">
                 <Package size={24} className="text-slate-400" />
               </div>
-              <p className="text-sm text-slate-500">Sin resultados para estos filtros.</p>
+              <p className="text-sm text-slate-500">{products.length === 0 ? "Aún no hay productos publicados." : "Sin resultados para estos filtros."}</p>
               <Btn variant="outline" onClick={() => { onCategorySelect(null); setSelectedBrand(null); }}>Limpiar filtros</Btn>
             </div>
           ) : (
@@ -1536,13 +1607,14 @@ function ProductDetailPage({ product, onBack, onAddToCart, onNavigate }: {
   const savings = product.originalPrice ? product.originalPrice - product.price : 0;
 
   const handleAdd = () => {
+    if (product.stock <= 0) return;
     for (let i = 0; i < qty; i++) onAddToCart(product, selectedSize, selectedColor);
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
   };
 
   return (
-    <main className="pt-[312px] min-h-screen max-w-7xl mx-auto px-4 sm:px-6 py-8">
+    <main className="pt-8 sm:pt-10 md:pt-12 pb-8 min-h-screen max-w-7xl mx-auto px-4 sm:px-6">
       {/* Breadcrumbs */}
       <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-6">
         <button onClick={() => onNavigate("home")} className="hover:text-slate-600">Inicio</button>
@@ -1561,12 +1633,12 @@ function ProductDetailPage({ product, onBack, onAddToCart, onNavigate }: {
             return (
               <>
                 <div className="aspect-square bg-slate-50 rounded-2xl overflow-hidden border border-slate-100">
-                  <img src={mainImage} alt={product.name} className="w-full h-full object-cover" />
+                  <img src={mainImage} alt={product.name} onError={(event) => { event.currentTarget.style.display = "none"; }} className="w-full h-full object-cover" />
                 </div>
                 <div className="grid grid-cols-4 gap-2">
                   {gallery.slice(0, 4).map((src, index) => (
                     <div key={index} className={`aspect-square rounded-xl overflow-hidden border-2 cursor-pointer transition-colors ${index === 0 ? "border-[#1d4ed8]" : "border-slate-200 hover:border-slate-300"}`}>
-                      <img src={src} alt={`Miniatura ${index + 1}`} className="w-full h-full object-cover" />
+                      <img src={src} alt={`Miniatura ${index + 1}`} onError={(event) => { event.currentTarget.style.display = "none"; }} className="w-full h-full object-cover" />
                     </div>
                   ))}
                 </div>
@@ -1584,21 +1656,21 @@ function ProductDetailPage({ product, onBack, onAddToCart, onNavigate }: {
               <span className="text-xs text-slate-400 font-mono">{product.sku}</span>
               {product.gender && <Badge>{product.gender}</Badge>}
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 leading-tight mb-3">{product.name}</h1>
-            <StarRating rating={product.rating} reviews={product.reviews} />
+            <h1 className="font-display text-[32px] sm:text-[40px] text-slate-900 leading-[1.02] mb-3">{product.name}</h1>
+            {product.reviews > 0 && product.rating > 0 && <StarRating rating={product.rating} reviews={product.reviews} />}
           </div>
 
           {/* Price */}
           <div className="p-4 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_45px_-35px_rgba(15,23,42,0.12)]">
             <div className="flex items-baseline gap-3 flex-wrap">
-              <span className="text-3xl font-extrabold text-slate-900">{fmt(product.price)}</span>
+              <span className="price text-3xl text-slate-900">{fmt(product.price)}</span>
               {product.originalPrice && (
-                <span className="text-lg text-slate-400 line-through">{fmt(product.originalPrice)}</span>
+                <span className="price text-lg text-slate-400 line-through">{fmt(product.originalPrice)}</span>
               )}
               {product.discount && <Badge variant="sale">-{product.discount}%</Badge>}
             </div>
             {savings > 0 && (
-              <p className="text-sm text-emerald-600 font-bold mt-1">Ahorras {fmt(savings)} COP</p>
+              <p className="price text-sm text-emerald-600 mt-1">Ahorras {fmt(savings)} COP</p>
             )}
             <p className="text-xs text-slate-400 mt-1">Precio COP incluye IVA</p>
           </div>
@@ -1629,10 +1701,6 @@ function ProductDetailPage({ product, onBack, onAddToCart, onNavigate }: {
                 {product.category === "Zapatos" ? "Talla (EU)" :
                  product.category === "Perfumes" ? "Presentación" : "Talla"}
               </p>
-              {product.category !== "Perfumes" && product.sizes[0] !== "Talla única" && (
-                <button onClick={() => onNavigate("catalog")}
-                  className="text-xs text-[#1d4ed8] hover:underline">Guía de tallas</button>
-              )}
             </div>
             <SizeSelector sizes={product.sizes} selected={selectedSize} onSelect={setSelectedSize} />
           </div>
@@ -1641,12 +1709,12 @@ function ProductDetailPage({ product, onBack, onAddToCart, onNavigate }: {
           <div className="flex items-center gap-4">
             <p className="text-sm font-bold text-slate-700">Cantidad:</p>
             <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden bg-white">
-              <button onClick={() => setQty(Math.max(1, qty - 1))}
+              <button type="button" disabled={product.stock <= 0} aria-label="Reducir cantidad" onClick={() => setQty(Math.max(1, qty - 1))}
                 className="w-10 h-10 flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-colors">
                 <Minus size={14} />
               </button>
               <span className="w-10 text-center text-sm font-extrabold text-slate-800">{qty}</span>
-              <button onClick={() => setQty(Math.min(product.stock, qty + 1))}
+              <button type="button" disabled={product.stock <= 0 || qty >= product.stock} aria-label="Aumentar cantidad" onClick={() => setQty(Math.min(product.stock, qty + 1))}
                 className="w-10 h-10 flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-colors">
                 <Plus size={14} />
               </button>
@@ -1655,14 +1723,14 @@ function ProductDetailPage({ product, onBack, onAddToCart, onNavigate }: {
 
           {/* CTAs */}
           <div className="flex flex-col sm:flex-row gap-3">
-            <button onClick={handleAdd}
-              className={`flex-1 py-3.5 rounded-xl text-sm font-extrabold flex items-center justify-center gap-2 transition-all duration-300 ${
+            <button type="button" disabled={product.stock <= 0} onClick={handleAdd}
+              className={`flex-1 py-3.5 rounded-xl text-sm font-extrabold flex items-center justify-center gap-2 transition-all duration-300 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600 ${
                 added ? "bg-emerald-500 text-white shadow-lg shadow-emerald-200" : "bg-black text-white hover:bg-slate-900 shadow-lg shadow-slate-800"
               }`}>
-              {added ? <><Check size={16} /> Agregado al carrito</> : <><ShoppingCart size={16} /> Agregar al carrito</>}
+              {product.stock <= 0 ? "Agotado" : added ? <><Check size={16} /> Agregado al carrito</> : <><ShoppingCart size={16} /> Agregar al carrito</>}
             </button>
-            <button onClick={() => { handleAdd(); onNavigate("checkout"); }}
-              className="flex-1 py-3.5 rounded-xl text-sm font-extrabold border-2 border-black text-black hover:bg-slate-100 flex items-center justify-center gap-2 transition-colors">
+            <button type="button" disabled={product.stock <= 0} onClick={() => { handleAdd(); onNavigate("checkout"); }}
+              className="flex-1 py-3.5 rounded-xl text-sm font-extrabold border-2 border-black text-black hover:bg-slate-100 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-100 disabled:text-slate-500 flex items-center justify-center gap-2 transition-colors">
               Comprar ahora
             </button>
           </div>
@@ -1695,29 +1763,14 @@ function ProductDetailPage({ product, onBack, onAddToCart, onNavigate }: {
       )}
 
       {tab === "reviews" && (
-        <div className="max-w-2xl space-y-4">
-          {[
-            { name: "Diego P.", rating: 5, date: "10 Jul 2026", text: "Excelente producto, calidad de primera. La talla es exacta y el material es muy cómodo. Lo recomiendo al 100%." },
-            { name: "Camila R.", rating: 4, date: "5 Jul 2026", text: "Muy buena calidad. El empaque llegó perfecto y en el tiempo prometido. Solo le doy 4 estrellas porque el color era un poco diferente al de la foto." },
-            { name: "Santiago M.", rating: 5, date: "28 Jun 2026", text: "Ya es mi segunda compra en UrbanSport y siempre quedé satisfecho. El servicio al cliente también es excelente." },
-          ].map((r) => (
-            <div key={r.name} className="p-4 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_18px_48px_-40px_rgba(15,23,42,0.16)]">
-              <div className="flex items-start justify-between mb-2">
-                <div>
-                  <p className="text-sm font-bold text-slate-800">{r.name}</p>
-                  <StarRating rating={r.rating} />
-                </div>
-                <span className="text-xs text-slate-400">{r.date}</span>
-              </div>
-              <p className="text-sm text-slate-600">{r.text}</p>
-            </div>
-          ))}
-        </div>
+        <p className="max-w-2xl rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
+          Aún no hay reseñas verificadas para este producto.
+        </p>
       )}
 
       {/* Related */}
       <div className="mt-16">
-        <h3 className="text-xl font-extrabold text-slate-900 mb-6">También te puede interesar</h3>
+        <h3 className="font-display text-2xl sm:text-[28px] text-slate-900 leading-[1.05] mb-6">También te puede interesar</h3>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-5">
           {products.filter((p) => p.id !== product.id && p.category === product.category).slice(0, 4).map((p) => (
             <ProductCard key={p.id} product={p} onSelect={onBack as unknown as (p: Product) => void} onAddToCart={onAddToCart} />
@@ -1733,7 +1786,6 @@ function ProductDetailPage({ product, onBack, onAddToCart, onNavigate }: {
 function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelectAddress, onCreateAddress }: { cart: CartItem[]; onNavigate: (v: View) => void; addresses: Address[]; selectedAddressId: string; onSelectAddress: (id: string) => void; onCreateAddress: (address: Omit<Address, 'id'>) => void; }) {
   const [step, setStep] = useState(0);
   const [selectedShip, setSelectedShip] = useState(0);
-  const [showPass, setShowPass] = useState(false);
   const [showNewAddress, setShowNewAddress] = useState(false);
   const [addressForm, setAddressForm] = useState<Omit<Address, 'id'>>({
     label: "",
@@ -1747,39 +1799,22 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
     isDefault: false,
   });
   const subtotal = cart.reduce((s, i) => s + i.product.price * i.qty, 0);
+  const standardShippingPrice = subtotal >= STORE_CONFIG.freeShippingMinimumSubtotalCop
+    ? 0
+    : STORE_CONFIG.standardShippingPriceCop;
   const SHIP = [
-    { name: "Estándar", desc: "5-7 días hábiles", price: 0, tag: "Gratis" },
-    { name: "Express", desc: "2-3 días hábiles", price: 15900, tag: "$15.900" },
-    { name: "Mismo día", desc: "Hoy si ordenas antes de las 2 PM", price: 35900, tag: "$35.900" },
+    {
+      name: "Envío estándar",
+      desc: "El tiempo de entrega se confirma según el destino.",
+      price: standardShippingPrice,
+      tag: standardShippingPrice === 0 ? "Gratis" : fmt(standardShippingPrice),
+    },
   ];
   const total = subtotal + SHIP[selectedShip].price;
-  const STEPS = ["Dirección", "Envío", "Pago", "Confirmación"];
-
-  if (step === 3) return (
-    <main className="pt-[312px] min-h-screen flex items-center justify-center px-4">
-      <div className="max-w-md w-full text-center space-y-6">
-        <div className="w-20 h-20 rounded-full bg-emerald-100 border-2 border-emerald-200 flex items-center justify-center mx-auto">
-          <Check size={36} className="text-emerald-600" />
-        </div>
-        <div>
-          <h2 className="text-2xl font-extrabold text-slate-900 mb-2">¡Pedido confirmado!</h2>
-          <p className="text-slate-500">Tu pedido <span className="text-[#1d4ed8] font-bold">#US-3195</span> fue recibido correctamente.</p>
-        </div>
-        <div className="p-5 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_22px_60px_-42px_rgba(15,23,42,0.18)] text-left space-y-2">
-          <div className="flex justify-between text-sm"><span className="text-slate-500">Total pagado</span><span className="font-bold text-slate-900">{fmt(total)} COP</span></div>
-          <div className="flex justify-between text-sm"><span className="text-slate-500">Envío</span><span className="font-semibold text-slate-700">{SHIP[selectedShip].name}</span></div>
-          <div className="flex justify-between text-sm"><span className="text-slate-500">Entrega estimada</span><span className="font-semibold text-slate-700">{SHIP[selectedShip].desc}</span></div>
-        </div>
-        <div className="flex flex-col gap-3">
-          <Btn variant="primary" onClick={() => onNavigate("account")} className="w-full" size="lg">Ver mis pedidos</Btn>
-          <Btn variant="secondary" onClick={() => onNavigate("home")} className="w-full" size="lg">Seguir comprando</Btn>
-        </div>
-      </div>
-    </main>
-  );
+  const STEPS = ["Dirección", "Envío", "Pago"];
 
   return (
-    <main className="pt-[320px] min-h-screen max-w-5xl mx-auto px-4 sm:px-6 py-10">
+    <main className="pt-8 sm:pt-10 md:pt-12 pb-10 min-h-screen max-w-5xl mx-auto px-4 sm:px-6">
       {/* Header */}
       <div className="flex items-center gap-3 mb-8">
         <button onClick={() => onNavigate("home")} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors text-sm">
@@ -1815,6 +1850,9 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
           {step === 0 && (
             <div className="space-y-3 sm:space-y-4">
               <h3 className="text-base sm:text-lg font-extrabold text-slate-900 mb-3 sm:mb-4">Dirección de entrega</h3>
+              {addresses.length === 0 && (
+                <p className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950">Agrega una dirección real para continuar con el pedido.</p>
+              )}
               {addresses.map((a) => (
                 <label key={a.id} className={`flex gap-2 sm:gap-3 p-3 sm:p-4 rounded-lg sm:rounded-2xl border-2 cursor-pointer transition-all ${selectedAddressId === a.id ? "border-[#1d4ed8] bg-blue-50/50" : "border-slate-200 hover:border-slate-300"}`}>
                   <input type="radio" name="addr" checked={selectedAddressId === a.id} onChange={() => onSelectAddress(a.id)} className="mt-1 accent-[#1d4ed8] shrink-0" />
@@ -1850,8 +1888,10 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
                     { name: 'phone', label: 'Teléfono', placeholder: '+57 311 234 5678' },
                   ].map((field) => (
                     <div key={field.name}>
-                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">{field.label}</label>
+                      <label htmlFor={`checkout-${field.name}`} className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">{field.label}</label>
                       <input
+                        id={`checkout-${field.name}`}
+                        required={field.name !== "line2"}
                         value={(addressForm as any)[field.name] ?? ""}
                         onChange={(e) => setAddressForm((prev) => ({ ...prev, [field.name]: e.target.value }))}
                         placeholder={field.placeholder}
@@ -1888,46 +1928,18 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
 
           {step === 2 && (
             <div className="space-y-5">
-              <h3 className="text-lg font-extrabold text-slate-900 mb-4">Datos de pago</h3>
-              <div className="p-5 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.18)] space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">Titular</label>
-                  <input defaultValue="Valentina Torres" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#1d4ed8]/50" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">Número de tarjeta</label>
-                  <div className="relative">
-                    <input defaultValue="4242 4242 4242 4242" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#1d4ed8]/50" />
-                    <CreditCard size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">Vencimiento</label>
-                    <input defaultValue="12 / 28" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#1d4ed8]/50" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">CVV</label>
-                    <div className="relative">
-                      <input type={showPass ? "text" : "password"} defaultValue="123" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#1d4ed8]/50" />
-                      <button onClick={() => setShowPass(!showPass)} type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                        {showPass ? <EyeOff size={14} /> : <Eye size={14} />}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-slate-400">
-                <Shield size={13} className="text-emerald-500" />
-                Pago 100% seguro con encriptación SSL de 256 bits.
+              <h3 className="text-lg font-extrabold text-slate-900 mb-4">Pago en línea no disponible</h3>
+              <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+                <p className="font-semibold">La pasarela de pagos todavía no está conectada.</p>
+                <p className="mt-1">No ingreses datos de tarjeta: no se registrará ni cobrará ningún pedido desde esta pantalla.</p>
               </div>
             </div>
           )}
 
           <div className="flex flex-col sm:flex-row gap-3 mt-6 sm:mt-8">
             {step > 0 && <Btn variant="secondary" onClick={() => setStep(step - 1)} className="flex-1 sm:flex-none justify-center"><ChevronLeft size={14} /> Atrás</Btn>}
-            <Btn variant="primary" className="flex-1" size="lg" onClick={() => setStep(step + 1)}>
-              {step === 2 ? <><Shield size={15} /> Pagar {fmt(total)} COP</> : <>Continuar <ChevronRight size={15} /></>}
+            <Btn variant="primary" className="flex-1" size="lg" disabled={step === 2 || (step === 0 && (!selectedAddressId || !addresses.some((address) => address.id === selectedAddressId)))} onClick={() => setStep(step + 1)}>
+              {step === 2 ? "Pago no disponible" : <>Continuar <ChevronRight size={15} /></>}
             </Btn>
           </div>
         </div>
@@ -1938,33 +1950,29 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
             <h3 className="text-xs sm:text-sm font-extrabold text-slate-800">Resumen del pedido</h3>
             <div className="space-y-2 sm:space-y-3 max-h-40 sm:max-h-52 overflow-y-auto">
               {cart.map((item) => (
-                <div key={`${item.product.id}-${item.selectedSize}`} className="flex gap-2 sm:gap-3">
+                    <div key={`${item.product.id}-${item.selectedSize}-${item.selectedColor}`} className="flex gap-2 sm:gap-3">
                   <div className="relative shrink-0">
-                    <img src={item.product.image} alt="" className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-cover bg-slate-100" />
+                    <img src={item.product.image} alt="" onError={(event) => { event.currentTarget.style.display = "none"; }} className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-cover bg-slate-100" />
                     <span className="absolute -top-1.5 -right-1.5 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-[#1d4ed8] text-white text-[8px] sm:text-[9px] font-bold flex items-center justify-center">{item.qty}</span>
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[11px] sm:text-xs font-semibold text-slate-700 line-clamp-2 leading-tight">{item.product.name}</p>
                     {item.selectedSize !== "Talla única" && <p className="text-[9px] sm:text-[10px] text-slate-400 mt-0.5">T: {item.selectedSize}</p>}
-                    <p className="text-[11px] sm:text-xs font-extrabold text-slate-900 mt-0.5">{fmt(item.product.price * item.qty)}</p>
+                    <p className="price text-[11px] sm:text-xs text-slate-900 mt-0.5">{fmt(item.product.price * item.qty)}</p>
                   </div>
                 </div>
               ))}
             </div>
-            <div className="flex gap-2">
-              <input placeholder="Código de cupón" className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-none focus:border-[#1d4ed8]/50" />
-              <Btn variant="outline" size="sm">Aplicar</Btn>
-            </div>
             <div className="space-y-1 sm:space-y-1.5 text-xs sm:text-sm border-t border-slate-100 pt-3">
-              <div className="flex justify-between text-slate-500"><span>Subtotal</span><span className="font-semibold text-slate-800">{fmt(subtotal)}</span></div>
+              <div className="flex justify-between text-slate-500"><span>Subtotal</span><span className="price text-slate-800">{fmt(subtotal)}</span></div>
               <div className="flex justify-between text-slate-500">
                 <span>Envío</span>
-                <span className={SHIP[selectedShip].price === 0 ? "text-emerald-600 font-bold" : "font-semibold text-slate-800"}>
+                <span className={`price ${SHIP[selectedShip].price === 0 ? "text-emerald-600" : "text-slate-800"}`}>
                   {SHIP[selectedShip].price === 0 ? "Gratis" : fmt(SHIP[selectedShip].price)}
                 </span>
               </div>
               <div className="flex justify-between font-extrabold text-slate-900 text-sm sm:text-base border-t border-slate-100 pt-1.5">
-                <span>Total</span><span>{fmt(total)} COP</span>
+                <span>Total</span><span className="price">{fmt(total)} COP</span>
               </div>
             </div>
           </div>
@@ -1986,11 +1994,17 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
-
-  const isLocalAuthFallback = !import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY;
+  const [acceptedPolicies, setAcceptedPolicies] = useState(false);
+  const termsUrl = import.meta.env.VITE_TERMS_URL?.trim() ?? "";
+  const privacyPolicyUrl = import.meta.env.VITE_PRIVACY_POLICY_URL?.trim() ?? "";
+  const policiesAvailable = Boolean(termsUrl && privacyPolicyUrl);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isRegister && (!policiesAvailable || !acceptedPolicies)) {
+      setError("El registro requiere publicar y aceptar los Términos y la Política de privacidad.");
+      return;
+    }
     setLoading(true);
     setError(null);
 
@@ -2022,7 +2036,10 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
       onLogin(user, adminStatus);
       onNavigate(adminStatus ? "admin" : "home");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Ocurrió un error inesperado.");
+      const message = err instanceof Error ? err.message : "";
+      setError(message === "Failed to fetch"
+        ? "No fue posible conectar con el servicio de autenticación. Intenta nuevamente más tarde."
+        : message || "Ocurrió un error inesperado.");
     } finally {
       setLoading(false);
     }
@@ -2042,7 +2059,7 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
           <div className="flex items-center justify-center gap-2 mb-4">
             <span className="font-extrabold text-slate-900 text-2xl">Urban<span className="text-[#1d4ed8]">Sport</span></span>
           </div>
-          <h1 className="text-4xl font-extrabold text-slate-900 mb-2">
+          <h1 className="font-display text-[40px] sm:text-[48px] text-slate-900 leading-[1.02] mb-2">
             {isRegister ? "Crear cuenta" : "Bienvenido"}
           </h1>
           <p className="text-slate-600">
@@ -2056,8 +2073,11 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
             {/* Name field for register */}
             {isRegister && (
               <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">Nombre completo</label>
+                <label htmlFor="auth-name" className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">Nombre completo</label>
                 <input
+                  id="auth-name"
+                  required
+                  autoComplete="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Tu nombre"
@@ -2068,9 +2088,12 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
 
             {/* Email */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">Correo electrónico</label>
+              <label htmlFor="auth-email" className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">Correo electrónico</label>
               <input 
+                id="auth-email"
                 type="email" 
+                required
+                autoComplete="email"
                 value={email} 
                 onChange={(e) => setEmail(e.target.value)} 
                 placeholder="tu@email.com" 
@@ -2081,20 +2104,15 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
             {/* Password */}
             <div>
               <div className="flex justify-between items-center mb-2">
-                <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Contraseña</label>
-                {!isRegister && (
-                  <button 
-                    type="button" 
-                    onClick={() => toast('Función de recuperación de contraseña próximamente disponible.')}
-                    className="text-xs text-[#1d4ed8] hover:text-blue-400 font-semibold transition-colors"
-                  >
-                    ¿Olvidaste?
-                  </button>
-                )}
+                <label htmlFor="auth-password" className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Contraseña</label>
+                {!isRegister && <span className="text-xs text-slate-500">Recuperación de contraseña no disponible.</span>}
               </div>
               <div className="relative">
                 <input 
+                  id="auth-password"
                   type={showPass ? "text" : "password"} 
+                  required
+                  autoComplete={isRegister ? "new-password" : "current-password"}
                   value={password} 
                   onChange={(e) => setPassword(e.target.value)} 
                   placeholder="••••••••"
@@ -2112,15 +2130,16 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
 
             {/* Terms checkbox for register */}
             {isRegister && (
-              <label className="flex items-start gap-3 cursor-pointer group">
-                <input 
-                  type="checkbox" 
-                  className="mt-1 w-4 h-4 accent-[#1d4ed8] cursor-pointer" 
-                />
-                <span className="text-xs text-slate-700 leading-relaxed">
-                  Acepto los <button type="button" onClick={() => toast('Términos próximamente disponible.')} className="text-[#1d4ed8] hover:text-blue-600 font-semibold transition-colors">Términos</button> y la <button type="button" onClick={() => toast('Política de privacidad próximamente disponible.')} className="text-[#1d4ed8] hover:text-blue-600 font-semibold transition-colors">Política de privacidad</button>.
-                </span>
-              </label>
+              policiesAvailable ? (
+                <label className="flex items-start gap-3 cursor-pointer group">
+                  <input type="checkbox" required checked={acceptedPolicies} onChange={(event) => setAcceptedPolicies(event.target.checked)} className="mt-1 w-4 h-4 accent-[#1d4ed8] cursor-pointer" />
+                  <span className="text-xs text-slate-700 leading-relaxed">
+                    Acepto los <a href={termsUrl} target="_blank" rel="noreferrer" className="text-[#1d4ed8] font-semibold underline">Términos</a> y la <a href={privacyPolicyUrl} target="_blank" rel="noreferrer" className="text-[#1d4ed8] font-semibold underline">Política de privacidad</a>.
+                  </span>
+                </label>
+              ) : (
+                <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">El registro estará disponible cuando se configuren los enlaces públicos de Términos y Política de privacidad.</p>
+              )
             )}
 
             {/* Error message */}
@@ -2133,7 +2152,7 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
             {/* Submit button */}
             <button 
               type="submit" 
-              disabled={loading}
+              disabled={loading || (isRegister && (!policiesAvailable || !acceptedPolicies))}
               className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#1d4ed8] to-blue-600 text-white font-extrabold text-base hover:shadow-lg hover:shadow-blue-500/30 disabled:opacity-60 disabled:shadow-none transition-all duration-300 flex items-center justify-center gap-2 transform hover:scale-105"
             >
               {loading ? (
@@ -2144,21 +2163,6 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
             </button>
           </form>
 
-          {/* Divider */}
-          <div className="relative flex items-center gap-3">
-            <div className="flex-1 h-px bg-slate-300" />
-            <span className="text-xs text-slate-600 font-medium">o continúa con</span>
-            <div className="flex-1 h-px bg-slate-300" />
-          </div>
-
-          {/* Google button */}
-          <button 
-            onClick={() => toast('Función de inicio con Google próximamente disponible.')}
-            className="w-full py-3.5 rounded-xl border border-slate-300 bg-white text-sm text-slate-900 font-semibold hover:bg-slate-50 hover:border-blue-400 transition-all duration-200 flex items-center justify-center gap-3 transform hover:scale-105"
-          >
-            <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20H24v8h11.3C33.6 33.4 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.7 1.1 7.8 2.9l5.7-5.7C34 6.5 29.2 4 24 4 13 4 4 13 4 24s9 20 20 20c11 0 20-9 20-20 0-1.3-.1-2.7-.4-4z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 15.1 18.9 12 24 12c3 0 5.7 1.1 7.8 2.9l5.7-5.7C34 6.5 29.2 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.3 26.7 36 24 36c-5.2 0-9.6-3.4-11.2-8H6.5C9.9 37.7 16.5 44 24 44z"/><path fill="#1976D2" d="M43.6 20H24v8h11.3c-.8 2.2-2.2 4.1-4 5.5l6.2 5.2C40.6 35.4 44 30.1 44 24c0-1.3-.1-2.7-.4-4z"/></svg>
-            Google
-          </button>
         </div>
 
         {/* Sign up / Sign in toggle */}
@@ -2178,7 +2182,7 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
 
 // ─── ACCOUNT PAGE ─────────────────────────────────────────────────────────────
 
-function AccountPage({ onNavigate, onLogout, addresses, onCreateAddress, onUpdateAddress, onDeleteAddress }: { onNavigate: (v: View) => void; onLogout: () => void; addresses: Address[]; onCreateAddress: (address: Omit<Address, 'id'>) => void; onUpdateAddress: (addressId: string, updates: Partial<Address>) => void; onDeleteAddress: (addressId: string) => void; }) {
+function AccountPage({ onNavigate, onLogout, authUser, addresses, onCreateAddress, onUpdateAddress, onDeleteAddress }: { onNavigate: (v: View) => void; onLogout: () => void; authUser: User | null; addresses: Address[]; onCreateAddress: (address: Omit<Address, 'id'>) => void; onUpdateAddress: (addressId: string, updates: Partial<Address>) => void; onDeleteAddress: (addressId: string) => void; }) {
   const [section, setSection] = useState<"orders" | "profile" | "addresses" | "activity">("orders");
   const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
   const [showNewAddressForm, setShowNewAddressForm] = useState(false);
@@ -2194,6 +2198,8 @@ function AccountPage({ onNavigate, onLogout, addresses, onCreateAddress, onUpdat
     isDefault: false,
   });
   const [auditEntries, setAuditEntries] = useState<{ id: string; ts: number; action: string; meta?: Record<string, any> }[]>([]);
+  const profileName = authUser?.user_metadata?.full_name ?? authUser?.email ?? "Cliente";
+  const profileEmail = authUser?.email ?? "Correo no disponible";
 
   const startEdit = (address: Address) => {
     setEditingAddressId(address.id);
@@ -2228,20 +2234,33 @@ function AccountPage({ onNavigate, onLogout, addresses, onCreateAddress, onUpdat
   };
 
   return (
-    <main className="pt-[320px] min-h-screen max-w-5xl mx-auto px-4 sm:px-6 py-8">
+    <main className="pt-8 sm:pt-10 md:pt-12 pb-8 min-h-screen max-w-5xl mx-auto px-4 sm:px-6">
+      <nav aria-label="Secciones de cuenta" className="mb-5 grid grid-cols-2 gap-2 sm:hidden">
+        {([
+          { key: "orders", label: "Mis pedidos" },
+          { key: "profile", label: "Mi perfil" },
+          { key: "addresses", label: "Direcciones" },
+          { key: "activity", label: "Actividad" },
+        ] as const).map((item) => (
+          <button key={item.key} type="button" aria-pressed={section === item.key} onClick={() => setSection(item.key)} className={`min-h-11 rounded-lg px-3 text-sm font-semibold ${section === item.key ? "bg-[#1d4ed8] text-white" : "bg-white text-slate-700 border border-slate-200"}`}>
+            {item.label}
+          </button>
+        ))}
+      </nav>
       <div className="flex gap-8">
         <aside className="hidden sm:block w-56 shrink-0">
           <div className="bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.18)] overflow-hidden">
             <div className="p-4 border-b border-slate-100 bg-gradient-to-br from-[#1d4ed8] to-[#1e40af]">
-              <div className="w-12 h-12 rounded-full bg-white/20 border-2 border-white/30 flex items-center justify-center text-xl font-extrabold text-white mb-2">V</div>
-              <p className="text-sm font-extrabold text-white">Valentina Torres</p>
-              <p className="text-xs text-blue-200">valentina@email.com</p>
+              <div className="w-12 h-12 rounded-full bg-white/20 border-2 border-white/30 flex items-center justify-center text-xl font-extrabold text-white mb-2">{profileName.charAt(0).toUpperCase()}</div>
+              <p className="text-sm font-extrabold text-white">{profileName}</p>
+              <p className="text-xs text-blue-200">{profileEmail}</p>
             </div>
             <div className="p-2 space-y-0.5">
               {([
                 { key: "orders", label: "Mis pedidos", icon: <Package size={15} /> },
                 { key: "profile", label: "Mi perfil", icon: <Users size={15} /> },
                 { key: "addresses", label: "Direcciones", icon: <MapPin size={15} /> },
+                { key: "activity", label: "Actividad", icon: <Grid3X3 size={15} /> },
               ] as const).map((item) => (
                 <button key={item.key} onClick={() => setSection(item.key)}
                   className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm transition-colors ${section === item.key ? "bg-blue-50 text-[#1d4ed8] font-bold" : "text-slate-600 hover:bg-slate-50"}`}>
@@ -2259,7 +2278,7 @@ function AccountPage({ onNavigate, onLogout, addresses, onCreateAddress, onUpdat
         <div className="flex-1 min-w-0">
           {section === "orders" && (
             <div className="space-y-4">
-              <h2 className="text-xl font-extrabold text-slate-900 mb-6">Mis pedidos</h2>
+              <h2 className="font-display text-[28px] sm:text-[32px] text-slate-900 leading-[1.05] mb-6">Mis pedidos</h2>
               {ORDERS.map((order) => (
                 <div key={order.id} className="p-5 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_18px_48px_-40px_rgba(15,23,42,0.16)] hover:-translate-y-0.5 transition-all duration-200">
                   <div className="flex flex-wrap items-start justify-between gap-3">
@@ -2271,24 +2290,21 @@ function AccountPage({ onNavigate, onLogout, addresses, onCreateAddress, onUpdat
                       <p className="text-xs text-slate-400">{order.date} · {order.items} {order.items === 1 ? "artículo" : "artículos"}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-base font-extrabold text-slate-900">{fmt(order.total)} COP</p>
-                      <button onClick={() => toast('Detalle de pedido próximamente disponible.')}
-                        className="text-xs text-[#1d4ed8] hover:underline flex items-center gap-1 ml-auto mt-1">
-                        Ver detalle <ChevronRight size={11} />
-                      </button>
+                      <p className="price text-base text-slate-900">{fmt(order.total)} COP</p>
                     </div>
                   </div>
                 </div>
               ))}
+              {ORDERS.length === 0 && <p className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600">Aún no hay pedidos registrados para esta cuenta.</p>}
             </div>
           )}
 
           {section === "profile" && (
             <div>
-              <h2 className="text-xl font-extrabold text-slate-900 mb-6">Mi perfil</h2>
+              <h2 className="font-display text-[28px] sm:text-[32px] text-slate-900 leading-[1.05] mb-6">Mi perfil</h2>
               <div className="space-y-5 max-w-lg">
                 <div className="grid grid-cols-2 gap-4">
-                  {[["Nombre", "Valentina"], ["Apellido", "Torres"]].map(([lbl, val]) => (
+                  {[["Nombre", profileName]].map(([lbl, val]) => (
                     <div key={lbl}>
                       <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">{lbl}</label>
                       <input defaultValue={val} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#1d4ed8]/50" />
@@ -2297,31 +2313,9 @@ function AccountPage({ onNavigate, onLogout, addresses, onCreateAddress, onUpdat
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">Correo electrónico</label>
-                  <input defaultValue="valentina@email.com" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#1d4ed8]/50" />
+                  <input value={profileEmail} readOnly className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-800" />
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">Celular</label>
-                  <input defaultValue="+57 311 234 5678" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#1d4ed8]/50" />
-                </div>
-                <Btn variant="primary">Guardar cambios</Btn>
-              </div>
-            </div>
-          )}
-
-          {section === "activity" && (
-            <div>
-              <h2 className="text-xl font-extrabold text-slate-900 mb-6">Actividad reciente</h2>
-              <div className="space-y-3">
-                {auditEntries.length === 0 && <p className="text-sm text-slate-500">Sin actividad registrada.</p>}
-                {auditEntries.map((a) => (
-                  <div key={a.id} className="p-3 bg-white/95 rounded-xl border border-slate-100 flex items-start justify-between">
-                    <div>
-                      <div className="text-sm font-bold text-slate-800">{a.action}</div>
-                      <div className="text-xs text-slate-500">{new Date(a.ts).toLocaleString()}</div>
-                      {a.meta && <pre className="text-xs mt-2 text-slate-600 whitespace-pre-wrap">{JSON.stringify(a.meta)}</pre>}
-                    </div>
-                  </div>
-                ))}
+                <p className="border-t border-slate-100 pt-4 text-sm text-slate-500">La edición del perfil aún no está conectada.</p>
               </div>
             </div>
           )}
@@ -2330,14 +2324,13 @@ function AccountPage({ onNavigate, onLogout, addresses, onCreateAddress, onUpdat
             <div>
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                 <div>
-                  <h2 className="text-xl font-extrabold text-slate-900">Mis direcciones</h2>
+                  <h2 className="font-display text-[28px] sm:text-[32px] text-slate-900 leading-[1.05]">Mis direcciones</h2>
                   <p className="text-sm text-slate-500">Administra tus direcciones de entrega guardadas.</p>
                 </div>
                 <button type="button" onClick={() => {
                   resetAddressForm();
                   setShowNewAddressForm((prev) => !prev);
-                }}
-                  className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors">
+                }} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors">
                   <Plus size={14} /> {showNewAddressForm ? "Cancelar" : "Agregar nueva dirección"}
                 </button>
               </div>
@@ -2361,8 +2354,10 @@ function AccountPage({ onNavigate, onLogout, addresses, onCreateAddress, onUpdat
                       { name: 'postalCode', label: 'Código postal', placeholder: '110221' },
                     ].map((field) => (
                       <div key={field.name}>
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">{field.label}</label>
+                        <label htmlFor={`account-address-${field.name}`} className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">{field.label}</label>
                         <input
+                          id={`account-address-${field.name}`}
+                          required={field.name !== "line2"}
                           value={(addressForm as any)[field.name] ?? ''}
                           onChange={(e) => setAddressForm((prev) => ({ ...prev, [field.name]: e.target.value }))}
                           placeholder={field.placeholder}
@@ -2373,16 +2368,20 @@ function AccountPage({ onNavigate, onLogout, addresses, onCreateAddress, onUpdat
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">País</label>
+                      <label htmlFor="account-address-country" className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">País</label>
                       <input
+                        id="account-address-country"
+                        required
                         value={addressForm.country}
                         onChange={(e) => setAddressForm((prev) => ({ ...prev, country: e.target.value }))}
                         className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#1d4ed8]/50"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">Teléfono</label>
+                      <label htmlFor="account-address-phone" className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">Teléfono</label>
                       <input
+                        id="account-address-phone"
+                        required
                         value={addressForm.phone}
                         onChange={(e) => setAddressForm((prev) => ({ ...prev, phone: e.target.value }))}
                         placeholder="+57 311 234 5678"
@@ -2419,6 +2418,22 @@ function AccountPage({ onNavigate, onLogout, addresses, onCreateAddress, onUpdat
                     </div>
                   </div>
                 ))}
+                {addresses.length === 0 && <p className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600">Aún no tienes direcciones guardadas.</p>}
+              </div>
+            </div>
+          )}
+
+          {section === "activity" && (
+            <div>
+              <h2 className="font-display text-[28px] sm:text-[32px] text-slate-900 leading-[1.05] mb-6">Actividad reciente</h2>
+              <div className="space-y-3">
+                {auditEntries.length === 0 && <p className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600">Sin actividad registrada.</p>}
+                {auditEntries.map((entry) => (
+                  <div key={entry.id} className="rounded-xl border border-slate-100 bg-white p-4">
+                    <p className="text-sm font-bold text-slate-800">{entry.action}</p>
+                    <p className="mt-1 text-xs text-slate-500">{new Date(entry.ts).toLocaleString("es-CO")}</p>
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -2449,7 +2464,6 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
   setHomeNewArrivals: React.Dispatch<React.SetStateAction<Product[]>>;
   saveHomeContent: () => Promise<void>;
   homeContentSaving: boolean;
-  backendAdminAvailable?: boolean | null;
 }) {
   const [adminSection, setAdminSection] = useState(initialSection ?? "dashboard");
   const [searchTerm, setSearchTerm] = useState("");
@@ -2469,10 +2483,10 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
   const [mainImagePreview, setMainImagePreview] = useState<string>("");
 
   const metrics = [
-    { label: "Productos activos", value: products.length.toString(), change: "+0%", up: true, icon: <Package size={18} /> },
-    { label: "Stock total", value: products.reduce((sum, product) => sum + (product.stock ?? 0), 0).toLocaleString('es-CO'), change: "+0%", up: true, icon: <TrendingUp size={18} /> },
-    { label: "Valor catálogo", value: fmt(products.reduce((sum, product) => sum + (product.price ?? 0) * Math.max(product.stock ?? 0, 0), 0)), change: "+0%", up: true, icon: <DollarSign size={18} /> },
-    { label: "Inventario bajo", value: `${products.filter((product) => (product.stock ?? 0) <= 10).length} productos`, change: "Revisar", up: false, icon: <AlertTriangle size={18} /> },
+    { label: "Productos activos", value: products.length.toString(), icon: <Package size={18} /> },
+    { label: "Stock total", value: products.reduce((sum, product) => sum + (product.stock ?? 0), 0).toLocaleString('es-CO'), icon: <TrendingUp size={18} /> },
+    { label: "Valor catálogo", value: fmt(products.reduce((sum, product) => sum + (product.price ?? 0) * Math.max(product.stock ?? 0, 0), 0)), icon: <DollarSign size={18} /> },
+    { label: "Inventario bajo", value: `${products.filter((product) => (product.stock ?? 0) <= 10).length} productos`, icon: <AlertTriangle size={18} /> },
   ];
 
   const SIDEBAR_LINKS = [
@@ -2516,8 +2530,8 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
   };
 
   const HOME_CONTENT_FIELDS = {
-    heroTitle: "Tu ritmo, Tu estilo, Tu mejor versión",
-    heroSubtitle: "Zapatillas, ropa deportiva, perfumes y accesorios premium. Todo lo que necesitas para rendir al máximo y lucir increíble.",
+    heroTitle: "Streetwear y Sneakers que marcan tendencia",
+    heroSubtitle: "Explora calzado, ropa deportiva y accesorios para completar tu estilo.",
     featuredSectionTitle: "Productos destacados",
     newArrivalsSectionTitle: "Novedades",
     saleSectionTitle: "En descuento ahora",
@@ -2874,7 +2888,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                 <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                   <div>
                     <p className="uppercase text-xs tracking-[0.26em] text-slate-400 font-semibold mb-3">Administrador</p>
-                    <h2 className="text-3xl sm:text-4xl font-extrabold">Control total de la tienda</h2>
+                    <h2 className="font-display text-[40px] sm:text-[52px] text-white leading-[1.02]">Control total de la tienda</h2>
                     <p className="mt-3 max-w-2xl text-sm text-slate-300">Administra pedidos, productos, inventarios y reportes desde un panel unificado y seguro.</p>
                   </div>
                   <div className="rounded-full border border-white/10 bg-white/10 px-4 py-3 text-xs uppercase tracking-[0.22em] font-semibold text-slate-100">Acceso rápido</div>
@@ -2901,16 +2915,16 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                 <p className="text-xs uppercase tracking-[0.24em] text-slate-400 font-semibold mb-4">Resumen rápido</p>
                 <div className="space-y-3">
                   <div className="rounded-3xl bg-slate-50 p-4">
-                    <p className="text-sm text-slate-500">Usuarios activos hoy</p>
-                    <p className="text-2xl font-extrabold text-slate-900">1.250</p>
+                    <p className="text-sm text-slate-500">Analítica de usuarios</p>
+                    <p className="text-base font-bold text-slate-700">Pendiente de integrar</p>
                   </div>
                   <div className="rounded-3xl bg-slate-50 p-4">
-                    <p className="text-sm text-slate-500">Pedidos pendientes</p>
-                    <p className="text-2xl font-extrabold text-slate-900">28</p>
+                    <p className="text-sm text-slate-500">Pedidos</p>
+                    <p className="text-base font-bold text-slate-700">Sin conexión de datos</p>
                   </div>
                   <div className="rounded-3xl bg-slate-50 p-4">
-                    <p className="text-sm text-slate-500">Nuevo ingreso de productos</p>
-                    <p className="text-2xl font-extrabold text-slate-900">12</p>
+                    <p className="text-sm text-slate-500">Productos marcados como nuevos</p>
+                    <p className="text-2xl font-extrabold text-slate-900">{products.filter((product) => product.isNew).length}</p>
                   </div>
                 </div>
               </div>
@@ -2920,10 +2934,9 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
               {metrics.map((m) => (
                 <div key={m.label} className="p-5 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)]">
                   <div className="flex items-center justify-between mb-3">
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${m.up ? "bg-slate-100 text-slate-900" : "bg-amber-50 text-amber-600"}`}>
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-slate-100 text-slate-900">
                       {m.icon}
                     </div>
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${m.up ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-600"}`}>{m.change}</span>
                   </div>
                   <p className="text-2xl font-extrabold text-slate-900">{m.value}</p>
                   <p className="text-xs text-slate-400 mt-0.5">{m.label}</p>
@@ -2935,9 +2948,10 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
               <div className="lg:col-span-2 p-5 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)]">
                 <div className="flex items-center justify-between mb-5">
                   <h2 className="text-sm font-extrabold text-slate-800">Ventas últimos 7 días (COP)</h2>
-                  <span className="text-xs text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full">↑ 21.3% vs semana anterior</span>
                 </div>
-                <ResponsiveContainer width="100%" height={200}>
+                {SALES_DATA.length === 0 ? (
+                  <div role="status" className="flex h-[200px] items-center justify-center text-sm text-slate-500">Reporte de ventas pendiente de integración.</div>
+                ) : <ResponsiveContainer width="100%" height={200}>
                   <AreaChart data={SALES_DATA} margin={{ top: 0, right: 0, left: -10, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colVentas" x1="0" y1="0" x2="0" y2="1">
@@ -2954,12 +2968,14 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                     />
                     <Area type="monotone" dataKey="ventas" stroke="#1d4ed8" strokeWidth={2} fill="url(#colVentas)" dot={false} activeDot={{ r: 5, fill: "#1d4ed8" }} />
                   </AreaChart>
-                </ResponsiveContainer>
+                </ResponsiveContainer>}
               </div>
 
               <div className="p-5 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)]">
                 <h2 className="text-sm font-extrabold text-slate-800 mb-5">Ventas por categoría</h2>
-                <ResponsiveContainer width="100%" height={200}>
+                {CAT_DATA.length === 0 ? (
+                  <div role="status" className="flex h-[200px] items-center justify-center text-sm text-slate-500">Datos de ventas por categoría no disponibles.</div>
+                ) : <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={CAT_DATA} margin={{ top: 0, right: 0, left: -28, bottom: 0 }} layout="vertical">
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
                     <XAxis type="number" tick={{ fill: "#94a3b8", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} />
@@ -2970,7 +2986,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                     />
                     <Bar dataKey="valor" fill="#1d4ed8" radius={[0, 6, 6, 0]} />
                   </BarChart>
-                </ResponsiveContainer>
+                </ResponsiveContainer>}
               </div>
             </div>
 
@@ -2998,9 +3014,10 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                           <td className="px-5 py-3">
                             <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${STATUS_STYLE[o.status]}`}>{o.status}</span>
                           </td>
-                          <td className="px-5 py-3 text-sm font-extrabold text-slate-900">{fmt(o.total)}</td>
+                          <td className="price px-5 py-3 text-sm text-slate-900">{fmt(o.total)}</td>
                         </tr>
                       ))}
+                      {ORDERS.length === 0 && <tr><td colSpan={5} className="px-5 py-8 text-center text-sm text-slate-500">Los pedidos se mostrarán cuando se conecte su fuente de datos.</td></tr>}
                     </tbody>
                   </table>
                 </div>
@@ -3041,7 +3058,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
                   <div>
                     <p className="text-xs uppercase tracking-[0.24em] text-slate-400 font-semibold mb-2">Página principal</p>
-                    <h2 className="text-2xl font-extrabold text-slate-900">Editar secciones de la home</h2>
+                    <h2 className="font-display text-[28px] sm:text-[32px] text-slate-900 leading-[1.05]">Editar secciones de la home</h2>
                     <p className="text-sm text-slate-500 mt-1">Actualiza el texto y las colecciones que se muestran en la tienda.</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
@@ -3216,7 +3233,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                         <td className="px-4 py-3"><img src={p.image} alt={p.name} className="w-12 h-12 object-cover rounded-lg" /></td>
                         <td className="px-4 py-3 text-sm font-semibold text-slate-800">{p.name}</td>
                         <td className="px-4 py-3 text-sm text-slate-600">{p.brand}</td>
-                        <td className="px-4 py-3 text-sm font-extrabold text-slate-900">{fmt(p.price)}</td>
+                        <td className="price px-4 py-3 text-sm text-slate-900">{fmt(p.price)}</td>
                         <td className="px-4 py-3 text-sm text-slate-700">{p.stock}</td>
                         <td className="px-4 py-3">
                           <div className="flex gap-2">
@@ -3483,7 +3500,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                         <td className="px-5 py-3">
                           <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${STATUS_STYLE[o.status]}`}>{o.status}</span>
                         </td>
-                        <td className="px-5 py-3 text-sm font-extrabold text-slate-900">{fmt(o.total)}</td>
+                        <td className="price px-5 py-3 text-sm text-slate-900">{fmt(o.total)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -3853,12 +3870,6 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
             </div>
           </div>
         </div>
-        {backendAdminAvailable === false ? (
-          <div className="mb-6 p-4 rounded-lg bg-yellow-50 border border-yellow-100 text-yellow-800">
-            <strong>Backend admin no disponible.</strong> Algunas funciones administrativas pueden no estar disponibles. (Error 404 en /api/admin/*)
-          </div>
-        ) : null}
-
         {(() => {
           try {
             return renderAdminSection();
@@ -3883,9 +3894,9 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
 export default function App() {
   const [view, setView] = useState<View>("home");
   const [backendHomeAvailable, setBackendHomeAvailable] = useState<boolean | null>(null);
-  const [backendAdminAvailable, setBackendAdminAvailable] = useState<boolean | null>(null);
   const [initialAdminSection, setInitialAdminSection] = useState<string | undefined>(undefined);
   const [products, setProducts] = useState<Product[]>([]);
+  const [productsStatus, setProductsStatus] = useState<ProductsStatus>("loading");
   const [productRefresh, setProductRefresh] = useState(0);
   const [headerOffset, setHeaderOffset] = useState<number>(0);
 
@@ -3957,13 +3968,12 @@ export default function App() {
 
     const loadProducts = async () => {
       const apiUrl = normalizeApiRoot(import.meta.env.VITE_API_URL);
+      setProductsStatus("loading");
 
       try {
         const res = await fetch(`${apiUrl}/products`);
         if (!res.ok) {
-          setBackendAdminAvailable(false);
-          console.warn('No se pudo cargar productos desde el backend público.', res.statusText);
-          return;
+          throw new Error(`Products API returned ${res.status}`);
         }
 
         const json = await res.json();
@@ -3972,11 +3982,13 @@ export default function App() {
           throw new Error('Public API returned invalid payload');
         }
 
-        setBackendAdminAvailable(true);
         setProducts(json.data.map(mapProductRecordToAppProduct));
+        setProductsStatus("ready");
       } catch (error) {
+        if (!isActive) return;
         console.warn('No se pudo cargar productos desde el backend público.', error);
-        setBackendAdminAvailable(false);
+        setProducts([]);
+        setProductsStatus("error");
       }
     };
 
@@ -3987,12 +3999,20 @@ export default function App() {
   }, [productRefresh]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [filterCategory, setFilterCategory] = useState<Category | null>(null);
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cart, setCart] = useState<CartItem[]>(loadStoredCart);
   const [cartOpen, setCartOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(LOCAL_CART_STORAGE, JSON.stringify(cart));
+    } catch (error) {
+      console.warn("No se pudo guardar el carrito en este dispositivo.", error);
+    }
+  }, [cart]);
   const [addresses, setAddresses] = useState<Address[]>(loadStoredAddresses);
   const [selectedAddressId, setSelectedAddressId] = useState<string>(() => {
     const stored = loadStoredAddresses();
-    return stored[0]?.id ?? DEFAULT_ADDRESSES[0].id;
+    return stored[0]?.id ?? "";
   });
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [authUser, setAuthUser] = useState<User | null>(null);
@@ -4000,8 +4020,8 @@ export default function App() {
   // Dev helper: force admin session when visiting URL with ?forceAdmin=1
   // Only active when VITE_ENABLE_FORCE_ADMIN === '1'
   const [homeContent, setHomeContent] = useState<HomePageContent>({
-    heroTitle: "Tu ritmo, Tu estilo, Tu mejor versión",
-    heroSubtitle: "Zapatillas, ropa deportiva, perfumes y accesorios premium. Todo lo que necesitas para rendir al máximo y lucir increíble.",
+    heroTitle: "Streetwear y Sneakers que marcan tendencia",
+    heroSubtitle: "Explora calzado, ropa deportiva y accesorios para completar tu estilo.",
     featuredSectionTitle: "Productos destacados",
     newArrivalsSectionTitle: "Novedades",
     saleSectionTitle: "En descuento ahora",
@@ -4109,9 +4129,9 @@ export default function App() {
     setAddresses((prev) => {
       const next = prev.filter((addr) => addr.id !== addressId);
       if (selectedAddressId === addressId) {
-        setSelectedAddressId(next[0]?.id ?? DEFAULT_ADDRESSES[0].id);
+        setSelectedAddressId(next[0]?.id ?? "");
       }
-      return next.length ? next : DEFAULT_ADDRESSES;
+      return next;
     });
   };
 
@@ -4298,11 +4318,10 @@ export default function App() {
 
   const handleAddToCart = (p: Product, size: string, color: string) => {
     setCart((prev) => {
-      const key = `${p.id}-${size}`;
-      const existing = prev.find((i) => `${i.product.id}-${i.selectedSize}` === key);
+      const existing = prev.find((i) => i.product.id === p.id && i.selectedSize === size && i.selectedColor === color);
       if (existing) {
         return prev.map((i) =>
-          `${i.product.id}-${i.selectedSize}` === key ? { ...i, qty: i.qty + 1 } : i
+          i.product.id === p.id && i.selectedSize === size && i.selectedColor === color ? { ...i, qty: i.qty + 1 } : i
         );
       }
       return [...prev, { product: p, qty: 1, selectedSize: size, selectedColor: color }];
@@ -4310,15 +4329,15 @@ export default function App() {
     setCartOpen(true);
   };
 
-  const handleUpdateCart = (id: string, size: string, qty: number) => {
-    if (qty <= 0) handleRemoveFromCart(id, size);
+  const handleUpdateCart = (id: string, size: string, color: string, qty: number) => {
+    if (qty <= 0) handleRemoveFromCart(id, size, color);
     else setCart((prev) =>
-      prev.map((i) => i.product.id === id && i.selectedSize === size ? { ...i, qty } : i)
+      prev.map((i) => i.product.id === id && i.selectedSize === size && i.selectedColor === color ? { ...i, qty } : i)
     );
   };
 
-  const handleRemoveFromCart = (id: string, size: string) => {
-    setCart((prev) => prev.filter((i) => !(i.product.id === id && i.selectedSize === size)));
+  const handleRemoveFromCart = (id: string, size: string, color: string) => {
+    setCart((prev) => prev.filter((i) => !(i.product.id === id && i.selectedSize === size && i.selectedColor === color)));
   };
 
   const handleCheckout = () => {
@@ -4328,7 +4347,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f4f5f7] text-slate-900" style={{ fontFamily: "'Manrope', system-ui, sans-serif" }}>
+    <div className="min-h-screen bg-[#f4f5f7] text-slate-900">
       {view !== "admin" && (
         <>
           <Navbar
@@ -4355,6 +4374,8 @@ export default function App() {
           featuredProducts={homePreviewProducts}
           newArrivalsProducts={homeNewArrivals}
           saleProducts={homeSaleProducts}
+          productsStatus={productsStatus}
+          onRetryProducts={refreshProducts}
         />
       )}
       {view === "catalog" && (
@@ -4365,6 +4386,8 @@ export default function App() {
           onAddToCart={handleAddToCart}
           onNavigate={navigate}
           onCategorySelect={handleCategorySelect}
+          productsStatus={productsStatus}
+          onRetryProducts={refreshProducts}
         />
       )}
       {view === "product" && selectedProduct && (
@@ -4391,6 +4414,7 @@ export default function App() {
         <AccountPage
           onNavigate={navigate}
           onLogout={handleLogout}
+          authUser={authUser}
           addresses={addresses}
           onCreateAddress={createAddress}
           onUpdateAddress={updateAddress}
@@ -4417,7 +4441,6 @@ export default function App() {
           setHomeNewArrivals={setHomeNewArrivals}
           saveHomeContent={saveHomeContent}
           homeContentSaving={homeContentSaving}
-          backendAdminAvailable={backendAdminAvailable}
         />
       )}
       {view === "admin" && !isAdmin && <LoginPage isRegister={false} onNavigate={navigate} onLogin={handleAuthSuccess} />}

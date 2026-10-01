@@ -1,77 +1,9 @@
 import type { RealtimeSubscription, User } from '@supabase/supabase-js';
 import { getSupabaseClient, isSupabaseEnabled } from './supabase-client';
 
-const LOCAL_USER_KEY = 'urbansport_local_user';
-const LOCAL_TOKEN = 'local-admin-token';
-
-const adminEmail = (import.meta.env.VITE_ADMIN_EMAIL ?? 'urbansportstore@outlook.com').toLowerCase();
-const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD ?? 'kP9#vF2$mX7!tQ5*';
-const adminMetadata = { full_name: 'Administrador', role: 'ADMIN', isAdmin: true };
-
-const getUserMetadata = (email: string, name?: string) => {
-  const isAdmin = email.toLowerCase() === adminEmail;
-  return {
-    full_name: name ?? (isAdmin ? 'Administrador' : email),
-    role: isAdmin ? 'ADMIN' : 'CUSTOMER',
-    isAdmin: isAdmin,
-  };
-};
-
-const isAdminCredentials = (email: string, password: string) => {
-  const isAdmin = email.toLowerCase() === adminEmail && password === adminPassword;
-  // Debug log to help troubleshoot
-  if (!isAdmin && email.toLowerCase().includes('urban')) {
-    console.debug('[Admin Auth Debug]', {
-      inputEmail: email.toLowerCase(),
-      expectedEmail: adminEmail,
-      emailMatch: email.toLowerCase() === adminEmail,
-      inputPassword: `${password.substring(0, 3)}...${password.substring(password.length - 3)}`,
-      expectedPassword: `${adminPassword.substring(0, 3)}...${adminPassword.substring(password.length - 3)}`,
-      passwordMatch: password === adminPassword,
-      passwordLength: { input: password.length, expected: adminPassword.length }
-    });
-  }
-  return isAdmin;
-};
-
-const getLocalUser = (): User | null => {
-  if (typeof window === 'undefined') return null;
-  try {
-    const raw = window.localStorage.getItem(LOCAL_USER_KEY);
-    return raw ? JSON.parse(raw) as User : null;
-  } catch {
-    return null;
-  }
-};
-
-const setLocalUser = (user: User | null) => {
-  if (typeof window === 'undefined') return;
-  if (!user) {
-    window.localStorage.removeItem(LOCAL_USER_KEY);
-  } else {
-    window.localStorage.setItem(LOCAL_USER_KEY, JSON.stringify(user));
-  }
-};
-
 export const signInWithEmail = async (email: string, password: string) => {
   if (!isSupabaseEnabled()) {
-    if (isAdminCredentials(email, password)) {
-      const user = {
-        id: 'local-admin',
-        email,
-        user_metadata: adminMetadata,
-      } as unknown as User;
-      setLocalUser(user);
-      return { data: { user }, error: null };
-    }
-
-    const user = {
-      id: `local-${Date.now()}`,
-      email,
-      user_metadata: { full_name: email, role: 'CUSTOMER' },
-    } as unknown as User;
-    setLocalUser(user);
-    return { data: { user }, error: null };
+    return { data: { user: null }, error: new Error('El inicio de sesión requiere configurar Supabase.') };
   }
 
   const client = getSupabaseClient();
@@ -84,22 +16,12 @@ export const signInWithEmail = async (email: string, password: string) => {
     return result;
   }
 
-  if (result.data.user) {
-    setLocalUser(result.data.user);
-  }
-
   return result;
 };
 
 export const signUpWithEmail = async (email: string, password: string, options?: { name?: string }) => {
   if (!isSupabaseEnabled()) {
-    const user = {
-      id: `local-${Date.now()}`,
-      email,
-      user_metadata: getUserMetadata(email, options?.name),
-    } as unknown as User;
-    setLocalUser(user);
-    return { data: { user }, error: null, needsConfirmation: false };
+    return { data: { user: null }, error: new Error('El registro requiere configurar Supabase.'), needsConfirmation: false };
   }
 
   const client = getSupabaseClient();
@@ -117,15 +39,11 @@ export const signUpWithEmail = async (email: string, password: string, options?:
     const { error: signInError } = await client.auth.signInWithPassword({ email, password });
     if (!signInError) {
       const refreshedUser = await client.auth.getUser();
-      if (refreshedUser.data.user) {
-        setLocalUser(refreshedUser.data.user);
-      }
       return { ...result, data: { ...result.data, user: refreshedUser.data.user ?? result.data.user }, needsConfirmation: false };
     }
   }
 
   if (!result.error && result.data.user) {
-    setLocalUser(result.data.user);
     return { ...result, data: { ...result.data, user: result.data.user }, needsConfirmation: !result.data.session };
   }
 
@@ -134,7 +52,6 @@ export const signUpWithEmail = async (email: string, password: string, options?:
 
 export const signOut = async () => {
   if (!isSupabaseEnabled()) {
-    setLocalUser(null);
     return { error: null, data: null };
   }
 
@@ -144,7 +61,7 @@ export const signOut = async () => {
 
 export const getCurrentUser = async () => {
   if (!isSupabaseEnabled()) {
-    return getLocalUser();
+    return null;
   }
 
   const client = getSupabaseClient();
@@ -154,7 +71,7 @@ export const getCurrentUser = async () => {
 
 export const getAccessToken = async () => {
   if (!isSupabaseEnabled()) {
-    return LOCAL_TOKEN;
+    return null;
   }
 
   const client = getSupabaseClient();
@@ -186,11 +103,9 @@ export const onAuthStateChange = (callback: (event: string, session: { user: Use
 
 export const isAdminUser = (user: User | null) => {
   if (!user) return false;
-  const metadata = (user as any).user_metadata as Record<string, any> | undefined;
+  const metadata = user.app_metadata as Record<string, unknown> | undefined;
   return (
-    user.email?.toLowerCase() === adminEmail ||
     metadata?.role === 'ADMIN' ||
-    metadata?.is_admin === true ||
-    metadata?.isAdmin === true
+    metadata?.is_admin === true
   );
 };

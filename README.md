@@ -143,8 +143,8 @@ npm run dev
 VITE_SUPABASE_URL=https://project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
 VITE_SUPABASE_STORAGE_BUCKET=product-images
-VITE_ADMIN_EMAIL=admin@urbansportstore.dev
-VITE_ADMIN_PASSWORD=your-password
+VITE_TERMS_URL=
+VITE_PRIVACY_POLICY_URL=
 ```
 
 ### Backend (api/.env.local)

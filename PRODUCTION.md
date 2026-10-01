@@ -26,8 +26,8 @@
 
 - [ ] `VITE_SUPABASE_URL`: Set to production Supabase project
 - [ ] `VITE_SUPABASE_ANON_KEY`: Set to production anon key (safe to expose)
-- [ ] `VITE_ADMIN_EMAIL`: Optional, defaults to configured value
-- [ ] `VITE_ADMIN_PASSWORD`: Optional local admin fallback (not recommended for production)
+- [ ] `VITE_TERMS_URL`: Public URL for the accepted terms
+- [ ] `VITE_PRIVACY_POLICY_URL`: Public URL for the privacy policy
 
 ## Backend Environment
 

@@ -10,7 +10,6 @@ Frontend (`.env.local` at project root or Vite env):
 - VITE_SUPABASE_ANON_KEY=public-anon-key
 - VITE_SUPABASE_STORAGE_BUCKET=product-images
 - VITE_API_URL=http://localhost:4000/api
-- VITE_ADMIN_EMAIL=admin@urbansportstore.dev
 
 Backend (`api/.env`):
 
@@ -40,12 +39,7 @@ pnpm install
 pnpm dev # or npm run dev (depends on your setup)
 ```
 
-> Si no tienes Supabase configurado todavía, puedes usar el admin local con `VITE_ADMIN_EMAIL` y `VITE_ADMIN_PASSWORD`.
->
-> - Email: `admin@urbansportstore.dev`
-> - Contraseña: `Admin123!`
-> 
-> Esto mostrará el panel admin localmente sin requerir Supabase.
+> El acceso al panel de administración requiere Supabase Auth y un rol de administrador asignado desde el servidor. No existe un acceso admin local en el navegador.
 
 2. Start frontend (root):
 
@@ -67,7 +61,7 @@ pnpm dev
 
 ## Testing admin flows manually
 
-1. Register or sign in with Supabase (use `VITE_ADMIN_EMAIL` for quick admin check).
+1. Register or sign in with Supabase; an administrator role must be assigned in server-controlled `app_metadata`.
 2. Open Admin dashboard in the app and create a product with the form: the image field accepts a file (uploads to Supabase Storage) or a public URL.
 3. The frontend will call the admin API; if bridge is required it will exchange the Supabase token and retry the request.
 4. Audit logs: the backend records create/update/delete/inventory actions in the `AuditLog` Prisma model; the Admin UI shows server logs or local `localStorage` fallback.
