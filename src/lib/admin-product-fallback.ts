@@ -67,25 +67,19 @@ export function buildAdminProductPayload(product: Record<string, unknown>, fallb
   const name = toStringValue(product.name) ?? fallbackName ?? 'Producto';
   const price = toNumber(product.price) ?? fallbackPrice ?? 0;
   const slug = fallbackSlug || normalizeSlug(name) || normalizeSlug(String(fallbackSku || 'producto')) || 'producto';
-  const categoryId = fallbackCategoryId || (fallbackCategoryName ? undefined : DEFAULT_FALLBACK_CATEGORY_ID);
+  const categoryId = fallbackCategoryId || DEFAULT_FALLBACK_CATEGORY_ID;
 
   const payload: Record<string, unknown> = {
     slug,
     name,
     price,
-    category_id: categoryId || DEFAULT_FALLBACK_CATEGORY_ID,
+    category_id: categoryId,
     description: fallbackDescription ?? toStringValue(product.description) ?? '',
     sku: fallbackSku ?? toStringValue(product.sku) ?? `${Date.now().toString().slice(-6)}`,
     stock: fallbackStock ?? toNumber(product.stock) ?? 0,
     compare_at_price: fallbackOriginalPrice ?? undefined,
     is_active: true,
   };
-
-  if (!payload.category_id && fallbackCategoryName) {
-    payload.category = fallbackCategoryName;
-    payload.category_name = fallbackCategoryName;
-    payload.category_slug = normalizeSlug(String(fallbackCategoryName));
-  }
 
   return payload;
 }
