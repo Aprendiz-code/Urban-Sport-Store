@@ -1,7 +1,69 @@
 import type { RealtimeSubscription, User } from '@supabase/supabase-js';
 import { getSupabaseClient, isSupabaseEnabled } from './supabase-client';
 
+export const DEMO_ADMIN_EMAIL = 'admin@urbansport.test';
+export const DEMO_ADMIN_PASSWORD = 'Admin123!';
+const DEMO_ADMIN_STORAGE_KEY = 'demo-admin-user';
+
+const readStoredDemoUser = (): User | null => {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    const raw = window.localStorage.getItem(DEMO_ADMIN_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as User | null;
+    return parsed && parsed.email === DEMO_ADMIN_EMAIL ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
+const saveDemoUser = (user: User) => {
+  if (typeof window !== 'undefined') {
+    window.localStorage.setItem(DEMO_ADMIN_STORAGE_KEY, JSON.stringify(user));
+  }
+};
+
+const clearDemoUser = () => {
+  if (typeof window !== 'undefined') {
+    window.localStorage.removeItem(DEMO_ADMIN_STORAGE_KEY);
+  }
+};
+
+export const getDemoAdminUser = (email: string, password: string): User | null => {
+  if (email.trim().toLowerCase() !== DEMO_ADMIN_EMAIL.toLowerCase()) return null;
+  if (password !== DEMO_ADMIN_PASSWORD) return null;
+
+  const now = new Date().toISOString();
+
+  return {
+    id: 'demo-admin-user',
+    email: DEMO_ADMIN_EMAIL,
+    created_at: now,
+    updated_at: now,
+    last_sign_in_at: now,
+    app_metadata: {
+      role: 'ADMIN',
+      isAdmin: true,
+      provider: 'demo',
+    },
+    user_metadata: {
+      full_name: 'Admin Demo',
+      role: 'ADMIN',
+      isAdmin: true,
+    },
+    aud: 'authenticated',
+    role: 'authenticated',
+  } as User;
+};
+
 export const signInWithEmail = async (email: string, password: string) => {
+  const demoUser = getDemoAdminUser(email, password);
+  if (demoUser) {
+    saveDemoUser(demoUser);
+    return { data: { user: demoUser }, error: null };
+  }
+
   if (!isSupabaseEnabled()) {
     return { data: { user: null }, error: new Error('El inicio de sesión requiere configurar Supabase.') };
   }
@@ -20,6 +82,12 @@ export const signInWithEmail = async (email: string, password: string) => {
 };
 
 export const signUpWithEmail = async (email: string, password: string, options?: { name?: string }) => {
+  const demoUser = getDemoAdminUser(email, password);
+  if (demoUser) {
+    saveDemoUser(demoUser);
+    return { data: { user: demoUser }, error: null, needsConfirmation: false };
+  }
+
   if (!isSupabaseEnabled()) {
     return { data: { user: null }, error: new Error('El registro requiere configurar Supabase.'), needsConfirmation: false };
   }
@@ -51,6 +119,8 @@ export const signUpWithEmail = async (email: string, password: string, options?:
 };
 
 export const signOut = async () => {
+  clearDemoUser();
+
   if (!isSupabaseEnabled()) {
     return { error: null, data: null };
   }
@@ -60,6 +130,11 @@ export const signOut = async () => {
 };
 
 export const getCurrentUser = async () => {
+  const storedDemoUser = readStoredDemoUser();
+  if (storedDemoUser) {
+    return storedDemoUser;
+  }
+
   if (!isSupabaseEnabled()) {
     return null;
   }
@@ -85,6 +160,12 @@ export const getAccessToken = async () => {
 };
 
 export const onAuthStateChange = (callback: (event: string, session: { user: User | null } | null) => void) => {
+  const storedDemoUser = readStoredDemoUser();
+  if (storedDemoUser) {
+    callback('SIGNED_IN', { user: storedDemoUser });
+    return { unsubscribe: () => { /* no-op */ } } as RealtimeSubscription;
+  }
+
   if (!isSupabaseEnabled()) {
     return { unsubscribe: () => { /* no-op */ } } as RealtimeSubscription;
   }
