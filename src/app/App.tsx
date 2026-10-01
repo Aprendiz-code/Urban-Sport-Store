@@ -3,7 +3,7 @@ import type { User } from '@supabase/supabase-js';
 import {
   ShoppingCart, Search, X, Star, ChevronRight, Package,
   Users, TrendingUp, AlertTriangle, Check, Eye, EyeOff,
-  Bell, LogOut, Plus, Minus, Trash2, MapPin, CreditCard, Shield,
+  Bell, LogOut, Plus, Minus, Trash2, MapPin, Shield,
   Truck, ChevronLeft, Heart, ArrowRight, Filter,
   BarChart2, Home, Settings, Tag, Layers, Edit,
   RefreshCw, Award, Grid3X3, ThumbsUp, DollarSign
@@ -568,8 +568,9 @@ function ProductCard({ product, onSelect, onAddToCart }: {
 
 function TopBenefitsBar() {
   const benefits = [
-    "Envío gratis en compras desde $300.000",
+    `Envío gratis a toda Colombia desde ${fmt(STORE_CONFIG.freeShippingMinimumSubtotalCop)}`,
     "10% de descuento en tu primera compra",
+    "Consulta condiciones de cambio de talla",
     "Soporte en línea disponible 24/7",
     "Compra fácil y segura en UrbanSport",
   ];
@@ -1174,23 +1175,6 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
                 Ver novedades
               </button>
             </div>
-          </div>
-        </div>
-      </section>
-
-      <section aria-label="Beneficios de compra" className="border-y border-slate-200 bg-[#f4f6f8]">
-        <div className="mx-auto grid max-w-7xl grid-cols-1 divide-y divide-slate-200 px-3 sm:grid-cols-3 sm:divide-y-0 sm:divide-x sm:px-4 md:px-6">
-          <div className="flex items-center justify-start gap-3 px-3 py-4 text-sm font-semibold text-slate-800 sm:justify-center sm:py-5">
-            <Truck size={24} strokeWidth={2} color="#111111" aria-hidden="true" className="shrink-0" />
-            <span>Envío gratis desde {fmt(STORE_CONFIG.freeShippingMinimumSubtotalCop)}</span>
-          </div>
-          <div className="flex items-center justify-start gap-3 px-3 py-4 text-sm font-semibold text-slate-800 sm:justify-center sm:py-5">
-            <CreditCard size={24} strokeWidth={2} color="#111111" aria-hidden="true" className="shrink-0" />
-            <span>Medios de pago: consulta disponibilidad</span>
-          </div>
-          <div className="flex items-center justify-start gap-3 px-3 py-4 text-sm font-semibold text-slate-800 sm:justify-center sm:py-5">
-            <RefreshCw size={24} strokeWidth={2} color="#111111" aria-hidden="true" className="shrink-0" />
-            <span>Consulta condiciones de cambio de talla</span>
           </div>
         </div>
       </section>
