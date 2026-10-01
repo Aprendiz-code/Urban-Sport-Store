@@ -81,11 +81,6 @@ export const getAccessToken = async () => {
   // return null when not available
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const session = (data as any)?.session ?? null;
-  console.debug('[supabase-auth] getAccessToken', {
-    hasSession: Boolean(session),
-    accessTokenLength: session?.access_token?.length,
-    looksLikeJwt: typeof session?.access_token === 'string' && session.access_token.split('.').length === 3,
-  });
   return session?.access_token ?? null;
 };
 
@@ -104,8 +99,10 @@ export const onAuthStateChange = (callback: (event: string, session: { user: Use
 export const isAdminUser = (user: User | null) => {
   if (!user) return false;
   const metadata = user.app_metadata as Record<string, unknown> | undefined;
+  const role = typeof metadata?.role === 'string' ? metadata.role.toUpperCase() : '';
   return (
-    metadata?.role === 'ADMIN' ||
+    ['OWNER', 'ADMIN', 'CATALOG_MANAGER', 'LOGISTICS', 'ACCOUNTANT'].includes(role) ||
+    metadata?.isAdmin === true ||
     metadata?.is_admin === true
   );
 };

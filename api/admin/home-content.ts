@@ -1,6 +1,6 @@
 import { jsonError, jsonResponse, ApiError } from '../../lib/api-helpers/response.js';
 import { supabaseAdmin } from '../../lib/api-helpers/supabase.js';
-import { requireAdmin } from '../../lib/api-helpers/admin.js';
+import { requirePermission } from '../../lib/api-helpers/admin.js';
 import { validateSupabaseToken } from '../../lib/api-helpers/auth.js';
 
 function parseJsonBody(req: any): Promise<any> {
@@ -23,7 +23,7 @@ function parseJsonBody(req: any): Promise<any> {
 export default async function handler(req: any, res: any) {
   try {
     const user = await validateSupabaseToken(req);
-    await requireAdmin(user);
+    await requirePermission(user, req.method === 'GET' ? 'content.read' : 'content.write');
 
     if (req.method === 'GET') {
       const { data, error } = await supabaseAdmin

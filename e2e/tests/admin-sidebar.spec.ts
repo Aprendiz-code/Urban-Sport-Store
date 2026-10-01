@@ -13,11 +13,11 @@ const SIDEBAR = [
 ];
 
 test('sidebar links navigate to admin sections', async ({ page, baseURL }) => {
+  test.skip(!process.env.E2E_ADMIN_EMAIL || !process.env.E2E_ADMIN_PASSWORD, 'Requires dedicated E2E admin credentials.');
   await page.goto(baseURL!);
-  // Login as admin (env or fallback)
   await page.click('text=Iniciar sesión');
-  await page.fill('input[name="email"]', process.env.E2E_ADMIN_EMAIL ?? 'admin@urbansportstore.dev');
-  await page.fill('input[name="password"]', process.env.E2E_ADMIN_PASSWORD ?? 'ChangeMe123!');
+  await page.fill('input[name="email"]', process.env.E2E_ADMIN_EMAIL!);
+  await page.fill('input[name="password"]', process.env.E2E_ADMIN_PASSWORD!);
   await page.click('button[type="submit"]');
   await page.waitForURL('**/admin');
 

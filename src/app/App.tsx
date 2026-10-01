@@ -8,7 +8,6 @@ import {
   BarChart2, Home, Settings, Tag, Layers, Edit,
   RefreshCw, Award, Grid3X3, ThumbsUp, DollarSign
 } from "lucide-react";
-import PromoCarousel from "./components/PromoCarousel";
 import HorizontalProductCarousel from "./components/ProductCarousel";
 import { STORE_CONFIG } from "./store-config";
 
@@ -48,8 +47,28 @@ import { toast } from '../lib/lazyToast';
 
 type View =
   | "home" | "catalog" | "product" | "checkout"
-  | "login" | "register" | "account" | "admin";
+  | "login" | "register" | "account" | "admin-login" | "admin";
 type ProductsStatus = "loading" | "ready" | "error";
+
+function getInitialView(): View {
+  if (typeof window === "undefined") return "home";
+  const { pathname, search } = window.location;
+  if (pathname === "/admin/login") return "admin-login";
+  if (pathname === "/admin" || pathname.startsWith("/admin/") || new URLSearchParams(search).get("view") === "admin") return "admin";
+  if (pathname === "/login") return "login";
+  if (pathname === "/register") return "register";
+  return "home";
+}
+
+function getInitialAdminSection(): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  const sectionParam = new URLSearchParams(window.location.search).get("adminSection");
+  if (sectionParam) return sectionParam;
+  if (window.location.pathname === "/admin/login") return undefined;
+  const pathSection = window.location.pathname.match(/^\/admin\/([^/]+)/)?.[1];
+  const existingSections = ["dashboard", "homepage", "products", "orders", "inventory", "coupons", "reports", "activity", "settings"];
+  return pathSection && existingSections.includes(pathSection) ? pathSection : undefined;
+}
 
 type Category = string;
 
@@ -2471,7 +2490,7 @@ function AccountPage({ onNavigate, onLogout, authUser, addresses, onCreateAddres
 
 // ─── ADMIN DASHBOARD ──────────────────────────────────────────────────────────
 
-function AdminDashboard({ onNavigate, products, createProduct, updateProduct, deleteProduct, adjustStock, productRefresh, initialSection, homeContent, setHomeContent, homePreviewProducts, setHomePreviewProducts, homeSaleProducts, setHomeSaleProducts, homeNewArrivals, setHomeNewArrivals, saveHomeContent, homeContentSaving, backendAdminAvailable }: {
+function AdminDashboard({ onNavigate, products, createProduct, updateProduct, deleteProduct, adjustStock, productRefresh, initialSection, adminRole, homeContent, setHomeContent, homePreviewProducts, setHomePreviewProducts, homeSaleProducts, setHomeSaleProducts, homeNewArrivals, setHomeNewArrivals, saveHomeContent, homeContentSaving, backendAdminAvailable }: {
   onNavigate: (v: View) => void;
   products: Product[];
   createProduct: (product: Omit<Product, "id">) => void;
@@ -2480,6 +2499,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
   adjustStock: (productId: string, delta: number) => void;
   productRefresh: number;
   initialSection?: string;
+  adminRole: string;
   homeContent: HomePageContent;
   setHomeContent: React.Dispatch<React.SetStateAction<HomePageContent>>;
   homePreviewProducts: Product[];
@@ -2526,6 +2546,16 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
     { id: "activity", icon: <Grid3X3 size={16} />, label: "Actividad" },
     { id: "settings", icon: <Settings size={16} />, label: "Ajustes" },
   ];
+
+  const SECTIONS_BY_ROLE: Record<string, string[]> = {
+    OWNER: SIDEBAR_LINKS.map((link) => link.id),
+    ADMIN: SIDEBAR_LINKS.filter((link) => link.id !== "settings").map((link) => link.id),
+    CATALOG_MANAGER: ["dashboard", "homepage", "products"],
+    LOGISTICS: ["dashboard", "orders", "inventory"],
+    ACCOUNTANT: ["dashboard", "orders", "reports"],
+  };
+  const allowedSections = SECTIONS_BY_ROLE[adminRole.toUpperCase()] ?? [];
+  const visibleSidebarLinks = SIDEBAR_LINKS.filter((link) => allowedSections.includes(link.id));
 
   const SECTION_TITLES: Record<string, string> = {
     dashboard: "Panel de administración",
@@ -2649,42 +2679,12 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
   ];
 
   const handleSidebarClick = (section: string) => {
+    if (!allowedSections.includes(section)) {
+      toast.error("No tienes permisos para acceder a esta sección.");
+      return;
+    }
     updateAdminSectionUrl(section);
     setAdminSection(section);
-  };
-
-  const exportReportsCsv = () => {
-    try {
-      const rows: string[] = [];
-      // Header
-      rows.push(['Pedido', 'Cliente', 'Fecha', 'Estado', 'Total', 'Items'].join(','));
-      // Orders
-      ORDERS.forEach((o) => {
-        const line = [
-          JSON.stringify(o.id),
-          JSON.stringify(o.customer),
-          JSON.stringify(o.date),
-          JSON.stringify(o.status),
-          JSON.stringify(o.total),
-          JSON.stringify(o.items),
-        ].join(',');
-        rows.push(line);
-      });
-
-      const csv = rows.join('\n');
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `reportes_${new Date().toISOString().slice(0,10)}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('Error generando CSV:', err);
-      toast.error('No se pudo generar el CSV. Intenta nuevamente.');
-    }
   };
 
   const LOW_STOCK = products.filter((product) => product.stock <= 10).map((product) => ({
@@ -2843,68 +2843,15 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
 
   useEffect(() => { refreshAudit(); }, [productRefresh]);
 
-  type AdminCoupon = { id: string; code: string; discount: string; expires: string };
-
-  const [coupons, setCoupons] = useState<AdminCoupon[]>([
-    { id: "c1", code: "DESC10", discount: "10%", expires: "31/08/2026" },
-    { id: "c2", code: "ENVIOGRATIS", discount: "Envío gratis", expires: "30/09/2026" },
-    { id: "c3", code: "BLACKFRIDAY", discount: "25%", expires: "30/11/2026" },
-  ]);
-  const [couponForm, setCouponForm] = useState({ code: "", discount: "", expires: "" });
-  const [couponMode, setCouponMode] = useState<"create" | "edit">("create");
-  const [activeCouponId, setActiveCouponId] = useState<string | null>(null);
-
-  const resetCouponForm = () => {
-    setCouponMode("create");
-    setActiveCouponId(null);
-    setCouponForm({ code: "", discount: "", expires: "" });
-  };
-
-  const handleCouponChange = (field: keyof typeof couponForm, value: string) => {
-    setCouponForm((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleCouponSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const code = couponForm.code.trim().toUpperCase();
-    if (!code || !couponForm.discount.trim() || !couponForm.expires.trim()) {
-      toast.error("Completa todos los campos del cupón.");
-      return;
-    }
-
-    if (couponMode === "edit" && activeCouponId) {
-      setCoupons((prev) =>
-        prev.map((coupon) =>
-          coupon.id === activeCouponId
-            ? { ...coupon, code, discount: couponForm.discount.trim(), expires: couponForm.expires.trim() }
-            : coupon
-        )
-      );
-      toast.success("Cupón actualizado.");
-    } else {
-      setCoupons((prev) => [
-        { id: `c-${Date.now()}`, code, discount: couponForm.discount.trim(), expires: couponForm.expires.trim() },
-        ...prev,
-      ]);
-      toast.success("Cupón creado.");
-    }
-
-    resetCouponForm();
-  };
-
-  const handleEditCoupon = (coupon: AdminCoupon) => {
-    setCouponMode("edit");
-    setActiveCouponId(coupon.id);
-    setCouponForm({ code: coupon.code, discount: coupon.discount, expires: coupon.expires });
-  };
-
-  const handleDeleteCoupon = (couponId: string) => {
-    if (!confirm("¿Eliminar este cupón? Esta acción no se puede deshacer.")) return;
-    setCoupons((prev) => prev.filter((coupon) => coupon.id !== couponId));
-    toast.success("Cupón eliminado.");
-  };
-
   const renderAdminSection = () => {
+    if (!allowedSections.includes(adminSection)) {
+      return (
+        <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
+          No tienes permisos para acceder a esta sección.
+        </div>
+      );
+    }
+
     switch (adminSection) {
       case "dashboard":
         return (
@@ -3264,7 +3211,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                         <td className="px-4 py-3">
                           <div className="flex gap-2">
                             <button onClick={() => handleEditProduct(p)} className="px-3 py-1.5 rounded-lg bg-black text-white font-semibold">Editar</button>
-                            <button onClick={() => { if (confirm(`Eliminar ${p.name}? Esta acción no es reversible.`)) handleDeleteProduct(p.id); }} className="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 font-semibold">Eliminar</button>
+                            <button onClick={() => { if (confirm(`Archivar ${p.name}? Dejará de aparecer en la tienda pública.`)) handleDeleteProduct(p.id); }} className="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 font-semibold">Archivar</button>
                           </div>
                         </td>
                       </tr>
@@ -3535,7 +3482,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
             </div>
             <div className="bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] p-5">
               <h3 className="text-lg font-extrabold text-slate-900 mb-3">Resumen de pedidos</h3>
-              <p className="text-sm text-slate-600">Consulta el estado de los pedidos recientes, actualiza los estados y gestiona envíos desde aquí.</p>
+              <p role="status" className="text-sm text-slate-600">La fuente de pedidos aún no está conectada. No se pueden actualizar estados ni guías desde este panel.</p>
             </div>
           </div>
         );
@@ -3573,111 +3520,21 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
 
       case "coupons":
         return (
-          <div className="space-y-6 mb-6">
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
-              <div className="xl:col-span-2 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] p-5">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-                  <div>
-                    <h2 className="text-lg font-extrabold text-slate-900">Cupones</h2>
-                    <p className="text-sm text-slate-600">Crea y administra descuentos para tus clientes.</p>
-                  </div>
-                  <button onClick={resetCouponForm} className="px-4 py-2 rounded-xl bg-black text-white font-semibold hover:bg-slate-900">{couponMode === 'edit' ? 'Nuevo cupón' : 'Limpiar formulario'}</button>
-                </div>
-
-                <form onSubmit={handleCouponSubmit} className="grid gap-4 sm:grid-cols-3">
-                  <div className="sm:col-span-1">
-                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Código</label>
-                    <input value={couponForm.code} onChange={(e) => handleCouponChange('code', e.target.value)} placeholder="DESC10" className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
-                  </div>
-                  <div className="sm:col-span-1">
-                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Descuento</label>
-                    <input value={couponForm.discount} onChange={(e) => handleCouponChange('discount', e.target.value)} placeholder="10% / Envío gratis" className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
-                  </div>
-                  <div className="sm:col-span-1">
-                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Expira</label>
-                    <input value={couponForm.expires} onChange={(e) => handleCouponChange('expires', e.target.value)} placeholder="31/08/2026" className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900" />
-                  </div>
-
-                  <div className="sm:col-span-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <p className="text-sm text-slate-500">{couponMode === 'edit' ? 'Edita el cupón y guarda los cambios.' : 'Crea un nuevo código de descuento.'}</p>
-                    <button type="submit" className="inline-flex items-center justify-center rounded-2xl bg-black px-5 py-3 text-sm font-semibold text-white hover:bg-slate-900">{couponMode === 'edit' ? 'Actualizar cupón' : 'Crear cupón'}</button>
-                  </div>
-                </form>
-              </div>
-              <div className="bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] p-5">
-                <h3 className="text-lg font-extrabold text-slate-900 mb-4">Resumen de cupones</h3>
-                <p className="text-sm text-slate-600">Gestiona descuentos activos y consulta su fecha de caducidad.</p>
-                <div className="mt-6 space-y-3">
-                  <div className="rounded-3xl bg-slate-50 p-4">
-                    <p className="text-sm text-slate-500">Total de cupones</p>
-                    <p className="text-2xl font-extrabold text-slate-900">{coupons.length}</p>
-                  </div>
-                  <div className="rounded-3xl bg-slate-50 p-4">
-                    <p className="text-sm text-slate-500">Cupón próximo a expirar</p>
-                    <p className="text-base font-bold text-slate-900">{coupons[0]?.expires ?? 'N/A'}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[640px]">
-                  <thead>
-                    <tr className="border-b border-slate-100 bg-slate-50">
-                      {['Código', 'Descuento', 'Expira', 'Acción'].map((h) => (
-                        <th key={h} className="text-left px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wide">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {coupons.map((coupon) => (
-                      <tr key={coupon.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
-                        <td className="px-4 py-3 text-sm font-semibold text-slate-800">{coupon.code}</td>
-                        <td className="px-4 py-3 text-sm text-slate-600">{coupon.discount}</td>
-                        <td className="px-4 py-3 text-sm text-slate-600">{coupon.expires}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-wrap gap-2">
-                            <button type="button" onClick={() => handleEditCoupon(coupon)} className="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold">Editar</button>
-                            <button type="button" onClick={() => handleDeleteCoupon(coupon.id)} className="px-3 py-1.5 rounded-xl bg-red-50 text-red-600 text-xs font-semibold">Eliminar</button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+          <div className="rounded-xl border border-slate-200 bg-white p-6">
+            <h2 className="text-lg font-bold text-slate-900">Promociones y cupones</h2>
+            <p role="status" className="mt-2 text-sm text-slate-600">
+              La gestión de promociones no está conectada a persistencia. No se muestran ejemplos ni se guardan cambios desde este panel.
+            </p>
           </div>
         );
 
       case "reports":
         return (
-          <div className="space-y-6 mb-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
-              {metrics.map((m) => (
-                <div key={m.label} className="p-5 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)]">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${m.up ? "bg-slate-100 text-slate-900" : "bg-amber-50 text-amber-600"}`}>
-                      {m.icon}
-                    </div>
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${m.up ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-600"}`}>{m.change}</span>
-                  </div>
-                  <p className="text-2xl font-extrabold text-slate-900">{m.value}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">{m.label}</p>
-                </div>
-              ))}
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2 p-5 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)]">
-                <h3 className="text-lg font-extrabold text-slate-900 mb-4">Reporte de ventas</h3>
-                <p className="text-sm text-slate-600">Visualiza tendencias de ventas y compara el rendimiento por categoría.</p>
-              </div>
-              <div className="p-5 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)]">
-                <h3 className="text-lg font-extrabold text-slate-900 mb-4">Exportar reportes</h3>
-                <button onClick={() => exportReportsCsv()} className="w-full py-3 rounded-xl bg-black text-white font-semibold hover:bg-slate-900">Descargar CSV</button>
-              </div>
-            </div>
+          <div className="rounded-xl border border-slate-200 bg-white p-6">
+            <h2 className="text-lg font-bold text-slate-900">Reportes</h2>
+            <p role="status" className="mt-2 text-sm text-slate-600">
+              No hay una fuente de pedidos ni pagos conectada. Las ventas, reembolsos y exportaciones estarán disponibles cuando exista esa integración.
+            </p>
           </div>
         );
 
@@ -3715,10 +3572,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                 <p className="text-sm font-semibold text-slate-800">Preferencias del panel</p>
                 <p className="text-sm text-slate-500">Activa o desactiva notificaciones y personaliza la vista del administrador.</p>
               </div>
-              <div className="rounded-3xl bg-slate-50 p-4">
-                <p className="text-sm font-semibold text-slate-800">Seguridad</p>
-                <p className="text-sm text-slate-500">Cambia contraseñas y configura validación de dos pasos.</p>
-              </div>
+              <p role="status" className="text-sm text-slate-600">La configuración de tienda y usuarios administradores aún no tiene endpoints ni almacenamiento conectados.</p>
             </div>
           </div>
         );
@@ -3861,7 +3715,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
           <p className="text-[10px] font-bold text-blue-200 uppercase tracking-widest">Panel de administración</p>
         </div>
         <nav className="p-2 flex-1 overflow-y-auto space-y-0.5">
-          {SIDEBAR_LINKS.map((l) => (
+          {visibleSidebarLinks.map((l) => (
             <button type="button" key={l.id} onClick={() => handleSidebarClick(l.id)}
               className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors ${adminSection === l.id ? "bg-white/15 text-white" : "text-blue-200 hover:text-white hover:bg-white/10"}`}>
               {l.icon} {l.label}
@@ -3881,14 +3735,14 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-3">
               <select value={adminSection} onChange={(e) => handleSidebarClick(e.target.value)} className="flex-1 rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
-                {SIDEBAR_LINKS.map((link) => (
+                {visibleSidebarLinks.map((link) => (
                   <option key={link.id} value={link.id}>{link.label}</option>
                 ))}
               </select>
               <button type="button" onClick={() => onNavigate("home")} className="whitespace-nowrap rounded-3xl bg-black px-4 py-3 text-sm font-semibold text-white hover:bg-slate-900">Tienda</button>
             </div>
             <div className="flex items-center gap-2 overflow-x-auto pb-1">
-              {SIDEBAR_LINKS.map((link) => (
+              {visibleSidebarLinks.map((link) => (
                 <button type="button" key={link.id} onClick={() => handleSidebarClick(link.id)} className={`rounded-full px-4 py-2 text-sm font-semibold ${adminSection === link.id ? 'bg-black text-white' : 'bg-slate-100 text-slate-700'}`}>
                   {link.label}
                 </button>
@@ -3918,9 +3772,9 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
 // ─── APP ─────────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const [view, setView] = useState<View>("home");
+  const [view, setView] = useState<View>(getInitialView);
   const [backendHomeAvailable, setBackendHomeAvailable] = useState<boolean | null>(null);
-  const [initialAdminSection, setInitialAdminSection] = useState<string | undefined>(undefined);
+  const [initialAdminSection, setInitialAdminSection] = useState<string | undefined>(getInitialAdminSection);
   const [products, setProducts] = useState<Product[]>([]);
   const [productsStatus, setProductsStatus] = useState<ProductsStatus>("loading");
   const [productRefresh, setProductRefresh] = useState(0);
@@ -4043,8 +3897,7 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [authUser, setAuthUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  // Dev helper: force admin session when visiting URL with ?forceAdmin=1
-  // Only active when VITE_ENABLE_FORCE_ADMIN === '1'
+  const [authReady, setAuthReady] = useState(false);
   const [homeContent, setHomeContent] = useState<HomePageContent>({
     heroTitle: "VISTE TU ESTILO. MARCA LA DIFERENCIA.",
     heroSubtitle: "Explora calzado, ropa deportiva y accesorios para completar tu estilo.",
@@ -4094,30 +3947,14 @@ export default function App() {
   }, [products]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    const handlePopState = () => {
+      setView(getInitialView());
+      setInitialAdminSection(getInitialAdminSection());
+    };
 
-    const params = new URLSearchParams(window.location.search);
-    const paramView = params.get("view");
-    const paramSection = params.get("adminSection");
-
-    if (paramView === "admin" && isAdmin) {
-      setView("admin");
-      if (paramSection) {
-        setInitialAdminSection(paramSection);
-      }
-      return;
-    }
-
-    if (paramView === "admin" && !isAdmin) {
-      const url = new URL(window.location.href);
-      url.searchParams.delete("view");
-      url.searchParams.delete("adminSection");
-      window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
-    }
-
-    setView("home");
-    setInitialAdminSection(undefined);
-  }, [isAdmin]);
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -4172,6 +4009,8 @@ export default function App() {
         setIsAdmin(isAdminUser(user));
       } catch (error) {
         console.warn("No se pudo cargar la sesión de usuario.", error);
+      } finally {
+        setAuthReady(true);
       }
     };
 
@@ -4181,21 +4020,27 @@ export default function App() {
       setAuthUser(user);
       setIsLoggedIn(Boolean(user));
       setIsAdmin(isAdminUser(user));
+      setAuthReady(true);
     });
 
     return () => subscription?.unsubscribe();
   }, []);
 
   useEffect(() => {
+    if (!authReady) return;
     if (!isAdmin && view === "admin") {
-      navigate("login");
+      navigate("admin-login");
+      return;
+    }
+    if (isAdmin && view === "admin-login") {
+      navigate("admin");
       return;
     }
     if (!isAdmin && view === "account") {
       // allow account for normal users only
       return;
     }
-  }, [view, isAdmin]);
+  }, [view, isAdmin, authReady]);
 
   const handleAuthSuccess = (user: User | null, adminStatus: boolean) => {
     setAuthUser(user);
@@ -4309,20 +4154,25 @@ export default function App() {
 
   const navigate = (v: View) => {
     try {
-      // Diagnostic
-      // eslint-disable-next-line no-console
-      console.log('navigate ->', v);
       setView(v);
 
       if (typeof window !== "undefined") {
         const url = new URL(window.location.href);
-        if (v === "admin") {
-          url.searchParams.set("view", "admin");
-        } else {
-          url.searchParams.delete("view");
-          url.searchParams.delete("adminSection");
-        }
-        window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+        const routePaths: Record<View, string> = {
+          home: "/",
+          catalog: "/",
+          product: "/",
+          checkout: "/",
+          login: "/login",
+          register: "/register",
+          account: "/",
+          "admin-login": "/admin/login",
+          admin: "/admin",
+        };
+        url.pathname = routePaths[v];
+        url.searchParams.delete("view");
+        if (v !== "admin") url.searchParams.delete("adminSection");
+        window.history.pushState({}, "", `${url.pathname}${url.search}${url.hash}`);
       }
 
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -4436,6 +4286,7 @@ export default function App() {
       )}
       {view === "login" && <LoginPage isRegister={false} onNavigate={navigate} onLogin={handleAuthSuccess} />}
       {view === "register" && <LoginPage isRegister={true} onNavigate={navigate} onLogin={handleAuthSuccess} />}
+      {view === "admin-login" && <LoginPage isRegister={false} onNavigate={navigate} onLogin={handleAuthSuccess} />}
       {view === "account" && (
         <AccountPage
           onNavigate={navigate}
@@ -4450,6 +4301,7 @@ export default function App() {
       {view === "admin" && isAdmin && (
         <AdminDashboard
           onNavigate={navigate}
+          adminRole={String(authUser?.app_metadata?.role ?? (isAdmin ? "ADMIN" : ""))}
           products={products}
           createProduct={createProduct}
           updateProduct={updateProduct}
@@ -4469,7 +4321,7 @@ export default function App() {
           homeContentSaving={homeContentSaving}
         />
       )}
-      {view === "admin" && !isAdmin && <LoginPage isRegister={false} onNavigate={navigate} onLogin={handleAuthSuccess} />}
+      {view === "admin" && !authReady && <main role="status" className="min-h-screen pt-32 text-center text-slate-600">Verificando sesión administrativa...</main>}
 
       {cartOpen && (
         <CartDrawer

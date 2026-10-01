@@ -13,13 +13,6 @@ const API_BASE = `${API_ROOT}/admin`;
 
 async function callApi(path: string, opts: RequestInit = {}) {
   const supabaseToken = await getAccessToken();
-  console.debug('[admin-api] callApi', {
-    path,
-    apiRoot: API_ROOT,
-    supabaseTokenExists: Boolean(supabaseToken),
-    supabaseTokenLength: supabaseToken?.length,
-    supabaseTokenLooksLikeJwt: typeof supabaseToken === 'string' && supabaseToken.split('.').length === 3,
-  });
 
   const makeRequest = async (url: string, bearer?: string) => {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };

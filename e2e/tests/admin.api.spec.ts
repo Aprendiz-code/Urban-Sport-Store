@@ -1,11 +1,11 @@
 import { test, expect } from '@playwright/test';
 
 const API_BASE = process.env.E2E_API_BASE ?? 'http://127.0.0.1:4000';
-const E2E_SECRET = process.env.E2E_SECRET ?? 'test-secret';
-const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? 'admin@urbansportstore.dev';
-const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? 'ChangeMe123!';
-const CUSTOMER_EMAIL = process.env.E2E_NON_ADMIN_EMAIL ?? 'customer@urbansportstore.dev';
-const CUSTOMER_PASSWORD = process.env.E2E_NON_ADMIN_PASSWORD ?? 'Customer123!';
+const E2E_SECRET = process.env.E2E_SECRET ?? '';
+const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? '';
+const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? '';
+const CUSTOMER_EMAIL = process.env.E2E_NON_ADMIN_EMAIL ?? '';
+const CUSTOMER_PASSWORD = process.env.E2E_NON_ADMIN_PASSWORD ?? '';
 
 const getAdminToken = async (request: any) => {
   const tokenRes = await request.post(`${API_BASE}/api/v1/test/token`, { data: { secret: E2E_SECRET } });
@@ -38,6 +38,7 @@ test('API: returns 401 for admin products with invalid token', async ({ request 
 });
 
 test('API: returns 403 for authenticated non-admin user', async ({ request }) => {
+  test.skip(!CUSTOMER_EMAIL || !CUSTOMER_PASSWORD, 'Requires dedicated E2E customer credentials.');
   const token = await getCustomerToken(request);
   const res = await request.get(`${API_BASE}/api/v1/admin/products`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -46,6 +47,7 @@ test('API: returns 403 for authenticated non-admin user', async ({ request }) =>
 });
 
 test('API: admin can fetch products list', async ({ request }) => {
+  test.skip(!E2E_SECRET, 'Requires E2E_SECRET for the test-token endpoint.');
   const token = await getAdminToken(request);
   const res = await request.get(`${API_BASE}/api/v1/admin/products`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -56,6 +58,7 @@ test('API: admin can fetch products list', async ({ request }) => {
 });
 
 test('API: admin can update home content heroTitle', async ({ request }) => {
+  test.skip(!E2E_SECRET, 'Requires E2E_SECRET for the test-token endpoint.');
   const token = await getAdminToken(request);
   const heroTitle = `E2E Hero Title ${Date.now()}`;
 

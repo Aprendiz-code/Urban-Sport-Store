@@ -1,6 +1,6 @@
 import { jsonError, jsonResponse, ApiError } from '../../../lib/api-helpers/response.js';
 import { supabaseAdmin } from '../../../lib/api-helpers/supabase.js';
-import { requireAdmin } from '../../../lib/api-helpers/admin.js';
+import { requirePermission } from '../../../lib/api-helpers/admin.js';
 import { validateSupabaseToken } from '../../../lib/api-helpers/auth.js';
 
 function parseJsonBody(req: any): Promise<any> {
@@ -40,9 +40,9 @@ function buildCategoryPayload(body: any) {
 export default async function handler(req: any, res: any) {
   try {
     const user = await validateSupabaseToken(req);
-    await requireAdmin(user);
 
     if (req.method === 'GET') {
+      await requirePermission(user, 'categories.read');
       const { data, error } = await supabaseAdmin.from('categories').select('*').order('sort_order', { ascending: true });
       if (error) {
         return jsonError(res, 500, error.message || 'Unable to fetch categories.');
@@ -51,6 +51,7 @@ export default async function handler(req: any, res: any) {
     }
 
     if (req.method === 'POST') {
+      await requirePermission(user, 'categories.write');
       const body = await parseJsonBody(req);
       const payload = buildCategoryPayload(body);
 

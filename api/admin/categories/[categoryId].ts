@@ -1,6 +1,6 @@
 import { jsonError, jsonResponse, ApiError } from '../../../lib/api-helpers/response.js';
 import { supabaseAdmin } from '../../../lib/api-helpers/supabase.js';
-import { requireAdmin } from '../../../lib/api-helpers/admin.js';
+import { requirePermission } from '../../../lib/api-helpers/admin.js';
 import { validateSupabaseToken } from '../../../lib/api-helpers/auth.js';
 
 function parseJsonBody(req: any): Promise<any> {
@@ -46,12 +46,21 @@ function extractCategoryId(req: any): string | null {
 export default async function handler(req: any, res: any) {
   try {
     const user = await validateSupabaseToken(req);
-    await requireAdmin(user);
 
     const categoryId = extractCategoryId(req);
     if (!categoryId) {
       throw new ApiError(400, 'Missing categoryId');
     }
+
+    const permission = req.method === 'GET'
+      ? 'categories.read'
+      : req.method === 'PATCH'
+        ? 'categories.write'
+        : req.method === 'DELETE'
+          ? 'categories.archive'
+          : null;
+    if (!permission) return jsonError(res, 405, 'Method not allowed.');
+    await requirePermission(user, permission);
 
     if (req.method === 'GET') {
       const { data, error } = await supabaseAdmin

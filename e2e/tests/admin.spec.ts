@@ -1,9 +1,10 @@
 import { test, expect } from '@playwright/test';
 
-const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? 'admin@urbansportstore.dev';
-const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? 'ChangeMe123!';
+const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? '';
+const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? '';
 
 test('admin end-to-end: login, products CRUD, homepage heroTitle update and audit logs', async ({ page, baseURL }) => {
+  test.skip(!ADMIN_EMAIL || !ADMIN_PASSWORD, 'Requires dedicated E2E admin credentials.');
   const productName = `E2E Product ${Date.now()}`;
   const updatedProductName = `${productName} (edited)`;
   const heroTitle = `E2E Home Hero ${Date.now()}`;
@@ -37,7 +38,7 @@ test('admin end-to-end: login, products CRUD, homepage heroTitle update and audi
   await expect(page.locator('tr', { hasText: updatedProductName })).toBeVisible({ timeout: 15000 });
 
   page.once('dialog', (dialog) => dialog.accept());
-  await page.locator('tr', { hasText: updatedProductName }).locator('button:has-text("Eliminar")').click();
+  await page.locator('tr', { hasText: updatedProductName }).locator('button:has-text("Archivar")').click();
   await expect(page.locator('tr', { hasText: updatedProductName })).toHaveCount(0, { timeout: 15000 });
 
   await page.click('button:has-text("Página principal")');

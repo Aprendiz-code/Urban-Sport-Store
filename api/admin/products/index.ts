@@ -1,6 +1,6 @@
 import { jsonError, jsonResponse, ApiError } from '../../../lib/api-helpers/response.js';
 import { supabaseAdmin } from '../../../lib/api-helpers/supabase.js';
-import { requireAdmin } from '../../../lib/api-helpers/admin.js';
+import { requirePermission } from '../../../lib/api-helpers/admin.js';
 import { validateSupabaseToken } from '../../../lib/api-helpers/auth.js';
 import { normalizeProductPayload } from '../../../lib/api-helpers/product-helpers.js';
 
@@ -24,9 +24,9 @@ function parseJsonBody(req: any): Promise<any> {
 export default async function handler(req: any, res: any) {
   try {
     const user = await validateSupabaseToken(req);
-    await requireAdmin(user);
 
     if (req.method === 'GET') {
+      await requirePermission(user, 'products.read');
       const { data, error } = await supabaseAdmin.from('products').select('*').order('created_at', { ascending: false });
       if (error) {
         return jsonError(res, 500, error.message || 'Unable to fetch products.');
@@ -35,6 +35,7 @@ export default async function handler(req: any, res: any) {
     }
 
     if (req.method === 'POST') {
+      await requirePermission(user, 'products.write');
       const body = await parseJsonBody(req);
       const payload = await normalizeProductPayload(body);
 

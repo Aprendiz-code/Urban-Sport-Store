@@ -1,12 +1,12 @@
 import { jsonError, jsonResponse, ApiError } from '../../lib/api-helpers/response.js';
 import { supabaseAdmin } from '../../lib/api-helpers/supabase.js';
-import { requireAdmin } from '../../lib/api-helpers/admin.js';
+import { requirePermission } from '../../lib/api-helpers/admin.js';
 import { validateSupabaseToken } from '../../lib/api-helpers/auth.js';
 
 export default async function handler(req: any, res: any) {
   try {
     const user = await validateSupabaseToken(req);
-    await requireAdmin(user);
+    await requirePermission(user, 'audit.read');
 
     if (req.method !== 'GET') {
       return jsonError(res, 405, 'Method not allowed.');
