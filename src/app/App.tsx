@@ -312,10 +312,10 @@ function Btn({
     lg: "px-6 py-3.5 text-base rounded-xl",
   };
   const variants = {
-    primary:   "bg-black text-white hover:bg-slate-900 active:scale-[0.98] shadow-sm shadow-slate-800",
-    secondary: "bg-slate-100 text-slate-700 hover:bg-slate-200",
-    outline:   "border-2 border-black text-black hover:bg-slate-100",
-    ghost:     "text-slate-500 hover:text-slate-800 hover:bg-slate-100",
+    primary:   "bg-[#2457D6] text-white hover:bg-[#1d48b9] active:scale-[0.98] shadow-sm shadow-blue-300/40",
+    secondary: "bg-[#eef3ff] text-[#0b1220] hover:bg-[#e2ebff]",
+    outline:   "border-2 border-[#0b1220] text-[#0b1220] hover:bg-slate-100",
+    ghost:     "text-slate-600 hover:text-[#0b1220] hover:bg-slate-100",
     danger:    "bg-red-50 text-red-600 border border-red-200 hover:bg-red-100",
   };
   return (
@@ -1117,28 +1117,28 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
   return (
     <main className="pt-16 sm:pt-20 md:pt-24">
       {/* Hero */}
-      <section className="relative min-h-[360px] sm:min-h-[400px] md:min-h-[440px] lg:min-h-[480px] flex items-center justify-center overflow-hidden bg-slate-900">
+      <section className="relative min-h-[360px] sm:min-h-[400px] md:min-h-[440px] lg:min-h-[480px] flex items-center justify-center overflow-hidden bg-[#0b1220]">
         <img
           src="https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=1600&h=900&fit=crop&auto=format"
           alt="Atleta en acción" className="absolute inset-0 w-full h-full object-cover object-center"
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-slate-900/98 via-slate-900/70 to-slate-900/30 md:from-slate-900/95 md:via-slate-900/60 md:to-slate-900/20" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#0b1220]/95 via-[#0b1220]/80 to-[#0b1220]/45 md:from-[#0b1220]/95 md:via-[#0b1220]/80 md:to-[#0b1220]/50" />
 
         <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-6 sm:py-8 md:py-10 w-full">
           <div className="max-w-2xl">
-            <div className="font-display inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#f97316]/20 border border-[#f97316]/30 text-[#f97316] text-sm sm:text-base tracking-[0.04em] uppercase mb-3 sm:mb-4 whitespace-nowrap">
+            <div className="font-display inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#f59e0b]/20 border border-[#f59e0b]/30 text-[#fbbf24] text-sm sm:text-base tracking-[0.04em] uppercase mb-3 sm:mb-4 whitespace-nowrap">
               <Award size={12} /> Colección 2026
             </div>
-            <h1 className="font-display text-[40px] sm:text-[52px] md:text-[60px] lg:text-[72px] text-white leading-[1.02] tracking-normal mb-3 sm:mb-4">{content.heroTitle}</h1>
-            <p className="text-base sm:text-lg md:text-xl text-slate-300 leading-relaxed mb-6 max-w-md">
+            <h1 className="font-display text-[40px] sm:text-[52px] md:text-[60px] lg:text-[72px] text-white leading-[1.02] tracking-[-0.04em] mb-3 sm:mb-4">{content.heroTitle}</h1>
+            <p className="text-base sm:text-lg md:text-xl text-slate-200 leading-relaxed mb-6 max-w-md">
               {content.heroSubtitle}
             </p>
             <div className="flex flex-col min-[480px]:flex-row gap-3 w-full min-[480px]:w-auto">
-              <Btn variant="primary" size="lg" onClick={() => onNavigate("catalog")} className="w-full min-[480px]:w-auto justify-center !bg-[#00e676] !text-slate-950 hover:!bg-[#00c853]">
+              <Btn variant="primary" size="lg" onClick={() => onNavigate("catalog")} className="w-full min-[480px]:w-auto justify-center !bg-[#2457D6] !text-white hover:!bg-[#1d48b9]">
                 Comprar ahora <ArrowRight size={16} />
               </Btn>
               <button onClick={() => onNavigate("catalog")}
-                className="px-6 py-3.5 min-h-12 text-base font-bold text-white border-2 border-white/30 rounded-xl hover:bg-white/10 transition-all">
+                className="px-6 py-3.5 min-h-12 text-base font-bold text-white border-2 border-white/20 bg-white/5 rounded-xl hover:bg-white/10 transition-all backdrop-blur-sm">
                 Ver novedades
               </button>
             </div>
@@ -1146,7 +1146,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
         </div>
       </section>
 
-      <section aria-label="Beneficios de compra" className="border-y border-slate-200 bg-white">
+      <section aria-label="Beneficios de compra" className="border-y border-slate-200 bg-[#f4f6f8]">
         <div className="mx-auto grid max-w-7xl grid-cols-1 divide-y divide-slate-200 px-3 sm:grid-cols-3 sm:divide-y-0 sm:divide-x sm:px-4 md:px-6">
           <div className="flex items-center justify-center gap-3 px-3 py-4 text-sm font-semibold text-slate-800 sm:py-5">
             <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-800"><Truck size={19} /></span>
@@ -1167,8 +1167,8 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
       <section className="pt-8 sm:pt-10 md:pt-12 pb-2 sm:pb-3 md:pb-4 max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
         <div className="flex items-end justify-between mb-6 sm:mb-8">
           <div>
-            <p className="font-display text-sm sm:text-base text-[#1d4ed8] tracking-[0.04em] uppercase mb-1 sm:mb-1.5">{content.categorySectionLabel}</p>
-            <h2 className="font-display text-[28px] sm:text-[32px] md:text-[40px] text-slate-900 leading-[1.05]">{content.categorySectionTitle}</h2>
+            <p className="font-display text-sm sm:text-base text-[#2457D6] tracking-[0.04em] uppercase mb-1 sm:mb-1.5">{content.categorySectionLabel}</p>
+            <h2 className="font-display text-[28px] sm:text-[32px] md:text-[40px] text-[#0b1220] leading-[1.05]">{content.categorySectionTitle}</h2>
           </div>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -1176,12 +1176,12 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
             <div key={cat.name} className="min-w-0">
               <button
                 onClick={() => onCategorySelect(cat.name as Category)}
-                className="group relative rounded-2xl sm:rounded-3xl overflow-hidden aspect-[4/3] w-full bg-gradient-to-br from-slate-200 via-slate-300 to-slate-400 hover:shadow-lg transition-all duration-300">
+                className="group relative rounded-2xl sm:rounded-3xl overflow-hidden aspect-[4/3] w-full bg-white shadow-[0_12px_30px_-18px_rgba(15,23,42,0.38)] ring-1 ring-slate-200 hover:shadow-[0_18px_40px_-18px_rgba(15,23,42,0.4)] transition-all duration-300">
                 <img src={cat.image} alt={cat.name} onError={(event) => { event.currentTarget.style.display = "none"; }} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0b1220]/85 via-[#0b1220]/20 to-transparent" />
                 <div className="absolute bottom-0 left-0 right-0 p-2 sm:p-3">
                   <p className="font-display text-[22px] sm:text-[24px] text-white leading-[1.05]">{cat.name}</p>
-                  <p className="text-xs sm:text-sm text-slate-300">{cat.sub}</p>
+                  <p className="text-xs sm:text-sm text-slate-200">{cat.sub}</p>
                 </div>
               </button>
             </div>
@@ -1284,12 +1284,12 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
       )}
 
       {/* Sale */}
-      <section className="py-8 sm:py-12 md:py-16 bg-orange-50 border-y border-orange-100">
+      <section className="py-8 sm:py-12 md:py-16 bg-gradient-to-r from-[#fff7ed] via-[#fffaf3] to-[#eef3ff] border-y border-[#f4d7a6]">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
           <div className="flex items-end justify-between mb-6 sm:mb-8 gap-4">
             <div>
               <p className="font-display text-sm sm:text-base text-[#c2410c] tracking-[0.04em] uppercase mb-1 sm:mb-1.5">{content.saleSectionLabel}</p>
-              <h2 className="font-display text-[28px] sm:text-[32px] md:text-[40px] text-slate-900 leading-[1.05]">{content.saleSectionTitle}</h2>
+              <h2 className="font-display text-[28px] sm:text-[32px] md:text-[40px] text-[#0b1220] leading-[1.05]">{content.saleSectionTitle}</h2>
             </div>
             <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="hidden sm:flex">Ver todos <ChevronRight size={14} /></Btn>
           </div>
@@ -1305,7 +1305,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
       </section>
 
       {/* Newsletter */}
-      <section className="py-5 sm:py-6 md:py-7 bg-[#1d4ed8]">
+      <section className="py-5 sm:py-6 md:py-7 bg-[#0b1220]">
         <div className="max-w-xl mx-auto px-3 sm:px-4 text-center">
           <p className="text-[10px] sm:text-xs font-bold text-blue-200 uppercase tracking-widest mb-1 sm:mb-1.5">Mantente al día</p>
           <h2 className="font-display text-2xl sm:text-3xl text-white leading-[1.05] mb-1 sm:mb-1.5">Recibe ofertas exclusivas</h2>
@@ -1346,12 +1346,12 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
       </section>
 
       {/* Footer */}
-      <footer className="bg-slate-900 text-slate-300 pt-10 sm:pt-14 pb-6 sm:pb-8">
+      <footer className="bg-[#0b1220] text-slate-300 pt-10 sm:pt-14 pb-6 sm:pb-8">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8 mb-8 sm:mb-10">
             <div>
               <div className="flex items-center gap-2 mb-3 sm:mb-4">
-                <span className="font-extrabold text-white text-xs sm:text-sm">Urban<span className="text-[#f97316]">Sport</span></span>
+                <span className="font-extrabold text-white text-xs sm:text-sm">Urban<span className="text-[#f59e0b]">Sport</span></span>
               </div>
               <p className="text-[11px] sm:text-xs leading-relaxed text-slate-400">Moda deportiva y accesorios premium. Tu mejor versión empieza aquí.</p>
             </div>
