@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import type { User } from '@supabase/supabase-js';
 import {
-  ShoppingCart, Search, Menu, X, Star, ChevronRight, Package,
+  ShoppingCart, Search, X, Star, ChevronRight, Package,
   Users, TrendingUp, AlertTriangle, Check, Eye, EyeOff,
   Bell, LogOut, Plus, Minus, Trash2, MapPin, CreditCard, Shield,
   Truck, ChevronLeft, Heart, ArrowRight, Filter,
@@ -10,8 +10,9 @@ import {
 } from "lucide-react";
 import PromoCarousel from "./components/PromoCarousel";
 import HorizontalProductCarousel from "./components/ProductCarousel";
-import promoBanner from "/images/promo-discount-10.png";
 import { STORE_CONFIG } from "./store-config";
+
+const promoBanner = "/images/promo-discount-10.png";
 import { subscribeToNewsletter } from "../lib/newsletter";
 import {
   ResponsiveContainer,
@@ -565,6 +566,140 @@ function ProductCard({ product, onSelect, onAddToCart }: {
 
 // ─── NAVBAR ──────────────────────────────────────────────────────────────────
 
+function TopBenefitsBar() {
+  const benefits = [
+    "Envío gratis en compras desde $300.000",
+    "10% de descuento en tu primera compra",
+    "Soporte en línea disponible 24/7",
+    "Compra fácil y segura en UrbanSport",
+  ];
+
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  const [reduceMotion, setReduceMotion] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const handleChange = () => setReduceMotion(mediaQuery.matches);
+
+    handleChange();
+    mediaQuery.addEventListener?.("change", handleChange);
+
+    return () => {
+      mediaQuery.removeEventListener?.("change", handleChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (reduceMotion || isPaused) return;
+
+    const cycleDuration = 5600;
+    const timer = window.setTimeout(() => {
+      setCurrentIndex((index) => (index + 1) % benefits.length);
+    }, cycleDuration);
+
+    return () => window.clearTimeout(timer);
+  }, [currentIndex, benefits.length, reduceMotion, isPaused]);
+
+  return (
+    <>
+      <style>{`
+        .top-benefits-bar {
+          position: relative;
+          width: 100%;
+          height: 42px;
+          overflow: hidden;
+          background: #0B1220;
+          color: #ffffff;
+          border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .benefit-center {
+          position: absolute;
+          inset: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
+        }
+
+        .benefit-message {
+          position: relative;
+          white-space: nowrap;
+          font-family: 'Roboto', sans-serif;
+          font-size: 0.76rem;
+          font-weight: 600;
+          letter-spacing: 0.01em;
+          line-height: 1.2;
+          opacity: 0;
+          animation: benefit-slide 5.5s linear forwards;
+          text-align: center;
+          max-width: calc(100% - 1.5rem);
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .top-benefits-bar:hover .benefit-message,
+        .top-benefits-bar:focus-within .benefit-message {
+          animation-play-state: paused;
+        }
+
+        @media (min-width: 640px) {
+          .benefit-message {
+            font-size: 0.9rem;
+            max-width: none;
+          }
+        }
+
+        @keyframes benefit-slide {
+          0% {
+            transform: translateX(120vw);
+            opacity: 0;
+          }
+          20% {
+            transform: translateX(0);
+            opacity: 1;
+          }
+          70% {
+            transform: translateX(0);
+            opacity: 1;
+          }
+          100% {
+            transform: translateX(-120vw);
+            opacity: 0;
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .benefit-message {
+            transform: none;
+            animation: none;
+            opacity: 1;
+            display: block;
+            margin: 0 auto;
+            white-space: normal;
+            max-width: 90%;
+            text-align: center;
+          }
+        }
+      `}</style>
+
+      <div
+        className="top-benefits-bar"
+        aria-live="polite"
+        onMouseEnter={() => setIsPaused(true)}
+        onMouseLeave={() => setIsPaused(false)}
+        onFocus={() => setIsPaused(true)}
+        onBlur={() => setIsPaused(false)}
+      >
+        <div className="benefit-center" key={currentIndex}>
+          <span className="benefit-message">{benefits[currentIndex]}</span>
+        </div>
+      </div>
+    </>
+  );
+}
+
 function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, currentView, onLoginClick, onLogout, onCategorySelect, onSelectProduct, products }: {
   cart: CartItem[]; onNavigate: (v: View) => void;
   onCartOpen: () => void; isLoggedIn: boolean; isAdmin: boolean;
@@ -578,9 +713,6 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
   const [suggestions, setSuggestions] = useState<Product[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const suggestTimer = useRef<number | null>(null);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
-  const mobileMenuPanelRef = useRef<HTMLDivElement>(null);
   const cartCount = cart.reduce((s, i) => s + i.qty, 0);
   const showCustomerOrders = !isAdmin && !isAdminUser(authUser);
   const [promoEntered, setPromoEntered] = useState(false);
@@ -589,43 +721,6 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
     const frame = requestAnimationFrame(() => setPromoEntered(true));
     return () => cancelAnimationFrame(frame);
   }, []);
-
-  useEffect(() => {
-    if (!mobileMenuOpen) return;
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const focusFirst = () => mobileMenuPanelRef.current?.querySelector<HTMLElement>("button:not([disabled])")?.focus();
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        setMobileMenuOpen(false);
-        mobileMenuButtonRef.current?.focus();
-        return;
-      }
-      if (event.key !== "Tab" || !mobileMenuPanelRef.current) return;
-
-      const focusable = Array.from(mobileMenuPanelRef.current.querySelectorAll<HTMLElement>(
-        'button:not([disabled]), a[href], input:not([disabled]), [tabindex]:not([tabindex="-1"])',
-      ));
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last?.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first?.focus();
-      }
-    };
-
-    document.addEventListener("keydown", onKeyDown);
-    requestAnimationFrame(focusFirst);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [mobileMenuOpen]);
 
   // suggestions effect
   useEffect(() => {
@@ -647,15 +742,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
   return (
     <>
       <div className="fixed top-0 left-0 right-0 z-50">
-        {/* Announce Bar (carousel) */}
-        <PromoCarousel
-          variant="marquee"
-          intervalMs={7800}
-          messages={[
-            `Envío gratis en compras desde ${fmt(STORE_CONFIG.freeShippingMinimumSubtotalCop)}`,
-            "Consulta los medios de pago disponibles antes de confirmar tu pedido",
-          ]}
-        />
+        <TopBenefitsBar />
 
         {/* Main Navbar */}
         <nav className="bg-white border-b border-slate-100 shadow-sm">
@@ -696,18 +783,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
             </div>
 
             {/* Actions */}
-            <div className="flex items-center gap-1 ml-auto">
-              <button
-                ref={mobileMenuButtonRef}
-                type="button"
-                aria-label={mobileMenuOpen ? "Cerrar menú" : "Abrir menú"}
-                aria-expanded={mobileMenuOpen}
-                aria-controls="mobile-category-menu"
-                onClick={() => setMobileMenuOpen((open) => !open)}
-                className="md:hidden w-10 h-10 rounded-xl flex items-center justify-center text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8]"
-              >
-                {mobileMenuOpen ? <X size={19} /> : <Menu size={19} />}
-              </button>
+            <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
               <button
                 type="button"
                 aria-label={`Abrir carrito, ${cartCount} artículos`}
@@ -801,53 +877,6 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
           </div>
         </nav>
       </div>
-
-      {mobileMenuOpen && (
-        <div className="fixed inset-0 z-[60] md:hidden" onClick={() => { setMobileMenuOpen(false); mobileMenuButtonRef.current?.focus(); }}>
-          <div className="absolute inset-0 bg-slate-950/40" />
-          <div
-            ref={mobileMenuPanelRef}
-            id="mobile-category-menu"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Navegación de la tienda"
-            tabIndex={-1}
-            onClick={(event) => event.stopPropagation()}
-            className="absolute inset-y-0 left-0 flex w-[min(86vw,360px)] flex-col overflow-y-auto bg-white p-5 shadow-2xl"
-          >
-            <div className="mb-5 flex items-center justify-between border-b border-slate-200 pb-4">
-              <h2 className="text-lg font-extrabold text-slate-900">Categorías</h2>
-              <button type="button" onClick={() => { setMobileMenuOpen(false); mobileMenuButtonRef.current?.focus(); }} aria-label="Cerrar menú" className="flex h-11 w-11 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1d4ed8]">
-                <X size={19} />
-              </button>
-            </div>
-            <nav aria-label="Categorías de productos" className="grid gap-1">
-              {NAV_CATEGORIES.map((category) => (
-                <button
-                  key={category.name}
-                  type="button"
-                  onClick={() => {
-                    onCategorySelect(category.name);
-                    setMobileMenuOpen(false);
-                    mobileMenuButtonRef.current?.focus();
-                  }}
-                  className="min-h-12 rounded-lg px-3 text-left text-base font-semibold text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1d4ed8]"
-                >
-                  {category.name}
-                </button>
-              ))}
-            </nav>
-            <div className="mt-auto grid gap-2 border-t border-slate-200 pt-4">
-              <button type="button" onClick={() => { onNavigate(isLoggedIn ? "account" : "login"); setMobileMenuOpen(false); }} className="min-h-12 rounded-lg bg-slate-100 px-3 text-left text-sm font-semibold text-slate-800">
-                {isLoggedIn ? "Mi cuenta" : "Iniciar sesión"}
-              </button>
-              <button type="button" onClick={() => { onCartOpen(); setMobileMenuOpen(false); }} className="min-h-12 rounded-lg bg-slate-900 px-3 text-left text-sm font-semibold text-white">
-                Carrito ({cartCount})
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {(currentView === "home" || currentView === "catalog") && (
         <div className="w-full bg-transparent pt-[6.75rem]">
@@ -1129,6 +1158,9 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
             <div className="font-display inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#f59e0b]/20 border border-[#f59e0b]/30 text-[#fbbf24] text-sm sm:text-base tracking-[0.04em] uppercase mb-3 sm:mb-4 whitespace-nowrap">
               <Award size={12} /> Colección 2026
             </div>
+            <p className="mb-3 text-[11px] sm:text-xs font-bold uppercase tracking-[0.18em] text-[#dbeafe]">
+              Obtén 10 % de descuento en tu primera compra
+            </p>
             <h1 className="font-display text-[40px] sm:text-[52px] md:text-[60px] lg:text-[72px] text-white leading-[1.02] tracking-[-0.04em] mb-3 sm:mb-4">{content.heroTitle}</h1>
             <p className="text-base sm:text-lg md:text-xl text-slate-200 leading-relaxed mb-6 max-w-md">
               {content.heroSubtitle}
@@ -1216,10 +1248,20 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
         ) : <ProductStatusNotice status={productsStatus} onRetry={onRetryProducts} />}
       </section>
 
-      <section className="mx-auto max-w-7xl px-3 pt-2 sm:px-4 md:px-6" aria-label="Promoción de primera compra">
-        <button type="button" onClick={() => onNavigate("catalog")} aria-label="Ver promociones y productos con descuento" className="block w-full overflow-hidden bg-slate-100">
-          <img src={promoBanner} alt="Promoción de primera compra: 10% de descuento" loading="lazy" className="mx-auto block h-auto w-full object-contain" />
-        </button>
+      <section className="mx-auto max-w-7xl px-3 pt-2 sm:px-4 md:px-6" aria-label="Oferta especial de UrbanSport">
+        <div className="mb-4 text-left">
+          <p className="font-display text-[11px] sm:text-xs uppercase tracking-[0.16em] text-[#2457D6]">Oferta especial</p>
+          <h2 className="font-display text-[28px] leading-none text-[#0B1220] sm:text-[34px] md:text-[40px]">OFERTA ESPECIAL</h2>
+          <p className="mt-1 text-sm text-slate-600">Beneficio exclusivo para tu primera compra</p>
+        </div>
+        <div className="overflow-hidden rounded-[20px] border border-slate-200 bg-[#f4f6f8] shadow-[0_18px_45px_-30px_rgba(15,23,42,0.35)]">
+          <img
+            src={promoBanner}
+            alt="Oferta especial: 10% de descuento en la primera compra de UrbanSport"
+            loading="lazy"
+            className="block w-full h-auto object-contain"
+          />
+        </div>
       </section>
 
       {/* Promo banners */}
@@ -2530,7 +2572,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
   };
 
   const HOME_CONTENT_FIELDS = {
-    heroTitle: "Streetwear y Sneakers que marcan tendencia",
+    heroTitle: "VISTE TU ESTILO. MARCA LA DIFERENCIA.",
     heroSubtitle: "Explora calzado, ropa deportiva y accesorios para completar tu estilo.",
     featuredSectionTitle: "Productos destacados",
     newArrivalsSectionTitle: "Novedades",
@@ -4020,7 +4062,7 @@ export default function App() {
   // Dev helper: force admin session when visiting URL with ?forceAdmin=1
   // Only active when VITE_ENABLE_FORCE_ADMIN === '1'
   const [homeContent, setHomeContent] = useState<HomePageContent>({
-    heroTitle: "Streetwear y Sneakers que marcan tendencia",
+    heroTitle: "VISTE TU ESTILO. MARCA LA DIFERENCIA.",
     heroSubtitle: "Explora calzado, ropa deportiva y accesorios para completar tu estilo.",
     featuredSectionTitle: "Productos destacados",
     newArrivalsSectionTitle: "Novedades",
