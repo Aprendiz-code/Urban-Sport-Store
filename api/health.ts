@@ -1,9 +1,8 @@
-import { jsonResponse } from '../lib/api-helpers/response.js';
+import { jsonResponse } from '../lib/api-helpers/response.ts';
 
 export default function handler(_req: any, res: any) {
   jsonResponse(res, {
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV ?? 'development',
+    ok: true,
+    service: 'urbansport-api',
   });
 }

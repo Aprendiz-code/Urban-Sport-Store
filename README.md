@@ -3,59 +3,83 @@
 
 Modern ecommerce platform for sports equipment, apparel, and lifestyle products.
 
+> Estado de operación: catálogo, home, newsletter y CRUD de catálogo usan API/backend. El carrito es solo local y el checkout está bloqueado; no se crean pedidos ni pagos. Direcciones no están persistidas en cuenta; stock por variante y paneles de pedidos/inventario no están activos. Seguridad NO-GO: no desplegar ni migrar hasta rotar credenciales y reconciliar el historial remoto.
+
 ## Quick Start
 
 ### Frontend
 
 ```bash
-# Install dependencies
 npm install
-
-# Start development server
 npm run dev
-# Opens at http://localhost:5173
+# Opens at http://127.0.0.1:5173
 ```
 
-### Backend
+### Backend local
 
 ```bash
 cd api
-
-# Install dependencies
 npm install
-
-# Set up environment
-cp .env.example .env.local
-# Edit .env.local with your database and Supabase credentials
-
-# Set up database
-npm run db:migrate
-npm run db:seed
-
-# Start API server
 npm run dev
-# Runs at http://localhost:4000
-# API docs at http://localhost:4000/api/docs
+# Runs the local API at http://127.0.0.1:3000
+```
+
+### Backend production / deployment
+
+```bash
+# Use the deployed API or environment-specific URL in VITE_API_URL.
+# Do not commit real secrets or service-role keys into frontend code.
+```
+
+## Environment configuration
+
+Use one frontend API variable for every environment:
+
+```env
+VITE_API_URL=http://127.0.0.1:3000/api
+```
+
+For production deployments, set `VITE_API_URL` to the secure public API URL of the backend runtime. Do not expose service-role or private credentials in Vite.
+
+### Priority for development
+
+For Vite development, the effective precedence is:
+
+1. `.env.local` (local overrides)
+2. `.env.development` (if present)
+3. `.env`
+
+Keep the canonical value in `.env.example` and avoid checking in `.env.local`.
+
+## Health check
+
+```bash
+curl http://127.0.0.1:3000/api/health
+```
+
+Expected response:
+
+```json
+{ "ok": true, "service": "urbansport-api" }
 ```
 
 ## Architecture
 
 ### Frontend (Vite + React + TypeScript)
-- Storefront with product catalog
-- Shopping cart and checkout flow
-- User authentication (login/register)
-- Admin dashboard for product management
-- Image uploads to Supabase Storage
+- Catálogo conectado al API público.
+- Carrito invitado local con rehidratación desde catálogo; no es fuente de precios ni stock.
+- Registro/login Supabase Auth y consulta de perfil para adaptar UI.
+- Panel CRUD de catálogo protegido por autorización server-side.
+- Checkout bloqueado: no crea pedidos ni pagos.
+- Uploads de imagen bloqueados hasta configurar un provider server-side.
 
 **See**: [src/](src/) and [Frontend Guide](README.md)
 
-### Backend (Node.js + Express + Prisma)
-- REST API with JWT authentication
-- Product CRUD operations
-- Order management
-- Inventory tracking
-- Audit logging
-- Swagger API documentation
+### Backend (Vercel serverless TypeScript)
+- Endpoints API para catálogo, categorías, contenido home, newsletter y CRUD admin.
+- La API valida bearer token y permisos desde `public.profiles`.
+- `POST /api/orders` valida Auth/perfil, pero devuelve 501 y no escribe pedidos.
+- No hay API activa para pagos, inventario por variantes, direcciones persistidas o gestión de pedidos.
 
 **See**: [api/](api/) and [Backend Guide](api/README_BACKEND.md)
 
@@ -63,12 +87,10 @@ npm run dev
 > The `api/src/*` Express backend source exists in the repository, but it is not the deployed production runtime today.
 > The active production API contract is `/api/*` and `/api/admin/*`.
 
-### Database (PostgreSQL + Prisma)
-- Product catalog
-- User accounts and roles
-- Orders and payments
-- Inventory movements
-- Audit trail
+### Database (Supabase/PostgreSQL)
+- Runtime existente: productos, categorías, home content, newsletter, perfiles y auditoría.
+- Las tablas de pedidos, pagos, direcciones, carrito, variantes, inventario y cupones son solo migraciones locales.
+- Estado de seguridad: NO-GO hasta rotación manual de secretos y reconciliación del historial remoto.
 
 **Schema**: [api/prisma/schema.prisma](api/prisma/schema.prisma)
 
@@ -88,7 +110,10 @@ npm run dev
   - `supabase/migrations/20260724_phase4_align_schema.sql`
   - `supabase/seed.sql`
   - `supabase/seed_phase1_public.sql`
-  - `supabase/seed_phase2_admin_test.sql`
+  - `supabase/migrations/20261002170300_profiles_role_bootstrap_hardening.sql`
+  - `supabase/migrations/20261002170400_unify_profile_authorization.sql`
+
+The historical `20260727000000_set_admin_raw_app_meta.sql` must not be run. Reconcile the remote migration history before using the CLI; `supabase/config.toml` auto-loads only `supabase/seed.sql`.
 - SQL legacy / referencia:
   - `SUPABASE_INIT.sql`
 - Artefactos auxiliares:
@@ -99,13 +124,14 @@ npm run dev
 ### Current Integration Notes
 - El backend de newsletter ya existía en `api/newsletter.ts`; en este lote se conectó el formulario del frontend al endpoint real `POST /api/newsletter`.
 - El backend admin para CRUD de categorías existe en `api/admin/categories/*`, pero la UI de administración de categorías aún está pendiente de integrar.
-- El upload de imágenes hoy se realiza directamente desde el frontend a Supabase Storage usando `VITE_SUPABASE_STORAGE_BUCKET`. Esta ruta funciona, pero requiere revisión de seguridad y posiblemente un proxy backend en un lote futuro.
+- La carga/borrado de imágenes desde navegador está desactivada. Hay un adaptador filesystem local no conectado; requiere hosting persistente y ruta server-side antes de usarse. Supabase Storage queda como provider alternativo no configurado.
 
 ### Authentication (Supabase)
 - User sign-up/login with email confirmation
 - JWT tokens for API access
 - Admin role-based access control
 - Row-level security (RLS) on database
+- Administrative authorization uses only `public.profiles.role` and `public.profiles.is_active`; Auth metadata is not an authorization source. See [docs/admin-role-management.md](docs/admin-role-management.md).
 
 **Setup**: [docs/supabase-admin-setup.md](docs/supabase-admin-setup.md)
 
@@ -113,19 +139,19 @@ npm run dev
 
 ### Storefront
 - ✅ Product browse and search
-- ✅ Shopping cart
-- ✅ Checkout flow
-- ✅ User registration and login
-- ✅ Address management
-- ✅ Order history
+- ⚠️ Carrito invitado: guarda solo IDs, cantidad y opciones; rehidrata datos desde catálogo. Precios/stock son referenciales.
+- [BLOQUEADO] Checkout: backend y esquema remoto sin verificar; no crea pedidos ni pagos.
+- ✅ User registration and login: requiere Supabase configurado
+- ⚠️ Direcciones: almacenamiento local del dispositivo, no persistencia de cuenta.
+- [BLOQUEADO] Historial de pedidos: no hay fuente real conectada; no se muestran pedidos locales/simulados.
 
 ### Admin Panel
 - ✅ Product create/edit/delete
-- ✅ Image upload to cloud storage
-- ✅ Inventory management
-- ✅ Order status tracking
-- ✅ Sales reports
-- ✅ Audit logs
+- [BLOQUEADO] Carga y borrado de imágenes: desactivados hasta provider server-side y policies verificadas.
+- ⚠️ Inventory management: sin stock por variante ni endpoint operativo
+- ⚠️ Order status tracking: no hay flujo de pedidos conectado
+- ⚠️ Sales reports: no se basan en ventas persistidas
+- ⚠️ Audit logs: el registro local no es auditoría administrativa confiable
 
 ### Security
 - ✅ JWT authentication
@@ -133,7 +159,7 @@ npm run dev
 - ✅ Rate limiting
 - ✅ CORS protection
 - ✅ Email confirmation for registration
-- ✅ Row-level security in database
+- ⚠️ RLS está habilitado en tablas existentes, pero las nuevas políticas aún requieren aplicar y validar migraciones
 
 ## Supabase
 
@@ -160,27 +186,43 @@ VITE_TERMS_URL=
 VITE_PRIVACY_POLICY_URL=
 ```
 
-No se incluye `SUPABASE_SERVICE_ROLE_KEY` en el frontend ni en el repositorio.
+No configures `SUPABASE_SERVICE_ROLE_KEY` en el frontend. Solo debe estar en el entorno seguro del servidor.
 
 ### Migración SQL
 
-La migración base está en:
-- [supabase/migrations/0001_initial_urbansport_store.sql](supabase/migrations/0001_initial_urbansport_store.sql)
+Las migraciones nuevas de seguridad y comercio están en:
+- [supabase/migrations/20261002170000_security_profiles_audit.sql](supabase/migrations/20261002170000_security_profiles_audit.sql)
+- [supabase/migrations/20261002170100_ecommerce_core.sql](supabase/migrations/20261002170100_ecommerce_core.sql)
+- [supabase/migrations/20261002170200_ecommerce_rls.sql](supabase/migrations/20261002170200_ecommerce_rls.sql)
 
-Se deben aplicar en Supabase SQL Editor o con la CLI del proyecto, una vez que tengas acceso al entorno real.
+No las apliques todavía. Rota credenciales, confirma backup y reconcilia historial/policies según [docs/supabase-migration-reconciliation.md](docs/supabase-migration-reconciliation.md). Mantén `pnpm run supabase:preflight` bloqueando; no uses `supabase db push`.
 
 ### Seguridad
 - El cliente del navegador solo usa la anon key.
 - Los cambios administrativos, stock, pedidos y operaciones sensibles deben protegerse con RLS y backend/API.
-- Las imágenes físicas no se almacenan como BLOB en PostgreSQL; se usa la ruta o URL de la imagen y, si el hosting lo permite, se puede usar Supabase Storage como alternativa futura.
-- La carpeta de almacenamiento físico `uploads/` debe quedar preparada como backend persistente, sin obligar a migrar de inmediato.
+- Las imágenes no se almacenan como BLOB en PostgreSQL. Upload/delete desde navegador están desactivados hasta tener un endpoint autorizado y policies verificadas.
+- `LocalStorageProvider` está preparado para filesystem persistente pero no conectado; Vercel serverless no se considera persistente. `SupabaseStorageProvider` permanece desconfigurado.
 
 ### Primer administrador
 1. Crear usuario desde Auth en Supabase.
 2. Confirmar su email si la configuración lo exige.
-3. Buscar ese `id` en `auth.users`.
-4. Insertar o actualizar `public.profiles` con `role = 'admin'` usando SQL del dashboard.
-5. Verificar con el panel `/admin` y RLS habilitado.
+3. Copiar el UUID correcto desde Authentication → Users.
+4. Ejecutar únicamente en Supabase SQL Editor como dueño del proyecto:
+
+```sql
+UPDATE public.profiles
+SET role = 'ADMIN', is_active = true
+WHERE id = 'REEMPLAZAR_CON_UUID_DEL_USUARIO';
+```
+
+5. Reemplazar el UUID antes de ejecutar. El esquema actual usa `ADMIN` en mayúsculas; no existe una pantalla pública para elevar roles.
+
+### Seguridad y comercio
+
+- Los archivos de entorno de Vercel que estaban versionados se retiraron del índice, pero sus tokens deben revocarse/rotarse manualmente y el historial debe revisarse.
+- Las migraciones nuevas aún no se aplicaron al proyecto remoto.
+- No ejecutar ni aplicar migraciones hasta completar rotación y reconciliación según [docs/supabase-migration-reconciliation.md](docs/supabase-migration-reconciliation.md). El preflight permanece bloqueando `db push`.
+- En Supabase Dashboard → Authentication → Password Security, habilitar y verificar la protección contra contraseñas filtradas.
 
 ## Environment Variables
 
@@ -209,7 +251,10 @@ CORS_ORIGINS=http://localhost:5173
 ## Documentation
 
 - [Backend API Documentation](api/README_BACKEND.md)
+- [Local admin product flow](docs/local-admin-product-flow.md)
 - [Supabase Admin Setup](docs/supabase-admin-setup.md)
+- [E-commerce Operations](docs/ecommerce-operations.md)
+- [Supabase Security](docs/supabase-security.md)
 - [Production Deployment Checklist](PRODUCTION.md)
 - [Database Schema](docs/database.md)
 - [Architecture Overview](docs/architecture.md)
@@ -222,7 +267,8 @@ CORS_ORIGINS=http://localhost:5173
 ```bash
 npm run dev        # Start dev server
 npm run build      # Production build
-npm run lint       # ESLint
+npm run typecheck  # TypeScript checks
+npm test           # Frontend unit tests
 npm run e2e        # Playwright tests
 ```
 

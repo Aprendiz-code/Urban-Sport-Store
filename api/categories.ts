@@ -1,5 +1,5 @@
-import { jsonResponse, jsonError } from '../lib/api-helpers/response.js';
-import { supabasePublic } from '../lib/api-helpers/supabase.js';
+import { jsonResponse, jsonError } from '../lib/api-helpers/response.ts';
+import { supabasePublic } from '../lib/api-helpers/supabase.ts';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'GET') {

@@ -11,8 +11,8 @@ import {
 import HorizontalProductCarousel from "./components/ProductCarousel";
 import { STORE_CONFIG } from "./store-config";
 
-const promoBanner = "/images/promo-discount-10.png";
 import { subscribeToNewsletter } from "../lib/newsletter";
+import { fetchPublicCategories, type CategoryOption } from "../lib/category-service";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -25,7 +25,7 @@ import {
   Tooltip,
 } from "./components/LazyRecharts";
 // promoRibbon moved to src/assets/cinta-10.png
-import { fetchProductsFromSupabase, type ProductRecord } from "../lib/supabase-store";
+import type { ProductRecord } from "../lib/supabase-store";
 import { createProductViaAdminApi, deleteProductViaAdminApi, updateProductViaAdminApi } from "../lib/admin-product-fallback";
 import {
   signInWithEmail,
@@ -33,15 +33,18 @@ import {
   signOut,
   getCurrentUser,
   onAuthStateChange,
-  isAdminUser,
 } from "../lib/supabase-auth";
+import { getMyProfile, getProfileAccess, updateMyProfile } from "../lib/profile-service";
 
 import adminApi, { createSupabaseProductApi, updateSupabaseProductApi, deleteSupabaseProductApi, updateHomeContentApi } from "../lib/admin-api";
 import { uploadProductImage, deleteProductImage, getPublicUrl, buildProductImagePath, getStoragePathFromPublicUrl, STORAGE_BUCKET } from "../lib/supabase-store";
 import { recordAction, getAudit } from "../lib/audit";
 import { productSchema } from '../lib/schemas';
+import { normalizeGuestCartEntries } from '../lib/cart-service';
+import { validateProductForm } from '../lib/admin-product-form';
 import Toaster from './components/LazyToaster';
 import { toast } from '../lib/lazyToast';
+import type { Address as DomainAddress, GuestCartItem, Product as DomainProduct } from '../types/domain';
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 
@@ -78,61 +81,38 @@ function getInitialAdminSection(): string | undefined {
 }
 
 type Category = string;
+type Product = DomainProduct;
 
-interface Product {
-  id: string; name: string; brand: string; price: number;
-  originalPrice?: number; discount?: number; rating: number; reviews: number;
-  image: string; category: Category; categoryId?: string; subcategory: string;
-  stock: number; sku: string; description: string;
-  colors: { name: string; hex: string }[];
-  sizes: string[];
-  images?: string[];
-  gender?: "Hombre" | "Mujer" | "Unisex";
-  isNew?: boolean; isFeatured?: boolean; specs?: string[];
+function getProductCategories(products: Product[]): Category[] {
+  return [...new Set(products.map((product) => product.category.trim()).filter(Boolean))]
+    .sort((left, right) => left.localeCompare(right));
 }
 
-interface CartItem {
+function getProductSubcategories(products: Product[], category: Category): string[] {
+  return [...new Set(products
+    .filter((product) => product.category === category)
+    .map((product) => product.subcategory.trim())
+    .filter(Boolean))]
+    .sort((left, right) => left.localeCompare(right));
+}
+
+interface StorefrontCartLine {
   product: Product; qty: number; selectedSize: string; selectedColor: string;
 }
 
 const LOCAL_CART_STORAGE = "urbansport_cart_v1";
 
-function isStoredCartItem(value: unknown): value is CartItem {
-  if (!value || typeof value !== "object") return false;
-  const item = value as Partial<CartItem>;
-  return Boolean(
-    item.product &&
-    typeof item.product.id === "string" &&
-    typeof item.product.name === "string" &&
-    typeof item.product.price === "number" &&
-    Number.isFinite(item.qty) && item.qty! > 0 &&
-    typeof item.selectedSize === "string" &&
-    typeof item.selectedColor === "string",
-  );
-}
-
-function loadStoredCart(): CartItem[] {
+function loadStoredCartEntries(): GuestCartItem[] {
   if (typeof window === "undefined") return [];
   try {
     const stored = JSON.parse(window.localStorage.getItem(LOCAL_CART_STORAGE) ?? "null");
-    return Array.isArray(stored) ? stored.filter(isStoredCartItem) : [];
+    return normalizeGuestCartEntries(stored);
   } catch {
     return [];
   }
 }
 
-interface Address {
-  id: string;
-  label: string;
-  line1: string;
-  line2?: string;
-  city: string;
-  state: string;
-  postalCode: string;
-  country: string;
-  phone: string;
-  isDefault?: boolean;
-}
+type Address = DomainAddress;
 
 interface HomePageContent {
   heroTitle: string;
@@ -243,33 +223,6 @@ const mapAppProductToProductRecord = (product: Partial<Product> & { id?: string 
 // ─── DATA ────────────────────────────────────────────────────────────────────
 
 
-const NAV_CATEGORIES: { name: Category }[] = [
-  { name: "Zapatos" },
-  { name: "Ropa Hombre" },
-  { name: "Ropa Mujer" },
-  { name: "Perfumes" },
-  { name: "Relojes" },
-  { name: "Gafas" },
-];
-
-const CATEGORY_SUBCATEGORIES: Record<Category, string[]> = {
-  Zapatos: ["Running", "Casual", "Gym y training", "Training", "Trail"],
-  "Ropa Hombre": ["Buzos y hoodies", "Pantalones", "Camisetas", "Shorts"],
-  "Ropa Mujer": ["Leggings", "Tops", "Sudaderas", "Shorts"],
-  Perfumes: ["Hombre", "Mujer", "Unisex"],
-  Relojes: ["Smartwatch Running", "Deportivo", "Casual"],
-  Gafas: ["Running", "Ciclismo", "Outdoor", "Casual"],
-};
-
-const HOME_CATEGORIES = [
-  { name: "Zapatos", sub: "Running · Training · Casual", image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500&h=380&fit=crop&auto=format" },
-  { name: "Ropa Hombre", sub: "Camisetas · Buzos · Pantalones", image: "https://images.unsplash.com/photo-1556821840-3a63f15732ce?w=500&h=380&fit=crop&auto=format" },
-  { name: "Ropa Mujer", sub: "Leggings · Tops · Conjuntos", image: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=500&h=380&fit=crop&auto=format" },
-  { name: "Perfumes", sub: "Hombre · Mujer · Unisex", image: "https://images.unsplash.com/photo-1541643600914-78b084683702?w=500&h=380&fit=crop&auto=format" },
-  { name: "Relojes", sub: "Smartwatch · Deportivo · Casual", image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&h=380&fit=crop&auto=format" },
-  { name: "Gafas", sub: "Running · Ciclismo · Outdoor", image: "https://images.unsplash.com/photo-1577803645773-f96470509666?w=500&h=380&fit=crop&auto=format" },
-];
-
 const SALES_DATA: { day: string; ventas: number; pedidos: number }[] = [];
 const CAT_DATA: { name: string; valor: number }[] = [];
 
@@ -346,15 +299,17 @@ function Btn({
     lg: "px-6 py-3.5 text-base rounded-xl",
   };
   const variants = {
-    primary:   "bg-[#2457D6] text-white hover:bg-[#1d48b9] active:scale-[0.98] shadow-sm shadow-blue-300/40",
+    primary: "bg-[#2457D6] text-white hover:bg-[#1d48b9] active:scale-[0.98] shadow-sm shadow-blue-300/40",
     secondary: "bg-[#eef3ff] text-[#0b1220] hover:bg-[#e2ebff]",
-    outline:   "border-2 border-[#0b1220] text-[#0b1220] hover:bg-slate-100",
-    ghost:     "text-slate-600 hover:text-[#0b1220] hover:bg-slate-100",
-    danger:    "bg-red-50 text-red-600 border border-red-200 hover:bg-red-100",
+    outline: "border-2 border-[#0b1220] text-[#0b1220] hover:bg-slate-100",
+    ghost: "text-slate-600 hover:text-[#0b1220] hover:bg-slate-100",
+    danger: "bg-red-50 text-red-600 border border-red-200 hover:bg-red-100",
   };
   return (
     <button
-      type={type} onClick={onClick} disabled={disabled}
+      type={type}
+      onClick={onClick}
+      disabled={disabled}
       className={`${base} ${sizes[size]} ${variants[variant]} ${disabled ? "opacity-40 cursor-not-allowed" : ""} ${className}`}
     >
       {children}
@@ -363,18 +318,18 @@ function Btn({
 }
 
 function ColorSelector({ colors, selected, onSelect }: {
-  colors: { name: string; hex: string }[]; selected: string; onSelect: (c: string) => void;
+  colors: { name: string; hex: string }[]; selected: string; onSelect: (color: string) => void;
 }) {
   if (!colors.length) return null;
   return (
     <div className="flex items-center gap-2">
-      {colors.map((c) => (
+      {colors.map((color) => (
         <button
-          key={c.name} onClick={() => onSelect(c.name)} title={c.name}
+          key={color.name} onClick={() => onSelect(color.name)} title={color.name}
           className={`w-7 h-7 rounded-full border-2 transition-transform ${
-            selected === c.name ? "border-[#1d4ed8] scale-110" : "border-transparent hover:scale-105"
+            selected === color.name ? "border-[#1d4ed8] scale-110" : "border-transparent hover:scale-105"
           }`}
-          style={{ backgroundColor: c.hex, boxShadow: "0 0 0 1px rgba(0,0,0,0.12)" }}
+          style={{ backgroundColor: color.hex, boxShadow: "0 0 0 1px rgba(0,0,0,0.12)" }}
         />
       ))}
       {selected && <span className="text-xs text-slate-500 ml-1">{selected}</span>}
@@ -383,23 +338,23 @@ function ColorSelector({ colors, selected, onSelect }: {
 }
 
 function SizeSelector({ sizes, selected, onSelect }: {
-  sizes: string[]; selected: string; onSelect: (s: string) => void;
+  sizes: string[]; selected: string; onSelect: (size: string) => void;
 }) {
   if (!sizes.length || sizes[0] === "Talla única") {
     return <span className="text-sm text-slate-500">Talla única</span>;
   }
   return (
     <div className="flex flex-wrap gap-2">
-      {sizes.map((s) => (
+      {sizes.map((size) => (
         <button
-          key={s} onClick={() => onSelect(s)}
+          key={size} onClick={() => onSelect(size)}
           className={`min-w-[44px] px-3 py-1.5 rounded-lg text-sm font-semibold border-2 transition-all ${
-            selected === s
+            selected === size
               ? "border-[#1d4ed8] bg-[#1d4ed8] text-white"
               : "border-slate-200 text-slate-600 hover:border-[#1d4ed8] hover:text-[#1d4ed8]"
           }`}
         >
-          {s}
+          {size}
         </button>
       ))}
     </div>
@@ -601,11 +556,11 @@ function ProductCard({ product, onSelect, onAddToCart }: {
 
 function TopBenefitsBar() {
   const benefits = [
-    "Consulta las opciones disponibles antes de finalizar la compra",
-    "Información clara de envíos, cambios y devoluciones",
+    "Los pagos no están disponibles",
+    "Envíos y devoluciones por confirmar",
     "Productos para entrenar, salir y moverte con estilo",
-    "Revisa la información del producto antes de comprar",
-    "UrbanSport Store · catalogo actualizado con tus favoritos",
+    "Consulta la información publicada en cada producto",
+    "UrbanSport Store",
   ];
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -734,13 +689,14 @@ function TopBenefitsBar() {
   );
 }
 
-function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, currentView, onLoginClick, onLogout, onCategorySelect, onSelectProduct, products }: {
-  cart: CartItem[]; onNavigate: (v: View) => void;
+function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, currentView, onLoginClick, onLogout, onCategorySelect, onSelectProduct, products, categories }: {
+  cart: StorefrontCartLine[]; onNavigate: (v: View) => void;
   onCartOpen: () => void; isLoggedIn: boolean; isAdmin: boolean;
   authUser: User | null; currentView: View; onLoginClick: () => void; onLogout: () => void;
   onCategorySelect: (c: Category | null) => void;
   onSelectProduct?: (p: Product) => void;
   products: Product[];
+  categories: CategoryOption[];
 }) {
   const [userOpen, setUserOpen] = useState(false);
   const [searchVal, setSearchVal] = useState("");
@@ -748,13 +704,8 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
   const [showSuggestions, setShowSuggestions] = useState(false);
   const suggestTimer = useRef<number | null>(null);
   const cartCount = cart.reduce((s, i) => s + i.qty, 0);
-  const showCustomerOrders = !isAdmin && !isAdminUser(authUser);
-  const [promoEntered, setPromoEntered] = useState(false);
-
-  useEffect(() => {
-    const frame = requestAnimationFrame(() => setPromoEntered(true));
-    return () => cancelAnimationFrame(frame);
-  }, []);
+  const availableCategories = [...new Set([...categories.map((category) => category.name), ...getProductCategories(products)])];
+  const showCustomerOrders = !isAdmin;
 
   // suggestions effect
   useEffect(() => {
@@ -914,31 +865,11 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
 
       {(currentView === "home" || currentView === "catalog") && (
         <div className="w-full bg-transparent pt-[9.75rem] sm:pt-[6.75rem]">
-          {currentView === "catalog" && (
-            <div className="w-full py-0">
-              <button
-                type="button"
-                onClick={() => onNavigate("catalog")}
-                aria-label="Ver promociones y productos con descuento"
-                className={[
-                  "block w-full bg-transparent rounded-none",
-                  "transition-transform duration-700 ease-out",
-                  "motion-reduce:transform-none motion-reduce:transition-none",
-                  promoEntered ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2",
-                ].join(" ")}
-              >
-                <div className="relative mx-auto w-full max-w-6xl bg-gradient-to-b from-gray-50 to-gray-100">
-                  <img src={promoBanner} alt="Promoción Urban Sport Store" loading="lazy" className="mx-auto block h-auto w-full object-contain object-center" />
-                </div>
-              </button>
-            </div>
-          )}
-
           <div className="category-navigation-scroll overflow-x-auto border-b border-slate-100 bg-white overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <nav aria-label="Categorías de productos" className="mx-auto flex min-h-11 max-w-7xl items-center justify-start gap-1 px-4 sm:min-h-14 sm:px-6 md:justify-center">
-              {NAV_CATEGORIES.map((cat) => (
-                <button key={cat.name} type="button" onClick={() => onCategorySelect(cat.name)} className="min-h-10 flex shrink-0 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-blue-50 hover:text-[#1d4ed8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8] sm:px-4 whitespace-nowrap">
-                  {cat.name}
+              {availableCategories.map((category) => (
+                <button key={category} type="button" onClick={() => onCategorySelect(category)} className="min-h-10 flex shrink-0 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-blue-50 hover:text-[#1d4ed8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8] sm:px-4 whitespace-nowrap">
+                  {category}
                 </button>
               ))}
             </nav>
@@ -949,12 +880,16 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
   );
 }
 
-function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
-  cart: CartItem[];
+function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailableCartItems, onRemoveUnavailable, restoreStatus, onRetryCatalog }: {
+  cart: StorefrontCartLine[];
   onClose: () => void;
   onUpdate: (id: string, size: string, color: string, qty: number) => void;
   onRemove: (id: string, size: string, color: string) => void;
   onCheckout: () => void;
+  unavailableCartItems: GuestCartItem[];
+  onRemoveUnavailable: (index: number) => void;
+  restoreStatus: ProductsStatus;
+  onRetryCatalog: () => void;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -996,11 +931,6 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
   }, []);
 
   const subtotal = cart.reduce((s, i) => s + i.product.price * i.qty, 0);
-  const shipping = subtotal >= STORE_CONFIG.freeShippingMinimumSubtotalCop
-    ? 0
-    : STORE_CONFIG.standardShippingPriceCop;
-  const total = subtotal + shipping;
-
   return (
     <>
       <button type="button" aria-label="Cerrar carrito" className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50" onClick={onClose} />
@@ -1017,7 +947,25 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
-          {cart.length === 0 ? (
+          {unavailableCartItems.length > 0 && (
+            <div role="alert" className="space-y-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+              <p>Algunos artículos ya no coinciden con el catálogo actual. No se usarán sus datos guardados.</p>
+              {unavailableCartItems.map((item, index) => (
+                <div key={`${item.productId}-${index}`} className="flex items-center justify-between gap-3 border-t border-amber-200 pt-2">
+                  <span className="min-w-0 text-xs">Artículo {index + 1} · cantidad {item.quantity}</span>
+                  <button type="button" onClick={() => onRemoveUnavailable(index)} className="min-h-10 shrink-0 text-xs font-semibold underline">Eliminar</button>
+                </div>
+              ))}
+            </div>
+          )}
+          {restoreStatus === "loading" ? (
+            <p role="status" className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600">Validando artículos con el catálogo actual…</p>
+          ) : restoreStatus === "error" ? (
+            <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+              <p>No se pudo validar el carrito. Los precios y el stock guardados no se usarán.</p>
+              <button type="button" onClick={onRetryCatalog} className="mt-3 min-h-10 font-semibold underline">Reintentar catálogo</button>
+            </div>
+          ) : cart.length === 0 && unavailableCartItems.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
               <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center">
                 <ShoppingCart size={28} className="text-slate-400" />
@@ -1066,34 +1014,25 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
           )}
         </div>
 
-        {cart.length > 0 && (
+        {cart.length > 0 && restoreStatus === "ready" && (
           <div className="px-5 py-4 border-t border-slate-100 space-y-3">
-            {subtotal < STORE_CONFIG.freeShippingMinimumSubtotalCop && (
-              <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-xl text-xs text-blue-700 font-medium">
-                <Truck size={14} /> Agrega {fmt(STORE_CONFIG.freeShippingMinimumSubtotalCop - subtotal)} para envío gratis
-              </div>
-            )}
             <div className="space-y-1.5 text-sm">
               <div className="flex justify-between text-slate-500">
-                <span>Subtotal</span><span className="price text-slate-800">{fmt(subtotal)}</span>
+                <span>Subtotal de referencia</span><span className="price text-slate-800">{fmt(subtotal)}</span>
               </div>
               <div className="flex justify-between text-slate-500">
-                <span>Envío</span>
-                <span className={`price ${shipping === 0 ? "text-emerald-600" : "text-slate-800"}`}>
-                  {shipping === 0 ? "Gratis" : fmt(shipping)}
-                </span>
+                <span>Envío</span><span>Por confirmar</span>
               </div>
               <div className="flex justify-between font-extrabold text-slate-900 text-base border-t border-slate-100 pt-1.5">
-                <span>Total</span><span className="price">{fmt(total)} COP</span>
+                <span>Total</span><span>Por confirmar</span>
               </div>
             </div>
+            <p role="status" className="text-xs leading-5 text-slate-600">
+              Checkout no disponible. No se ha creado un pedido ni iniciado un pago.
+            </p>
             <Btn variant="primary" className="w-full" size="lg" onClick={onCheckout}>
-              Ir al pago <ArrowRight size={16} />
+              Revisar disponibilidad <ArrowRight size={16} />
             </Btn>
-            <div className="flex items-center justify-center gap-4 text-xs text-slate-400">
-              <span className="flex items-center gap-1"><Shield size={11} /> Pago seguro</span>
-              <span className="flex items-center gap-1"><RefreshCw size={11} /> Consulta condiciones de cambio</span>
-            </div>
           </div>
         )}
       </div>
@@ -1107,7 +1046,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
     return <div className="grid grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">{children}</div>;
   }
 
-  function ProductStatusNotice({ status, onRetry, onCategorySelect }: { status: ProductsStatus; onRetry: () => void; onCategorySelect?: (category: Category) => void; }) {
+  function ProductStatusNotice({ status, onRetry, onCategorySelect }: { status: ProductsStatus; onRetry: () => void; onCategorySelect?: (category: Category | null) => void; }) {
     if (status === "loading") {
       return (
         <div role="status" aria-busy="true" className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 sm:gap-4">
@@ -1125,8 +1064,8 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
           <div className="space-y-2">
             <p className="text-sm">No pudimos cargar el catálogo. Intenta de nuevo en unos momentos.</p>
             {onCategorySelect && (
-              <button type="button" onClick={() => onCategorySelect("Zapatos")} className="text-sm font-semibold text-amber-900 underline underline-offset-2">
-                Explorar zapatillas
+              <button type="button" onClick={() => onCategorySelect(null)} className="text-sm font-semibold text-amber-900 underline underline-offset-2">
+                Explorar catálogo
               </button>
             )}
           </div>
@@ -1140,11 +1079,13 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
     return null;
   }
 
-  function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, content, featuredProducts, newArrivalsProducts, saleProducts, productsStatus, onRetryProducts }: {
+  function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, content, products, categories, featuredProducts, newArrivalsProducts, saleProducts, productsStatus, onRetryProducts }: {
   onNavigate: (v: View) => void; onSelectProduct: (p: Product) => void;
   onAddToCart: (p: Product, size: string, color: string) => void;
-  onCategorySelect: (c: Category) => void;
+  onCategorySelect: (c: Category | null) => void;
   content: HomePageContent;
+  products: Product[];
+  categories: CategoryOption[];
   featuredProducts: Product[];
   newArrivalsProducts: Product[];
   saleProducts: Product[];
@@ -1154,6 +1095,17 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
   const featured = featuredProducts;
   const newArrivals = newArrivalsProducts;
   const onSale = saleProducts;
+  const homeCategoryNames = [...new Set([
+    ...categories.map((category) => category.name),
+    ...getProductCategories(products),
+  ])];
+  const homeCategories = homeCategoryNames.map((name) => ({
+    name,
+    image: categories.find((category) => category.name === name)?.image
+      ?? products.find((product) => product.category === name)?.image
+      ?? '',
+    sub: `${products.filter((product) => product.category === name).length} productos`,
+  }));
   const hasRealDiscounts = onSale.some((product) => typeof product.originalPrice === "number" && product.originalPrice > product.price);
   const privacyPolicyUrl = import.meta.env.VITE_PRIVACY_POLICY_URL?.trim() || STORE_CONFIG.privacyPolicyPath;
   const newsletterAvailable = Boolean(import.meta.env.VITE_API_URL?.trim());
@@ -1216,9 +1168,6 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
 
         <div className="relative z-10 mx-auto w-full max-w-7xl px-3 py-6 sm:px-4 sm:py-8 md:px-6 md:py-10">
           <div className="max-w-2xl">
-            <div className="mb-3 inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-[#f59e0b]/30 bg-[#f59e0b]/20 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.12em] text-[#fbbf24] sm:text-sm">
-              <Award size={12} /> COLECCIÓN 2026
-            </div>
             <h1 className="mb-3 max-w-xl font-display text-[2.3rem] leading-[1.02] tracking-[-0.04em] text-white sm:text-[3.4rem] md:text-[4.1rem] lg:text-[4.6rem]">
               Calzado y ropa deportiva para moverte con estilo
             </h1>
@@ -1230,21 +1179,11 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
                 type="button"
                 variant="primary"
                 size="lg"
-                onClick={() => onCategorySelect("Zapatos")}
+                onClick={() => onNavigate("catalog")}
                 className="w-full justify-center !bg-[#2457D6] !text-white hover:!bg-[#1d48b9] min-[480px]:w-auto"
               >
-                Ver zapatillas <ArrowRight size={16} />
+                Ver catálogo <ArrowRight size={16} />
               </Btn>
-              <button
-                type="button"
-                onClick={() => {
-                  // TODO: cuando exista una colección real de novedades, enlazarla aquí.
-                  onNavigate("catalog");
-                }}
-                className="min-h-12 rounded-xl border-2 border-white/20 bg-white/5 px-6 py-3.5 text-base font-bold text-white backdrop-blur-sm transition-all hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-              >
-                Ver novedades
-              </button>
             </div>
           </div>
         </div>
@@ -1256,7 +1195,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
           <h2 className="font-display text-[1.8rem] leading-[1.05] text-[#0b1220] sm:text-[2.4rem] md:text-[2.8rem]">{content.categorySectionTitle}</h2>
         </div>
         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-6">
-          {HOME_CATEGORIES.map((cat) => (
+          {homeCategories.map((cat) => (
             <button
               key={cat.name}
               type="button"
@@ -1264,14 +1203,14 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
               onClick={() => onCategorySelect(cat.name as Category)}
               className="group relative min-h-[180px] overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-[0_12px_30px_-18px_rgba(15,23,42,0.38)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-18px_rgba(15,23,42,0.4)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8] active:scale-[0.99]"
             >
-              <img
+              {cat.image && <img
                 src={cat.image}
                 alt={cat.name}
                 loading="lazy"
                 decoding="async"
                 onError={(event) => { event.currentTarget.style.display = "none"; }}
                 className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-              />
+              />}
               <div className="absolute inset-0 bg-gradient-to-t from-[#0b1220]/85 via-[#0b1220]/25 to-transparent" />
               <div className="relative flex h-full min-h-[180px] flex-col justify-end p-3 sm:p-4">
                 <p className="font-display text-xl leading-[1.05] text-white sm:text-2xl">{cat.name}</p>
@@ -1289,8 +1228,8 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
             <h2 className="font-display text-[1.8rem] leading-[1.05] text-slate-900 sm:text-[2.4rem] md:text-[2.8rem]">{content.featuredSectionTitle}</h2>
           </div>
           {productsStatus === "ready" && featured.length > 0 && (
-            <Btn variant="ghost" onClick={() => onCategorySelect("Zapatos")} className="hidden sm:flex">
-              Ver zapatillas <ChevronRight size={14} />
+            <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="hidden sm:flex">
+              Ver catálogo <ChevronRight size={14} />
             </Btn>
           )}
         </div>
@@ -1301,8 +1240,8 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
             <h3 className="mb-2 text-xl font-bold text-slate-900">Aún estamos preparando nuevos productos</h3>
             <p className="mb-4">Explora nuestras categorías mientras actualizamos el catálogo.</p>
             <div className="flex flex-wrap gap-3">
-              {NAV_CATEGORIES.slice(0, 3).map((category) => (
-                <button key={category.name} type="button" onClick={() => onCategorySelect(category.name as Category)} className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 font-semibold text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8]">
+              {homeCategories.slice(0, 3).map((category) => (
+                <button key={category.name} type="button" onClick={() => onCategorySelect(category.name)} className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 font-semibold text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8]">
                   {category.name}
                 </button>
               ))}
@@ -1318,8 +1257,8 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
                 </div>
               ))}
             </ProductGrid>
-            <Btn variant="ghost" onClick={() => onCategorySelect("Zapatos")} className="mt-6 w-full sm:hidden">
-              Ver zapatillas <ChevronRight size={14} />
+            <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="mt-6 w-full sm:hidden">
+              Ver catálogo <ChevronRight size={14} />
             </Btn>
           </>
         )}
@@ -1343,30 +1282,8 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
             </ProductGrid>
           </>
         ) : (
-          <div className="overflow-hidden rounded-[24px] border border-slate-200 bg-[#f4f6f8] shadow-[0_18px_45px_-30px_rgba(15,23,42,0.35)]">
-            <div className="grid gap-6 p-5 sm:p-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
-              <div>
-                <p className="mb-2 font-display text-[11px] uppercase tracking-[0.18em] text-[#2457D6] sm:text-xs">OFERTA ESPECIAL</p>
-                <h2 className="font-display text-[2rem] leading-none text-[#0B1220] sm:text-[2.6rem] md:text-[3rem]">10 % de descuento en tu primera compra</h2>
-                <p className="mt-3 max-w-xl text-sm text-slate-600 sm:text-base">Suscríbete para recibir novedades y conocer las condiciones de esta oferta.</p>
-                <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
-                  <button type="button" onClick={() => onNavigate("catalog")} className="inline-flex min-h-12 items-center justify-center rounded-xl bg-[#2457D6] px-5 py-3 text-sm font-bold text-white hover:bg-[#1d48b9] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8]">
-                    Recibir mi descuento
-                  </button>
-                  {privacyPolicyUrl && (
-                    <a href={privacyPolicyUrl} className="text-sm font-semibold text-[#1d4ed8] underline underline-offset-2">Aplican términos y condiciones.</a>
-                  )}
-                </div>
-              </div>
-              <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Estado del catálogo</p>
-                <p className="mt-2 text-base font-semibold text-slate-800">No hay descuentos verificables publicados aún.</p>
-                <p className="mt-2 text-sm text-slate-600">Consulta el catálogo disponible o revisa la categoría que mejor te interese.</p>
-                <button type="button" onClick={() => onCategorySelect("Zapatos")} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-4 font-semibold text-slate-800 hover:bg-slate-100">
-                  Explorar productos <ArrowRight size={14} />
-                </button>
-              </div>
-            </div>
+          <div role="status" className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-700">
+            No hay promociones verificables publicadas.
           </div>
         )}
       </section>
@@ -1374,7 +1291,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
       <section className="py-8 sm:py-12 md:py-16">
         <div className="mx-auto max-w-7xl px-3 sm:px-4 md:px-6">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {[{title:"Compra segura", copy:STORE_CONFIG.trustCopy.safePayment},{title:"Información clara antes de pagar", copy:STORE_CONFIG.trustCopy.productInfo},{title:"Consulta envíos y tiempos de entrega", copy:STORE_CONFIG.trustCopy.shipping},{title:"Cambios y devoluciones", copy:"Conoce las condiciones de cambio y devolución antes de completar tu compra."}].map((item) => (
+            {[{title:"Información del catálogo", copy:STORE_CONFIG.trustCopy.productInfo},{title:"Envíos por confirmar", copy:STORE_CONFIG.trustCopy.shipping},{title:"Cambios por confirmar", copy:"Las condiciones comerciales todavía no están configuradas."}].map((item) => (
               <div key={item.title} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_12px_30px_-18px_rgba(15,23,42,0.3)]">
                 <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-[#1d4ed8]">
                   <Shield size={18} />
@@ -1394,8 +1311,8 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
               <p className="mb-1 font-display text-sm uppercase tracking-[0.08em] text-emerald-700 sm:text-base">{content.newArrivalsLabel}</p>
               <h2 className="font-display text-[1.8rem] leading-[1.05] text-slate-900 sm:text-[2.4rem] md:text-[2.8rem]">{content.newArrivalsSectionTitle}</h2>
             </div>
-            <Btn variant="ghost" onClick={() => onCategorySelect("Zapatos")} className="hidden sm:flex">
-              Ver zapatillas <ChevronRight size={14} />
+            <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="hidden sm:flex">
+              Ver catálogo <ChevronRight size={14} />
             </Btn>
           </div>
           <ProductCarousel>
@@ -1405,8 +1322,8 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
               </div>
             ))}
           </ProductCarousel>
-          <Btn variant="ghost" onClick={() => onCategorySelect("Zapatos")} className="mt-6 w-full sm:hidden">
-            Ver zapatillas <ChevronRight size={14} />
+          <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="mt-6 w-full sm:hidden">
+            Ver catálogo <ChevronRight size={14} />
           </Btn>
         </section>
       )}
@@ -1476,9 +1393,9 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
               <div>
                 <p className="mb-3 text-xs font-bold uppercase tracking-widest text-white">Comprar</p>
                 <ul className="space-y-2">
-                  {NAV_CATEGORIES.map((category) => (
+                  {homeCategories.map((category) => (
                     <li key={category.name}>
-                      <button type="button" onClick={() => { onCategorySelect(category.name as Category); onNavigate("catalog"); }} className="min-h-10 w-full text-left text-xs text-slate-400 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
+                      <button type="button" onClick={() => { onCategorySelect(category.name); onNavigate("catalog"); }} className="min-h-10 w-full text-left text-xs text-slate-400 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
                         {category.name}
                       </button>
                     </li>
@@ -1518,7 +1435,7 @@ function LegalPage({ kind, onNavigate }: { kind: View; onNavigate: (v: View) => 
     },
     shipping: {
       title: "Envíos",
-      paragraph: "Consulta las condiciones reales de envío, tiempos y costos antes de finalizar la compra. Este bloque está listo para configurarse en el administrador.",
+      paragraph: "La cobertura, los costos y los plazos de envío aún no están configurados.",
     },
     returns: {
       title: "Cambios y devoluciones",
@@ -1551,12 +1468,13 @@ function LegalPage({ kind, onNavigate }: { kind: View; onNavigate: (v: View) => 
 
 // ─── CATALOG PAGE ─────────────────────────────────────────────────────────────
 
-function CatalogPage({ filterCategory, onSelectProduct, onAddToCart, onNavigate, onCategorySelect, products, productsStatus, onRetryProducts }: {
+function CatalogPage({ filterCategory, onSelectProduct, onAddToCart, onNavigate, onCategorySelect, products, categories, productsStatus, onRetryProducts }: {
   filterCategory: Category | null; onSelectProduct: (p: Product) => void;
   onAddToCart: (p: Product, size: string, color: string) => void;
   onNavigate: (v: View) => void;
   onCategorySelect: (c: Category | null) => void;
   products: Product[];
+  categories: CategoryOption[];
   productsStatus: ProductsStatus;
   onRetryProducts: () => void;
 }) {
@@ -1567,6 +1485,7 @@ function CatalogPage({ filterCategory, onSelectProduct, onAddToCart, onNavigate,
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   const allBrands = [...new Set(products.map((p) => p.brand))];
+  const availableCategories = [...new Set([...categories.map((category) => category.name), ...getProductCategories(products)])];
   const filtered = useMemo(() => {
     let list = products;
     if (selectedCat) list = list.filter((p) => p.category === selectedCat);
@@ -1593,45 +1512,17 @@ function CatalogPage({ filterCategory, onSelectProduct, onAddToCart, onNavigate,
             <div>
               <p className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-3">Categoría</p>
               <div className="space-y-0.5">
-                <button onClick={() => onCategorySelect(null)}
-                  className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-colors ${!selectedCat ? "bg-[#1d4ed8] text-white font-bold" : "text-slate-600 hover:bg-slate-100"}`}>
+                <button onClick={() => onCategorySelect(null)} className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-colors ${!selectedCat ? "bg-[#1d4ed8] text-white font-bold" : "text-slate-600 hover:bg-slate-100"}`}>
                   Todos ({products.length})
                 </button>
-                {NAV_CATEGORIES.map((cat) => {
-                  const count = products.filter((p) => p.category === cat.name).length;
+                {availableCategories.map((category) => {
+                  const count = products.filter((product) => product.category === category).length;
                   return (
-                    <button key={cat.name}
-                      onClick={() => onCategorySelect(cat.name as Category)}
-                      className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-colors flex justify-between items-center ${selectedCat === cat.name ? "bg-[#1d4ed8] text-white font-bold" : "text-slate-600 hover:bg-slate-100"}`}>
-                      <span className="flex items-center gap-1.5">{cat.name}</span>
-                      <span className="text-xs opacity-60">{count}</span>
+                    <button key={category} onClick={() => onCategorySelect(category)} className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-colors flex justify-between items-center ${selectedCat === category ? "bg-[#1d4ed8] text-white font-bold" : "text-slate-600 hover:bg-slate-100"}`}>
+                      <span>{category}</span><span className="text-xs opacity-60">{count}</span>
                     </button>
                   );
                 })}
-              </div>
-            </div>
-
-            <div>
-              <p className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-3">Marca</p>
-              <div className="space-y-0.5">
-                {allBrands.map((brand) => (
-                  <button key={brand} onClick={() => setSelectedBrand(brand === selectedBrand ? null : brand)}
-                    className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-colors ${selectedBrand === brand ? "bg-blue-50 text-[#1d4ed8] font-semibold" : "text-slate-600 hover:bg-slate-100"}`}>
-                    {brand}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <p className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-3">Género</p>
-              <div className="space-y-0.5">
-                {["Hombre", "Mujer", "Unisex"].map((g) => (
-                  <label key={g} className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-slate-100 cursor-pointer\">
-                    <input type="checkbox" className="accent-[#1d4ed8]" />
-                    <span className="text-sm text-slate-600">{g}</span>
-                  </label>
-                ))}
               </div>
             </div>
           </div>
@@ -1688,10 +1579,10 @@ function CatalogPage({ filterCategory, onSelectProduct, onAddToCart, onNavigate,
                 <div>
                   <p className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-2">Categoría</p>
                   <div className="grid grid-cols-2 gap-2">
-                    {NAV_CATEGORIES.map((cat) => (
-                      <button key={cat.name} onClick={() => onCategorySelect(cat.name as Category)}
-                        className={`rounded-2xl px-3 py-2 text-sm text-left ${selectedCat === cat.name ? "bg-[#1d4ed8] text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}>
-                        {cat.name}
+                    {availableCategories.map((category) => (
+                      <button key={category} onClick={() => onCategorySelect(category)}
+                        className={`rounded-2xl px-3 py-2 text-sm text-left ${selectedCat === category ? "bg-[#1d4ed8] text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}>
+                        {category}
                       </button>
                     ))}
                   </div>
@@ -1852,8 +1743,7 @@ function ProductDetailPage({ product, products, onBack, onAddToCart, onNavigate 
           <div>
             <div className="flex justify-between items-center mb-2.5">
               <p className="text-sm font-bold text-slate-700">
-                {product.category === "Zapatos" ? "Talla (EU)" :
-                 product.category === "Perfumes" ? "Presentación" : "Talla"}
+                Talla u opción
               </p>
             </div>
             <SizeSelector sizes={product.sizes} selected={selectedSize} onSelect={setSelectedSize} />
@@ -1937,9 +1827,8 @@ function ProductDetailPage({ product, products, onBack, onAddToCart, onNavigate 
 
 // ─── CHECKOUT ────────────────────────────────────────────────────────────────
 
-function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelectAddress, onCreateAddress }: { cart: CartItem[]; onNavigate: (v: View) => void; addresses: Address[]; selectedAddressId: string; onSelectAddress: (id: string) => void; onCreateAddress: (address: Omit<Address, 'id'>) => void; }) {
+function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelectAddress, onCreateAddress }: { cart: StorefrontCartLine[]; onNavigate: (v: View) => void; addresses: Address[]; selectedAddressId: string; onSelectAddress: (id: string) => void; onCreateAddress: (address: Omit<Address, 'id'>) => void; }) {
   const [step, setStep] = useState(0);
-  const [selectedShip, setSelectedShip] = useState(0);
   const [showNewAddress, setShowNewAddress] = useState(false);
   const [addressForm, setAddressForm] = useState<Omit<Address, 'id'>>({
     label: "",
@@ -1953,18 +1842,6 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
     isDefault: false,
   });
   const subtotal = cart.reduce((s, i) => s + i.product.price * i.qty, 0);
-  const standardShippingPrice = subtotal >= STORE_CONFIG.freeShippingMinimumSubtotalCop
-    ? 0
-    : STORE_CONFIG.standardShippingPriceCop;
-  const SHIP = [
-    {
-      name: "Envío estándar",
-      desc: "El tiempo de entrega se confirma según el destino.",
-      price: standardShippingPrice,
-      tag: standardShippingPrice === 0 ? "Gratis" : fmt(standardShippingPrice),
-    },
-  ];
-  const total = subtotal + SHIP[selectedShip].price;
   const STEPS = ["Dirección", "Envío", "Pago"];
 
   return (
@@ -1976,8 +1853,12 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
         </button>
         <div className="flex items-center gap-2 ml-2">
           <span className="font-bold text-slate-800">Checkout</span>
-          <Shield size={14} className="text-emerald-500 ml-1" />
         </div>
+      </div>
+
+      <div role="status" className="mb-8 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+        <p className="font-semibold">Checkout temporalmente no disponible.</p>
+        <p className="mt-1">El backend y el esquema remoto de pedidos no están habilitados. No se creará un pedido ni se iniciará un pago desde esta pantalla.</p>
       </div>
 
       {/* Stepper */}
@@ -2005,17 +1886,17 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
             <div className="space-y-3 sm:space-y-4">
               <h3 className="text-base sm:text-lg font-extrabold text-slate-900 mb-3 sm:mb-4">Dirección de entrega</h3>
               {addresses.length === 0 && (
-                <p className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950">Agrega una dirección real para continuar con el pedido.</p>
+                <p className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950">Las direcciones actuales se guardan solo en este dispositivo y no se pueden usar para crear pedidos.</p>
               )}
               {addresses.map((a) => (
-                <label key={a.id} className={`flex gap-2 sm:gap-3 p-3 sm:p-4 rounded-lg sm:rounded-2xl border-2 cursor-pointer transition-all ${selectedAddressId === a.id ? "border-[#1d4ed8] bg-blue-50/50" : "border-slate-200 hover:border-slate-300"}`}>
+                <label key={a.id} className={"flex gap-2 sm:gap-3 p-3 sm:p-4 rounded-lg sm:rounded-2xl border-2 cursor-pointer transition-all " + (selectedAddressId === a.id ? "border-[#1d4ed8] bg-blue-50/50" : "border-slate-200 hover:border-slate-300")}>
                   <input type="radio" name="addr" checked={selectedAddressId === a.id} onChange={() => onSelectAddress(a.id)} className="mt-1 accent-[#1d4ed8] shrink-0" />
                   <div>
                     <p className="text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-2 flex-wrap">
                       <MapPin size={13} className="text-[#1d4ed8] shrink-0" /> {a.label}
                       {a.isDefault && <Badge variant="new">Predeterminada</Badge>}
                     </p>
-                    <p className="text-xs sm:text-sm text-slate-500 mt-0.5">{a.line1}{a.line2 ? `, ${a.line2}` : ""}</p>
+                    <p className="text-xs sm:text-sm text-slate-500 mt-0.5">{a.line1}{a.line2 ? ", " + a.line2 : ""}</p>
                     <p className="text-xs sm:text-sm text-slate-500">{a.city}, {a.state} · {a.postalCode}</p>
                     <p className="text-xs sm:text-sm text-slate-500">{a.country} · {a.phone}</p>
                   </div>
@@ -2042,7 +1923,7 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
                     { name: 'phone', label: 'Teléfono', placeholder: '+57 311 234 5678' },
                   ].map((field) => (
                     <div key={field.name}>
-                      <label htmlFor={`checkout-${field.name}`} className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">{field.label}</label>
+                      <label htmlFor={"checkout-" + field.name} className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">{field.label}</label>
                       <input
                         id={`checkout-${field.name}`}
                         required={field.name !== "line2"}
@@ -2065,18 +1946,10 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
 
           {step === 1 && (
             <div className="space-y-3 sm:space-y-4">
-              <h3 className="text-base sm:text-lg font-extrabold text-slate-900 mb-3 sm:mb-4">Método de envío</h3>
-              {SHIP.map((opt, i) => (
-                <label key={opt.name} className={`flex gap-2 sm:gap-3 p-3 sm:p-4 rounded-lg sm:rounded-2xl border-2 cursor-pointer transition-all ${selectedShip === i ? "border-[#1d4ed8] bg-blue-50/50" : "border-slate-200 hover:border-slate-300"}`}>
-                  <input type="radio" name="ship" checked={selectedShip === i} onChange={() => setSelectedShip(i)} className="mt-1 accent-[#1d4ed8] shrink-0" />
-                  <Truck size={16} className={`mt-0.5 shrink-0 ${selectedShip === i ? "text-[#1d4ed8]" : "text-slate-400"}`} />
-                  <div className="flex-1">
-                    <p className="text-xs sm:text-sm font-bold text-slate-800">{opt.name}</p>
-                    <p className="text-[11px] sm:text-xs text-slate-500">{opt.desc}</p>
-                  </div>
-                  <span className={`text-xs sm:text-sm font-extrabold ${opt.price === 0 ? "text-emerald-600" : "text-slate-800"}`}>{opt.tag}</span>
-                </label>
-              ))}
+              <h3 className="text-base sm:text-lg font-extrabold text-slate-900 mb-3 sm:mb-4">Envío por confirmar</h3>
+              <p role="status" className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
+                No hay transportadora, cobertura, costo ni plazo configurados. No se puede cotizar ni prometer una entrega.
+              </p>
             </div>
           )}
 
@@ -2118,15 +1991,10 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
               ))}
             </div>
             <div className="space-y-1 sm:space-y-1.5 text-xs sm:text-sm border-t border-slate-100 pt-3">
-              <div className="flex justify-between text-slate-500"><span>Subtotal</span><span className="price text-slate-800">{fmt(subtotal)}</span></div>
-              <div className="flex justify-between text-slate-500">
-                <span>Envío</span>
-                <span className={`price ${SHIP[selectedShip].price === 0 ? "text-emerald-600" : "text-slate-800"}`}>
-                  {SHIP[selectedShip].price === 0 ? "Gratis" : fmt(SHIP[selectedShip].price)}
-                </span>
-              </div>
+              <div className="flex justify-between text-slate-500"><span>Subtotal referencial</span><span className="price text-slate-800">{fmt(subtotal)}</span></div>
+              <div className="flex justify-between text-slate-500"><span>Envío</span><span>Por confirmar</span></div>
               <div className="flex justify-between font-extrabold text-slate-900 text-sm sm:text-base border-t border-slate-100 pt-1.5">
-                <span>Total</span><span className="price">{fmt(total)} COP</span>
+                <span>Total</span><span>Por confirmar</span>
               </div>
             </div>
           </div>
@@ -2140,7 +2008,7 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
 
 function LoginPage({ isRegister, onNavigate, onLogin }: {
   isRegister: boolean; onNavigate: (v: View) => void;
-  onLogin: (user: User | null, isAdmin: boolean) => void;
+  onLogin: (user: User | null, isAdmin: boolean, adminRole: string | null) => void;
 }) {
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -2164,21 +2032,20 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
 
     try {
       let user = null;
-      let adminStatus = false;
       if (isRegister) {
         const signUpResult = await signUpWithEmail(email, password, { name });
         if (signUpResult.error) throw signUpResult.error;
         if (!signUpResult.data.user) throw new Error("No se pudo crear la cuenta.");
 
         user = signUpResult.data.user;
-        adminStatus = isAdminUser(user);
-        onLogin(user, adminStatus);
+        const profileAccess = await getProfileAccess(user);
+        onLogin(user, profileAccess.isAdmin, profileAccess.role);
         const signUpNeedsConfirmation = 'needsConfirmation' in signUpResult && Boolean(signUpResult.needsConfirmation);
         toast.success(signUpNeedsConfirmation ? "Cuenta creada. Revisa tu correo si tu configuración de Supabase requiere confirmación; ya puedes seguir usando la tienda." : "Registro exitoso. Ya puedes continuar en la tienda.");
         setEmail("");
         setPassword("");
         setName("");
-        onNavigate(adminStatus ? "admin" : "home");
+        onNavigate(profileAccess.isAdmin ? "admin" : "home");
         return;
       }
 
@@ -2187,9 +2054,9 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
       if (!signInResult.data.user) throw new Error("No se pudo iniciar sesión.");
       user = signInResult.data.user;
 
-      adminStatus = isAdminUser(user);
-      onLogin(user, adminStatus);
-      onNavigate(adminStatus ? "admin" : "home");
+      const profileAccess = await getProfileAccess(user);
+      onLogin(user, profileAccess.isAdmin, profileAccess.role);
+      onNavigate(profileAccess.isAdmin ? "admin" : "home");
     } catch (err) {
       const message = err instanceof Error ? err.message : "";
       setError(message === "Failed to fetch"
@@ -2353,8 +2220,62 @@ function AccountPage({ onNavigate, onLogout, authUser, addresses, onCreateAddres
     isDefault: false,
   });
   const [auditEntries, setAuditEntries] = useState<{ id: string; ts: number; action: string; meta?: Record<string, any> }[]>([]);
-  const profileName = authUser?.user_metadata?.full_name ?? authUser?.email ?? "Cliente";
+  const [accountProfile, setAccountProfile] = useState<Awaited<ReturnType<typeof getMyProfile>> | null>(null);
+  const [profileStatus, setProfileStatus] = useState<"loading" | "ready" | "unavailable">("loading");
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileMessage, setProfileMessage] = useState("");
+  const [profileForm, setProfileForm] = useState({ firstName: "", lastName: "", phone: "" });
+  const profileName = accountProfile?.fullName
+    || [accountProfile?.firstName, accountProfile?.lastName].filter(Boolean).join(" ")
+    || authUser?.email
+    || "Cliente";
   const profileEmail = authUser?.email ?? "Correo no disponible";
+
+  useEffect(() => {
+    let active = true;
+    setProfileStatus("loading");
+    void getMyProfile()
+      .then((profile) => {
+        if (!active) return;
+        setAccountProfile(profile);
+        setProfileForm({
+          firstName: profile.firstName ?? "",
+          lastName: profile.lastName ?? "",
+          phone: profile.phone ?? "",
+        });
+        setProfileStatus("ready");
+      })
+      .catch(() => {
+        if (!active) return;
+        setProfileStatus("unavailable");
+      });
+    return () => { active = false; };
+  }, [authUser?.id]);
+
+  const handleProfileSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setProfileSaving(true);
+    setProfileMessage("");
+    try {
+      const updates = {
+        firstName: profileForm.firstName.trim(),
+        lastName: profileForm.lastName.trim(),
+        ...(profileForm.phone.trim() ? { phone: profileForm.phone.trim() } : {}),
+      };
+      const updatedProfile = await updateMyProfile(updates);
+      setAccountProfile(updatedProfile);
+      setProfileForm({
+        firstName: updatedProfile.firstName ?? "",
+        lastName: updatedProfile.lastName ?? "",
+        phone: updatedProfile.phone ?? "",
+      });
+      setProfileMessage("Perfil actualizado.");
+    } catch (error) {
+      setProfileMessage(error instanceof Error ? error.message : "No se pudo actualizar el perfil.");
+    } finally {
+      setProfileSaving(false);
+    }
+  };
 
   const startEdit = (address: Address) => {
     setEditingAddressId(address.id);
@@ -2434,43 +2355,27 @@ function AccountPage({ onNavigate, onLogout, authUser, addresses, onCreateAddres
           {section === "orders" && (
             <div className="space-y-4">
               <h2 className="font-display text-[28px] sm:text-[32px] text-slate-900 leading-[1.05] mb-6">Mis pedidos</h2>
-              {ORDERS.map((order) => (
-                <div key={order.id} className="p-5 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_18px_48px_-40px_rgba(15,23,42,0.16)] hover:-translate-y-0.5 transition-all duration-200">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <div className="flex items-center gap-3 mb-1.5">
-                        <span className="text-sm font-extrabold text-slate-800 font-mono">{order.id}</span>
-                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${STATUS_STYLE[order.status]}`}>{order.status}</span>
-                      </div>
-                      <p className="text-xs text-slate-400">{order.date} · {order.items} {order.items === 1 ? "artículo" : "artículos"}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="price text-base text-slate-900">{fmt(order.total)} COP</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-              {ORDERS.length === 0 && <p className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600">Aún no hay pedidos registrados para esta cuenta.</p>}
+              <p role="status" className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600">
+                El historial de pedidos no está conectado. No se muestran pedidos locales o simulados.
+              </p>
             </div>
           )}
 
           {section === "profile" && (
-            <div>
-              <h2 className="font-display text-[28px] sm:text-[32px] text-slate-900 leading-[1.05] mb-6">Mi perfil</h2>
-              <div className="space-y-5 max-w-lg">
-                <div className="grid grid-cols-2 gap-4">
-                  {[["Nombre", profileName]].map(([lbl, val]) => (
-                    <div key={lbl}>
-                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">{lbl}</label>
-                      <input defaultValue={val} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#1d4ed8]/50" />
-                    </div>
-                  ))}
+            <div className="space-y-5 max-w-lg">
+              <h2 className="font-display text-[28px] sm:text-[32px] text-slate-900 leading-[1.05] mb-2">Mi perfil</h2>
+              <div className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600">
+                La edición remota del perfil permanece pendiente de validación del esquema. No se guardan cambios localmente.
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">Nombre</label>
+                  <input value={profileName} readOnly className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1.5">Correo electrónico</label>
-                  <input value={profileEmail} readOnly className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-800" />
+                  <input value={profileEmail} readOnly className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800" />
                 </div>
-                <p className="border-t border-slate-100 pt-4 text-sm text-slate-500">La edición del perfil aún no está conectada.</p>
               </div>
             </div>
           )}
@@ -2480,7 +2385,7 @@ function AccountPage({ onNavigate, onLogout, authUser, addresses, onCreateAddres
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                 <div>
                   <h2 className="font-display text-[28px] sm:text-[32px] text-slate-900 leading-[1.05]">Mis direcciones</h2>
-                  <p className="text-sm text-slate-500">Administra tus direcciones de entrega guardadas.</p>
+                  <p className="text-sm text-slate-500">Se guardan solo en este dispositivo; aún no están vinculadas a tu cuenta.</p>
                 </div>
                 <button type="button" onClick={() => {
                   resetAddressForm();
@@ -2600,9 +2505,10 @@ function AccountPage({ onNavigate, onLogout, authUser, addresses, onCreateAddres
 
 // ─── ADMIN DASHBOARD ──────────────────────────────────────────────────────────
 
-function AdminDashboard({ onNavigate, products, createProduct, updateProduct, deleteProduct, adjustStock, productRefresh, initialSection, adminRole, homeContent, setHomeContent, homePreviewProducts, setHomePreviewProducts, homeSaleProducts, setHomeSaleProducts, homeNewArrivals, setHomeNewArrivals, saveHomeContent, homeContentSaving, backendAdminAvailable }: {
+function AdminDashboard({ onNavigate, products, categories, createProduct, updateProduct, deleteProduct, adjustStock, productRefresh, initialSection, adminRole, homeContent, setHomeContent, homePreviewProducts, setHomePreviewProducts, homeSaleProducts, setHomeSaleProducts, homeNewArrivals, setHomeNewArrivals, saveHomeContent, homeContentSaving, backendAdminAvailable }: {
   onNavigate: (v: View) => void;
   products: Product[];
+  categories: CategoryOption[];
   createProduct: (product: Omit<Product, "id">) => void;
   updateProduct: (productId: string, updates: Partial<Product>) => void;
   deleteProduct: (productId: string) => void;
@@ -2628,16 +2534,19 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
   const [activeProduct, setActiveProduct] = useState<Product | null>(null);
   const [productForm, setProductForm] = useState<Omit<Product, "id">>({
     name: "", brand: "", price: 0, originalPrice: undefined, discount: undefined,
-    rating: 0, reviews: 0, image: "", images: [], category: "Zapatos", categoryId: undefined, subcategory: "Running",
+    rating: 0, reviews: 0, image: "", images: [], category: "", categoryId: undefined, subcategory: "",
     stock: 0, sku: "", description: "", colors: [], sizes: [], gender: "Unisex",
     isNew: false, isFeatured: false, specs: [],
   });
+
+  const selectedCategoryOption = useMemo(() => categories.find((option) => option.id === productForm.categoryId || option.name === productForm.category), [categories, productForm.category, productForm.categoryId]);
   const [galleryUrl, setGalleryUrl] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isUploadingGallery, setIsUploadingGallery] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [mainImagePreview, setMainImagePreview] = useState<string>("");
+  const availableCategories = [...new Set([...categories.map((category) => category.name), ...getProductCategories(products)])];
 
   const metrics = [
     { label: "Productos activos", value: products.length.toString(), icon: <Package size={18} /> },
@@ -2738,7 +2647,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
       }
     } catch (err) {
       console.warn('Section image upload failed', err);
-      toast.error('Error subiendo imagen.');
+      toast.error(err instanceof Error ? err.message : 'La carga de imágenes no está disponible.');
     }
   };
 
@@ -2819,7 +2728,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
     setActiveProduct(null);
     setProductForm({
       name: "", brand: "", price: 0, originalPrice: undefined, discount: undefined,
-      rating: 0, reviews: 0, image: "", images: [], category: "Zapatos", categoryId: undefined, subcategory: "Running",
+      rating: 0, reviews: 0, image: "", images: [], category: "", categoryId: undefined, subcategory: "",
       stock: 0, sku: "", description: "", colors: [], sizes: [], gender: "Unisex",
       isNew: false, isFeatured: false, specs: [],
     });
@@ -2875,8 +2784,12 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
 
   const handleFormSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const normalizedCategoryId = productForm.categoryId && /^[0-9a-fA-F-]{36}$/.test(productForm.categoryId) ? productForm.categoryId : undefined;
+
     const payload: Omit<Product, "id"> = {
       ...productForm,
+      categoryId: normalizedCategoryId,
+      category: productForm.category || selectedCategoryOption?.name || '',
       colors: productForm.colors.map((color) => ({ name: color.name, hex: color.hex })),
       sizes: productForm.sizes,
       rating: Number(productForm.rating) || 0,
@@ -2887,21 +2800,22 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
       discount: productForm.discount ? Number(productForm.discount) : undefined,
     };
 
-    // Validaciones básicas
-    const errors: Record<string, string> = {};
-    if (!productForm.name.trim()) errors.name = "El nombre es requerido";
-    if (!productForm.sku.trim()) errors.sku = "El SKU es requerido";
-    if (productForm.price <= 0) errors.price = "El precio debe ser mayor a 0";
-    if (productForm.stock < 0) errors.stock = "El stock no puede ser negativo";
-if (!productForm.image && (productForm.images?.length ?? 0) === 0) errors.image = "Al menos una imagen es requerida";
+    const errors = validateProductForm({
+      name: productForm.name,
+      sku: productForm.sku,
+      price: productForm.price,
+      stock: productForm.stock,
+      categoryId: normalizedCategoryId,
+      image: productForm.image,
+      images: productForm.images,
+    });
 
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
-      toast.error("Por favor, completa todos los campos requeridos");
+      toast.error(Object.values(errors)[0]);
       return;
     }
 
-    // Zod validation
     try {
       productSchema.parse(payload as any);
     } catch (err: any) {
@@ -3408,23 +3322,38 @@ if (!productForm.image && (productForm.images?.length ?? 0) === 0) errors.image 
                     {formErrors.sku && <p className="text-xs text-red-600 mt-1">{formErrors.sku}</p>}
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-slate-600 uppercase block mb-2">Categoría</label>
+                    <label className="text-xs font-bold text-slate-600 uppercase block mb-2">Categoría *</label>
                     <select 
-                      value={productForm.category} 
+                      value={productForm.categoryId ?? ""}
                       onChange={(e) => {
-                        const category = e.target.value as Category;
-                        updateField('category', category);
-                        const [defaultSubcategory] = CATEGORY_SUBCATEGORIES[category] || [''];
-                        if (!CATEGORY_SUBCATEGORIES[category].includes(productForm.subcategory)) {
-                          updateField('subcategory', defaultSubcategory);
+                        const nextCategoryId = e.target.value;
+                        const selectedOption = categories.find((option) => option.id === nextCategoryId);
+                        if (!selectedOption) {
+                          updateField('categoryId', undefined);
+                          updateField('category', "");
+                          return;
                         }
-                      }} 
-                      className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-white hover:border-slate-300 focus:border-slate-500 focus:outline-none transition-colors text-slate-700"
+                        updateField('categoryId', selectedOption.id);
+                        updateField('category', selectedOption.name);
+                        const subcategories = getProductSubcategories(products, selectedOption.name);
+                        const [defaultSubcategory] = subcategories;
+                        if (!subcategories.includes(productForm.subcategory)) {
+                          updateField('subcategory', defaultSubcategory ?? "");
+                        }
+                      }}
+                      disabled={categories.length === 0}
+                      className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-white hover:border-slate-300 focus:border-slate-500 focus:outline-none transition-colors text-slate-700 disabled:bg-slate-100 disabled:text-slate-400"
                     >
-                      {Object.keys(CATEGORY_SUBCATEGORIES).map((cat) => (
-                        <option key={cat} value={cat}>{cat}</option>
+                      <option value="" disabled>
+                        {categories.length ? 'Selecciona una categoría' : 'Primero crea una categoría antes de agregar productos.'}
+                      </option>
+                      {categories.map((option) => (
+                        <option key={option.id} value={option.id}>{option.name}</option>
                       ))}
                     </select>
+                    {categories.length === 0 && (
+                      <p className="mt-2 text-xs text-amber-700">Primero crea una categoría antes de agregar productos.</p>
+                    )}
                   </div>
                 </div>
 
@@ -3564,7 +3493,7 @@ if (!productForm.image && (productForm.images?.length ?? 0) === 0) errors.image 
             <div className="bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] overflow-hidden">
               <div className="flex items-center justify-between p-5 border-b border-slate-50">
                 <h2 className="text-lg font-extrabold text-slate-900">Pedidos</h2>
-                <span className="text-xs text-slate-500">{ORDERS.length} pedidos registrados</span>
+                <span className="text-xs text-slate-500">Fuente de pedidos no conectada</span>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full">
@@ -3587,6 +3516,7 @@ if (!productForm.image && (productForm.images?.length ?? 0) === 0) errors.image 
                         <td className="price px-5 py-3 text-sm text-slate-900">{fmt(o.total)}</td>
                       </tr>
                     ))}
+                    {ORDERS.length === 0 && <tr><td colSpan={5} className="px-5 py-8 text-center text-sm text-slate-500">No hay una fuente de pedidos disponible. No se muestran datos locales o simulados.</td></tr>}
                   </tbody>
                 </table>
               </div>
@@ -3762,7 +3692,7 @@ if (!productForm.image && (productForm.images?.length ?? 0) === 0) errors.image 
       }
     } catch (err) {
       console.warn('Image upload failed', err);
-      toast.error('Error al cargar la imagen. Intenta nuevamente o usa una URL.');
+      toast.error(err instanceof Error ? err.message : 'La carga de imágenes no está disponible.');
     } finally {
       setIsUploadingImage(false);
     }
@@ -3796,6 +3726,7 @@ if (!productForm.image && (productForm.images?.length ?? 0) === 0) errors.image 
         }
       } catch (err) {
         console.warn(`Gallery image upload failed for ${file.name}`, err);
+        toast.error(err instanceof Error ? err.message : 'La carga de imágenes no está disponible.');
       }
     }
 
@@ -3888,6 +3819,7 @@ export default function App() {
   const [initialAdminSection, setInitialAdminSection] = useState<string | undefined>(getInitialAdminSection);
   const [products, setProducts] = useState<Product[]>([]);
   const [productsStatus, setProductsStatus] = useState<ProductsStatus>("loading");
+  const [categoryOptions, setCategoryOptions] = useState<CategoryOption[]>([]);
   const [productRefresh, setProductRefresh] = useState(0);
   const [headerOffset, setHeaderOffset] = useState<number>(0);
 
@@ -3984,22 +3916,76 @@ export default function App() {
     };
 
     void loadProducts();
+    void fetchPublicCategories()
+      .then(setCategoryOptions)
+      .catch((error) => {
+        console.warn('No se pudieron cargar categorías desde el API.', error);
+        setCategoryOptions([]);
+      });
     return () => {
       isActive = false;
     };
   }, [productRefresh]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [filterCategory, setFilterCategory] = useState<Category | null>(null);
-  const [cart, setCart] = useState<CartItem[]>(loadStoredCart);
+  const [cart, setCart] = useState<StorefrontCartLine[]>([]);
+  const [unavailableCartItems, setUnavailableCartItems] = useState<GuestCartItem[]>([]);
+  const [cartRestoreComplete, setCartRestoreComplete] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
 
   useEffect(() => {
+    if (productsStatus !== "ready" || cartRestoreComplete) return;
+
+    const currentProducts = new Map(products.map((product) => [product.id, product]));
+    const restoredItems: StorefrontCartLine[] = [];
+    const unresolvedItems: GuestCartItem[] = [];
+
+    for (const entry of loadStoredCartEntries()) {
+      const product = currentProducts.get(entry.productId);
+      const sizeUnavailable = entry.selectedSize && entry.selectedSize !== "Talla única" && !product?.sizes.includes(entry.selectedSize);
+      const colorUnavailable = entry.selectedColor && !product?.colors.some((color) => color.name === entry.selectedColor);
+
+      if (!product || sizeUnavailable || colorUnavailable) {
+        unresolvedItems.push(entry);
+        continue;
+      }
+
+      restoredItems.push({
+        product,
+        qty: entry.quantity,
+        selectedSize: entry.selectedSize ?? "Talla única",
+        selectedColor: entry.selectedColor ?? "",
+      });
+    }
+
+    setCart(restoredItems);
+    setUnavailableCartItems(unresolvedItems);
+    setCartRestoreComplete(true);
+  }, [cartRestoreComplete, products, productsStatus]);
+
+  useEffect(() => {
+    if (productsStatus !== "ready") {
+      setCartRestoreComplete(false);
+    }
+  }, [productsStatus]);
+
+  useEffect(() => {
+    if (!cartRestoreComplete) return;
     try {
-      window.localStorage.setItem(LOCAL_CART_STORAGE, JSON.stringify(cart));
+      const entries: GuestCartItem[] = [
+        ...cart.map((item) => ({
+          productId: item.product.id,
+          quantity: item.qty,
+          selectedSize: item.selectedSize,
+          selectedColor: item.selectedColor,
+        })),
+        ...unavailableCartItems,
+      ];
+      window.localStorage.setItem(LOCAL_CART_STORAGE, JSON.stringify(entries));
     } catch (error) {
       console.warn("No se pudo guardar el carrito en este dispositivo.", error);
     }
-  }, [cart]);
+  }, [cart, cartRestoreComplete, unavailableCartItems]);
   const [addresses, setAddresses] = useState<Address[]>(loadStoredAddresses);
   const [selectedAddressId, setSelectedAddressId] = useState<string>(() => {
     const stored = loadStoredAddresses();
@@ -4008,6 +3994,7 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [authUser, setAuthUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [profileRole, setProfileRole] = useState<string | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [homeContent, setHomeContent] = useState<HomePageContent>({
     heroTitle: "VISTE TU ESTILO. MARCA LA DIFERENCIA.",
@@ -4111,15 +4098,27 @@ export default function App() {
 
   useEffect(() => {
     let subscription: { unsubscribe: () => void } | null = null;
+    let profileRequest = 0;
+
+    const syncProfileAccess = async (user: User | null) => {
+      const requestId = ++profileRequest;
+      const access = await getProfileAccess(user);
+      if (requestId !== profileRequest) return;
+      setIsAdmin(access.isAdmin);
+      setProfileRole(access.role);
+      setAuthReady(true);
+    };
 
     const syncSession = async () => {
       try {
         const user = await getCurrentUser();
         setAuthUser(user);
         setIsLoggedIn(Boolean(user));
-        setIsAdmin(isAdminUser(user));
+        await syncProfileAccess(user);
       } catch (error) {
         console.warn("No se pudo cargar la sesión de usuario.", error);
+        setIsAdmin(false);
+        setProfileRole(null);
       } finally {
         setAuthReady(true);
       }
@@ -4130,11 +4129,13 @@ export default function App() {
       const user = session?.user ?? null;
       setAuthUser(user);
       setIsLoggedIn(Boolean(user));
-      setIsAdmin(isAdminUser(user));
-      setAuthReady(true);
+      queueMicrotask(() => void syncProfileAccess(user));
     });
 
-    return () => subscription?.unsubscribe();
+    return () => {
+      profileRequest += 1;
+      subscription?.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -4153,10 +4154,11 @@ export default function App() {
     }
   }, [view, isAdmin, authReady]);
 
-  const handleAuthSuccess = (user: User | null, adminStatus: boolean) => {
+  const handleAuthSuccess = (user: User | null, adminStatus: boolean, role: string | null) => {
     setAuthUser(user);
     setIsLoggedIn(Boolean(user) || adminStatus);
     setIsAdmin(adminStatus);
+    setProfileRole(role);
   };
 
   const handleLogout = async () => {
@@ -4172,6 +4174,7 @@ export default function App() {
     setAuthUser(null);
     setIsLoggedIn(false);
     setIsAdmin(false);
+    setProfileRole(null);
     navigate("home");
   };
 
@@ -4187,13 +4190,13 @@ export default function App() {
         description: record.description,
         sku: record.sku,
         stock: record.stock,
-        category_id: record.category_id ?? record.category ?? undefined,
+        category_id: record.category_id && /^[0-9a-fA-F-]{36}$/.test(record.category_id) ? record.category_id : undefined,
         compare_at_price: record.original_price ?? undefined,
         is_active: true,
       };
 
-      if (!adminPayload.category_id && product.category) {
-        adminPayload.category = product.category;
+      if (!adminPayload.category_id) {
+        throw new Error('Selecciona una categoría válida.');
       }
 
       const created = await createProductViaAdminApi(adminPayload);
@@ -4309,11 +4312,17 @@ export default function App() {
   };
 
   const handleAddToCart = (p: Product, size: string, color: string) => {
+    const existingItem = cart.find((item) => item.product.id === p.id && item.selectedSize === size && item.selectedColor === color);
+    if (p.stock <= 0 || (existingItem && existingItem.qty >= p.stock)) {
+      toast.error("No hay disponibilidad suficiente en el catálogo actual.");
+      return;
+    }
+
     setCart((prev) => {
       const existing = prev.find((i) => i.product.id === p.id && i.selectedSize === size && i.selectedColor === color);
       if (existing) {
         return prev.map((i) =>
-          i.product.id === p.id && i.selectedSize === size && i.selectedColor === color ? { ...i, qty: i.qty + 1 } : i
+          i.product.id === p.id && i.selectedSize === size && i.selectedColor === color ? { ...i, product: p, qty: i.qty + 1 } : i
         );
       }
       return [...prev, { product: p, qty: 1, selectedSize: size, selectedColor: color }];
@@ -4323,9 +4332,18 @@ export default function App() {
 
   const handleUpdateCart = (id: string, size: string, color: string, qty: number) => {
     if (qty <= 0) handleRemoveFromCart(id, size, color);
-    else setCart((prev) =>
-      prev.map((i) => i.product.id === id && i.selectedSize === size && i.selectedColor === color ? { ...i, qty } : i)
-    );
+    else {
+      const item = cart.find((entry) => entry.product.id === id && entry.selectedSize === size && entry.selectedColor === color);
+      if (!item || qty > item.product.stock) {
+        toast.error("La cantidad supera el stock mostrado en el catálogo.");
+        return;
+      }
+      setCart((prev) => prev.map((entry) =>
+        entry.product.id === id && entry.selectedSize === size && entry.selectedColor === color
+          ? { ...entry, qty }
+          : entry
+      ));
+    }
   };
 
   const handleRemoveFromCart = (id: string, size: string, color: string) => {
@@ -4337,6 +4355,12 @@ export default function App() {
     if (!isLoggedIn) { navigate("login"); return; }
     navigate("checkout");
   };
+  const handleRemoveUnavailableCartItem = (index: number) => {
+    setUnavailableCartItems((previous) => previous.filter((_, entryIndex) => entryIndex !== index));
+  };
+  const cartRestoreStatus: ProductsStatus = productsStatus !== "ready"
+    ? productsStatus
+    : cartRestoreComplete ? "ready" : "loading";
 
   return (
     <div className="min-h-screen bg-[#f4f5f7] text-slate-900">
@@ -4350,6 +4374,7 @@ export default function App() {
             authUser={authUser}
             currentView={view}
             products={products}
+            categories={categoryOptions}
             onLoginClick={() => navigate("login")}
             onLogout={handleLogout}
             onCategorySelect={handleCategorySelect}
@@ -4363,6 +4388,8 @@ export default function App() {
           onNavigate={navigate} onSelectProduct={handleSelectProduct}
           onAddToCart={handleAddToCart} onCategorySelect={handleCategorySelect}
           content={homeContent}
+          products={products}
+          categories={categoryOptions}
           featuredProducts={homePreviewProducts}
           newArrivalsProducts={homeNewArrivals}
           saleProducts={homeSaleProducts}
@@ -4373,6 +4400,7 @@ export default function App() {
       {view === "catalog" && (
         <CatalogPage
           products={products}
+          categories={categoryOptions}
           filterCategory={filterCategory}
           onSelectProduct={handleSelectProduct}
           onAddToCart={handleAddToCart}
@@ -4418,8 +4446,9 @@ export default function App() {
       {view === "admin" && isAdmin && (
         <AdminDashboard
           onNavigate={navigate}
-          adminRole={String(authUser?.app_metadata?.role ?? (isAdmin ? "ADMIN" : ""))}
+          adminRole={profileRole ?? ""}
           products={products}
+          categories={categoryOptions}
           createProduct={createProduct}
           updateProduct={updateProduct}
           deleteProduct={deleteProduct}
@@ -4445,6 +4474,10 @@ export default function App() {
           cart={cart} onClose={() => setCartOpen(false)}
           onUpdate={handleUpdateCart} onRemove={handleRemoveFromCart}
           onCheckout={handleCheckout}
+          unavailableCartItems={unavailableCartItems}
+          onRemoveUnavailable={handleRemoveUnavailableCartItem}
+          restoreStatus={cartRestoreStatus}
+          onRetryCatalog={refreshProducts}
         />
       )}
 

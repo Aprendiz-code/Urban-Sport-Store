@@ -1,15 +1,22 @@
 import { getAccessToken } from './supabase-auth';
+import { resolveApiBaseUrl } from './api-config';
 
 type Product = Record<string, unknown> & { id?: string };
 
-const normalizeApiRoot = (url?: string) => {
-  const trimmed = url?.trim().replace(/\/$/, '');
-  if (!trimmed) return '/api';
-  if (trimmed.endsWith('/api')) return trimmed;
-  return `${trimmed}/api`;
-};
+export function parseAdminApiError(status: number, text: string): Error {
+  const fallbackMessage = `${status} ${status === 400 ? 'Bad Request' : status === 401 ? 'Unauthorized' : status === 403 ? 'Forbidden' : status === 409 ? 'Conflict' : 'Request failed'}`;
 
-const API_ROOT = normalizeApiRoot(import.meta.env.VITE_API_URL);
+  try {
+    const json = JSON.parse(text);
+    const errorMessage = json?.error?.message || json?.message || fallbackMessage;
+    const errorCode = json?.error?.code || json?.code || 'UNKNOWN_ERROR';
+    return new Error(`[${errorCode}] ${errorMessage}`);
+  } catch {
+    return new Error(text ? `${status} ${text}` : fallbackMessage);
+  }
+}
+
+const API_ROOT = resolveApiBaseUrl(import.meta.env.VITE_API_URL);
 const API_BASE = `${API_ROOT}/admin`;
 
 async function callApi(path: string, opts: RequestInit = {}) {
@@ -43,14 +50,7 @@ async function callApi(path: string, opts: RequestInit = {}) {
 
   if (!res.ok) {
     const text = await res.text();
-    try {
-      const json = JSON.parse(text);
-      const errorMessage = json?.error?.message || json?.message || `${res.status} ${res.statusText}`;
-      const errorCode = json?.error?.code || json?.code || 'UNKNOWN_ERROR';
-      throw new Error(`[${errorCode}] ${errorMessage}`);
-    } catch {
-      throw new Error(`${res.status} ${res.statusText}: ${text}`);
-    }
+    throw parseAdminApiError(res.status, text);
   }
 
   if (res.status === 204) return null;

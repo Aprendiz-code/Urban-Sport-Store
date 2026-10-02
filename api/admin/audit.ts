@@ -1,11 +1,11 @@
-import { jsonError, jsonResponse, ApiError } from '../../lib/api-helpers/response.js';
-import { supabaseAdmin } from '../../lib/api-helpers/supabase.js';
-import { requirePermission } from '../../lib/api-helpers/admin.js';
-import { validateSupabaseToken } from '../../lib/api-helpers/auth.js';
+import { jsonError, jsonResponse, ApiError } from '../../lib/api-helpers/response.ts';
+import { supabaseAdmin } from '../../lib/api-helpers/supabase.ts';
+import { requirePermission } from '../../lib/api-helpers/admin.ts';
+import { requireAuthenticatedUser } from '../../lib/api-helpers/auth.ts';
 
 export default async function handler(req: any, res: any) {
   try {
-    const user = await validateSupabaseToken(req);
+    const user = await requireAuthenticatedUser(req);
     await requirePermission(user, 'audit.read');
 
     if (req.method !== 'GET') {

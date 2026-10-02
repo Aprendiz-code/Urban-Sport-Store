@@ -1,5 +1,5 @@
-import { jsonResponse, jsonError, ApiError } from '../lib/api-helpers/response.js';
-import { supabasePublic } from '../lib/api-helpers/supabase.js';
+import { jsonResponse, jsonError, ApiError } from '../lib/api-helpers/response.ts';
+import { supabaseAdmin } from '../lib/api-helpers/supabase.ts';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -13,7 +13,7 @@ function parseJsonBody(req: any): Promise<any> {
       try {
         resolve(JSON.parse(body || '{}'));
       } catch {
-        reject(new ApiError(400, 'Invalid JSON body'));
+        reject(new ApiError(400, 'El cuerpo de la solicitud no es válido.'));
       }
     });
     req.on('error', reject);
@@ -22,7 +22,7 @@ function parseJsonBody(req: any): Promise<any> {
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
-    return jsonError(res, 405, 'Method not allowed.');
+    return jsonError(res, 405, 'Método no permitido.');
   }
 
   try {
@@ -31,10 +31,14 @@ export default async function handler(req: any, res: any) {
     const source = typeof body.source === 'string' ? body.source.trim() : undefined;
 
     if (!email || !EMAIL_REGEX.test(email)) {
-      throw new ApiError(400, 'Invalid email address');
+      throw new ApiError(400, 'El correo electrónico no es válido.');
     }
 
-    const { error } = await supabasePublic.from('newsletter_subscribers').insert({
+    if (!supabaseAdmin) {
+      throw new ApiError(503, 'El newsletter no está disponible temporalmente.');
+    }
+
+    const { error } = await supabaseAdmin.from('newsletter_subscribers').insert({
       email,
       source: source || null,
       status: 'ACTIVE',
@@ -50,9 +54,10 @@ export default async function handler(req: any, res: any) {
         /already subscribed/.test(details);
 
       if (duplicate) {
-        throw new ApiError(409, 'This email is already subscribed');
+        throw new ApiError(409, 'Este correo ya está suscrito.');
       }
-      throw new ApiError(500, message);
+      console.error('Newsletter subscription failed:', error.code ?? 'unknown');
+      throw new ApiError(500, 'No fue posible completar la suscripción.');
     }
 
     return jsonResponse(res, { data: { subscribed: true, email, source: source ?? null } }, 201);
@@ -60,6 +65,6 @@ export default async function handler(req: any, res: any) {
     if (error instanceof ApiError) {
       return jsonError(res, error.status, error.message);
     }
-    return jsonError(res, 500, error?.message ?? 'Unable to subscribe to newsletter.');
+    return jsonError(res, 500, 'No fue posible completar la suscripción.');
   }
 }
