@@ -21,7 +21,7 @@ export default function ProductCarousel({
   const ref = useRef<HTMLDivElement | null>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
-  const autoScrollInterval = useRef<NodeJS.Timeout | null>(null);
+  const autoScrollInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const isDragging = useRef(false);
   const startX = useRef(0);
   const scrollLeft = useRef(0);

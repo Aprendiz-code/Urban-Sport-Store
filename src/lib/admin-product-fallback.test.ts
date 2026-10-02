@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createProductWithFallback, deleteProductWithFallback, updateProductWithFallback } from './admin-product-fallback';
+import { createProductViaAdminApi, deleteProductViaAdminApi, updateProductViaAdminApi } from './admin-product-fallback';
 import adminApi from './admin-api';
 import * as supabaseStore from './supabase-store';
 
@@ -17,50 +17,37 @@ vi.mock('./supabase-store', () => ({
   deleteProductInSupabase: vi.fn(),
 }));
 
-describe('admin product fallback helpers', () => {
+describe('admin product API helpers', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('falls back to Supabase when admin create fails with a fallbackable error', async () => {
+  it('creates through the admin API without a browser-side write fallback', async () => {
+    const product = { id: 'p-1', name: 'Zapatilla' };
+    vi.mocked(adminApi.createProductApi).mockResolvedValueOnce(product as any);
+
+    await expect(createProductViaAdminApi(product)).resolves.toEqual(product);
+    expect(supabaseStore.createProductInSupabase).not.toHaveBeenCalled();
+  });
+
+  it('propagates admin API failures without writing directly to Supabase', async () => {
     vi.mocked(adminApi.createProductApi).mockRejectedValueOnce(new Error('backend down'));
-    vi.mocked(supabaseStore.createProductInSupabase).mockResolvedValueOnce({ id: 'p-1', name: 'Zapatilla' } as any);
 
-    const result = await createProductWithFallback({ id: 'p-1', name: 'Zapatilla' } as any, { id: 'p-1', name: 'Zapatilla' } as any);
-
-    expect(supabaseStore.createProductInSupabase).toHaveBeenCalledWith({ id: 'p-1', name: 'Zapatilla' });
-    expect(result).toEqual({ id: 'p-1', name: 'Zapatilla' });
-  });
-
-  it('does not fall back when admin create fails with 401', async () => {
-    vi.mocked(adminApi.createProductApi).mockRejectedValueOnce(new Error('401 Unauthorized'));
-
-    await expect(createProductWithFallback({ id: 'p-1', name: 'Zapatilla' } as any, { id: 'p-1', name: 'Zapatilla' } as any)).rejects.toThrow(/401/);
+    await expect(createProductViaAdminApi({ name: 'Zapatilla' })).rejects.toThrow('backend down');
     expect(supabaseStore.createProductInSupabase).not.toHaveBeenCalled();
   });
 
-  it('does not fall back when admin create fails with 403', async () => {
-    vi.mocked(adminApi.createProductApi).mockRejectedValueOnce(new Error('403 Forbidden'));
+  it('updates through the admin API without a browser-side write fallback', async () => {
+    vi.mocked(adminApi.updateProductApi).mockResolvedValueOnce({ id: 'p-1' } as any);
 
-    await expect(createProductWithFallback({ id: 'p-1', name: 'Zapatilla' } as any, { id: 'p-1', name: 'Zapatilla' } as any)).rejects.toThrow(/403/);
-    expect(supabaseStore.createProductInSupabase).not.toHaveBeenCalled();
+    await expect(updateProductViaAdminApi('p-1', { name: 'Nuevo nombre' })).resolves.toEqual({ id: 'p-1' });
+    expect(supabaseStore.updateProductInSupabase).not.toHaveBeenCalled();
   });
 
-  it('falls back to Supabase when admin update fails with a fallbackable error', async () => {
-    vi.mocked(adminApi.updateProductApi).mockRejectedValueOnce(new Error('backend down'));
-    vi.mocked(supabaseStore.updateProductInSupabase).mockResolvedValueOnce({ id: 'p-1', name: 'Nuevo nombre' } as any);
+  it('deletes through the admin API without a browser-side write fallback', async () => {
+    vi.mocked(adminApi.deleteProductApi).mockResolvedValueOnce(undefined);
 
-    const result = await updateProductWithFallback('p-1', { name: 'Nuevo nombre' } as any, { name: 'Nuevo nombre' } as any);
-
-    expect(supabaseStore.updateProductInSupabase).toHaveBeenCalledWith('p-1', { name: 'Nuevo nombre' });
-    expect(result).toEqual({ id: 'p-1', name: 'Nuevo nombre' });
-  });
-
-  it('falls back to Supabase when admin delete fails with a fallbackable error', async () => {
-    vi.mocked(adminApi.deleteProductApi).mockRejectedValueOnce(new Error('backend down'));
-    vi.mocked(supabaseStore.deleteProductInSupabase).mockResolvedValueOnce(undefined);
-
-    await expect(deleteProductWithFallback('p-1')).resolves.toBeUndefined();
-    expect(supabaseStore.deleteProductInSupabase).toHaveBeenCalledWith('p-1');
+    await expect(deleteProductViaAdminApi('p-1')).resolves.toBeUndefined();
+    expect(supabaseStore.deleteProductInSupabase).not.toHaveBeenCalled();
   });
 });

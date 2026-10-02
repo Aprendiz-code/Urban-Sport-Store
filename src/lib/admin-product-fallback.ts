@@ -1,62 +1,13 @@
 import adminApi from './admin-api';
-import { createProductInSupabase, deleteProductInSupabase, updateProductInSupabase } from './supabase-store';
 
-const isAuthError = (error: unknown) => {
-  if (!(error instanceof Error)) return false;
-  return /\b(401|403)\b/.test(error.message);
-};
-
-const isFallbackableError = (error: unknown) => {
-  if (error instanceof Error) {
-    if (error.name === 'TypeError') return true;
-    if (/\b(404|502|503|504)\b/.test(error.message)) return true;
-    if (/Network error/i.test(error.message) || /failed to fetch/i.test(error.message)) return true;
-  }
-  return false;
-};
-
-export async function createProductWithFallback(adminPayload: Record<string, unknown>, fallbackRecord: Record<string, unknown>) {
-  try {
-    return await adminApi.createProductApi(adminPayload as any);
-  } catch (error) {
-    if (isAuthError(error)) {
-      throw error;
-    }
-    if (isFallbackableError(error)) {
-      console.warn('Admin API create failed, falling back to Supabase.', error);
-      return createProductInSupabase(fallbackRecord as any);
-    }
-    throw error;
-  }
+export function createProductViaAdminApi(adminPayload: Record<string, unknown>) {
+  return adminApi.createProductApi(adminPayload as any);
 }
 
-export async function updateProductWithFallback(productId: string, adminUpdates: Record<string, unknown>, fallbackUpdates: Record<string, unknown>) {
-  try {
-    return await adminApi.updateProductApi(productId, adminUpdates as any);
-  } catch (error) {
-    if (isAuthError(error)) {
-      throw error;
-    }
-    if (isFallbackableError(error)) {
-      console.warn('Admin API update failed, falling back to Supabase.', error);
-      return updateProductInSupabase(productId, fallbackUpdates as any);
-    }
-    throw error;
-  }
+export function updateProductViaAdminApi(productId: string, adminUpdates: Record<string, unknown>) {
+  return adminApi.updateProductApi(productId, adminUpdates as any);
 }
 
-export async function deleteProductWithFallback(productId: string) {
-  try {
-    await adminApi.deleteProductApi(productId);
-  } catch (error) {
-    if (isAuthError(error)) {
-      throw error;
-    }
-    if (isFallbackableError(error)) {
-      console.warn('Admin API delete failed, falling back to Supabase.', error);
-      await deleteProductInSupabase(productId);
-      return;
-    }
-    throw error;
-  }
+export function deleteProductViaAdminApi(productId: string) {
+  return adminApi.deleteProductApi(productId);
 }

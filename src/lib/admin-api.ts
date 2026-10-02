@@ -1,5 +1,6 @@
-import type { Product } from '../../types';
 import { getAccessToken } from './supabase-auth';
+
+type Product = Record<string, unknown> & { id?: string };
 
 const normalizeApiRoot = (url?: string) => {
   const trimmed = url?.trim().replace(/\/$/, '');

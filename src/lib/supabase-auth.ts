@@ -1,5 +1,7 @@
-import type { RealtimeSubscription, User } from '@supabase/supabase-js';
+import type { User } from '@supabase/supabase-js';
 import { getSupabaseClient, isSupabaseEnabled } from './supabase-client';
+
+type RealtimeSubscription = { unsubscribe: () => void };
 
 export const DEMO_ADMIN_EMAIL = 'admin@urbansport.com';
 export const DEMO_ADMIN_PASSWORD = 'Admin1234';

@@ -11,6 +11,8 @@ export interface ProductRecord {
   reviews?: number | null;
   image: string;
   category: string;
+  category_id?: string | null;
+  slug?: string | null;
   subcategory?: string | null;
   stock?: number | null;
   sku?: string | null;

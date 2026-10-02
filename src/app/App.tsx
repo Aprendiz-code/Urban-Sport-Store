@@ -26,7 +26,7 @@ import {
 } from "./components/LazyRecharts";
 // promoRibbon moved to src/assets/cinta-10.png
 import { fetchProductsFromSupabase, type ProductRecord } from "../lib/supabase-store";
-import { createProductWithFallback, deleteProductWithFallback, updateProductWithFallback } from "../lib/admin-product-fallback";
+import { createProductViaAdminApi, deleteProductViaAdminApi, updateProductViaAdminApi } from "../lib/admin-product-fallback";
 import {
   signInWithEmail,
   signUpWithEmail,
@@ -47,7 +47,9 @@ import { toast } from '../lib/lazyToast';
 
 type View =
   | "home" | "catalog" | "product" | "checkout"
-  | "login" | "register" | "account" | "admin-login" | "admin";
+  | "login" | "register" | "account"
+  | "admin-login" | "admin"
+  | "privacy" | "terms" | "shipping" | "returns" | "contact";
 type ProductsStatus = "loading" | "ready" | "error";
 
 function getInitialView(): View {
@@ -57,6 +59,11 @@ function getInitialView(): View {
   if (pathname === "/admin" || pathname.startsWith("/admin/") || new URLSearchParams(search).get("view") === "admin") return "admin";
   if (pathname === "/login") return "login";
   if (pathname === "/register") return "register";
+  if (pathname === "/politica-de-privacidad") return "privacy";
+  if (pathname === "/terminos-y-condiciones") return "terms";
+  if (pathname === "/envios") return "shipping";
+  if (pathname === "/cambios-y-devoluciones") return "returns";
+  if (pathname === "/contacto") return "contact";
   return "home";
 }
 
@@ -130,6 +137,12 @@ interface Address {
 interface HomePageContent {
   heroTitle: string;
   heroSubtitle: string;
+  heroImage?: string;
+  featuredCategoryIds?: string | string[];
+  featuredProductIds?: string | string[];
+  discountedProductIds?: string | string[];
+  promoBanner?: string;
+  newsletterEnabled?: boolean;
   featuredSectionTitle: string;
   newArrivalsSectionTitle: string;
   saleSectionTitle: string;
@@ -212,8 +225,9 @@ const mapAppProductToProductRecord = (product: Partial<Product> & { id?: string 
   rating: Number(product.rating ?? 0),
   reviews: Number(product.reviews ?? 0),
   image: product.image ?? "",
+  category: product.category ?? "Zapatos",
+  category_id: product.categoryId ?? product.category ?? null,
   images: product.images ?? [],
-  category_id: product.categoryId ?? null,
   subcategory: product.subcategory ?? "",
   stock: Number(product.stock ?? 0),
   sku: product.sku ?? "",
@@ -397,7 +411,7 @@ function ProductCarousel({ children }: { children: React.ReactNode }) {
   const isDragging = useRef(false);
   const startX = useRef(0);
   const scrollLeft = useRef(0);
-  const autoScrollInterval = useRef<NodeJS.Timeout | null>(null);
+  const autoScrollInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Iniciar auto-scroll
   const startAutoScroll = () => {
@@ -587,11 +601,11 @@ function ProductCard({ product, onSelect, onAddToCart }: {
 
 function TopBenefitsBar() {
   const benefits = [
-    `Envío gratis a toda Colombia desde ${fmt(STORE_CONFIG.freeShippingMinimumSubtotalCop)}`,
-    "10% de descuento en tu primera compra",
-    "Consulta condiciones de cambio de talla",
-    "Soporte en línea disponible 24/7",
-    "Compra fácil y segura en UrbanSport",
+    "Consulta las opciones disponibles antes de finalizar la compra",
+    "Información clara de envíos, cambios y devoluciones",
+    "Productos para entrenar, salir y moverte con estilo",
+    "Revisa la información del producto antes de comprar",
+    "UrbanSport Store · catalogo actualizado con tus favoritos",
   ];
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -792,7 +806,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
               {showSuggestions && suggestions.length > 0 && (
                 <div className="absolute left-0 right-0 mt-2 bg-white border border-slate-100 rounded-xl shadow-lg z-50 max-h-60 overflow-auto">
                   {suggestions.map((s) => (
-                    <button key={s.id} onMouseDown={(e) => { e.preventDefault(); onSelectProduct(s); setSearchVal(''); setSuggestions([]); }}
+                    <button key={s.id} onMouseDown={(e) => { e.preventDefault(); onSelectProduct?.(s); setSearchVal(''); setSuggestions([]); }}
                       className="w-full text-left px-4 py-3 hover:bg-slate-50 transition-colors">
                       <div className="text-sm font-semibold">{s.name}</div>
                       <div className="text-xs text-slate-400">{s.brand} · {s.subcategory}</div>
@@ -1093,7 +1107,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
     return <div className="grid grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">{children}</div>;
   }
 
-  function ProductStatusNotice({ status, onRetry }: { status: ProductsStatus; onRetry: () => void }) {
+  function ProductStatusNotice({ status, onRetry, onCategorySelect }: { status: ProductsStatus; onRetry: () => void; onCategorySelect?: (category: Category) => void; }) {
     if (status === "loading") {
       return (
         <div role="status" aria-busy="true" className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 sm:gap-4">
@@ -1108,7 +1122,14 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
     if (status === "error") {
       return (
         <div role="alert" className="flex flex-col items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-950 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm">No pudimos cargar el catálogo. Intenta de nuevo en unos momentos.</p>
+          <div className="space-y-2">
+            <p className="text-sm">No pudimos cargar el catálogo. Intenta de nuevo en unos momentos.</p>
+            {onCategorySelect && (
+              <button type="button" onClick={() => onCategorySelect("Zapatos")} className="text-sm font-semibold text-amber-900 underline underline-offset-2">
+                Explorar zapatillas
+              </button>
+            )}
+          </div>
           <button type="button" onClick={onRetry} className="min-h-11 rounded-lg border border-amber-300 bg-white px-4 text-sm font-bold hover:bg-amber-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-700">
             Reintentar
           </button>
@@ -1133,28 +1154,46 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
   const featured = featuredProducts;
   const newArrivals = newArrivalsProducts;
   const onSale = saleProducts;
+  const hasRealDiscounts = onSale.some((product) => typeof product.originalPrice === "number" && product.originalPrice > product.price);
+  const privacyPolicyUrl = import.meta.env.VITE_PRIVACY_POLICY_URL?.trim() || STORE_CONFIG.privacyPolicyPath;
+  const newsletterAvailable = Boolean(import.meta.env.VITE_API_URL?.trim());
   const [newsletterEmail, setNewsletterEmail] = useState("");
   const [newsletterLoading, setNewsletterLoading] = useState(false);
   const [newsletterMessage, setNewsletterMessage] = useState("");
   const [newsletterError, setNewsletterError] = useState(false);
   const [newsletterConsent, setNewsletterConsent] = useState(false);
-  const privacyPolicyUrl = import.meta.env.VITE_PRIVACY_POLICY_URL?.trim() ?? "";
 
   const handleNewsletterSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!privacyPolicyUrl || !newsletterConsent) {
+    const email = newsletterEmail.trim();
+
+    if (!newsletterAvailable) {
       setNewsletterError(true);
-      setNewsletterMessage("La suscripción requiere una política de privacidad publicada y tu aceptación.");
+      setNewsletterMessage(STORE_CONFIG.newsletterDisabledMessage);
       return;
     }
+
+    if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
+      setNewsletterError(true);
+      setNewsletterMessage("Ingresa un correo válido para continuar.");
+      return;
+    }
+
+    if (!newsletterConsent) {
+      setNewsletterError(true);
+      setNewsletterMessage("Debes aceptar la Política de Privacidad para continuar.");
+      return;
+    }
+
     setNewsletterLoading(true);
     setNewsletterMessage("");
     setNewsletterError(false);
 
     try {
-      await subscribeToNewsletter(newsletterEmail.trim());
+      await subscribeToNewsletter(email);
       setNewsletterEmail("");
       setNewsletterMessage("Tu correo quedó registrado para recibir novedades.");
+      setNewsletterConsent(false);
     } catch (error) {
       setNewsletterError(true);
       setNewsletterMessage(error instanceof Error ? error.message : "No se pudo registrar el correo. Intenta nuevamente.");
@@ -1165,32 +1204,45 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
 
   return (
     <main>
-      {/* Hero */}
-      <section className="relative min-h-[360px] sm:min-h-[400px] md:min-h-[440px] lg:min-h-[480px] flex items-center justify-center overflow-hidden bg-[#0b1220]">
+      <section className="relative flex min-h-[360px] items-center justify-center overflow-hidden bg-[#0b1220] sm:min-h-[420px] md:min-h-[500px]">
         <img
           src="https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=1600&h=900&fit=crop&auto=format"
-          alt="Atleta en acción" className="absolute inset-0 w-full h-full object-cover object-center"
+          alt="Atleta entrenando al aire libre"
+          loading="eager"
+          decoding="async"
+          className="absolute inset-0 h-full w-full object-cover object-center"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-[#0b1220]/95 via-[#0b1220]/80 to-[#0b1220]/45 md:from-[#0b1220]/95 md:via-[#0b1220]/80 md:to-[#0b1220]/50" />
 
-        <div className="relative z-10 max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-6 sm:py-8 md:py-10 w-full">
+        <div className="relative z-10 mx-auto w-full max-w-7xl px-3 py-6 sm:px-4 sm:py-8 md:px-6 md:py-10">
           <div className="max-w-2xl">
-            <div className="font-display inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#f59e0b]/20 border border-[#f59e0b]/30 text-[#fbbf24] text-sm sm:text-base tracking-[0.04em] uppercase mb-3 sm:mb-4 whitespace-nowrap">
-              <Award size={12} /> Colección 2026
+            <div className="mb-3 inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-[#f59e0b]/30 bg-[#f59e0b]/20 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.12em] text-[#fbbf24] sm:text-sm">
+              <Award size={12} /> COLECCIÓN 2026
             </div>
-            <p className="mb-3 text-[11px] sm:text-xs font-bold uppercase tracking-[0.18em] text-[#dbeafe]">
-              Obtén 10 % de descuento en tu primera compra
+            <h1 className="mb-3 max-w-xl font-display text-[2.3rem] leading-[1.02] tracking-[-0.04em] text-white sm:text-[3.4rem] md:text-[4.1rem] lg:text-[4.6rem]">
+              Calzado y ropa deportiva para moverte con estilo
+            </h1>
+            <p className="mb-6 max-w-lg text-base leading-relaxed text-slate-200 sm:text-lg md:text-xl">
+              Encuentra zapatillas, prendas y accesorios para entrenar, salir y disfrutar tu día.
             </p>
-            <h1 className="font-display text-[40px] sm:text-[52px] md:text-[60px] lg:text-[72px] text-white leading-[1.02] tracking-[-0.04em] mb-3 sm:mb-4">{content.heroTitle}</h1>
-            <p className="text-base sm:text-lg md:text-xl text-slate-200 leading-relaxed mb-6 max-w-md">
-              {content.heroSubtitle}
-            </p>
-            <div className="flex flex-col min-[480px]:flex-row gap-3 w-full min-[480px]:w-auto">
-              <Btn variant="primary" size="lg" onClick={() => onNavigate("catalog")} className="w-full min-[480px]:w-auto justify-center !bg-[#2457D6] !text-white hover:!bg-[#1d48b9]">
-                Comprar ahora <ArrowRight size={16} />
+            <div className="flex w-full flex-col gap-3 min-[480px]:w-auto min-[480px]:flex-row">
+              <Btn
+                type="button"
+                variant="primary"
+                size="lg"
+                onClick={() => onCategorySelect("Zapatos")}
+                className="w-full justify-center !bg-[#2457D6] !text-white hover:!bg-[#1d48b9] min-[480px]:w-auto"
+              >
+                Ver zapatillas <ArrowRight size={16} />
               </Btn>
-              <button onClick={() => onNavigate("catalog")}
-                className="px-6 py-3.5 min-h-12 text-base font-bold text-white border-2 border-white/20 bg-white/5 rounded-xl hover:bg-white/10 transition-all backdrop-blur-sm">
+              <button
+                type="button"
+                onClick={() => {
+                  // TODO: cuando exista una colección real de novedades, enlazarla aquí.
+                  onNavigate("catalog");
+                }}
+                className="min-h-12 rounded-xl border-2 border-white/20 bg-white/5 px-6 py-3.5 text-base font-bold text-white backdrop-blur-sm transition-all hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+              >
                 Ver novedades
               </button>
             </div>
@@ -1198,164 +1250,173 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
         </div>
       </section>
 
-      {/* Categories grid */}
-      <section className="pt-8 sm:pt-10 md:pt-12 pb-2 sm:pb-3 md:pb-4 max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
-        <div className="flex items-end justify-between mb-6 sm:mb-8">
-          <div>
-            <p className="font-display text-sm sm:text-base text-[#2457D6] tracking-[0.04em] uppercase mb-1 sm:mb-1.5">{content.categorySectionLabel}</p>
-            <h2 className="font-display text-[28px] sm:text-[32px] md:text-[40px] text-[#0b1220] leading-[1.05]">{content.categorySectionTitle}</h2>
-          </div>
+      <section className="mx-auto max-w-7xl px-3 pb-2 pt-8 sm:px-4 sm:pt-10 md:px-6 md:pt-12">
+        <div className="mb-6 sm:mb-8">
+          <p className="mb-1 font-display text-sm uppercase tracking-[0.08em] text-[#2457D6] sm:text-base">{content.categorySectionLabel}</p>
+          <h2 className="font-display text-[1.8rem] leading-[1.05] text-[#0b1220] sm:text-[2.4rem] md:text-[2.8rem]">{content.categorySectionTitle}</h2>
         </div>
-        <div className="flex flex-wrap justify-center gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-6">
           {HOME_CATEGORIES.map((cat) => (
-            <div key={cat.name} className="min-w-0 basis-[calc(50%_-_0.375rem)] sm:basis-[calc(33.333333%_-_0.667rem)] lg:basis-[calc(25%_-_0.75rem)]">
-              <button
-                onClick={() => onCategorySelect(cat.name as Category)}
-                className="group relative rounded-2xl sm:rounded-3xl overflow-hidden aspect-[4/3] w-full bg-white shadow-[0_12px_30px_-18px_rgba(15,23,42,0.38)] ring-1 ring-slate-200 hover:shadow-[0_18px_40px_-18px_rgba(15,23,42,0.4)] transition-all duration-300">
-                <img src={cat.image} alt={cat.name} onError={(event) => { event.currentTarget.style.display = "none"; }} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0b1220]/85 via-[#0b1220]/20 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-2 sm:p-3">
-                  <p className="font-display text-[22px] sm:text-[24px] text-white leading-[1.05]">{cat.name}</p>
-                  <p className="text-xs sm:text-sm text-slate-200">{cat.sub}</p>
-                </div>
-              </button>
-            </div>
+            <button
+              key={cat.name}
+              type="button"
+              aria-label={`${cat.name}: ${cat.sub}`}
+              onClick={() => onCategorySelect(cat.name as Category)}
+              className="group relative min-h-[180px] overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-[0_12px_30px_-18px_rgba(15,23,42,0.38)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-18px_rgba(15,23,42,0.4)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8] active:scale-[0.99]"
+            >
+              <img
+                src={cat.image}
+                alt={cat.name}
+                loading="lazy"
+                decoding="async"
+                onError={(event) => { event.currentTarget.style.display = "none"; }}
+                className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#0b1220]/85 via-[#0b1220]/25 to-transparent" />
+              <div className="relative flex h-full min-h-[180px] flex-col justify-end p-3 sm:p-4">
+                <p className="font-display text-xl leading-[1.05] text-white sm:text-2xl">{cat.name}</p>
+                <p className="mt-1 text-[11px] leading-relaxed text-slate-200 sm:text-xs">{cat.sub}</p>
+              </div>
+            </button>
           ))}
         </div>
       </section>
 
-      {/* Featured */}
-      <section className="py-8 sm:py-12 md:py-16 max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
-        <div className="flex items-end justify-between mb-6 sm:mb-8 gap-4">
+      <section className="mx-auto max-w-7xl px-3 py-8 sm:px-4 sm:py-12 md:px-6 md:py-16">
+        <div className="mb-6 flex items-end justify-between gap-4 sm:mb-8">
           <div>
-            <p className="font-display text-sm sm:text-base text-[#1d4ed8] tracking-[0.04em] uppercase mb-1 sm:mb-1.5">{content.featuredSectionLabel}</p>
-            <h2 className="font-display text-[28px] sm:text-[32px] md:text-[40px] text-slate-900 leading-[1.05]">{content.featuredSectionTitle}</h2>
+            <p className="mb-1 font-display text-sm uppercase tracking-[0.08em] text-[#1d4ed8] sm:text-base">{content.featuredSectionLabel}</p>
+            <h2 className="font-display text-[1.8rem] leading-[1.05] text-slate-900 sm:text-[2.4rem] md:text-[2.8rem]">{content.featuredSectionTitle}</h2>
           </div>
-          {productsStatus === "ready" && featured.length > 0 && <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="hidden sm:flex">Ver todos <ChevronRight size={14} /></Btn>}
+          {productsStatus === "ready" && featured.length > 0 && (
+            <Btn variant="ghost" onClick={() => onCategorySelect("Zapatos")} className="hidden sm:flex">
+              Ver zapatillas <ChevronRight size={14} />
+            </Btn>
+          )}
         </div>
-        {productsStatus === "ready" ? (
-          featured.length > 0 ? (
-            <>
-              <ProductGrid>
-                {featured.slice(0, 9).map((p) => (
-                  <div key={p.id} className="min-w-0">
-                    <ProductCard product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
-                  </div>
-                ))}
-              </ProductGrid>
-              <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="sm:hidden w-full mt-6">Ver todos <ChevronRight size={14} /></Btn>
-            </>
-          ) : (
-            <p className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600">Aún no hay productos publicados.</p>
-          )
-        ) : <ProductStatusNotice status={productsStatus} onRetry={onRetryProducts} />}
-      </section>
-
-      <section className="mx-auto max-w-7xl px-3 pt-2 sm:px-4 md:px-6" aria-label="Oferta especial de UrbanSport">
-        <div className="mb-4 text-left">
-          <p className="font-display text-[11px] sm:text-xs uppercase tracking-[0.16em] text-[#2457D6]">Oferta especial</p>
-          <h2 className="font-display text-[28px] leading-none text-[#0B1220] sm:text-[34px] md:text-[40px]">OFERTA ESPECIAL</h2>
-          <p className="mt-1 text-sm text-slate-600">Beneficio exclusivo para tu primera compra</p>
-        </div>
-        <div className="overflow-hidden rounded-[20px] border border-slate-200 bg-[#f4f6f8] shadow-[0_18px_45px_-30px_rgba(15,23,42,0.35)]">
-          <img
-            src={promoBanner}
-            alt="Oferta especial: 10% de descuento en la primera compra de UrbanSport"
-            loading="lazy"
-            className="block w-full h-auto object-contain"
-          />
-        </div>
-      </section>
-
-      {/* Promo banners */}
-      <section className="py-8 sm:py-12 md:py-16 max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-5">
-          {/* Hombre */}
-          <div className="relative rounded-2xl sm:rounded-[32px] overflow-hidden h-40 sm:h-56 md:h-64 bg-slate-900 shadow-[0_20px_60px_-35px_rgba(15,23,42,0.45)]">
-            <picture className="absolute inset-0 block w-full h-full">
-              <source srcSet="https://images.unsplash.com/photo-1520975917076-54a4d7d6f73e?w=1200&h=800&fit=crop&auto=format 1200w, https://images.unsplash.com/photo-1520975917076-54a4d7d6f73e?w=900&h=600&fit=crop&auto=format 900w, https://images.unsplash.com/photo-1520975917076-54a4d7d6f73e?w=640&h=426&fit=crop&auto=format 640w" sizes="(max-width: 640px) 640px, (max-width: 1024px) 900px, 1200px" />
-              <img src="https://images.unsplash.com/photo-1520975917076-54a4d7d6f73e?w=1200&h=800&fit=crop&auto=format"
-                alt="Hombre entrenando" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
-            </picture>
-            <div className="absolute inset-0 bg-gradient-to-r from-black/30 to-slate-900/10" />
-            <div className="absolute inset-0 p-4 sm:p-6 md:p-8 flex flex-col justify-end">
-              <p className="font-display text-sm sm:text-base text-[#fbbf24] uppercase tracking-[0.04em] mb-1 sm:mb-1.5">Temporada 2026</p>
-              <h3 className="font-display text-2xl sm:text-[28px] md:text-[30px] text-white leading-[1.05] mb-2 sm:mb-3">Ropa Hombre</h3>
-              <button onClick={() => onCategorySelect("Ropa Hombre")}
-                className="inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-slate-900 bg-white px-3 sm:px-5 py-2 sm:py-3 rounded-full hover:bg-slate-100 transition-all w-fit">
-                Explorar <ArrowRight size={13} />
-              </button>
+        {productsStatus === "loading" && <ProductStatusNotice status={productsStatus} onRetry={onRetryProducts} />}
+        {productsStatus === "error" && <ProductStatusNotice status={productsStatus} onRetry={onRetryProducts} onCategorySelect={onCategorySelect} />}
+        {productsStatus === "ready" && featured.length === 0 && (
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-600 sm:p-6">
+            <h3 className="mb-2 text-xl font-bold text-slate-900">Aún estamos preparando nuevos productos</h3>
+            <p className="mb-4">Explora nuestras categorías mientras actualizamos el catálogo.</p>
+            <div className="flex flex-wrap gap-3">
+              {NAV_CATEGORIES.slice(0, 3).map((category) => (
+                <button key={category.name} type="button" onClick={() => onCategorySelect(category.name as Category)} className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 font-semibold text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8]">
+                  {category.name}
+                </button>
+              ))}
             </div>
           </div>
-          {/* Mujer */}
-          <div className="relative rounded-2xl sm:rounded-[32px] overflow-hidden h-40 sm:h-56 md:h-64 bg-slate-100 shadow-[0_20px_60px_-35px_rgba(15,23,42,0.12)]">
-            <picture className="absolute inset-0 block w-full h-full">
-              <source srcSet="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=1200&h=800&fit=crop&auto=format 1200w, https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=900&h=600&fit=crop&auto=format 900w, https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=640&h=426&fit=crop&auto=format 640w" sizes="(max-width: 640px) 640px, (max-width: 1024px) 900px, 1200px" />
-              <img src="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=1200&h=800&fit=crop&auto=format"
-                alt="Ropa Mujer" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
-            </picture>
-            <div className="absolute inset-0 bg-gradient-to-r from-white/80 to-transparent" />
-            <div className="absolute inset-0 p-4 sm:p-6 md:p-8 flex flex-col justify-end">
-              <p className="font-display text-sm sm:text-base text-[#1d4ed8] uppercase tracking-[0.04em] mb-1 sm:mb-1.5">Colección nueva</p>
-              <h3 className="font-display text-2xl sm:text-[28px] md:text-[30px] text-slate-900 leading-[1.05] mb-2 sm:mb-3">Ropa Mujer</h3>
-              <button onClick={() => onCategorySelect("Ropa Mujer")}
-                className="inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-white bg-black px-3 sm:px-5 py-2 sm:py-3 rounded-full hover:bg-slate-900 transition-all w-fit">
-                Explorar <ArrowRight size={13} />
-              </button>
+        )}
+        {productsStatus === "ready" && featured.length > 0 && (
+          <>
+            <ProductGrid>
+              {featured.slice(0, 8).map((p) => (
+                <div key={p.id} className="min-w-0">
+                  <ProductCard product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
+                </div>
+              ))}
+            </ProductGrid>
+            <Btn variant="ghost" onClick={() => onCategorySelect("Zapatos")} className="mt-6 w-full sm:hidden">
+              Ver zapatillas <ChevronRight size={14} />
+            </Btn>
+          </>
+        )}
+      </section>
+
+      <section className="mx-auto max-w-7xl px-3 sm:px-4 md:px-6" aria-label="Ofertas destacadas o promoción general">
+        {hasRealDiscounts ? (
+          <>
+            <div className="mb-6 flex items-end justify-between gap-4">
+              <div>
+                <p className="mb-1 font-display text-sm uppercase tracking-[0.08em] text-[#c2410c] sm:text-base">OFERTAS DESTACADAS</p>
+                <h2 className="font-display text-[1.8rem] leading-[1.05] text-[#0b1220] sm:text-[2.4rem] md:text-[2.8rem]">Productos con descuento real</h2>
+              </div>
             </div>
+            <ProductGrid>
+              {onSale.slice(0, 4).map((product) => (
+                <div key={product.id} className="min-w-0">
+                  <ProductCard product={product} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
+                </div>
+              ))}
+            </ProductGrid>
+          </>
+        ) : (
+          <div className="overflow-hidden rounded-[24px] border border-slate-200 bg-[#f4f6f8] shadow-[0_18px_45px_-30px_rgba(15,23,42,0.35)]">
+            <div className="grid gap-6 p-5 sm:p-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
+              <div>
+                <p className="mb-2 font-display text-[11px] uppercase tracking-[0.18em] text-[#2457D6] sm:text-xs">OFERTA ESPECIAL</p>
+                <h2 className="font-display text-[2rem] leading-none text-[#0B1220] sm:text-[2.6rem] md:text-[3rem]">10 % de descuento en tu primera compra</h2>
+                <p className="mt-3 max-w-xl text-sm text-slate-600 sm:text-base">Suscríbete para recibir novedades y conocer las condiciones de esta oferta.</p>
+                <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <button type="button" onClick={() => onNavigate("catalog")} className="inline-flex min-h-12 items-center justify-center rounded-xl bg-[#2457D6] px-5 py-3 text-sm font-bold text-white hover:bg-[#1d48b9] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8]">
+                    Recibir mi descuento
+                  </button>
+                  {privacyPolicyUrl && (
+                    <a href={privacyPolicyUrl} className="text-sm font-semibold text-[#1d4ed8] underline underline-offset-2">Aplican términos y condiciones.</a>
+                  )}
+                </div>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500">Estado del catálogo</p>
+                <p className="mt-2 text-base font-semibold text-slate-800">No hay descuentos verificables publicados aún.</p>
+                <p className="mt-2 text-sm text-slate-600">Consulta el catálogo disponible o revisa la categoría que mejor te interese.</p>
+                <button type="button" onClick={() => onCategorySelect("Zapatos")} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-4 font-semibold text-slate-800 hover:bg-slate-100">
+                  Explorar productos <ArrowRight size={14} />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
+
+      <section className="py-8 sm:py-12 md:py-16">
+        <div className="mx-auto max-w-7xl px-3 sm:px-4 md:px-6">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {[{title:"Compra segura", copy:STORE_CONFIG.trustCopy.safePayment},{title:"Información clara antes de pagar", copy:STORE_CONFIG.trustCopy.productInfo},{title:"Consulta envíos y tiempos de entrega", copy:STORE_CONFIG.trustCopy.shipping},{title:"Cambios y devoluciones", copy:"Conoce las condiciones de cambio y devolución antes de completar tu compra."}].map((item) => (
+              <div key={item.title} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_12px_30px_-18px_rgba(15,23,42,0.3)]">
+                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-[#1d4ed8]">
+                  <Shield size={18} />
+                </div>
+                <h3 className="mb-2 text-lg font-bold text-slate-900">{item.title}</h3>
+                <p className="text-sm leading-relaxed text-slate-600">{item.copy}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* New arrivals */}
       {newArrivals.length > 0 && (
-        <section className="py-8 sm:py-12 md:py-16 max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
-          <div className="flex items-end justify-between mb-6 sm:mb-8 gap-4">
+        <section className="mx-auto max-w-7xl px-3 py-2 sm:px-4 md:px-6">
+          <div className="mb-6 flex items-end justify-between gap-4 sm:mb-8">
             <div>
-              <p className="font-display text-sm sm:text-base text-emerald-700 tracking-[0.04em] uppercase mb-1 sm:mb-1.5">{content.newArrivalsLabel}</p>
-              <h2 className="font-display text-[28px] sm:text-[32px] md:text-[40px] text-slate-900 leading-[1.05]">{content.newArrivalsSectionTitle}</h2>
+              <p className="mb-1 font-display text-sm uppercase tracking-[0.08em] text-emerald-700 sm:text-base">{content.newArrivalsLabel}</p>
+              <h2 className="font-display text-[1.8rem] leading-[1.05] text-slate-900 sm:text-[2.4rem] md:text-[2.8rem]">{content.newArrivalsSectionTitle}</h2>
             </div>
-            <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="hidden sm:flex">Ver todos <ChevronRight size={14} /></Btn>
+            <Btn variant="ghost" onClick={() => onCategorySelect("Zapatos")} className="hidden sm:flex">
+              Ver zapatillas <ChevronRight size={14} />
+            </Btn>
           </div>
           <ProductCarousel>
-              {newArrivals.slice(0, 9).map((p, idx) => (
-              <div key={p.id + "-" + idx} className="w-[84vw] max-w-[280px] sm:w-[16rem] lg:w-[18rem] shrink-0">
+            {newArrivals.slice(0, 9).map((p, idx) => (
+              <div key={p.id + '-' + idx} className="w-[84vw] max-w-[280px] shrink-0 sm:w-[16rem] lg:w-[18rem]">
                 <ProductCard product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
               </div>
             ))}
           </ProductCarousel>
-          <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="sm:hidden w-full mt-6">Ver todos <ChevronRight size={14} /></Btn>
+          <Btn variant="ghost" onClick={() => onCategorySelect("Zapatos")} className="mt-6 w-full sm:hidden">
+            Ver zapatillas <ChevronRight size={14} />
+          </Btn>
         </section>
       )}
 
-      {/* Sale */}
-      <section className="py-8 sm:py-12 md:py-16 bg-gradient-to-r from-[#fff7ed] via-[#fffaf3] to-[#eef3ff] border-y border-[#f4d7a6]">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
-          <div className="flex items-end justify-between mb-6 sm:mb-8 gap-4">
-            <div>
-              <p className="font-display text-sm sm:text-base text-[#c2410c] tracking-[0.04em] uppercase mb-1 sm:mb-1.5">{content.saleSectionLabel}</p>
-              <h2 className="font-display text-[28px] sm:text-[32px] md:text-[40px] text-[#0b1220] leading-[1.05]">{content.saleSectionTitle}</h2>
-            </div>
-            <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="hidden sm:flex">Ver todos <ChevronRight size={14} /></Btn>
-          </div>
-          <ProductCarousel>
-              {onSale.slice(0, 9).map((p) => (
-              <div key={p.id} className="w-[84vw] max-w-[280px] sm:w-[16rem] lg:w-[18rem] shrink-0">
-                <ProductCard product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
-              </div>
-            ))}
-          </ProductCarousel>
-          <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="sm:hidden w-full mt-6">Ver todos <ChevronRight size={14} /></Btn>
-        </div>
-      </section>
-
-      {/* Newsletter */}
-      <section className="py-5 sm:py-6 md:py-7 bg-[#0b1220]">
-        <div className="max-w-xl mx-auto px-3 sm:px-4 text-center">
-          <p className="text-[10px] sm:text-xs font-bold text-blue-200 uppercase tracking-widest mb-1 sm:mb-1.5">Mantente al día</p>
-          <h2 className="font-display text-2xl sm:text-3xl text-white leading-[1.05] mb-1 sm:mb-1.5">Recibe ofertas exclusivas</h2>
-          <p className="text-blue-200 text-xs sm:text-sm mb-3 sm:mb-4">Suscríbete para recibir novedades y promociones disponibles.</p>
-          <form onSubmit={handleNewsletterSubmit} className="flex flex-col sm:flex-row gap-2 max-w-sm mx-auto">
+      <section className="bg-[#0b1220] py-5 sm:py-6 md:py-7">
+        <div className="mx-auto max-w-xl px-3 text-center sm:px-4">
+          <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-blue-200 sm:text-xs">Mantente al día</p>
+          <h2 className="font-display text-2xl leading-[1.05] text-white sm:text-3xl">Recibe ofertas exclusivas</h2>
+          <p className="mt-2 text-xs text-blue-200 sm:text-sm">Suscríbete para recibir novedades y promociones disponibles.</p>
+          <form onSubmit={handleNewsletterSubmit} className="mx-auto mt-4 flex max-w-sm flex-col gap-2 sm:flex-row" aria-live="polite">
             <label htmlFor="newsletter-email" className="sr-only">Correo electrónico</label>
             <input
               id="newsletter-email"
@@ -1363,82 +1424,130 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout }: {
               type="email"
               autoComplete="email"
               required
-              disabled={!privacyPolicyUrl}
+              disabled={!newsletterAvailable}
               value={newsletterEmail}
               onChange={(event) => setNewsletterEmail(event.target.value)}
               placeholder="tu@email.com"
-              className="flex-1 px-4 py-3 rounded-xl text-sm text-slate-800 bg-white placeholder-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+              className="flex-1 rounded-xl bg-white px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-200"
             />
-            <button type="submit" disabled={newsletterLoading || !privacyPolicyUrl || !newsletterConsent}
-              className="px-5 py-3 rounded-xl bg-[#00e676] text-slate-950 text-sm font-bold hover:bg-[#00c853] disabled:cursor-wait disabled:opacity-70 transition-colors whitespace-nowrap w-full sm:w-auto">
-              {newsletterLoading ? "Enviando…" : "Suscribirme"}
+            <button
+              type="submit"
+              disabled={newsletterLoading || !newsletterAvailable || !newsletterConsent}
+              className="w-full whitespace-nowrap rounded-xl bg-[#00e676] px-5 py-3 text-sm font-bold text-slate-950 transition-colors hover:bg-[#00c853] disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
+            >
+              {newsletterLoading ? "Enviando…" : "Recibir mi descuento"}
             </button>
           </form>
-          {privacyPolicyUrl ? (
-            <label className="mx-auto mt-3 flex max-w-sm items-start gap-2 text-left text-xs text-blue-100">
-              <input type="checkbox" required checked={newsletterConsent} onChange={(event) => setNewsletterConsent(event.target.checked)} className="mt-0.5 accent-emerald-500" />
-              <span>Acepto el uso de mi correo para recibir novedades y he leído la <a href={privacyPolicyUrl} target="_blank" rel="noreferrer" className="font-bold underline">política de privacidad</a>.</span>
-            </label>
-          ) : (
-            <p role="status" className="mx-auto mt-3 max-w-sm text-xs text-blue-100">Suscripción pendiente: falta publicar y configurar la política de privacidad.</p>
+          <label className="mx-auto mt-3 flex max-w-sm items-start gap-2 text-left text-xs text-blue-100">
+            <input
+              type="checkbox"
+              checked={newsletterConsent}
+              onChange={(event) => setNewsletterConsent(event.target.checked)}
+              className="mt-0.5 accent-emerald-500"
+              aria-label="Acepto la Política de Privacidad"
+            />
+            <span>
+              Al suscribirte aceptas nuestra <a href={privacyPolicyUrl} className="font-bold underline underline-offset-2">Política de Privacidad</a>.
+            </span>
+          </label>
+          {!newsletterAvailable && (
+            <p role="status" aria-live="polite" className="mx-auto mt-3 max-w-sm text-xs text-blue-100">
+              {STORE_CONFIG.newsletterDisabledMessage}
+            </p>
           )}
           {newsletterMessage && (
-            <p role={newsletterError ? "alert" : "status"} className={`mt-3 text-sm ${newsletterError ? "text-red-100" : "text-emerald-100"}`}>
+            <p role={newsletterError ? "alert" : "status"} aria-live="polite" className={`mt-3 text-sm ${newsletterError ? "text-red-100" : "text-emerald-100"}`}>
               {newsletterMessage}
             </p>
           )}
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-[#0b1220] text-slate-300 pt-10 sm:pt-14 pb-6 sm:pb-8">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8 mb-8 sm:mb-10">
+      <footer className="bg-[#0b1220] pb-6 pt-10 text-slate-300 sm:pb-8 sm:pt-14">
+        <div className="mx-auto max-w-7xl px-3 sm:px-4 md:px-6">
+          <div className="mb-8 grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-8">
             <div>
-              <div className="flex items-center gap-2 mb-3 sm:mb-4">
+              <div className="mb-3 flex items-center gap-2 sm:mb-4">
                 <span className="font-extrabold text-white text-xs sm:text-sm">Urban<span className="text-[#f59e0b]">Sport</span></span>
               </div>
-              <p className="text-[11px] sm:text-xs leading-relaxed text-slate-400">Moda deportiva y accesorios premium. Tu mejor versión empieza aquí.</p>
+              <p className="text-[11px] leading-relaxed text-slate-400 sm:text-xs">Moda deportiva y accesorios para entrenar, moverte y vestir con estilo.</p>
             </div>
-            {[
-              { title: "Comprar", links: ["Zapatos deportivos", "Ropa Hombre", "Ropa Mujer", "Perfumes", "Relojes", "Gafas"] },
-            ].map((col) => (
-              <div key={col.title}>
-                <p className="text-xs font-bold text-white uppercase tracking-widest mb-3">{col.title}</p>
+            <div className="grid gap-6 sm:grid-cols-2">
+              <div>
+                <p className="mb-3 text-xs font-bold uppercase tracking-widest text-white">Comprar</p>
                 <ul className="space-y-2">
-                  {col.links.map((l) => {
-                    const categoryMap: Record<string, Category | null> = {
-                      "Zapatos deportivos": "Zapatos",
-                      "Ropa Hombre": "Ropa Hombre",
-                      "Ropa Mujer": "Ropa Mujer",
-                      "Perfumes": "Perfumes",
-                      "Relojes": "Relojes",
-                      "Gafas": "Gafas",
-                    };
-                    const category = categoryMap[l] ?? null;
-                    return (
-                      <li key={l}>
-                        {category && (
-                          <button type="button" onClick={() => { onCategorySelect(category); onNavigate("catalog"); }}
-                            className="min-h-10 text-left w-full text-xs text-slate-400 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-white transition-colors">
-                            {l}
-                          </button>
-                        )}
-                      </li>
-                    );
-                  })}
+                  {NAV_CATEGORIES.map((category) => (
+                    <li key={category.name}>
+                      <button type="button" onClick={() => { onCategorySelect(category.name as Category); onNavigate("catalog"); }} className="min-h-10 w-full text-left text-xs text-slate-400 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
+                        {category.name}
+                      </button>
+                    </li>
+                  ))}
                 </ul>
               </div>
-            ))}
+              <div>
+                <p className="mb-3 text-xs font-bold uppercase tracking-widest text-white">Ayuda</p>
+                <ul className="space-y-2">
+                  <li><button type="button" onClick={() => onNavigate("shipping")} className="min-h-10 w-full text-left text-xs text-slate-400 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">Envíos</button></li>
+                  <li><button type="button" onClick={() => onNavigate("returns")} className="min-h-10 w-full text-left text-xs text-slate-400 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">Cambios y devoluciones</button></li>
+                  <li><button type="button" onClick={() => onNavigate("privacy")} className="min-h-10 w-full text-left text-xs text-slate-400 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">Política de privacidad</button></li>
+                  <li><button type="button" onClick={() => onNavigate("terms")} className="min-h-10 w-full text-left text-xs text-slate-400 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">Términos y condiciones</button></li>
+                  <li><button type="button" onClick={() => onNavigate("contact")} className="min-h-10 w-full text-left text-xs text-slate-400 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">Contacto</button></li>
+                </ul>
+              </div>
+            </div>
           </div>
-          <div className="border-t border-slate-800 pt-6 flex flex-col sm:flex-row justify-center sm:justify-between items-center gap-3">
-            <p className="text-xs text-slate-500">© {new Date().getFullYear()} Urban Sport Store. Todos los derechos reservados.</p>
+          <div className="flex flex-col items-center justify-between gap-3 border-t border-slate-800 pt-6 sm:flex-row">
+            <p className="text-xs text-slate-500">© {new Date().getFullYear()} UrbanSport Store. Todos los derechos reservados.</p>
           </div>
         </div>
       </footer>
     </main>
   );
 }
+
+function LegalPage({ kind, onNavigate }: { kind: View; onNavigate: (v: View) => void }) {
+  const maps: Record<Exclude<View, "home" | "catalog" | "product" | "checkout" | "login" | "register" | "account" | "admin-login" | "admin">, { title: string; paragraph: string } > = {
+    privacy: {
+      title: "Política de privacidad",
+      paragraph: "Este contenido está pendiente de publicar y completar con la política real del negocio antes de activar la versión final.",
+    },
+    terms: {
+      title: "Términos y condiciones",
+      paragraph: "Este contenido está pendiente de revisión legal y validación antes de publicarse en producción.",
+    },
+    shipping: {
+      title: "Envíos",
+      paragraph: "Consulta las condiciones reales de envío, tiempos y costos antes de finalizar la compra. Este bloque está listo para configurarse en el administrador.",
+    },
+    returns: {
+      title: "Cambios y devoluciones",
+      paragraph: "Las condiciones de cambios y devoluciones deben definirse con la política comercial vigente antes de publicarse.",
+    },
+    contact: {
+      title: "Contacto",
+      paragraph: "Completa este bloque con los canales reales de atención, correo, teléfono o redes del negocio antes de publicarlo.",
+    },
+  };
+
+  const item = maps[kind as keyof typeof maps];
+  if (!item) return null;
+
+  return (
+    <main className="mx-auto max-w-3xl px-4 pb-16 pt-28 sm:px-6">
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_18px_45px_-30px_rgba(15,23,42,0.35)] sm:p-8">
+        <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-[#2457D6]">Configuración pendiente</p>
+        <h1 className="font-display text-3xl text-slate-900 sm:text-4xl">{item.title}</h1>
+        <p className="mt-4 text-base leading-relaxed text-slate-600">{item.paragraph}</p>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <button type="button" onClick={() => onNavigate("home")} className="min-h-11 rounded-xl bg-[#2457D6] px-5 py-3 text-sm font-bold text-white hover:bg-[#1d48b9]">Volver a la home</button>
+          <button type="button" onClick={() => onNavigate("catalog")} className="min-h-11 rounded-xl border border-slate-200 bg-slate-50 px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-100">Explorar catálogo</button>
+        </div>
+      </div>
+    </main>
+  );
+}
+
 
 // ─── CATALOG PAGE ─────────────────────────────────────────────────────────────
 
@@ -1639,8 +1748,8 @@ function CatalogPage({ filterCategory, onSelectProduct, onAddToCart, onNavigate,
 
 // ─── PRODUCT DETAIL ───────────────────────────────────────────────────────────
 
-function ProductDetailPage({ product, onBack, onAddToCart, onNavigate }: {
-  product: Product; onBack: () => void;
+function ProductDetailPage({ product, products, onBack, onAddToCart, onNavigate }: {
+  product: Product; products: Product[]; onBack: () => void;
   onAddToCart: (p: Product, size: string, color: string) => void;
   onNavigate: (v: View) => void;
 }) {
@@ -2064,7 +2173,8 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
         user = signUpResult.data.user;
         adminStatus = isAdminUser(user);
         onLogin(user, adminStatus);
-        toast.success(signUpResult.needsConfirmation ? "Cuenta creada. Revisa tu correo si tu configuración de Supabase requiere confirmación; ya puedes seguir usando la tienda." : "Registro exitoso. Ya puedes continuar en la tienda.");
+        const signUpNeedsConfirmation = 'needsConfirmation' in signUpResult && Boolean(signUpResult.needsConfirmation);
+        toast.success(signUpNeedsConfirmation ? "Cuenta creada. Revisa tu correo si tu configuración de Supabase requiere confirmación; ya puedes seguir usando la tienda." : "Registro exitoso. Ya puedes continuar en la tienda.");
         setEmail("");
         setPassword("");
         setName("");
@@ -2510,6 +2620,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
   setHomeNewArrivals: React.Dispatch<React.SetStateAction<Product[]>>;
   saveHomeContent: () => Promise<void>;
   homeContentSaving: boolean;
+  backendAdminAvailable?: boolean;
 }) {
   const [adminSection, setAdminSection] = useState(initialSection ?? "dashboard");
   const [searchTerm, setSearchTerm] = useState("");
@@ -2782,7 +2893,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
     if (!productForm.sku.trim()) errors.sku = "El SKU es requerido";
     if (productForm.price <= 0) errors.price = "El precio debe ser mayor a 0";
     if (productForm.stock < 0) errors.stock = "El stock no puede ser negativo";
-    if (!productForm.image && productForm.images.length === 0) errors.image = "Al menos una imagen es requerida";
+if (!productForm.image && (productForm.images?.length ?? 0) === 0) errors.image = "Al menos una imagen es requerida";
 
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
@@ -2934,7 +3045,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                     <XAxis dataKey="day" tick={{ fill: "#94a3b8", fontSize: 11 }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fill: "#94a3b8", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${(v / 1000000).toFixed(1)}M`} />
+                    <YAxis tick={{ fill: "#94a3b8", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `$${(v / 1000000).toFixed(1)}M`} />
                     <Tooltip
                       contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: "12px", color: "#0f172a", fontSize: "12px", boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }}
                       formatter={(v: number) => [`$${v.toLocaleString("es-CO")} COP`, "Ventas"]}
@@ -2951,7 +3062,7 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                 ) : <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={CAT_DATA} margin={{ top: 0, right: 0, left: -28, bottom: 0 }} layout="vertical">
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
-                    <XAxis type="number" tick={{ fill: "#94a3b8", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} />
+                    <XAxis type="number" tick={{ fill: "#94a3b8", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `${v}%`} />
                     <YAxis type="category" dataKey="name" tick={{ fill: "#64748b", fontSize: 10 }} axisLine={false} tickLine={false} width={55} />
                     <Tooltip
                       contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: "12px", fontSize: "12px", boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }}
@@ -3394,11 +3505,11 @@ function AdminDashboard({ onNavigate, products, createProduct, updateProduct, de
                         Agregar
                       </button>
                     </div>
-                    {productForm.images?.length > 0 && (
+                    {(productForm.images?.length ?? 0) > 0 && (
                       <div className="mt-3">
-                        <p className="text-xs font-semibold text-slate-600 mb-2">{productForm.images.length} imagen(es) en galería</p>
+                        <p className="text-xs font-semibold text-slate-600 mb-2">{productForm.images?.length ?? 0} imagen(es) en galería</p>
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-                        {productForm.images.map((img, index) => (
+                        {(productForm.images ?? []).map((img, index) => (
                             <div key={index} className="relative rounded-xl overflow-hidden border-2 border-slate-200 bg-white hover:border-slate-400 transition-colors group">
                             <img src={img} alt={`Galería ${index + 1}`} className="w-full h-24 object-cover" />
                               <button 
@@ -3810,16 +3921,16 @@ export default function App() {
       return `${trimmed}/api`;
     };
 
-    const normalizeHomeContentResponse = (data: Record<string, unknown>) => ({
+    const normalizeHomeContentResponse = (data: Record<string, unknown>): Partial<HomePageContent> => ({
       ...data,
-      heroTitle: data.hero_title ?? data.heroTitle,
-      heroSubtitle: data.hero_subtitle ?? data.heroSubtitle,
-      heroImage: data.hero_image ?? data.heroImage,
-      featuredCategoryIds: data.featured_category_ids ?? data.featuredCategoryIds,
-      featuredProductIds: data.featured_product_ids ?? data.featuredProductIds,
-      discountedProductIds: data.discounted_product_ids ?? data.discountedProductIds,
-      promoBanner: data.promo_banner ?? data.promoBanner,
-      newsletterEnabled: data.newsletter_enabled ?? data.newsletterEnabled,
+      heroTitle: typeof data.hero_title === 'string' ? data.hero_title : typeof data.heroTitle === 'string' ? data.heroTitle : undefined,
+      heroSubtitle: typeof data.hero_subtitle === 'string' ? data.hero_subtitle : typeof data.heroSubtitle === 'string' ? data.heroSubtitle : undefined,
+      heroImage: typeof data.hero_image === 'string' ? data.hero_image : typeof data.heroImage === 'string' ? data.heroImage : undefined,
+      featuredCategoryIds: typeof data.featured_category_ids === 'string' ? data.featured_category_ids : typeof data.featuredCategoryIds === 'string' ? data.featuredCategoryIds : undefined,
+      featuredProductIds: typeof data.featured_product_ids === 'string' ? data.featured_product_ids : typeof data.featuredProductIds === 'string' ? data.featuredProductIds : undefined,
+      discountedProductIds: typeof data.discounted_product_ids === 'string' ? data.discounted_product_ids : typeof data.discountedProductIds === 'string' ? data.discountedProductIds : undefined,
+      promoBanner: typeof data.promo_banner === 'string' ? data.promo_banner : typeof data.promoBanner === 'string' ? data.promoBanner : undefined,
+      newsletterEnabled: typeof data.newsletter_enabled === 'boolean' ? data.newsletter_enabled : typeof data.newsletterEnabled === 'boolean' ? data.newsletterEnabled : undefined,
     });
 
     const loadHomeContent = async () => {
@@ -3834,7 +3945,7 @@ export default function App() {
         setBackendHomeAvailable(true);
         const json = await res.json();
         if (json?.data) {
-          setHomeContent((prev) => ({ ...prev, ...(normalizeHomeContentResponse(json.data)) }));
+          setHomeContent((prev) => ({ ...prev, ...(normalizeHomeContentResponse(json.data) as Partial<HomePageContent>) }));
         }
       } catch (error) {
         console.warn('No se pudo cargar el contenido de la home desde backend.', error);
@@ -3926,7 +4037,7 @@ export default function App() {
   const saveHomeContent = async () => {
     setHomeContentSaving(true);
     try {
-      await updateHomeContentApi(homeContent);
+      await updateHomeContentApi(homeContent as unknown as Record<string, unknown>);
       toast.success('Contenido de la home guardado.');
     } catch (error) {
       console.error('Error guardando contenido de la home:', error);
@@ -4070,13 +4181,13 @@ export default function App() {
     try {
       const record = mapAppProductToProductRecord({ ...product, id: crypto.randomUUID() });
       const adminPayload: Record<string, unknown> = {
-        slug: record.slug,
+        slug: record.slug ?? undefined,
         name: record.name,
         price: record.price,
         description: record.description,
         sku: record.sku,
         stock: record.stock,
-        category_id: record.category_id ?? undefined,
+        category_id: record.category_id ?? record.category ?? undefined,
         compare_at_price: record.original_price ?? undefined,
         is_active: true,
       };
@@ -4085,7 +4196,7 @@ export default function App() {
         adminPayload.category = product.category;
       }
 
-      const created = await createProductWithFallback(adminPayload, record);
+      const created = await createProductViaAdminApi(adminPayload);
       const createdAppProduct = mapProductRecordToAppProduct(created);
       refreshProducts();
       toast.success("Producto creado y guardado correctamente.");
@@ -4107,7 +4218,7 @@ export default function App() {
       const { id: _ignoredId, ...recordUpdates } = record;
       const adminUpdates: Record<string, unknown> = {
         ...recordUpdates,
-        category_id: recordUpdates.category_id ?? undefined,
+        category_id: recordUpdates.category_id ?? recordUpdates.category ?? undefined,
         compare_at_price: record.original_price ?? undefined,
       };
 
@@ -4115,7 +4226,7 @@ export default function App() {
         adminUpdates.category = updates.category ?? productToUpdate.category;
       }
 
-      const updated = await updateProductWithFallback(productId, adminUpdates, recordUpdates);
+      const updated = await updateProductViaAdminApi(productId, adminUpdates);
       const updatedAppProduct = mapProductRecordToAppProduct(updated);
       refreshProducts();
       toast.success("Producto actualizado correctamente.");
@@ -4129,7 +4240,7 @@ export default function App() {
 
   const deleteProduct = async (productId: string) => {
     try {
-      await deleteProductWithFallback(productId);
+      await deleteProductViaAdminApi(productId);
       refreshProducts();
       toast.success("Producto eliminado correctamente.");
       try { recordAction('delete_product', { id: productId }); } catch (e) { }
@@ -4168,6 +4279,11 @@ export default function App() {
           account: "/",
           "admin-login": "/admin/login",
           admin: "/admin",
+          privacy: "/politica-de-privacidad",
+          terms: "/terminos-y-condiciones",
+          shipping: "/envios",
+          returns: "/cambios-y-devoluciones",
+          contact: "/contacto",
         };
         url.pathname = routePaths[v];
         url.searchParams.delete("view");
@@ -4269,6 +4385,7 @@ export default function App() {
       {view === "product" && selectedProduct && (
         <ProductDetailPage
           product={selectedProduct}
+          products={products}
           onBack={() => navigate("catalog")}
           onAddToCart={handleAddToCart}
           onNavigate={navigate}

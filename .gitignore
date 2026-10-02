@@ -46,7 +46,12 @@ test-results/
 api/pgdata/
 
 # Local Supabase CLI state
-supabase/
+supabase/.temp/
+supabase/.branches/
+supabase/.snapshots/
+!supabase/migrations/
+!supabase/migrations/*.sql
+!supabase/**/*.sql
 
 # Vercel local state
 .vercel

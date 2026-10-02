@@ -21,7 +21,7 @@ Pedidos, pagos, promociones, usuarios, reportes y movimientos de inventario no t
 
 Las funciones Vercel requieren `SUPABASE_URL`, `SUPABASE_ANON_KEY` y `SUPABASE_SERVICE_ROLE_KEY`. La service-role key es exclusivamente de servidor y nunca debe tener prefijo `VITE_`. Los nombres y placeholders están en `api/.env.example`; no hay credenciales demo.
 
-El proyecto Supabase vinculado está actualmente inactivo. Inspecciona el esquema y las políticas antes de aplicar migraciones o probar escrituras.
+El proyecto remoto está activo. La migración `20261002160428_secure_current_runtime_access` habilita RLS y permisos mínimos para las tablas actuales sin eliminar datos. La CLI local aún necesita autenticación; no ejecutes `supabase db push` hasta reconciliar el historial porque hay una migración remota `remote_schema` sin archivo local y migraciones duplicadas/legacy.
 
 ## Scripts
 

@@ -135,6 +135,53 @@ npm run dev
 - ✅ Email confirmation for registration
 - ✅ Row-level security in database
 
+## Supabase
+
+UrbanSport Store se está preparando para usar Supabase como la capa segura de PostgreSQL, autenticación y almacenamiento de referencias de imágenes. El proyecto actual es Vite + React + TypeScript, por lo que el uso recomendado es cliente público con `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`, y toda operación administrativa o sensible queda protegida en backend/API o en RLS.
+
+### Requisitos
+- Proyecto Supabase creado en la consola.
+- URL del proyecto del tipo `https://<project-ref>.supabase.co`.
+- Anon/public key para cliente.
+- Service role key solo en entorno del servidor, nunca en frontend.
+- Dominio de producción: `https://www.urbansportstore.online`.
+- Desarrollo local: `http://localhost:5173`.
+
+### Variables
+
+Archivo base a crear en la raíz del proyecto:
+
+```env
+VITE_SUPABASE_URL=
+VITE_SUPABASE_ANON_KEY=
+VITE_SUPABASE_STORAGE_BUCKET=product-images
+VITE_API_URL=http://localhost:4000
+VITE_TERMS_URL=
+VITE_PRIVACY_POLICY_URL=
+```
+
+No se incluye `SUPABASE_SERVICE_ROLE_KEY` en el frontend ni en el repositorio.
+
+### Migración SQL
+
+La migración base está en:
+- [supabase/migrations/0001_initial_urbansport_store.sql](supabase/migrations/0001_initial_urbansport_store.sql)
+
+Se deben aplicar en Supabase SQL Editor o con la CLI del proyecto, una vez que tengas acceso al entorno real.
+
+### Seguridad
+- El cliente del navegador solo usa la anon key.
+- Los cambios administrativos, stock, pedidos y operaciones sensibles deben protegerse con RLS y backend/API.
+- Las imágenes físicas no se almacenan como BLOB en PostgreSQL; se usa la ruta o URL de la imagen y, si el hosting lo permite, se puede usar Supabase Storage como alternativa futura.
+- La carpeta de almacenamiento físico `uploads/` debe quedar preparada como backend persistente, sin obligar a migrar de inmediato.
+
+### Primer administrador
+1. Crear usuario desde Auth en Supabase.
+2. Confirmar su email si la configuración lo exige.
+3. Buscar ese `id` en `auth.users`.
+4. Insertar o actualizar `public.profiles` con `role = 'admin'` usando SQL del dashboard.
+5. Verificar con el panel `/admin` y RLS habilitado.
+
 ## Environment Variables
 
 ### Frontend (.env.local)
