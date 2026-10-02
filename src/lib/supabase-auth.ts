@@ -1,8 +1,10 @@
 import type { RealtimeSubscription, User } from '@supabase/supabase-js';
 import { getSupabaseClient, isSupabaseEnabled } from './supabase-client';
 
-export const DEMO_ADMIN_EMAIL = 'admin@urbansport.test';
-export const DEMO_ADMIN_PASSWORD = 'Admin123!';
+export const DEMO_ADMIN_EMAIL = 'admin@urbansport.com';
+export const DEMO_ADMIN_PASSWORD = 'Admin1234';
+export const DEMO_ADMIN_LEGACY_EMAIL = 'admin@urbansport.test';
+export const DEMO_ADMIN_LEGACY_PASSWORD = 'Admin123!';
 const DEMO_ADMIN_STORAGE_KEY = 'demo-admin-user';
 
 const readStoredDemoUser = (): User | null => {
@@ -31,8 +33,11 @@ const clearDemoUser = () => {
 };
 
 export const getDemoAdminUser = (email: string, password: string): User | null => {
-  if (email.trim().toLowerCase() !== DEMO_ADMIN_EMAIL.toLowerCase()) return null;
-  if (password !== DEMO_ADMIN_PASSWORD) return null;
+  const normalizedEmail = email.trim().toLowerCase();
+  const isCurrentLogin = normalizedEmail === DEMO_ADMIN_EMAIL.toLowerCase() && password === DEMO_ADMIN_PASSWORD;
+  const isLegacyLogin = normalizedEmail === DEMO_ADMIN_LEGACY_EMAIL.toLowerCase() && password === DEMO_ADMIN_LEGACY_PASSWORD;
+
+  if (!isCurrentLogin && !isLegacyLogin) return null;
 
   const now = new Date().toISOString();
 
