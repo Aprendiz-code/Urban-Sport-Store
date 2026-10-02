@@ -33,6 +33,8 @@ import {
   signOut,
   getCurrentUser,
   onAuthStateChange,
+  requestPasswordRecovery,
+  updatePassword,
 } from "../lib/supabase-auth";
 import { getMyProfile, getProfileAccess, updateMyProfile } from "../lib/profile-service";
 
@@ -51,13 +53,16 @@ import type { Address as DomainAddress, GuestCartItem, Product as DomainProduct 
 type View =
   | "home" | "catalog" | "product" | "checkout"
   | "login" | "register" | "account"
-  | "admin-login" | "admin"
+  | "admin-login" | "admin" | "password-reset"
   | "privacy" | "terms" | "shipping" | "returns" | "contact";
 type ProductsStatus = "loading" | "ready" | "error";
 
 function getInitialView(): View {
   if (typeof window === "undefined") return "home";
   const { pathname, search } = window.location;
+  const query = new URLSearchParams(search);
+  const hash = new URLSearchParams(window.location.hash.slice(1));
+  if (pathname === "/reset-password" || query.get("type") === "recovery" || hash.get("type") === "recovery") return "password-reset";
   if (pathname === "/admin/login") return "admin-login";
   if (pathname === "/admin" || pathname.startsWith("/admin/") || new URLSearchParams(search).get("view") === "admin") return "admin";
   if (pathname === "/login") return "login";
@@ -1424,7 +1429,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
 }
 
 function LegalPage({ kind, onNavigate }: { kind: View; onNavigate: (v: View) => void }) {
-  const maps: Record<Exclude<View, "home" | "catalog" | "product" | "checkout" | "login" | "register" | "account" | "admin-login" | "admin">, { title: string; paragraph: string } > = {
+  const maps: Record<Exclude<View, "home" | "catalog" | "product" | "checkout" | "login" | "register" | "account" | "admin-login" | "admin" | "password-reset">, { title: string; paragraph: string } > = {
     privacy: {
       title: "Política de privacidad",
       paragraph: "Este contenido está pendiente de publicar y completar con la política real del negocio antes de activar la versión final.",
@@ -2016,6 +2021,7 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [recoveryMessage, setRecoveryMessage] = useState<string | null>(null);
   const [acceptedPolicies, setAcceptedPolicies] = useState(false);
   const termsUrl = import.meta.env.VITE_TERMS_URL?.trim() ?? "";
   const privacyPolicyUrl = import.meta.env.VITE_PRIVACY_POLICY_URL?.trim() ?? "";
@@ -2062,6 +2068,25 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
       setError(message === "Failed to fetch"
         ? "No fue posible conectar con el servicio de autenticación. Intenta nuevamente más tarde."
         : message || "Ocurrió un error inesperado.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePasswordRecovery = async () => {
+    if (!email.trim()) {
+      setError("Escribe tu correo electrónico para recibir el enlace.");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setRecoveryMessage(null);
+    try {
+      await requestPasswordRecovery(email.trim());
+      setRecoveryMessage("Si la cuenta existe, recibirás un enlace para cambiar la contraseña.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo enviar el enlace de recuperación.");
     } finally {
       setLoading(false);
     }
@@ -2127,7 +2152,7 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
             <div>
               <div className="flex justify-between items-center mb-2">
                 <label htmlFor="auth-password" className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Contraseña</label>
-                {!isRegister && <span className="text-xs text-slate-500">Recuperación de contraseña no disponible.</span>}
+                {!isRegister && <span className="text-xs text-slate-500">Usa el enlace si necesitas cambiarla.</span>}
               </div>
               <div className="relative">
                 <input 
@@ -2150,6 +2175,14 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
               </div>
             </div>
 
+            {!isRegister && (
+              <div className="text-right">
+                <button type="button" disabled={loading} onClick={() => void handlePasswordRecovery()} className="text-sm font-semibold text-[#1d4ed8] hover:text-blue-700 disabled:opacity-60">
+                  ¿Olvidaste tu contraseña?
+                </button>
+              </div>
+            )}
+
             {/* Terms checkbox for register */}
             {isRegister && (
               policiesAvailable ? (
@@ -2170,6 +2203,7 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
                 <p className="text-sm text-red-300 font-medium">{error}</p>
               </div>
             )}
+            {recoveryMessage && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">{recoveryMessage}</p>}
 
             {/* Submit button */}
             <button 
@@ -2198,6 +2232,66 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
           </button>
         </p>
       </div>
+    </main>
+  );
+}
+
+function PasswordRecoveryPage({ onNavigate }: { onNavigate: (view: View) => void }) {
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [complete, setComplete] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError(null);
+    if (password.length < 12) {
+      setError("La contraseña debe tener al menos 12 caracteres.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError("Las contraseñas no coinciden.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await updatePassword(password);
+      await signOut();
+      setComplete(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo actualizar la contraseña.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 px-4 py-12">
+      <section className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-7 shadow-xl sm:p-9">
+        <p className="text-sm font-bold text-[#1d4ed8]">UrbanSport Store</p>
+        <h1 className="mt-3 text-3xl font-extrabold text-slate-900">{complete ? "Contraseña actualizada" : "Crea una contraseña nueva"}</h1>
+        {complete ? (
+          <div className="mt-6 space-y-5">
+            <p role="status" className="text-sm text-slate-600">Ya puedes iniciar sesión con tu contraseña nueva.</p>
+            <button type="button" onClick={() => onNavigate("admin-login")} className="w-full rounded-xl bg-[#1d4ed8] px-4 py-3 font-bold text-white hover:bg-blue-700">Ir al inicio de sesión</button>
+          </div>
+        ) : (
+          <form onSubmit={(event) => void handleSubmit(event)} className="mt-6 space-y-4">
+            <div>
+              <label htmlFor="recovery-password" className="mb-1.5 block text-sm font-semibold text-slate-700">Nueva contraseña</label>
+              <input id="recovery-password" type="password" autoComplete="new-password" minLength={12} required value={password} onChange={(event) => setPassword(event.target.value)} className="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 focus:border-blue-600 focus:outline-none" />
+            </div>
+            <div>
+              <label htmlFor="recovery-password-confirm" className="mb-1.5 block text-sm font-semibold text-slate-700">Confirma la contraseña</label>
+              <input id="recovery-password-confirm" type="password" autoComplete="new-password" minLength={12} required value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} className="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 focus:border-blue-600 focus:outline-none" />
+            </div>
+            {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</p>}
+            <button type="submit" disabled={loading} className="w-full rounded-xl bg-[#1d4ed8] px-4 py-3 font-bold text-white hover:bg-blue-700 disabled:opacity-60">{loading ? "Actualizando…" : "Actualizar contraseña"}</button>
+          </form>
+        )}
+      </section>
     </main>
   );
 }
@@ -4279,6 +4373,7 @@ export default function App() {
           checkout: "/",
           login: "/login",
           register: "/register",
+          "password-reset": "/reset-password",
           account: "/",
           "admin-login": "/admin/login",
           admin: "/admin",
@@ -4432,6 +4527,7 @@ export default function App() {
       {view === "login" && <LoginPage isRegister={false} onNavigate={navigate} onLogin={handleAuthSuccess} />}
       {view === "register" && <LoginPage isRegister={true} onNavigate={navigate} onLogin={handleAuthSuccess} />}
       {view === "admin-login" && <LoginPage isRegister={false} onNavigate={navigate} onLogin={handleAuthSuccess} />}
+      {view === "password-reset" && <PasswordRecoveryPage onNavigate={navigate} />}
       {view === "account" && (
         <AccountPage
           onNavigate={navigate}

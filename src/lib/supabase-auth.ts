@@ -3,76 +3,12 @@ import { getSupabaseClient, isSupabaseEnabled } from './supabase-client';
 
 type RealtimeSubscription = { unsubscribe: () => void };
 
-export const DEMO_ADMIN_EMAIL = 'admin@urbansport.com';
-export const DEMO_ADMIN_PASSWORD = 'Admin1234';
-export const DEMO_ADMIN_LEGACY_EMAIL = 'admin@urbansport.test';
-export const DEMO_ADMIN_LEGACY_PASSWORD = 'Admin123!';
-const DEMO_ADMIN_STORAGE_KEY = 'demo-admin-user';
-
-const readStoredDemoUser = (): User | null => {
-  if (typeof window === 'undefined') return null;
-
-  try {
-    const raw = window.localStorage.getItem(DEMO_ADMIN_STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as User | null;
-    return parsed && parsed.email === DEMO_ADMIN_EMAIL ? parsed : null;
-  } catch {
-    return null;
-  }
-};
-
-const saveDemoUser = (user: User) => {
-  if (typeof window !== 'undefined') {
-    window.localStorage.setItem(DEMO_ADMIN_STORAGE_KEY, JSON.stringify(user));
-  }
-};
-
-const clearDemoUser = () => {
-  if (typeof window !== 'undefined') {
-    window.localStorage.removeItem(DEMO_ADMIN_STORAGE_KEY);
-  }
-};
-
-export const getDemoAdminUser = (email: string, password: string): User | null => {
-  const normalizedEmail = email.trim().toLowerCase();
-  const isCurrentLogin = normalizedEmail === DEMO_ADMIN_EMAIL.toLowerCase() && password === DEMO_ADMIN_PASSWORD;
-  const isLegacyLogin = normalizedEmail === DEMO_ADMIN_LEGACY_EMAIL.toLowerCase() && password === DEMO_ADMIN_LEGACY_PASSWORD;
-
-  if (!isCurrentLogin && !isLegacyLogin) return null;
-
-  const now = new Date().toISOString();
-
-  return {
-    id: 'demo-admin-user',
-    email: DEMO_ADMIN_EMAIL,
-    created_at: now,
-    updated_at: now,
-    last_sign_in_at: now,
-    app_metadata: {
-      role: 'ADMIN',
-      isAdmin: true,
-      provider: 'demo',
-    },
-    user_metadata: {
-      full_name: 'Admin Demo',
-      role: 'ADMIN',
-      isAdmin: true,
-    },
-    aud: 'authenticated',
-    role: 'authenticated',
-  } as User;
-};
-
 export const signInWithEmail = async (email: string, password: string) => {
-  const demoUser = getDemoAdminUser(email, password);
-  if (demoUser) {
-    saveDemoUser(demoUser);
-    return { data: { user: demoUser }, error: null };
-  }
-
   if (!isSupabaseEnabled()) {
-    return { data: { user: null }, error: new Error('El inicio de sesión requiere configurar Supabase.') };
+    return {
+      data: { user: null },
+      error: new Error('El inicio de sesión requiere configurar Supabase. No hay credenciales demo activas en producción.'),
+    };
   }
 
   const client = getSupabaseClient();
@@ -88,15 +24,35 @@ export const signInWithEmail = async (email: string, password: string) => {
   return result;
 };
 
-export const signUpWithEmail = async (email: string, password: string, options?: { name?: string }) => {
-  const demoUser = getDemoAdminUser(email, password);
-  if (demoUser) {
-    saveDemoUser(demoUser);
-    return { data: { user: demoUser }, error: null, needsConfirmation: false };
+export const requestPasswordRecovery = async (email: string) => {
+  if (!isSupabaseEnabled()) {
+    throw new Error('La recuperación requiere configurar Supabase.');
   }
 
+  const client = getSupabaseClient();
+  const { error } = await client.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/`,
+  });
+  if (error) throw error;
+};
+
+export const updatePassword = async (password: string) => {
   if (!isSupabaseEnabled()) {
-    return { data: { user: null }, error: new Error('El registro requiere configurar Supabase.'), needsConfirmation: false };
+    throw new Error('El cambio de contraseña requiere configurar Supabase.');
+  }
+
+  const client = getSupabaseClient();
+  const { error } = await client.auth.updateUser({ password });
+  if (error) throw error;
+};
+
+export const signUpWithEmail = async (email: string, password: string, options?: { name?: string }) => {
+  if (!isSupabaseEnabled()) {
+    return {
+      data: { user: null },
+      error: new Error('El registro requiere configurar Supabase. La autenticación demo no está habilitada.'),
+      needsConfirmation: false,
+    };
   }
 
   const client = getSupabaseClient();
@@ -126,8 +82,6 @@ export const signUpWithEmail = async (email: string, password: string, options?:
 };
 
 export const signOut = async () => {
-  clearDemoUser();
-
   if (!isSupabaseEnabled()) {
     return { error: null, data: null };
   }
@@ -137,11 +91,6 @@ export const signOut = async () => {
 };
 
 export const getCurrentUser = async () => {
-  const storedDemoUser = readStoredDemoUser();
-  if (storedDemoUser) {
-    return storedDemoUser;
-  }
-
   if (!isSupabaseEnabled()) {
     return null;
   }
@@ -167,12 +116,6 @@ export const getAccessToken = async () => {
 };
 
 export const onAuthStateChange = (callback: (event: string, session: { user: User | null } | null) => void) => {
-  const storedDemoUser = readStoredDemoUser();
-  if (storedDemoUser) {
-    callback('SIGNED_IN', { user: storedDemoUser });
-    return { unsubscribe: () => { /* no-op */ } } as RealtimeSubscription;
-  }
-
   if (!isSupabaseEnabled()) {
     return { unsubscribe: () => { /* no-op */ } } as RealtimeSubscription;
   }
@@ -182,15 +125,4 @@ export const onAuthStateChange = (callback: (event: string, session: { user: Use
     callback(event, session);
   });
   return data.subscription as RealtimeSubscription;
-};
-
-export const isAdminUser = (user: User | null) => {
-  if (!user) return false;
-  const metadata = user.app_metadata as Record<string, unknown> | undefined;
-  const role = typeof metadata?.role === 'string' ? metadata.role.toUpperCase() : '';
-  return (
-    ['OWNER', 'ADMIN', 'CATALOG_MANAGER', 'LOGISTICS', 'ACCOUNTANT'].includes(role) ||
-    metadata?.isAdmin === true ||
-    metadata?.is_admin === true
-  );
 };

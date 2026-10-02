@@ -1,27 +1,20 @@
-import { describe, expect, it } from 'vitest';
-import {
-  DEMO_ADMIN_EMAIL,
-  DEMO_ADMIN_PASSWORD,
-  DEMO_ADMIN_LEGACY_EMAIL,
-  DEMO_ADMIN_LEGACY_PASSWORD,
-  getDemoAdminUser,
-} from '../../src/lib/supabase-auth';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { signInWithEmail } from '../../src/lib/supabase-auth';
 
-describe('demo admin auth fallback', () => {
-  it('accepts the active demo admin credentials used to preview the admin panel', () => {
-    const demoUser = getDemoAdminUser(DEMO_ADMIN_EMAIL, DEMO_ADMIN_PASSWORD);
+vi.mock('../../src/lib/supabase-client', () => ({
+  getSupabaseClient: vi.fn(),
+  isSupabaseEnabled: () => false,
+}));
 
-    expect(demoUser).not.toBeNull();
-    expect(demoUser?.email).toBe(DEMO_ADMIN_EMAIL);
-    expect(demoUser?.app_metadata?.role).toBe('ADMIN');
-    expect(demoUser?.app_metadata?.isAdmin).toBe(true);
+describe('demo admin auth fallback security', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
-  it('keeps the legacy demo credentials working for compatibility', () => {
-    const legacyUser = getDemoAdminUser(DEMO_ADMIN_LEGACY_EMAIL, DEMO_ADMIN_LEGACY_PASSWORD);
+  it('requires real Supabase configuration and creates no local user', async () => {
+    const result = await signInWithEmail('admin@example.test', 'not-a-real-password');
 
-    expect(legacyUser).not.toBeNull();
-    expect(legacyUser?.email).toBe(DEMO_ADMIN_EMAIL);
-    expect(legacyUser?.app_metadata?.role).toBe('ADMIN');
+    expect(result.data.user).toBeNull();
+    expect(result.error?.message).toContain('configurar Supabase');
   });
 });
