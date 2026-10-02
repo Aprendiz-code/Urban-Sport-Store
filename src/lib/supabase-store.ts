@@ -49,82 +49,12 @@ export const buildProductImagePath = (file: File, prefix = 'products') => {
   return `${prefix}/${crypto.randomUUID()}-${timestamp}.${extension}`;
 };
 
-export const fetchProductsFromSupabase = async (limit = 12): Promise<ProductRecord[]> => {
-  const client = getSupabaseClient();
-  const { data, error } = await client.from('products').select('*').order('id', { ascending: false }).limit(limit);
-
-  if (error) {
-    throw error;
-  }
-
-  return (data ?? []) as ProductRecord[];
+export const uploadProductImage = async (_file: File, _path?: string): Promise<never> => {
+  throw new Error('La carga de imágenes está desactivada hasta configurar un proveedor de almacenamiento server-side.');
 };
 
-export const createProductInSupabase = async (product: ProductRecord) => {
-  const client = getSupabaseClient();
-  const { data, error } = await client.from('products').insert([product]).select('*').single();
-
-  if (error) {
-    throw error;
-  }
-
-  return data as ProductRecord;
-};
-
-export const seedProductsToSupabase = async (products: ProductRecord[]) => {
-  const client = getSupabaseClient();
-  const { data, error } = await client.from('products').insert(products).select('*');
-
-  if (error) {
-    throw error;
-  }
-
-  return (data ?? []) as ProductRecord[];
-};
-
-export const updateProductInSupabase = async (productId: string, updates: Partial<ProductRecord>) => {
-  const client = getSupabaseClient();
-  const { data, error } = await client.from('products').update(updates).eq('id', productId).select('*').single();
-
-  if (error) {
-    throw error;
-  }
-
-  return data as ProductRecord;
-};
-
-export const deleteProductInSupabase = async (productId: string) => {
-  const client = getSupabaseClient();
-  const { error } = await client.from('products').delete().eq('id', productId);
-
-  if (error) {
-    throw error;
-  }
-};
-
-export const uploadProductImage = async (file: File, path = buildProductImagePath(file)) => {
-  const client = getSupabaseClient();
-  const bucket = STORAGE_BUCKET;
-  const { data, error } = await client.storage.from(bucket).upload(path, file, {
-    cacheControl: '3600',
-    upsert: false,
-  });
-
-  if (error) {
-    throw error;
-  }
-
-  return data;
-};
-
-export const deleteProductImage = async (path: string) => {
-  const client = getSupabaseClient();
-  const bucket = STORAGE_BUCKET;
-  const { error } = await client.storage.from(bucket).remove([path]);
-
-  if (error) {
-    throw error;
-  }
+export const deleteProductImage = async (_path: string): Promise<never> => {
+  throw new Error('La eliminación de imágenes está desactivada hasta configurar un endpoint server-side autorizado.');
 };
 
 export const getPublicUrl = (bucket: string, path: string) => {

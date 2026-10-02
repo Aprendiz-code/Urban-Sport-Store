@@ -13,7 +13,7 @@ Rutas administrativas existentes:
 - `GET/PATCH /api/admin/home-content`
 - `GET /api/admin/audit`
 
-Cada handler valida el access token de Supabase y requiere un permiso RBAC asociado al rol en `app_metadata`. Los roles y permisos se definen en `lib/api-helpers/admin-rbac.ts`. La asignación de roles desde el panel no existe.
+Cada handler valida el access token de Supabase y consulta `public.profiles` desde el servidor. El permiso RBAC se deriva de `profiles.role` y requiere `profiles.is_active = true`; `app_metadata` y `user_metadata` no autorizan operaciones. La asignación de roles desde el panel no existe.
 
 Pedidos, pagos, promociones, usuarios, reportes y movimientos de inventario no tienen endpoints implementados aquí. No se deben tratar como funcionalidades disponibles.
 

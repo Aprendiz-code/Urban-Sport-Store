@@ -18,29 +18,11 @@ SUPABASE_SERVICE_ROLE_KEY=<your-service-role-key>
 
 ⚠️ **Important**: Never expose the service role key in the frontend or public repositories.
 
-## 2. User Roles in Supabase Auth
+## 2. Roles and permissions
 
-Define roles using custom claims in Supabase Auth:
+The only authorization source is `public.profiles.role` plus `public.profiles.is_active`. The API validates the Supabase access token, then loads the current profile from the server. RLS uses `private.is_admin()`; Auth metadata is never an authorization source. Role permissions are defined in `lib/api-helpers/admin-rbac.ts`.
 
-### Admin Role Setup
-
-1. After a user signs up/logs in via the app, go to Supabase Dashboard
-2. Navigate to **Auth > Users**
-3. Click on the user and edit their custom claims (JSON):
-
-```json
-{
-  "role": "ADMIN",
-  "isAdmin": true
-}
-```
-
-The RLS policies check for these exact claims when a user attempts to write/delete products.
-
-### Role Levels
-
-- **CUSTOMER**: Default role. Can only read products
-- **ADMIN**: Can create, update, and delete products
+The first administrator must be promoted manually by the project owner using a verified UUID in SQL Editor. Follow [docs/admin-role-management.md](admin-role-management.md). No public endpoint or signup field assigns roles.
 
 ## 3. Email Confirmation (User Registration)
 
@@ -65,16 +47,11 @@ Enable email verification to ensure users confirm their email before logging in.
 - User can immediately browse (storefront is public)
 - Admin features require both:
   - Email confirmation ✅
-  - Admin role in custom claims ✅
+  - An active profile with an allowed role in `public.profiles` ✅
 
 ## 4. RLS Policies
 
-All product mutations require:
-
-1. User is authenticated (`auth.uid()` is not null)
-2. User has the correct custom claim (`role = 'ADMIN'` or `isAdmin = true`)
-
-See [docs/supabase-rules.sql](./supabase-rules.sql) for the actual policies.
+Product mutations pass through the server-side admin API. Profile and Storage RLS use `private.is_admin()` backed by `profiles.role` and `profiles.is_active`. The old metadata-based policy SQL is archived and must not be run; see `supabase/migrations/20261002170400_unify_profile_authorization.sql`.
 
 ## 5. Architecture
 
@@ -83,8 +60,8 @@ Frontend (Vite + React)
   ├── Public reads → Supabase anon client (RLS)
   └── Admin writes → Backend service → Service role client → Supabase
 
-Backend (Node.js + Express)
-  └── /api/v1/admin/* → Uses service role key for safe writes
+Backend (Vercel serverless functions)
+  └── /api/admin/* → Validates bearer token, checks active profile, then uses server service role
       ├── POST /products
       ├── PATCH /products/:id
       └── DELETE /products/:id
@@ -97,15 +74,15 @@ To test the admin workflow:
 1. Start the backend: `cd api && npm run dev`
 2. Start the frontend: `npm run dev`
 3. Register a test user
-4. Manually add the admin role via Supabase dashboard
+4. Have the project owner promote the verified profile UUID manually in SQL Editor, following [docs/admin-role-management.md](admin-role-management.md)
 5. Use the admin panel to create/edit/delete products
-6. Monitor Supabase dashboard to see the changes reflected
+6. Review the resulting audit entries through the protected audit API
 
 ## 7. Troubleshooting
 
 ### "Insufficient permissions" when creating products
 
-- Check that the admin user has the custom claims set
+- Check that the authenticated user has an active profile with the expected role
 - Verify the RLS policies are applied
 - Ensure the backend is using the service role key
 

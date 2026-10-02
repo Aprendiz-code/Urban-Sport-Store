@@ -7,6 +7,8 @@
     "build": "vite build",
     "dev": "vite",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "supabase:preflight": "node scripts/supabase-preflight.mjs",
     "e2e": "playwright test"
   },
   "dependencies": {
@@ -64,7 +66,7 @@
     "tailwindcss": "4.1.12",
     "typescript": "^5.9.3",
     "vite": "6.3.5",
-    "vitest": "^5.0.3",
+    "vitest": "3.2.4",
     "zod": "^3.24.0"
   },
   "peerDependencies": {

@@ -64,13 +64,7 @@ RLS está habilitado en `categories`, `products`, `home_content`, `newsletter_su
 
 ## 7. Crear el primer administrador
 
-Tras crear el usuario en Supabase Auth, asigna el rol en **App Metadata** (no en User Metadata, que es editable por el propio usuario). La API reconoce `OWNER`, `ADMIN`, `CATALOG_MANAGER`, `LOGISTICS` y `ACCOUNTANT`; para administrar catálogo puede usarse:
-
-```json
-{"role":"ADMIN"}
-```
-
-Después de cambiar `app_metadata`, cierra y vuelve a iniciar sesión para obtener un JWT actualizado.
+La fuente de autorización es `public.profiles.role` junto con `public.profiles.is_active`. La promoción debe realizarla únicamente el dueño desde SQL Editor, con UUID verificado en Authentication → Users. Sigue [docs/admin-role-management.md](admin-role-management.md). No uses metadata de Auth, email ni datos del navegador para conceder permisos.
 
 ## 8. Probar registro, login y admin
 
@@ -78,12 +72,12 @@ Después de cambiar `app_metadata`, cierra y vuelve a iniciar sesión para obten
 2. Inicia sesión con correo y contraseña.
 3. Verifica que se crea el perfil
 automatizado con perfil `customer`.
-4. Prueba acceso a `/admin` con la cuenta administrative.
-5. Confirma que los permisos se validan en servidor.
+4. Prueba el acceso de interfaz a `/admin` con el perfil correspondiente.
+5. Confirma que cada operación se vuelve a autorizar en servidor desde `profiles`.
 
 ## 9. Imágenes de producto
 
-El frontend usa el bucket público `products` para URLs de lectura y requiere una sesión Supabase real de un usuario con rol administrativo en `app_metadata` para cargar o borrar archivos. El bucket existente y sus archivos se conservaron. El login demo local no crea un JWT de Supabase y no autoriza esas operaciones.
+El frontend solo usa URLs/rutas existentes para lectura. La carga y eliminación desde navegador están desactivadas. La policy Storage propuesta valida `private.is_admin()`, pero no se debe asumir que existe en remoto hasta consultar y reconciliar las policies efectivas.
 
 ## 10. Límites actuales
 

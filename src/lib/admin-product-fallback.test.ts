@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createProductViaAdminApi, deleteProductViaAdminApi, updateProductViaAdminApi } from './admin-product-fallback';
 import adminApi from './admin-api';
-import * as supabaseStore from './supabase-store';
 
 vi.mock('./admin-api', () => ({
   default: {
@@ -9,12 +8,6 @@ vi.mock('./admin-api', () => ({
     updateProductApi: vi.fn(),
     deleteProductApi: vi.fn(),
   },
-}));
-
-vi.mock('./supabase-store', () => ({
-  createProductInSupabase: vi.fn(),
-  updateProductInSupabase: vi.fn(),
-  deleteProductInSupabase: vi.fn(),
 }));
 
 describe('admin product API helpers', () => {
@@ -27,27 +20,27 @@ describe('admin product API helpers', () => {
     vi.mocked(adminApi.createProductApi).mockResolvedValueOnce(product as any);
 
     await expect(createProductViaAdminApi(product)).resolves.toEqual(product);
-    expect(supabaseStore.createProductInSupabase).not.toHaveBeenCalled();
+    expect(adminApi.createProductApi).toHaveBeenCalledWith(product);
   });
 
   it('propagates admin API failures without writing directly to Supabase', async () => {
     vi.mocked(adminApi.createProductApi).mockRejectedValueOnce(new Error('backend down'));
 
     await expect(createProductViaAdminApi({ name: 'Zapatilla' })).rejects.toThrow('backend down');
-    expect(supabaseStore.createProductInSupabase).not.toHaveBeenCalled();
+    expect(adminApi.createProductApi).toHaveBeenCalledOnce();
   });
 
   it('updates through the admin API without a browser-side write fallback', async () => {
     vi.mocked(adminApi.updateProductApi).mockResolvedValueOnce({ id: 'p-1' } as any);
 
     await expect(updateProductViaAdminApi('p-1', { name: 'Nuevo nombre' })).resolves.toEqual({ id: 'p-1' });
-    expect(supabaseStore.updateProductInSupabase).not.toHaveBeenCalled();
+    expect(adminApi.updateProductApi).toHaveBeenCalledWith('p-1', { name: 'Nuevo nombre' });
   });
 
   it('deletes through the admin API without a browser-side write fallback', async () => {
     vi.mocked(adminApi.deleteProductApi).mockResolvedValueOnce(undefined);
 
     await expect(deleteProductViaAdminApi('p-1')).resolves.toBeUndefined();
-    expect(supabaseStore.deleteProductInSupabase).not.toHaveBeenCalled();
+    expect(adminApi.deleteProductApi).toHaveBeenCalledWith('p-1');
   });
 });

@@ -1,12 +1,7 @@
+import { resolveApiBaseUrl } from './api-config';
+
 export async function subscribeToNewsletter(email: string): Promise<void> {
-  const configuredApiUrl = import.meta.env.VITE_API_URL?.trim().replace(/\/$/, "");
-  const apiRoot = !configuredApiUrl
-    ? "/api"
-    : configuredApiUrl.endsWith("/api")
-      ? configuredApiUrl
-      : configuredApiUrl.endsWith("/api/v1")
-        ? configuredApiUrl.replace(/\/v1$/, "")
-        : `${configuredApiUrl}/api`;
+  const apiRoot = resolveApiBaseUrl(import.meta.env.VITE_API_URL);
 
   const response = await fetch(`${apiRoot}/newsletter`, {
     method: "POST",

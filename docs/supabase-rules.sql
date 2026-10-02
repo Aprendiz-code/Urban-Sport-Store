@@ -1,3 +1,7 @@
+-- ARCHIVADO — NO EJECUTAR — INSEGURO PARA AUTORIZACIÓN
+-- Se conserva el SQL histórico como referencia. Estas policies confiaban en
+-- metadata editable de Auth. La autorización actual usa profiles + private.is_admin().
+/*
 -- Enable RLS for products
 alter table public.products enable row level security;
 
@@ -99,3 +103,4 @@ create policy if not exists "Allow service role full access to storage objects"
   to service_role
   using (true)
   with check (true);
+*/

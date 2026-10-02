@@ -12,9 +12,9 @@ La arquitectura que existe es React/TypeScript + Vite en el cliente, Supabase Au
 - Login: `/admin/login`
 - Un usuario sin sesión o sin rol administrativo no puede abrir el dashboard.
 - El cliente autentica con Supabase Auth y envía su access token como Bearer a las funciones API.
-- Cada función administrativa valida el token con Supabase y luego revisa el permiso requerido en `app_metadata`.
+- Cada función administrativa valida el token con Supabase y luego consulta `public.profiles.role` y `public.profiles.is_active` en el servidor.
 - Los roles reconocidos son `OWNER`, `ADMIN`, `CATALOG_MANAGER`, `LOGISTICS` y `ACCOUNTANT`. La matriz del backend está en `lib/api-helpers/admin-rbac.ts`.
-- El rol debe asignarse desde un contexto privilegiado de Supabase Auth. No existe una interfaz para crear administradores. No uses `user_metadata` ni almacenamiento del navegador para asignar permisos.
+- La fuente de verdad es `public.profiles`; ni `app_metadata`, ni `user_metadata`, ni almacenamiento del navegador conceden permisos. No existe una interfaz pública para crear administradores. La promoción manual por UUID está documentada en [docs/admin-role-management.md](docs/admin-role-management.md).
 
 ## Funciones conectadas
 

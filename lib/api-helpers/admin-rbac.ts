@@ -65,11 +65,9 @@ const ROLE_PERMISSIONS: Record<AdminRole, ReadonlySet<AdminPermission>> = {
   ]),
 };
 
-export function resolveAdminRole(metadata?: Record<string, unknown>): AdminRole | null {
-  const role = typeof metadata?.role === 'string' ? metadata.role.toUpperCase() : '';
+export function resolveAdminRole(profileRole?: unknown): AdminRole | null {
+  const role = typeof profileRole === 'string' ? profileRole.toUpperCase() : '';
   if ((ADMIN_ROLES as readonly string[]).includes(role)) return role as AdminRole;
-
-  if (metadata?.isAdmin === true || metadata?.is_admin === true) return 'ADMIN';
   return null;
 }
 

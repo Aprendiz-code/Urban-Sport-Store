@@ -10,6 +10,8 @@ api/dist/
 .env
 .env.*
 !.env.example
+.vercel-backend-prod.env
+.vercel-backend-prod-pulled.env
 api/.env
 api/.env.*
 !api/.env.example

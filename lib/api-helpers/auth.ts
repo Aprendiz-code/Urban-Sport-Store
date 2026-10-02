@@ -3,38 +3,34 @@ import { ApiError } from './response.js';
 
 export interface AuthUser {
   id: string;
-  email: string | null;
-  app_metadata?: Record<string, any>;
 }
 
 export async function getBearerToken(req: any): Promise<string> {
   const authHeader = req.headers?.authorization;
   if (!authHeader || typeof authHeader !== 'string') {
-    throw new ApiError(401, 'Missing Authorization header');
+    throw new ApiError(401, 'No autenticado.');
   }
 
   const match = authHeader.match(/^Bearer\s+(.+)$/i);
   if (!match) {
-    throw new ApiError(401, 'Invalid Authorization header format');
+    throw new ApiError(401, 'No autenticado.');
   }
 
   return match[1];
 }
 
-export async function validateSupabaseToken(req: any): Promise<AuthUser> {
+export async function requireAuthenticatedUser(req: any): Promise<AuthUser> {
   const token = await getBearerToken(req);
   if (!supabaseAdmin) {
-    throw new ApiError(500, 'Admin client not configured');
+    throw new ApiError(500, 'Configuración de permisos incompleta.');
   }
   const { data, error } = await supabaseAdmin.auth.getUser(token);
 
   if (error || !data?.user) {
-    throw new ApiError(401, 'Invalid or expired Supabase token');
+    throw new ApiError(401, 'No autenticado.');
   }
 
-  return {
-    id: data.user.id,
-    email: data.user.email ?? null,
-    app_metadata: data.user.app_metadata as Record<string, any> | undefined,
-  };
+  return { id: data.user.id };
 }
+
+export const validateSupabaseToken = requireAuthenticatedUser;
