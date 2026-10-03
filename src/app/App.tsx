@@ -93,16 +93,23 @@ const HOME_NAV_CATEGORIES = [
   { name: "Ropa Hombre", filterCategory: null },
   { name: "Ropa Mujer", filterCategory: null },
   { name: "Perfumes", filterCategory: null },
+  { name: "Relojes", filterCategory: null },
+  { name: "Gafas", filterCategory: null },
 ] as const;
 
 const HOME_COLLECTIONS = [
   { name: "Zapatos", subtitle: "Running · Training · Casual", image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=900&q=85", filterCategory: "Running" },
   { name: "Ropa Hombre", subtitle: "Camisetas · Buzos · Pantalones", image: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=900&q=85", filterCategory: null },
-  { name: "Ropa Mujer", subtitle: "Leggings · Tops · Conjuntos", image: "https://images.unsplash.com/photo-1571019613454-1cb2f99a2d8b?auto=format&fit=crop&w=900&q=85", filterCategory: null },
+  { name: "Ropa Mujer", subtitle: "Leggings · Tops · Conjuntos", image: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&w=900&q=85", filterCategory: null },
   { name: "Perfumes", subtitle: "Hombre · Mujer · Unisex", image: "https://images.unsplash.com/photo-1541643600914-78b084683601?auto=format&fit=crop&w=900&q=85", filterCategory: null },
   { name: "Relojes", subtitle: "Smartwatch · Deportivo · Casual", image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=900&q=85", filterCategory: null },
   { name: "Gafas", subtitle: "Running · Ciclismo · Outdoor", image: "https://images.unsplash.com/photo-1577803645773-f96470509666?auto=format&fit=crop&w=900&q=85", filterCategory: null },
 ];
+
+const HOME_APPAREL_BANNERS = [
+  { ...HOME_COLLECTIONS[1], eyebrow: "TEMPORADA 2026" },
+  { ...HOME_COLLECTIONS[2], eyebrow: "COLECCIÓN NUEVA" },
+] as const;
 
 function getProductCategories(products: Product[]): Category[] {
   return [...new Set(products.map((product) => product.category.trim()).filter(Boolean))]
@@ -884,9 +891,9 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
       {(currentView === "home" || currentView === "catalog") && (
         <div className="w-full bg-transparent pt-[9.75rem] sm:pt-[6.75rem]">
           <div className="category-navigation-scroll overflow-x-auto border-b border-slate-100 bg-white overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <nav aria-label="Categorías de productos" className="mx-auto flex min-h-11 max-w-7xl items-center justify-start gap-1 px-4 sm:min-h-14 sm:px-6 md:justify-center">
+            <nav aria-label="Categorías de productos" className="mx-auto flex min-h-11 max-w-7xl items-center justify-start gap-0 px-1 sm:min-h-14 sm:gap-1 sm:px-6 md:justify-center">
               {availableCategories.map((category) => (
-                <button key={category.name} type="button" onClick={() => onCategorySelect(category.filterCategory)} className="min-h-10 flex shrink-0 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-blue-50 hover:text-[#1d4ed8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8] sm:px-4 whitespace-nowrap">
+                <button key={category.name} type="button" onClick={() => onCategorySelect(category.filterCategory)} className="min-h-10 flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-0.5 text-[11px] font-semibold text-slate-600 transition-colors hover:bg-blue-50 hover:text-[#1d4ed8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8] sm:px-4 sm:text-sm">
                   {category.name}
                 </button>
               ))}
@@ -1284,43 +1291,67 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
         )}
       </section>
 
-      <section className="mx-auto max-w-7xl px-3 sm:px-4 md:px-6" aria-label="Ofertas destacadas o promoción general">
-        {hasRealDiscounts ? (
-          <>
-            <div className="mb-6 flex items-end justify-between gap-4">
-              <div>
-                <p className="mb-1 font-display text-sm uppercase tracking-[0.08em] text-[#c2410c] sm:text-base">OFERTAS DESTACADAS</p>
-                <h2 className="font-display text-[1.8rem] leading-[1.05] text-[#0b1220] sm:text-[2.4rem] md:text-[2.8rem]">Productos con descuento real</h2>
-              </div>
-            </div>
-            <ProductGrid>
-              {onSale.slice(0, 4).map((product) => (
-                <div key={product.id} className="min-w-0">
-                  <ProductCard product={product} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
-                </div>
-              ))}
-            </ProductGrid>
-          </>
-        ) : (
-          <div role="status" className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-700">
-            No hay promociones verificables publicadas.
-          </div>
-        )}
+      <section className="mx-auto max-w-7xl px-3 py-5 sm:px-4 sm:py-7 md:px-6" aria-label="Oferta especial de primera compra">
+        <button type="button" onClick={() => onNavigate("catalog")} className="block w-full overflow-hidden rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#1d4ed8]">
+          <img
+            src={content.promoBanner?.trim() || "/images/promo-discount-10.png"}
+            alt="Oferta especial de descuento en tu primera compra"
+            loading="lazy"
+            decoding="async"
+            className="block aspect-[2/1] w-full object-cover sm:aspect-[2.4/1]"
+          />
+        </button>
       </section>
 
-      <section className="py-8 sm:py-12 md:py-16">
+      <section className="mx-auto max-w-7xl px-3 pb-3 sm:px-4 md:px-6" aria-label="Colecciones de ropa">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {HOME_APPAREL_BANNERS.map((banner, index) => (
+            <button
+              key={banner.name}
+              type="button"
+              onClick={() => { onCategorySelect(banner.filterCategory); onNavigate("catalog"); }}
+              className="group relative h-36 overflow-hidden rounded-xl bg-[#0b1220] text-left sm:h-44"
+            >
+              <img src={banner.image} alt="" loading="lazy" decoding="async" className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-105" />
+              <div className={`absolute inset-0 ${index === 0 ? "bg-gradient-to-r from-[#0b1220]/90 via-[#0b1220]/55 to-transparent" : "bg-gradient-to-t from-[#0b1220]/75 via-[#0b1220]/15 to-transparent"}`} />
+              <div className="absolute inset-x-0 bottom-0 p-4 sm:p-5">
+                <span className={`mb-1 inline-flex rounded-full px-2 py-1 text-[9px] font-bold uppercase text-white ${index === 0 ? "bg-amber-500/90" : "bg-[#0b1220]/65"}`}>
+                  {banner.eyebrow}
+                </span>
+                <span className="block font-display text-xl uppercase leading-tight text-white sm:text-2xl">{banner.name}</span>
+                <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-slate-900">
+                  Explorar <ArrowRight size={13} />
+                </span>
+              </div>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="bg-[#fffaf3] py-8 sm:py-10 md:py-12" aria-label="Ofertas destacadas">
         <div className="mx-auto max-w-7xl px-3 sm:px-4 md:px-6">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {[{title:"Información del catálogo", copy:STORE_CONFIG.trustCopy.productInfo},{title:"Envíos por confirmar", copy:STORE_CONFIG.trustCopy.shipping},{title:"Cambios por confirmar", copy:"Las condiciones comerciales todavía no están configuradas."}].map((item) => (
-              <div key={item.title} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_12px_30px_-18px_rgba(15,23,42,0.3)]">
-                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-[#1d4ed8]">
-                  <Shield size={18} />
-                </div>
-                <h3 className="mb-2 text-lg font-bold text-slate-900">{item.title}</h3>
-                <p className="text-sm leading-relaxed text-slate-600">{item.copy}</p>
+          <div className="mb-5 flex items-end justify-between gap-4 sm:mb-7">
+            <div>
+              <p className="mb-1 font-display text-sm uppercase tracking-[0.08em] text-[#c2410c] sm:text-base">{content.saleSectionLabel}</p>
+              <h2 className="font-display text-[1.8rem] uppercase leading-[1.05] text-[#0b1220] sm:text-[2.4rem] md:text-[2.8rem]">{content.saleSectionTitle}</h2>
+            </div>
+            <button type="button" onClick={() => onNavigate("catalog")} className="mb-1 inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-slate-600 hover:text-[#1d4ed8] sm:text-sm">
+              Ver todos <ChevronRight size={14} />
+            </button>
+          </div>
+        {hasRealDiscounts ? (
+          <ProductGrid>
+            {onSale.slice(0, 4).map((product) => (
+              <div key={product.id} className="min-w-0">
+                <ProductCard product={product} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
               </div>
             ))}
-          </div>
+          </ProductGrid>
+        ) : (
+          <button type="button" onClick={() => onNavigate("catalog")} className="mx-auto flex min-h-16 items-center gap-1 text-sm font-semibold text-slate-500 hover:text-[#1d4ed8]">
+            Ver todos <ChevronRight size={14} />
+          </button>
+        )}
         </div>
       </section>
 
@@ -1372,7 +1403,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
               disabled={newsletterLoading || !newsletterAvailable || !newsletterConsent}
               className="w-full whitespace-nowrap rounded-xl bg-[#00e676] px-5 py-3 text-sm font-bold text-slate-950 transition-colors hover:bg-[#00c853] disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
             >
-              {newsletterLoading ? "Enviando…" : "Recibir mi descuento"}
+              {newsletterLoading ? "Enviando…" : "Suscribirme"}
             </button>
           </form>
           <label className="mx-auto mt-3 flex max-w-sm items-start gap-2 text-left text-xs text-blue-100">
