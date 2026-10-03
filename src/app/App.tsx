@@ -93,6 +93,8 @@ const HOME_NAV_CATEGORIES = [
   { name: "Ropa Hombre", filterCategory: null },
   { name: "Ropa Mujer", filterCategory: null },
   { name: "Perfumes", filterCategory: null },
+  { name: "Relojes", filterCategory: null },
+  { name: "Gafas", filterCategory: null },
 ] as const;
 
 const HOME_COLLECTIONS = [
@@ -578,35 +580,32 @@ function ProductCard({ product, onSelect, onAddToCart }: {
 function TopBenefitsBar() {
   const benefits = [
     "10% de descuento en tu primera compra",
-    "Consulta condiciones de cambio de talla",
+    "Envío gratis a toda Colombia a partir de $300.000",
+    "Soporte en línea 24/7",
+    "Compra segura y pagos protegidos",
+    "Productos seleccionados para tu estilo",
   ];
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
-  const [reduceMotion, setReduceMotion] = useState(false);
+  const [isPageVisible, setIsPageVisible] = useState(() => document.visibilityState === "visible");
 
   useEffect(() => {
-    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const handleChange = () => setReduceMotion(mediaQuery.matches);
+    const handleVisibilityChange = () => setIsPageVisible(document.visibilityState === "visible");
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
-    handleChange();
-    mediaQuery.addEventListener?.("change", handleChange);
-
-    return () => {
-      mediaQuery.removeEventListener?.("change", handleChange);
-    };
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, []);
 
   useEffect(() => {
-    if (reduceMotion || isPaused) return;
+    if (isPaused || !isPageVisible) return;
 
-    const cycleDuration = 5600;
     const timer = window.setTimeout(() => {
       setCurrentIndex((index) => (index + 1) % benefits.length);
-    }, cycleDuration);
+    }, 4000);
 
     return () => window.clearTimeout(timer);
-  }, [currentIndex, benefits.length, reduceMotion, isPaused]);
+  }, [currentIndex, benefits.length, isPaused, isPageVisible]);
 
   return (
     <>
@@ -614,7 +613,7 @@ function TopBenefitsBar() {
         .top-benefits-bar {
           position: relative;
           width: 100%;
-          height: 42px;
+          height: 48px;
           overflow: hidden;
           background: #0B1220;
           color: #ffffff;
@@ -632,18 +631,14 @@ function TopBenefitsBar() {
 
         .benefit-message {
           position: relative;
-          white-space: nowrap;
           font-family: 'Roboto', sans-serif;
           font-size: 0.76rem;
           font-weight: 600;
-          letter-spacing: 0.01em;
-          line-height: 1.2;
-          opacity: 0;
-          animation: benefit-slide 5.5s linear forwards;
+          line-height: 1.25;
           text-align: center;
-          max-width: calc(100% - 1.5rem);
-          overflow: hidden;
-          text-overflow: ellipsis;
+          max-width: min(100% - 1.5rem, 60rem);
+          padding: 0 0.5rem;
+          animation: benefit-fade 320ms ease-out both;
         }
 
         .top-benefits-bar:hover .benefit-message,
@@ -654,39 +649,23 @@ function TopBenefitsBar() {
         @media (min-width: 640px) {
           .benefit-message {
             font-size: 0.9rem;
-            max-width: none;
           }
         }
 
-        @keyframes benefit-slide {
-          0% {
-            transform: translateX(120vw);
+        @keyframes benefit-fade {
+          from {
             opacity: 0;
+            transform: translateY(3px);
           }
-          20% {
-            transform: translateX(0);
+          to {
             opacity: 1;
-          }
-          70% {
-            transform: translateX(0);
-            opacity: 1;
-          }
-          100% {
-            transform: translateX(-120vw);
-            opacity: 0;
+            transform: translateY(0);
           }
         }
 
         @media (prefers-reduced-motion: reduce) {
           .benefit-message {
-            transform: none;
             animation: none;
-            opacity: 1;
-            display: block;
-            margin: 0 auto;
-            white-space: normal;
-            max-width: 90%;
-            text-align: center;
           }
         }
       `}</style>
@@ -694,6 +673,7 @@ function TopBenefitsBar() {
       <div
         className="top-benefits-bar"
         aria-live="polite"
+        aria-atomic="true"
         onMouseEnter={() => setIsPaused(true)}
         onMouseLeave={() => setIsPaused(false)}
         onFocus={() => setIsPaused(true)}
