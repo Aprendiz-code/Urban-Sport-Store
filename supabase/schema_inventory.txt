@@ -1,0 +1,45 @@
+Inventory of SQL files and top-level objects (generated)
+
+Files inspected:
+- SUPABASE_INIT.sql
+- supabase/migrations/0001_init.sql
+- supabase/migrations/20260723_phase1_public_catalog.sql
+- supabase/migrations/20260723_phase2_admin_base.sql
+- supabase/migrations/20260723_phase3_backend_contract_proposal.sql
+- supabase/migrations/20260724_phase4_align_schema.sql
+- supabase/minimal-align.sql
+- supabase/seed.sql
+- supabase/seed_phase1_public.sql
+- supabase/seed_phase2_admin_test.sql (not read if empty)
+- supabase/remote_schema.sql (empty)
+
+Top-level schema objects (summary):
+
+From SUPABASE_INIT.sql (snapshot, PascalCase identifiers):
+- Enums: RoleType, ProductStatus, OrderStatus, PaymentStatus, CouponType, InventoryMovementType
+- Tables: Role, User, UserRole, Address, Category, Brand, Product, ProductImage, ProductVariant,
+  InventoryMovement, Cart, CartItem, Coupon, CouponUsage, Order, OrderItem, Payment,
+  PaymentEvent, Shipment, Review, AuditLog, PasswordResetToken
+- Indexes: many UNIQUE and regular indexes (e.g. Category_slug_key, Product_sku_key, etc.)
+- Foreign keys: numerous ALTER TABLE ... ADD CONSTRAINT statements (naming like Product_categoryId_fkey)
+- Policies: RLS policies for `profiles`/products/categories/home_content/newsletter_subscribers/audit_logs etc. (uses `auth.uid()` checks)
+- Triggers/Functions: not obviously defined in same naming (uses createdAt/updatedAt columns)
+
+From migrations (snake_case, public schema):
+- 0001_init.sql defines: extension pgcrypto, function public.set_updated_at(), tables: public.profiles,
+  public.categories, public.products, public.home_content, public.newsletter_subscribers, public.audit_logs
+  plus triggers (trg_*_set_updated_at) and RLS policies for several tables
+- 20260723_phase1_public_catalog.sql: categories, products, home_content, newsletter_subscribers,
+  indexes, a seed row for home_content
+- 20260723_phase2_admin_base.sql: profiles, audit_logs, indexes, set_updated_at(), trigger creation
+- 20260723_phase3_backend_contract_proposal.sql: proposal file (creates canonical tables similar to phase1+phase2),
+  seeds (home_content), triggers, index creation; marked as "proposal only" and NOT applied automatically
+- 20260724_phase4_align_schema.sql: ALTER TABLE changes (newsletter_subscribers additions: status, source, updated_at),
+  audit_logs refactor (before_data, after_data, entity_id_uuid), FK change for products.category_id to ON DELETE RESTRICT,
+  indexes and comments
+- minimal-align.sql: small ALTERs: add status, add check constraint, add before_data/after_data/entity_id_uuid and an UPDATE to migrate entity_id -> entity_id_uuid
+- seed files: `seed.sql`, `seed_phase1_public.sql` contain example data and idempotent upserts
+
+Notes:
+- Some files are explicit "proposal" or "phase" files; some are applied/migratory. There are seeds and metadata backups too.
+- Naming conventions differ: SUPABASE_INIT.sql uses PascalCase and camelCase columns; migrations use snake_case and public schema.

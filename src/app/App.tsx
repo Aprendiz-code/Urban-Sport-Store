@@ -88,6 +88,22 @@ function getInitialAdminSection(): string | undefined {
 type Category = string;
 type Product = DomainProduct;
 
+const HOME_NAV_CATEGORIES = [
+  { name: "Zapatos", filterCategory: "Running" },
+  { name: "Ropa Hombre", filterCategory: null },
+  { name: "Ropa Mujer", filterCategory: null },
+  { name: "Perfumes", filterCategory: null },
+] as const;
+
+const HOME_COLLECTIONS = [
+  { name: "Zapatos", subtitle: "Running · Training · Casual", image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=900&q=85", filterCategory: "Running" },
+  { name: "Ropa Hombre", subtitle: "Camisetas · Buzos · Pantalones", image: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=900&q=85", filterCategory: null },
+  { name: "Ropa Mujer", subtitle: "Leggings · Tops · Conjuntos", image: "https://images.unsplash.com/photo-1571019613454-1cb2f99a2d8b?auto=format&fit=crop&w=900&q=85", filterCategory: null },
+  { name: "Perfumes", subtitle: "Hombre · Mujer · Unisex", image: "https://images.unsplash.com/photo-1541643600914-78b084683601?auto=format&fit=crop&w=900&q=85", filterCategory: null },
+  { name: "Relojes", subtitle: "Smartwatch · Deportivo · Casual", image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=900&q=85", filterCategory: null },
+  { name: "Gafas", subtitle: "Running · Ciclismo · Outdoor", image: "https://images.unsplash.com/photo-1577803645773-f96470509666?auto=format&fit=crop&w=900&q=85", filterCategory: null },
+];
+
 function getProductCategories(products: Product[]): Category[] {
   return [...new Set(products.map((product) => product.category.trim()).filter(Boolean))]
     .sort((left, right) => left.localeCompare(right));
@@ -561,11 +577,8 @@ function ProductCard({ product, onSelect, onAddToCart }: {
 
 function TopBenefitsBar() {
   const benefits = [
-    "Los pagos no están disponibles",
-    "Envíos y devoluciones por confirmar",
-    "Productos para entrenar, salir y moverte con estilo",
-    "Consulta la información publicada en cada producto",
-    "UrbanSport Store",
+    "10% de descuento en tu primera compra",
+    "Consulta condiciones de cambio de talla",
   ];
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -709,7 +722,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
   const [showSuggestions, setShowSuggestions] = useState(false);
   const suggestTimer = useRef<number | null>(null);
   const cartCount = cart.reduce((s, i) => s + i.qty, 0);
-  const availableCategories = [...new Set([...categories.map((category) => category.name), ...getProductCategories(products)])];
+  const availableCategories = HOME_NAV_CATEGORIES;
   const showCustomerOrders = !isAdmin;
 
   // suggestions effect
@@ -753,7 +766,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
               <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 value={searchVal} onChange={(e) => setSearchVal(e.target.value)}
-                placeholder="Buscar zapatillas, ropa, relojes…"
+                placeholder="Buscar zapatillas, ropa, relojes..."
                 className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:border-[#1d4ed8]/50 focus:bg-white transition-all"
                 onFocus={() => setShowSuggestions(true)}
                 onBlur={() => setTimeout(() => setShowSuggestions(false), 180)}
@@ -849,7 +862,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
               id="mobile-product-search"
               value={searchVal}
               onChange={(event) => setSearchVal(event.target.value)}
-              placeholder="Buscar zapatillas, ropa, relojes…"
+              placeholder="Buscar zapatillas, ropa, relojes..."
               className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-10 pr-4 text-sm text-slate-700 placeholder-slate-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1d4ed8]"
               onFocus={() => setShowSuggestions(true)}
               onBlur={() => setTimeout(() => setShowSuggestions(false), 180)}
@@ -873,8 +886,8 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
           <div className="category-navigation-scroll overflow-x-auto border-b border-slate-100 bg-white overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <nav aria-label="Categorías de productos" className="mx-auto flex min-h-11 max-w-7xl items-center justify-start gap-1 px-4 sm:min-h-14 sm:px-6 md:justify-center">
               {availableCategories.map((category) => (
-                <button key={category} type="button" onClick={() => onCategorySelect(category)} className="min-h-10 flex shrink-0 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-blue-50 hover:text-[#1d4ed8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8] sm:px-4 whitespace-nowrap">
-                  {category}
+                <button key={category.name} type="button" onClick={() => onCategorySelect(category.filterCategory)} className="min-h-10 flex shrink-0 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-blue-50 hover:text-[#1d4ed8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8] sm:px-4 whitespace-nowrap">
+                  {category.name}
                 </button>
               ))}
             </nav>
@@ -1100,20 +1113,10 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
   const featured = featuredProducts;
   const newArrivals = newArrivalsProducts;
   const onSale = saleProducts;
-  const homeCategoryNames = [...new Set([
-    ...categories.map((category) => category.name),
-    ...getProductCategories(products),
-  ])];
-  const homeCategories = homeCategoryNames.map((name) => ({
-    name,
-    image: categories.find((category) => category.name === name)?.image
-      ?? products.find((product) => product.category === name)?.image
-      ?? '',
-    sub: `${products.filter((product) => product.category === name).length} productos`,
-  }));
+  const homeCategories = HOME_COLLECTIONS;
   const hasRealDiscounts = onSale.some((product) => typeof product.originalPrice === "number" && product.originalPrice > product.price);
   const privacyPolicyUrl = import.meta.env.VITE_PRIVACY_POLICY_URL?.trim() || STORE_CONFIG.privacyPolicyPath;
-  const newsletterAvailable = Boolean(import.meta.env.VITE_API_URL?.trim());
+  const newsletterAvailable = !import.meta.env.DEV || Boolean(import.meta.env.VITE_API_URL?.trim());
   const [newsletterEmail, setNewsletterEmail] = useState("");
   const [newsletterLoading, setNewsletterLoading] = useState(false);
   const [newsletterMessage, setNewsletterMessage] = useState("");
@@ -1161,7 +1164,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
 
   return (
     <main>
-      <section className="relative flex min-h-[360px] items-center justify-center overflow-hidden bg-[#0b1220] sm:min-h-[420px] md:min-h-[500px]">
+      <section className="relative flex min-h-[430px] items-center justify-center overflow-hidden bg-[#0b1220] sm:min-h-[480px] md:min-h-[520px]">
         <img
           src="https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=1600&h=900&fit=crop&auto=format"
           alt="Atleta entrenando al aire libre"
@@ -1173,11 +1176,14 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
 
         <div className="relative z-10 mx-auto w-full max-w-7xl px-3 py-6 sm:px-4 sm:py-8 md:px-6 md:py-10">
           <div className="max-w-2xl">
-            <h1 className="mb-3 max-w-xl font-display text-[2.3rem] leading-[1.02] tracking-[-0.04em] text-white sm:text-[3.4rem] md:text-[4.1rem] lg:text-[4.6rem]">
-              Calzado y ropa deportiva para moverte con estilo
+            <span className="mb-4 inline-flex items-center rounded-full border border-white/30 bg-white/10 px-3 py-1.5 text-[10px] font-bold uppercase text-white backdrop-blur-sm sm:text-xs">
+              COLECCIÓN 2026
+            </span>
+            <h1 className="mb-3 max-w-xl font-display text-[2.6rem] leading-[0.98] text-white sm:text-[3.4rem] md:text-[4.1rem] lg:text-[4.6rem]">
+              VISTE TU ESTILO. MARCA LA DIFERENCIA.
             </h1>
             <p className="mb-6 max-w-lg text-base leading-relaxed text-slate-200 sm:text-lg md:text-xl">
-              Encuentra zapatillas, prendas y accesorios para entrenar, salir y disfrutar tu día.
+              Explora calzado, ropa deportiva y accesorios para completar tu estilo.
             </p>
             <div className="flex w-full flex-col gap-3 min-[480px]:w-auto min-[480px]:flex-row">
               <Btn
@@ -1187,7 +1193,16 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
                 onClick={() => onNavigate("catalog")}
                 className="w-full justify-center !bg-[#2457D6] !text-white hover:!bg-[#1d48b9] min-[480px]:w-auto"
               >
-                Ver catálogo <ArrowRight size={16} />
+                Comprar ahora <ArrowRight size={16} />
+              </Btn>
+              <Btn
+                type="button"
+                variant="secondary"
+                size="lg"
+                onClick={() => onNavigate("catalog")}
+                className="w-full justify-center !border-white/35 !bg-slate-950/35 !text-white hover:!bg-slate-900/70 min-[480px]:w-auto"
+              >
+                Ver novedades
               </Btn>
             </div>
           </div>
@@ -1197,29 +1212,29 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
       <section className="mx-auto max-w-7xl px-3 pb-2 pt-8 sm:px-4 sm:pt-10 md:px-6 md:pt-12">
         <div className="mb-6 sm:mb-8">
           <p className="mb-1 font-display text-sm uppercase tracking-[0.08em] text-[#2457D6] sm:text-base">{content.categorySectionLabel}</p>
-          <h2 className="font-display text-[1.8rem] leading-[1.05] text-[#0b1220] sm:text-[2.4rem] md:text-[2.8rem]">{content.categorySectionTitle}</h2>
+          <h2 className="font-display text-[1.8rem] uppercase leading-[1.05] text-[#0b1220] sm:text-[2.4rem] md:text-[2.8rem]">{content.categorySectionTitle}</h2>
         </div>
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-6">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
           {homeCategories.map((cat) => (
             <button
               key={cat.name}
               type="button"
-              aria-label={`${cat.name}: ${cat.sub}`}
-              onClick={() => onCategorySelect(cat.name as Category)}
-              className="group relative min-h-[180px] overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-[0_12px_30px_-18px_rgba(15,23,42,0.38)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-18px_rgba(15,23,42,0.4)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8] active:scale-[0.99]"
+              aria-label={`${cat.name}: ${cat.subtitle}`}
+              onClick={() => onCategorySelect(cat.filterCategory)}
+              className="group relative aspect-[1.12] min-h-[150px] overflow-hidden rounded-2xl border border-slate-200 bg-slate-800 text-left shadow-[0_12px_30px_-18px_rgba(15,23,42,0.38)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-18px_rgba(15,23,42,0.4)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8] active:scale-[0.99]"
             >
-              {cat.image && <img
+              <img
                 src={cat.image}
                 alt={cat.name}
                 loading="lazy"
                 decoding="async"
                 onError={(event) => { event.currentTarget.style.display = "none"; }}
                 className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-              />}
+              />
               <div className="absolute inset-0 bg-gradient-to-t from-[#0b1220]/85 via-[#0b1220]/25 to-transparent" />
-              <div className="relative flex h-full min-h-[180px] flex-col justify-end p-3 sm:p-4">
+              <div className="relative flex h-full min-h-[150px] flex-col justify-end p-3 sm:min-h-[190px] sm:p-4">
                 <p className="font-display text-xl leading-[1.05] text-white sm:text-2xl">{cat.name}</p>
-                <p className="mt-1 text-[11px] leading-relaxed text-slate-200 sm:text-xs">{cat.sub}</p>
+                <p className="mt-1 text-[11px] leading-relaxed text-slate-200 sm:text-xs">{cat.subtitle}</p>
               </div>
             </button>
           ))}
@@ -1230,7 +1245,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
         <div className="mb-6 flex items-end justify-between gap-4 sm:mb-8">
           <div>
             <p className="mb-1 font-display text-sm uppercase tracking-[0.08em] text-[#1d4ed8] sm:text-base">{content.featuredSectionLabel}</p>
-            <h2 className="font-display text-[1.8rem] leading-[1.05] text-slate-900 sm:text-[2.4rem] md:text-[2.8rem]">{content.featuredSectionTitle}</h2>
+            <h2 className="font-display text-[1.8rem] uppercase leading-[1.05] text-slate-900 sm:text-[2.4rem] md:text-[2.8rem]">PRODUCTOS DESTACADOS</h2>
           </div>
           {productsStatus === "ready" && featured.length > 0 && (
             <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="hidden sm:flex">

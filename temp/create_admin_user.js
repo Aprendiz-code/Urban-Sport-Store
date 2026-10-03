@@ -1,21 +1,4 @@
-const { createClient } = require('@supabase/supabase-js');
-require('dotenv').config({ path: '.env' });
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
-(async () => {
-  const email = 'admin@urbansport.test';
-  const password = 'Admin123!';
-  const { data, error } = await supabase.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-    user_metadata: { role: 'ADMIN', isAdmin: true, full_name: 'Admin Test' },
-    app_metadata: { role: 'ADMIN', isAdmin: true },
-  });
-  console.log(JSON.stringify({
-    data: data ? { id: data.user?.id, email: data.user?.email, app_metadata: data.user?.app_metadata } : null,
-    error: error ? { message: error.message, status: error.status } : null,
-  }, null, 2));
-})().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+console.error(
+  'Este script está desactivado. Crea la cuenta desde Supabase Auth y promueve el perfil manualmente según README.md.'
+);
+process.exitCode = 1;
