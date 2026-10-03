@@ -6,6 +6,7 @@
 # Exclude legacy compiled API artifacts
 api/dist/**
 api/test/**
+api/health.ts
 
 # Exclude legacy Express app source (not used by serverless runtime)
 api/src/**
