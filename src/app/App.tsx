@@ -1298,7 +1298,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
             alt="Oferta especial de descuento en tu primera compra"
             loading="lazy"
             decoding="async"
-            className="block aspect-[2/1] w-full object-cover sm:aspect-[2.4/1]"
+            className="block h-auto w-full object-contain"
           />
         </button>
       </section>
