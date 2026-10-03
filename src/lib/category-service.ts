@@ -7,6 +7,21 @@ export interface CategoryOption {
   image?: string | null;
 }
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function resolveProductCategoryName(
+  categoryId: string | null | undefined,
+  fallbackCategory: string | null | undefined,
+  categories: readonly CategoryOption[],
+): string {
+  const category = categories.find((option) => option.id === categoryId);
+  if (category) return category.name;
+
+  const fallback = fallbackCategory?.trim();
+  if (fallback && fallback !== categoryId && !UUID_PATTERN.test(fallback)) return fallback;
+  return 'Sin categoría';
+}
+
 const API_ROOT = resolveApiBaseUrl(import.meta.env.VITE_API_URL);
 
 export async function fetchPublicCategories(): Promise<CategoryOption[]> {

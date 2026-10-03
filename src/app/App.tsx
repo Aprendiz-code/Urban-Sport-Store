@@ -12,7 +12,7 @@ import HorizontalProductCarousel from "./components/ProductCarousel";
 import { STORE_CONFIG } from "./store-config";
 
 import { subscribeToNewsletter } from "../lib/newsletter";
-import { fetchPublicCategories, type CategoryOption } from "../lib/category-service";
+import { fetchPublicCategories, resolveProductCategoryName, type CategoryOption } from "../lib/category-service";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -175,7 +175,7 @@ const loadStoredAddresses = (): Address[] => {
   }
 };
 
-const mapProductRecordToAppProduct = (record: ProductRecord): Product => ({
+const mapProductRecordToAppProduct = (record: ProductRecord, categories: readonly CategoryOption[] = []): Product => ({
   id: record.id,
   name: record.name,
   brand: record.brand,
@@ -186,7 +186,7 @@ const mapProductRecordToAppProduct = (record: ProductRecord): Product => ({
   reviews: record.reviews ?? 0,
   image: record.image,
   images: record.images ?? [],
-  category: record.category_id ?? "Zapatos",
+  category: resolveProductCategoryName(record.category_id, record.category, categories),
   categoryId: record.category_id ?? undefined,
   subcategory: record.subcategory ?? "",
   stock: record.stock ?? 0,
@@ -3988,7 +3988,14 @@ export default function App() {
       setProductsStatus("loading");
 
       try {
-        const res = await fetch(`${apiUrl}/products`);
+        const [res, categories] = await Promise.all([
+          fetch(`${apiUrl}/products`),
+          fetchPublicCategories().catch((error) => {
+            console.warn('No se pudieron cargar categorías desde el API.', error);
+            return [];
+          }),
+        ]);
+        setCategoryOptions(categories);
         if (!res.ok) {
           throw new Error(`Products API returned ${res.status}`);
         }
@@ -3999,7 +4006,7 @@ export default function App() {
           throw new Error('Public API returned invalid payload');
         }
 
-        setProducts(json.data.map(mapProductRecordToAppProduct));
+        setProducts(json.data.map((record: ProductRecord) => mapProductRecordToAppProduct(record, categories)));
         setProductsStatus("ready");
       } catch (error) {
         if (!isActive) return;
@@ -4010,12 +4017,6 @@ export default function App() {
     };
 
     void loadProducts();
-    void fetchPublicCategories()
-      .then(setCategoryOptions)
-      .catch((error) => {
-        console.warn('No se pudieron cargar categorías desde el API.', error);
-        setCategoryOptions([]);
-      });
     return () => {
       isActive = false;
     };
