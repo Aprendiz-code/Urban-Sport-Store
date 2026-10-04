@@ -3075,6 +3075,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
 
     const errors = validateProductForm({
       name: productForm.name,
+      brand: productForm.brand,
       sku: productForm.sku,
       price: productForm.price,
       stock: productForm.stock,
@@ -3540,10 +3541,14 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                     <label className="text-xs font-bold text-slate-600 uppercase block mb-2">Marca</label>
                     <input 
                       value={productForm.brand} 
-                      onChange={(e) => updateField('brand', e.target.value)}
+                      onChange={(e) => {
+                        updateField('brand', e.target.value);
+                        setFormErrors((prev) => ({ ...prev, brand: '' }));
+                      }}
                       placeholder="Ej: Nike" 
-                      className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-white hover:border-slate-300 focus:border-slate-500 focus:outline-none transition-colors" 
+                      className={`w-full px-4 py-3 rounded-xl border-2 transition-colors ${formErrors.brand ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-white hover:border-slate-300 focus:border-slate-500'} focus:outline-none`}
                     />
+                    {formErrors.brand && <p className="text-xs text-red-600 mt-1">{formErrors.brand}</p>}
                   </div>
                 </div>
 

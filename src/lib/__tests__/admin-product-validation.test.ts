@@ -56,6 +56,22 @@ describe('admin product validation', () => {
     expect(validateProductForm({ ...validProduct, images: Array.from({ length: 11 }, (_, index) => `image-${index}`) })).toHaveProperty('gallery');
   });
 
+  it('requires a non-empty brand and accepts a valid brand value', () => {
+    const validProduct = {
+      name: 'Zapatilla Test',
+      brand: 'NIKE',
+      sku: 'SKU-1',
+      price: 120000,
+      stock: 10,
+      categoryId: '123e4567-e89b-12d3-a456-426614174000',
+      image: 'https://example.test/image.jpg',
+      images: [],
+    };
+
+    expect(validateProductForm(validProduct)).toEqual({});
+    expect(validateProductForm({ ...validProduct, brand: '' })).toMatchObject({ brand: 'La marca es requerida' });
+  });
+
   it.each(['blob:https://shop.example/id', 'data:image/png;base64,abc', 'images/local.png'])('rejects non-permanent main image references: %s', (image) => {
     expect(validateProductForm({
       name: 'Zapatilla Test',
