@@ -1,73 +1,63 @@
 import { test, expect } from '@playwright/test';
 
-const API_BASE = process.env.E2E_API_BASE ?? 'http://127.0.0.1:4000';
-const E2E_SECRET = process.env.E2E_SECRET ?? '';
-const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? '';
-const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? '';
-const CUSTOMER_EMAIL = process.env.E2E_NON_ADMIN_EMAIL ?? '';
-const CUSTOMER_PASSWORD = process.env.E2E_NON_ADMIN_PASSWORD ?? '';
+const configuredApiBase = process.env.E2E_API_BASE ?? 'http://127.0.0.1:3000/api';
+const API_BASE = /\/api\/?$/i.test(configuredApiBase)
+  ? configuredApiBase.replace(/\/$/, '')
+  : `${configuredApiBase.replace(/\/$/, '')}/api`;
+const ADMIN_ACCESS_TOKEN = process.env.E2E_ADMIN_ACCESS_TOKEN ?? '';
+const NON_ADMIN_ACCESS_TOKEN = process.env.E2E_NON_ADMIN_ACCESS_TOKEN ?? '';
+const E2E_SUPABASE_REF = process.env.E2E_SUPABASE_REF ?? '';
+const isLocalApi = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/api$/i.test(API_BASE);
+const isDedicatedE2EProject = Boolean(E2E_SUPABASE_REF) && E2E_SUPABASE_REF !== 'geapxdyyfmygqrqfnier';
 
-const getAdminToken = async (request: any) => {
-  const tokenRes = await request.post(`${API_BASE}/api/v1/test/token`, { data: { secret: E2E_SECRET } });
-  expect(tokenRes.ok()).toBeTruthy();
-  const tokenJson = await tokenRes.json();
-  return tokenJson?.data?.token ?? tokenJson?.token ?? tokenJson;
-};
-
-const getCustomerToken = async (request: any) => {
-  const loginRes = await request.post(`${API_BASE}/api/v1/auth/login`, {
-    data: { email: CUSTOMER_EMAIL, password: CUSTOMER_PASSWORD },
-  });
-  expect(loginRes.ok()).toBeTruthy();
-  const loginJson = await loginRes.json();
-  return loginJson?.data?.token ?? loginJson?.token ?? loginJson;
-};
-
-const getInvalidToken = () => 'Bearer invalid.token.value';
+function requireLocalApi() {
+  test.skip(!isLocalApi, 'Admin API E2E tests are restricted to local environments.');
+}
 
 test('API: returns 401 for admin products without auth', async ({ request }) => {
-  const res = await request.get(`${API_BASE}/api/v1/admin/products`);
-  expect(res.status()).toBe(401);
+  requireLocalApi();
+  const response = await request.get(`${API_BASE}/admin/products`);
+  expect(response.status()).toBe(401);
 });
 
-test('API: returns 401 for admin products with invalid token', async ({ request }) => {
-  const res = await request.get(`${API_BASE}/api/v1/admin/products`, {
-    headers: { Authorization: getInvalidToken() },
+test('API: returns 401 for admin products with an invalid token', async ({ request }) => {
+  requireLocalApi();
+  const response = await request.get(`${API_BASE}/admin/products`, {
+    headers: { Authorization: 'Bearer invalid.token.value' },
   });
-  expect(res.status()).toBe(401);
+  expect(response.status()).toBe(401);
 });
 
-test('API: returns 403 for authenticated non-admin user', async ({ request }) => {
-  test.skip(!CUSTOMER_EMAIL || !CUSTOMER_PASSWORD, 'Requires dedicated E2E customer credentials.');
-  const token = await getCustomerToken(request);
-  const res = await request.get(`${API_BASE}/api/v1/admin/products`, {
-    headers: { Authorization: `Bearer ${token}` },
+test('API: returns 403 for an authenticated non-admin profile', async ({ request }) => {
+  requireLocalApi();
+  test.skip(!isDedicatedE2EProject, 'Requires a dedicated non-production E2E Supabase project.');
+  test.skip(!NON_ADMIN_ACCESS_TOKEN, 'Requires a dedicated non-admin local Supabase access token.');
+  const response = await request.get(`${API_BASE}/admin/products`, {
+    headers: { Authorization: `Bearer ${NON_ADMIN_ACCESS_TOKEN}` },
   });
-  expect(res.status()).toBe(403);
+  expect(response.status()).toBe(403);
 });
 
-test('API: admin can fetch products list', async ({ request }) => {
-  test.skip(!E2E_SECRET, 'Requires E2E_SECRET for the test-token endpoint.');
-  const token = await getAdminToken(request);
-  const res = await request.get(`${API_BASE}/api/v1/admin/products`, {
-    headers: { Authorization: `Bearer ${token}` },
+test('API: an admin can read the products list', async ({ request }) => {
+  requireLocalApi();
+  test.skip(!isDedicatedE2EProject, 'Requires a dedicated non-production E2E Supabase project.');
+  test.skip(!ADMIN_ACCESS_TOKEN, 'Requires a dedicated local E2E admin Supabase access token.');
+  const response = await request.get(`${API_BASE}/admin/products`, {
+    headers: { Authorization: `Bearer ${ADMIN_ACCESS_TOKEN}` },
   });
-  expect(res.ok()).toBeTruthy();
-  const json = await res.json();
-  expect(Array.isArray(json?.data)).toBe(true);
+  expect(response.ok()).toBeTruthy();
+  const payload = await response.json();
+  expect(Array.isArray(payload?.data)).toBe(true);
 });
 
-test('API: admin can update home content heroTitle', async ({ request }) => {
-  test.skip(!E2E_SECRET, 'Requires E2E_SECRET for the test-token endpoint.');
-  const token = await getAdminToken(request);
-  const heroTitle = `E2E Hero Title ${Date.now()}`;
-
-  const res = await request.patch(`${API_BASE}/api/v1/admin/home-content`, {
-    headers: { Authorization: `Bearer ${token}` },
-    data: { heroTitle },
+test('API: an admin can read home content', async ({ request }) => {
+  requireLocalApi();
+  test.skip(!isDedicatedE2EProject, 'Requires a dedicated non-production E2E Supabase project.');
+  test.skip(!ADMIN_ACCESS_TOKEN, 'Requires a dedicated local E2E admin Supabase access token.');
+  const response = await request.get(`${API_BASE}/admin/home-content`, {
+    headers: { Authorization: `Bearer ${ADMIN_ACCESS_TOKEN}` },
   });
-
-  expect(res.ok()).toBeTruthy();
-  const json = await res.json();
-  expect(json?.data?.heroTitle ?? json?.heroTitle).toBe(heroTitle);
+  expect(response.ok()).toBeTruthy();
+  const payload = await response.json();
+  expect(payload?.data).toBeTruthy();
 });

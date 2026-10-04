@@ -4,6 +4,8 @@ import { requirePermission } from '../../../lib/api-helpers/admin.ts';
 import { requireAuthenticatedUser } from '../../../lib/api-helpers/auth.ts';
 import { normalizeProductUpdates } from '../../../lib/api-helpers/product-helpers.ts';
 
+const UUID_PATTERN = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
 function parseJsonBody(req: any): Promise<any> {
   return new Promise((resolve, reject) => {
     let body = '';
@@ -34,6 +36,9 @@ export default async function handler(req: any, res: any) {
     const productId = extractProductId(req);
     if (!productId) {
       throw new ApiError(400, 'Missing productId');
+    }
+    if (!UUID_PATTERN.test(productId)) {
+      throw new ApiError(400, 'Invalid productId.');
     }
 
     const permission = req.method === 'PATCH'

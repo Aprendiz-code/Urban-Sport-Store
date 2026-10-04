@@ -54,6 +54,19 @@ describe('admin product validation', () => {
     expect(validateProductForm({ ...validProduct, stock: 1.5 })).toHaveProperty('stock');
     expect(validateProductForm({ ...validProduct, images: Array.from({ length: 11 }, (_, index) => `image-${index}`) })).toHaveProperty('gallery');
   });
+
+  it.each(['blob:https://shop.example/id', 'data:image/png;base64,abc', 'images/local.png'])('rejects non-permanent main image references: %s', (image) => {
+    expect(validateProductForm({
+      name: 'Zapatilla Test',
+      brand: 'Marca Test',
+      sku: 'SKU-1',
+      price: 1,
+      stock: 1,
+      categoryId: '123e4567-e89b-12d3-a456-426614174000',
+      image,
+      images: [],
+    })).toHaveProperty('image');
+  });
 });
 
 describe('admin API response handling', () => {
@@ -122,5 +135,22 @@ describe('admin API response handling', () => {
       id: 'product-1',
       name: 'Zapatilla',
     });
+  });
+
+  it('keeps the session bearer when uploading a file with its image content type', async () => {
+    vi.mocked(getAccessToken).mockResolvedValue('upload-session-token');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: async () => ({ ok: true, data: { path: 'products/test.png' } }),
+    }));
+    const file = new Blob(['image-bytes'], { type: 'image/png' }) as File;
+
+    await expect(adminApi.uploadProductImageApi(file)).resolves.toEqual({ path: 'products/test.png' });
+
+    const requestInit = vi.mocked(fetch).mock.calls[0]?.[1];
+    const headers = new Headers(requestInit?.headers);
+    expect(headers.get('Authorization')).toBe('Bearer upload-session-token');
+    expect(headers.get('Content-Type')).toBe('image/png');
   });
 });

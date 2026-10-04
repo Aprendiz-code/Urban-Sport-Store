@@ -22,6 +22,8 @@ vi.mock('../../lib/api-helpers/admin.js', () => ({
 
 import handler from '../admin/products/[productId].js';
 
+const productId = '123e4567-e89b-12d3-a456-426614174000';
+
 function createResponse() {
   return {
     statusCode: 200,
@@ -38,8 +40,8 @@ describe('admin product archive endpoint', () => {
     apiMocks.authenticate.mockResolvedValue({ id: 'admin-user' });
     apiMocks.requirePermission.mockResolvedValue('ADMIN');
     apiMocks.maybeSingle
-      .mockResolvedValueOnce({ data: { id: 'product-1', sku: 'SKU-1', is_active: true }, error: null })
-      .mockResolvedValueOnce({ data: { id: 'product-1', sku: 'SKU-1', is_active: false }, error: null });
+      .mockResolvedValueOnce({ data: { id: productId, sku: 'SKU-1', is_active: true }, error: null })
+      .mockResolvedValueOnce({ data: { id: productId, sku: 'SKU-1', is_active: false }, error: null });
     apiMocks.update.mockReturnThis();
     apiMocks.insert.mockResolvedValue({ data: null, error: null });
 
@@ -59,7 +61,7 @@ describe('admin product archive endpoint', () => {
   it('archives only the requested product and does not physically delete rows', async () => {
     const response = createResponse();
 
-    await handler({ method: 'DELETE', url: '/api/admin/products/product-1' }, response);
+    await handler({ method: 'DELETE', url: `/api/admin/products/${productId}` }, response);
 
     expect(apiMocks.requirePermission).toHaveBeenCalledWith({ id: 'admin-user' }, 'products.archive');
     expect(apiMocks.from).toHaveBeenCalledWith('products');
@@ -67,10 +69,20 @@ describe('admin product archive endpoint', () => {
     expect(apiMocks.delete).not.toHaveBeenCalled();
     expect(apiMocks.insert).toHaveBeenCalledWith(expect.objectContaining({
       action: 'soft_delete_product',
-      entity_id: 'product-1',
-      after_data: { id: 'product-1', sku: 'SKU-1', is_active: false },
+      entity_id: productId,
+      after_data: { id: productId, sku: 'SKU-1', is_active: false },
     }));
     expect(response.statusCode).toBe(204);
     expect(response.body).toBe('');
+  });
+
+  it('rejects an invalid product ID before querying Supabase', async () => {
+    const response = createResponse();
+
+    await handler({ method: 'DELETE', url: '/api/admin/products/not-a-uuid' }, response);
+
+    expect(response.statusCode).toBe(400);
+    expect(JSON.parse(response.body).error.message).toBe('Invalid productId.');
+    expect(apiMocks.from).not.toHaveBeenCalled();
   });
 });

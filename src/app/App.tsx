@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import HorizontalProductCarousel from "./components/ProductCarousel";
 import { STORE_CONFIG } from "./store-config";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "./components/ui/sheet";
 
 import { subscribeToNewsletter } from "../lib/newsletter";
 import { fetchPublicCategories, resolveProductCategoryName, type CategoryOption } from "../lib/category-service";
@@ -2746,13 +2747,15 @@ function AccountPage({ onNavigate, onLogout, authUser, addresses, onCreateAddres
 
 // ─── ADMIN DASHBOARD ──────────────────────────────────────────────────────────
 
-function AdminDashboard({ onNavigate, products, categories, createProduct, updateProduct, deleteProduct, adjustStock, productRefresh, initialSection, adminRole, homeContent, setHomeContent, homePreviewProducts, setHomePreviewProducts, homeSaleProducts, setHomeSaleProducts, homeNewArrivals, setHomeNewArrivals, saveHomeContent, homeContentSaving, backendAdminAvailable }: {
+function AdminDashboard({ onNavigate, products, categories, productsStatus, onRetryProducts, createProduct, updateProduct, deleteProduct, adjustStock, productRefresh, initialSection, adminRole, homeContent, setHomeContent, homePreviewProducts, setHomePreviewProducts, homeSaleProducts, setHomeSaleProducts, homeNewArrivals, setHomeNewArrivals, saveHomeContent, homeContentSaving, backendAdminAvailable }: {
   onNavigate: (v: View) => void;
   products: Product[];
   categories: CategoryOption[];
+  productsStatus: ProductsStatus;
+  onRetryProducts: () => void;
   createProduct: (product: Omit<Product, "id">) => void;
   updateProduct: (productId: string, updates: Partial<Product>) => void;
-  deleteProduct: (productId: string) => void;
+  deleteProduct: (productId: string) => Promise<boolean>;
   adjustStock: (productId: string, delta: number) => void;
   productRefresh: number;
   initialSection?: string;
@@ -2773,6 +2776,7 @@ function AdminDashboard({ onNavigate, products, categories, createProduct, updat
   const [searchTerm, setSearchTerm] = useState("");
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [activeProduct, setActiveProduct] = useState<Product | null>(null);
+  const [isProductFormOpen, setIsProductFormOpen] = useState(false);
   const [productForm, setProductForm] = useState<Omit<Product, "id">>({
     name: "", brand: "", price: 0, originalPrice: undefined, discount: undefined,
     rating: 0, reviews: 0, image: "", images: [], category: "", categoryId: undefined, subcategory: "",
@@ -2888,7 +2892,7 @@ function AdminDashboard({ onNavigate, products, categories, createProduct, updat
       }
     } catch (err) {
       console.warn('Section image upload failed', err);
-      toast.error(err instanceof Error ? err.message : 'La carga de imágenes no está disponible.');
+      toast.error(formatAdminApiError(err, 'La carga de imágenes no está disponible.'));
     }
   };
 
@@ -2997,6 +3001,7 @@ function AdminDashboard({ onNavigate, products, categories, createProduct, updat
   const handleEditProduct = (product: Product) => {
     setActiveProduct(product);
     setFormMode("edit");
+    setIsProductFormOpen(true);
     setProductForm({
       name: product.name,
       brand: product.brand,
@@ -3078,6 +3083,7 @@ function AdminDashboard({ onNavigate, products, categories, createProduct, updat
       },
       () => {
         resetForm();
+        setIsProductFormOpen(false);
         setAdminSection("products");
       },
       (error) => {
@@ -3087,9 +3093,12 @@ function AdminDashboard({ onNavigate, products, categories, createProduct, updat
     ).finally(() => setIsSubmitting(false));
   };
 
-  const handleDeleteProduct = (productId: string) => {
-    deleteProduct(productId);
-    if (activeProduct?.id === productId) resetForm();
+  const handleDeleteProduct = async (productId: string) => {
+    const archived = await deleteProduct(productId);
+    if (archived && activeProduct?.id === productId) {
+      resetForm();
+      setIsProductFormOpen(false);
+    }
   };
 
   useEffect(() => { refreshAudit(); }, [productRefresh]);
@@ -3431,12 +3440,12 @@ function AdminDashboard({ onNavigate, products, categories, createProduct, updat
 
       case "products":
         return (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-            <div className="lg:col-span-2 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] p-5">
+          <>
+          <div className="mb-6 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] p-5">
               <div className="flex items-center justify-between gap-4 mb-4">
-                <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar productos por nombre, marca o SKU"
+                <input type="search" aria-label="Buscar productos por nombre, marca o SKU" value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }} placeholder="Buscar productos por nombre, marca o SKU"
                   className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none" />
-                <button onClick={() => { resetForm(); setFormMode('create'); }}
+                <button type="button" onClick={() => { resetForm(); setFormMode('create'); setIsProductFormOpen(true); }}
                   className="ml-3 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-black text-white font-semibold hover:bg-slate-900">
                   <Plus size={14} /> Nuevo producto
                 </button>
@@ -3452,7 +3461,13 @@ function AdminDashboard({ onNavigate, products, categories, createProduct, updat
                     </tr>
                   </thead>
                   <tbody>
-                    {paginatedProducts.map((p) => (
+                    {productsStatus === "loading" ? (
+                      <tr><td colSpan={6} role="status" className="px-4 py-10 text-center text-sm text-slate-500">Cargando productos…</td></tr>
+                    ) : productsStatus === "error" ? (
+                      <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-red-700"><div role="alert">No se pudo cargar la tabla de productos.</div><button type="button" onClick={onRetryProducts} className="mt-2 font-semibold underline">Reintentar</button></td></tr>
+                    ) : paginatedProducts.length === 0 ? (
+                      <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-slate-500">{searchTerm ? 'No hay productos que coincidan con la búsqueda.' : 'No hay productos activos.'}</td></tr>
+                    ) : paginatedProducts.map((p) => (
                       <tr key={p.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
                         <td className="px-4 py-3"><img src={p.image} alt={p.name} className="w-12 h-12 object-cover rounded-lg" /></td>
                         <td className="px-4 py-3 text-sm font-semibold text-slate-800">{p.name}</td>
@@ -3461,8 +3476,8 @@ function AdminDashboard({ onNavigate, products, categories, createProduct, updat
                         <td className="px-4 py-3 text-sm text-slate-700">{p.stock}</td>
                         <td className="px-4 py-3">
                           <div className="flex gap-2">
-                            <button onClick={() => handleEditProduct(p)} className="px-3 py-1.5 rounded-lg bg-black text-white font-semibold">Editar</button>
-                            <button onClick={() => { if (confirm(`Archivar ${p.name}? Dejará de aparecer en la tienda pública.`)) handleDeleteProduct(p.id); }} className="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 font-semibold">Archivar</button>
+                            <button type="button" aria-label={`Editar ${p.name}`} onClick={() => handleEditProduct(p)} className="px-3 py-1.5 rounded-lg bg-black text-white font-semibold">Editar</button>
+                            <button type="button" aria-label={`Archivar ${p.name}`} onClick={() => { if (confirm(`Archivar ${p.name}? Dejará de aparecer en la tienda pública.`)) void handleDeleteProduct(p.id); }} className="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 font-semibold">Archivar</button>
                           </div>
                         </td>
                       </tr>
@@ -3471,7 +3486,7 @@ function AdminDashboard({ onNavigate, products, categories, createProduct, updat
                 </table>
               </div>
               <div className="flex items-center justify-between mt-3">
-                <div className="text-sm text-slate-500">Mostrando {(page - 1) * perPage + 1} - {Math.min(page * perPage, filteredProducts.length)} de {filteredProducts.length}</div>
+                <div className="text-sm text-slate-500">Mostrando {filteredProducts.length === 0 ? 0 : (page - 1) * perPage + 1} - {Math.min(page * perPage, filteredProducts.length)} de {filteredProducts.length}</div>
                 <div className="flex items-center gap-2">
                   <button disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} className="px-3 py-1 rounded-md bg-slate-100">Anterior</button>
                   <div className="text-sm text-slate-600">{page} / {totalPages}</div>
@@ -3480,15 +3495,22 @@ function AdminDashboard({ onNavigate, products, categories, createProduct, updat
               </div>
             </div>
 
-            <div className="bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] p-5">
-              <h3 className="text-lg font-extrabold text-slate-900 mb-4">{formMode === 'edit' ? '✏️ Editar producto' : '➕ Crear nuevo producto'}</h3>
+          <Sheet open={isProductFormOpen} onOpenChange={setIsProductFormOpen}>
+            <SheetContent side="right" className="w-full max-w-2xl overflow-y-auto p-5 sm:max-w-2xl">
+              <SheetHeader className="p-0 pr-10">
+                <SheetTitle className="text-lg font-extrabold text-slate-900">{formMode === 'edit' ? 'Editar producto' : 'Crear nuevo producto'}</SheetTitle>
+                <SheetDescription>Los cambios se guardan en el catálogo cuando la API confirma la operación.</SheetDescription>
+              </SheetHeader>
               <form onSubmit={handleFormSubmit} className="space-y-4">
                 {/* Nombre y Marca */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-xs font-bold text-slate-600 uppercase block mb-2">Nombre *</label>
+                    <label htmlFor="admin-product-name" className="text-xs font-bold text-slate-600 uppercase block mb-2">Nombre *</label>
                     <input 
+                      id="admin-product-name"
                       value={productForm.name} 
+                      required
+                      aria-invalid={Boolean(formErrors.name)}
                       onChange={(e) => { updateField('name', e.target.value); setFormErrors({...formErrors, name: ''}) }}
                       placeholder="Ej: Nike Air Force 1" 
                       className={`w-full px-4 py-3 rounded-xl border-2 transition-colors ${formErrors.name ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-white hover:border-slate-300 focus:border-slate-500'} focus:outline-none`} 
@@ -3496,24 +3518,32 @@ function AdminDashboard({ onNavigate, products, categories, createProduct, updat
                     {formErrors.name && <p className="text-xs text-red-600 mt-1">{formErrors.name}</p>}
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-slate-600 uppercase block mb-2">Marca</label>
+                    <label htmlFor="admin-product-brand" className="text-xs font-bold text-slate-600 uppercase block mb-2">Marca *</label>
                     <input 
+                      id="admin-product-brand"
                       value={productForm.brand} 
+                      required
+                      aria-invalid={Boolean(formErrors.brand)}
                       onChange={(e) => updateField('brand', e.target.value)}
                       placeholder="Ej: Nike" 
                       className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-white hover:border-slate-300 focus:border-slate-500 focus:outline-none transition-colors" 
                     />
+                    {formErrors.brand && <p className="text-xs text-red-600 mt-1">{formErrors.brand}</p>}
                   </div>
                 </div>
 
                 {/* Precio y Stock */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-xs font-bold text-slate-600 uppercase block mb-2">Precio *</label>
+                    <label htmlFor="admin-product-price" className="text-xs font-bold text-slate-600 uppercase block mb-2">Precio *</label>
                     <div className="relative">
                       <span className="absolute left-4 top-3 text-slate-600 font-semibold">$</span>
                       <input 
+                        id="admin-product-price"
                         type="number" 
+                        min="0"
+                        step="any"
+                        required
                         value={productForm.price as any} 
                         onChange={(e) => { updateField('price', Number(e.target.value)); setFormErrors({...formErrors, price: ''}) }}
                         placeholder="0" 
@@ -3523,9 +3553,13 @@ function AdminDashboard({ onNavigate, products, categories, createProduct, updat
                     {formErrors.price && <p className="text-xs text-red-600 mt-1">{formErrors.price}</p>}
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-slate-600 uppercase block mb-2">Stock *</label>
+                    <label htmlFor="admin-product-stock" className="text-xs font-bold text-slate-600 uppercase block mb-2">Stock *</label>
                     <input 
+                      id="admin-product-stock"
                       type="number" 
+                      min="0"
+                      step="1"
+                      required
                       value={productForm.stock as any} 
                       onChange={(e) => { updateField('stock', Number(e.target.value)); setFormErrors({...formErrors, stock: ''}) }}
                       placeholder="0" 
@@ -3538,9 +3572,11 @@ function AdminDashboard({ onNavigate, products, categories, createProduct, updat
                 {/* SKU y Categoría */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-xs font-bold text-slate-600 uppercase block mb-2">SKU *</label>
+                    <label htmlFor="admin-product-sku" className="text-xs font-bold text-slate-600 uppercase block mb-2">SKU *</label>
                     <input 
+                      id="admin-product-sku"
                       value={productForm.sku} 
+                      required
                       onChange={(e) => { updateField('sku', e.target.value); setFormErrors({...formErrors, sku: ''}) }}
                       placeholder="Ej: NKE-AF1-001" 
                       className={`w-full px-4 py-3 rounded-xl border-2 transition-colors ${formErrors.sku ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-white hover:border-slate-300 focus:border-slate-500'} focus:outline-none`}
@@ -3548,9 +3584,11 @@ function AdminDashboard({ onNavigate, products, categories, createProduct, updat
                     {formErrors.sku && <p className="text-xs text-red-600 mt-1">{formErrors.sku}</p>}
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-slate-600 uppercase block mb-2">Categoría *</label>
+                    <label htmlFor="admin-product-category" className="text-xs font-bold text-slate-600 uppercase block mb-2">Categoría *</label>
                     <select 
+                      id="admin-product-category"
                       value={productForm.categoryId ?? ""}
+                      required
                       onChange={(e) => {
                         const nextCategoryId = e.target.value;
                         const selectedOption = categories.find((option) => option.id === nextCategoryId);
@@ -3618,6 +3656,8 @@ function AdminDashboard({ onNavigate, products, categories, createProduct, updat
                     {/* O URL */}
                     <div className="mt-2 text-xs text-slate-500 text-center">O</div>
                     <input 
+                      aria-label="URL pública de imagen principal"
+                      type="url"
                       value={productForm.image} 
                       onChange={(e) => { updateField('image', e.target.value); setMainImagePreview(e.target.value); }}
                       placeholder="Pega una URL pública (ej: https://example.com/image.jpg)" 
@@ -3646,11 +3686,13 @@ function AdminDashboard({ onNavigate, products, categories, createProduct, updat
                     {/* O URL */}
                     <div className="mt-3 flex gap-2">
                       <input 
+                        aria-label="URL pública de imagen de galería"
+                        type="url"
                         value={galleryUrl} 
                         onChange={(e) => setGalleryUrl(e.target.value)} 
                         placeholder="O pega una URL pública" 
                         className="flex-1 px-4 py-3 rounded-xl border-2 border-slate-200 bg-white hover:border-slate-300 focus:border-slate-500 focus:outline-none transition-colors"
-                        onKeyPress={(e) => e.key === 'Enter' && addGalleryImageUrl()}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addGalleryImageUrl(); } }}
                       />
                       <button 
                         type="button" 
@@ -3686,7 +3728,7 @@ function AdminDashboard({ onNavigate, products, categories, createProduct, updat
                 <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
                   <button 
                     type="submit" 
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || isUploadingImage || isUploadingGallery}
                     className={`flex-1 px-6 py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 ${isSubmitting ? 'bg-slate-300 text-slate-600 cursor-not-allowed' : 'bg-black text-white hover:bg-slate-900 active:scale-95'}`}
                   >
                     {isSubmitting ? (
@@ -3702,15 +3744,16 @@ function AdminDashboard({ onNavigate, products, categories, createProduct, updat
                   </button>
                   <button 
                     type="button" 
-                    onClick={() => resetForm()} 
+                    onClick={() => { resetForm(); setIsProductFormOpen(false); }}
                     className="flex-1 px-6 py-3 rounded-xl bg-slate-100 text-slate-700 font-semibold hover:bg-slate-200 transition-colors active:scale-95"
                   >
                     ✕ Cancelar
                   </button>
                 </div>
               </form>
-            </div>
-          </div>
+            </SheetContent>
+          </Sheet>
+          </>
         );
 
       case "orders":
@@ -3918,7 +3961,7 @@ function AdminDashboard({ onNavigate, products, categories, createProduct, updat
       }
     } catch (err) {
       console.warn('Image upload failed', err);
-      toast.error(err instanceof Error ? err.message : 'La carga de imágenes no está disponible.');
+      toast.error(formatAdminApiError(err, 'La carga de imágenes no está disponible.'));
     } finally {
       setIsUploadingImage(false);
     }
@@ -3952,7 +3995,7 @@ function AdminDashboard({ onNavigate, products, categories, createProduct, updat
         }
       } catch (err) {
         console.warn(`Gallery image upload failed for ${file.name}`, err);
-        toast.error(err instanceof Error ? err.message : 'La carga de imágenes no está disponible.');
+        toast.error(formatAdminApiError(err, 'La carga de imágenes no está disponible.'));
       }
     }
 
@@ -4084,12 +4127,17 @@ export default function App() {
       heroTitle: typeof data.hero_title === 'string' ? data.hero_title : typeof data.heroTitle === 'string' ? data.heroTitle : undefined,
       heroSubtitle: typeof data.hero_subtitle === 'string' ? data.hero_subtitle : typeof data.heroSubtitle === 'string' ? data.heroSubtitle : undefined,
       heroImage: typeof data.hero_image === 'string' ? data.hero_image : typeof data.heroImage === 'string' ? data.heroImage : undefined,
-      featuredCategoryIds: typeof data.featured_category_ids === 'string' ? data.featured_category_ids : typeof data.featuredCategoryIds === 'string' ? data.featuredCategoryIds : undefined,
-      featuredProductIds: typeof data.featured_product_ids === 'string' ? data.featured_product_ids : typeof data.featuredProductIds === 'string' ? data.featuredProductIds : undefined,
-      discountedProductIds: typeof data.discounted_product_ids === 'string' ? data.discounted_product_ids : typeof data.discountedProductIds === 'string' ? data.discountedProductIds : undefined,
+      featuredCategoryIds: normalizeHomeContentIds(data.featured_category_ids ?? data.featuredCategoryIds),
+      featuredProductIds: normalizeHomeContentIds(data.featured_product_ids ?? data.featuredProductIds),
+      discountedProductIds: normalizeHomeContentIds(data.discounted_product_ids ?? data.discountedProductIds),
       promoBanner: typeof data.promo_banner === 'string' ? data.promo_banner : typeof data.promoBanner === 'string' ? data.promoBanner : undefined,
       newsletterEnabled: typeof data.newsletter_enabled === 'boolean' ? data.newsletter_enabled : typeof data.newsletterEnabled === 'boolean' ? data.newsletterEnabled : undefined,
     });
+
+    const normalizeHomeContentIds = (value: unknown): string | string[] | undefined => {
+      if (typeof value === 'string') return value;
+      return Array.isArray(value) && value.every((item) => typeof item === 'string') ? value : undefined;
+    };
 
     const loadHomeContent = async () => {
       const apiUrl = normalizeApiRoot(import.meta.env.VITE_API_URL);
@@ -4256,7 +4304,7 @@ export default function App() {
       toast.success('Contenido de la home guardado.');
     } catch (error) {
       console.error('Error guardando contenido de la home:', error);
-      toast.error('No se pudo guardar el contenido. Intenta nuevamente.');
+      toast.error(formatAdminApiError(error, 'No se pudo guardar el contenido.'));
     } finally {
       setHomeContentSaving(false);
     }
@@ -4476,10 +4524,11 @@ export default function App() {
       refreshProducts();
       toast.success("Producto eliminado correctamente.");
       try { recordAction('delete_product', { id: productId }); } catch (e) { }
-      return;
+      return true;
     } catch (err) {
       console.error("Backend delete failed:", err);
-      toast.error("Error eliminando producto. Intenta nuevamente.");
+      toast.error(formatAdminApiError(err, "Error eliminando el producto."));
+      return false;
     }
   };
 
@@ -4704,6 +4753,8 @@ export default function App() {
           adminRole={profileRole ?? ""}
           products={products}
           categories={categoryOptions}
+          productsStatus={productsStatus}
+          onRetryProducts={refreshProducts}
           createProduct={createProduct}
           updateProduct={updateProduct}
           deleteProduct={deleteProduct}

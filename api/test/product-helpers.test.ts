@@ -73,4 +73,19 @@ describe('product payload normalization', () => {
     await expect(normalizeProductPayload({ ...basePayload, images: Array.from({ length: 11 }, (_, index) => `image-${index}`) })).rejects.toThrow('hasta 10 imágenes');
     expect(supabaseMocks.from).not.toHaveBeenCalled();
   });
+
+  it.each(['blob:https://shop.example/id', 'data:image/png;base64,abc', 'images/local.png'])('rejects non-permanent image references: %s', async (image) => {
+    const payload = {
+      name: 'Nike Air Force 1',
+      brand: 'Nike',
+      price: 1,
+      stock: 1,
+      sku: 'NKE-AF1-001',
+      category_id: categoryId,
+      main_image: image,
+    };
+
+    await expect(normalizeProductPayload(payload)).rejects.toThrow('URL HTTP o HTTPS permanente');
+    expect(supabaseMocks.from).not.toHaveBeenCalled();
+  });
 });

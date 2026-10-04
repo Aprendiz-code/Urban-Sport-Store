@@ -33,6 +33,20 @@ function parseString(value: unknown): string | undefined {
   return trimmed.length ? trimmed : undefined;
 }
 
+function parsePermanentImageUrl(value: unknown, fieldName: string): string | undefined {
+  const imageUrl = parseString(value);
+  if (!imageUrl) return undefined;
+
+  try {
+    const url = new URL(imageUrl);
+    if (url.protocol === 'http:' || url.protocol === 'https:') return imageUrl;
+  } catch {
+    // Reject relative and browser-local references below.
+  }
+
+  throw new ApiError(400, `${fieldName} debe ser una URL HTTP o HTTPS permanente.`);
+}
+
 function createProductSlug(name: string, sku: string | undefined): string {
   const base = `${name}-${sku ?? ''}`
     .normalize('NFD')
@@ -88,13 +102,16 @@ function setProductFields(payload: Record<string, unknown>, body: any) {
     payload.stock = stock;
   }
 
-  const mainImage = parseString(body.main_image) ?? parseString(body.image);
+  const mainImage = parsePermanentImageUrl(body.main_image ?? body.image, 'La imagen principal');
   if (mainImage) payload.main_image = mainImage;
   if (body.images !== undefined) {
     const images = parseStringArray(body.images);
     if (!images) throw new ApiError(400, 'La galería debe ser una lista de imágenes válida.');
     if (images.length > MAX_PRODUCT_GALLERY_IMAGES) {
       throw new ApiError(400, `La galería admite hasta ${MAX_PRODUCT_GALLERY_IMAGES} imágenes.`);
+    }
+    for (const image of images) {
+      parsePermanentImageUrl(image, 'Cada imagen de galería');
     }
     payload.images = images;
   }

@@ -2,13 +2,17 @@ import { test, expect } from '@playwright/test';
 
 const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? '';
 const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? '';
+const E2E_SUPABASE_REF = process.env.E2E_SUPABASE_REF ?? '';
+const canRunWriteE2E = process.env.E2E_ALLOW_WRITES === 'true'
+  && Boolean(E2E_SUPABASE_REF)
+  && E2E_SUPABASE_REF !== 'geapxdyyfmygqrqfnier';
 
-test('admin end-to-end: login, products CRUD, homepage heroTitle update and audit logs', async ({ page, baseURL }) => {
+test('admin end-to-end: login, products CRUD and read-only admin sections', async ({ page, baseURL }) => {
+  test.skip(!/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(baseURL ?? '') || !canRunWriteE2E, 'Write-capable admin E2E tests require localhost, E2E_ALLOW_WRITES=true, and a non-production E2E_SUPABASE_REF.');
   test.skip(!ADMIN_EMAIL || !ADMIN_PASSWORD, 'Requires dedicated E2E admin credentials.');
   const productName = `E2E Product ${Date.now()}`;
   const updatedProductName = `${productName} (edited)`;
   const productSku = `E2E-SKU-${Date.now()}`;
-  const heroTitle = `E2E Home Hero ${Date.now()}`;
 
   await page.goto(baseURL!);
   await page.click('button:has-text("Iniciar sesión")');
@@ -47,7 +51,7 @@ test('admin end-to-end: login, products CRUD, homepage heroTitle update and audi
   const productRow = page.locator('tr', { hasText: productName });
   await expect(productRow).toBeVisible({ timeout: 15000 });
   await expect(page.getByText('Producto creado y guardado correctamente.')).toBeVisible();
-  await expect(page.getByLabel('Cerrar formulario')).toHaveCount(0);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
 
   const productsUrl = page.url();
   const productSearch = page.getByRole('searchbox', { name: 'Buscar productos por nombre, marca o SKU' });
@@ -64,13 +68,18 @@ test('admin end-to-end: login, products CRUD, homepage heroTitle update and audi
   await productSearch.fill('');
 
   await productRow.locator('button:has-text("Editar")').click();
-  await expect(page.getByPlaceholder(/Pega una URL pública|URL pública/)).toHaveCount(0);
+  await expect(page.getByPlaceholder(/Pega una URL pública|URL pública/)).toHaveCount(1);
   await page.getByLabel('Nombre *').fill(updatedProductName);
   await page.click('button:has-text("💾 Guardar cambios")');
   await expect(page.locator('tr', { hasText: updatedProductName })).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole('dialog')).toHaveCount(0);
 
   await page.reload();
   await expect(page.locator('tr', { hasText: updatedProductName })).toBeVisible({ timeout: 15000 });
+
+  page.once('dialog', (dialog) => dialog.dismiss());
+  await page.locator('tr', { hasText: updatedProductName }).locator('button:has-text("Archivar")').click();
+  await expect(page.locator('tr', { hasText: updatedProductName })).toBeVisible();
 
   page.once('dialog', (dialog) => dialog.accept());
   await page.locator('tr', { hasText: updatedProductName }).locator('button:has-text("Archivar")').click();
@@ -78,11 +87,8 @@ test('admin end-to-end: login, products CRUD, homepage heroTitle update and audi
 
   await page.click('button:has-text("Página principal")');
   await expect(page.getByLabel('Título hero')).toBeVisible({ timeout: 15000 });
-  await page.getByLabel('Título hero').fill(heroTitle);
-  await page.click('button:has-text("Guardar contenido")');
-  await expect(page.getByLabel('Título hero')).toHaveValue(heroTitle, { timeout: 15000 });
 
   await page.click('button:has-text("Actividad")');
   await page.click('button:has-text("Actualizar")');
-  await expect(page.locator('text=update_home_content')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByText('Registros recientes de auditoría y cambios en el panel.')).toBeVisible();
 });

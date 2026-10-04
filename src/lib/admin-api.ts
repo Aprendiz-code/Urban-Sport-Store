@@ -1,5 +1,6 @@
 import { getAccessToken } from './supabase-auth';
 import { resolveApiBaseUrl } from './api-config';
+import { mapHomeContentPayload } from './admin-home-content';
 
 type Product = Record<string, unknown> & { id?: string };
 
@@ -55,9 +56,12 @@ async function callApi(path: string, opts: RequestInit = {}) {
   const supabaseToken = await getAccessToken();
 
   const makeRequest = async (url: string, bearer?: string) => {
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (bearer) headers['Authorization'] = `Bearer ${bearer}`;
-    return fetch(url, { headers: { ...(opts.headers as Record<string,string>), ...headers }, ...opts });
+    const headers = new Headers(opts.headers);
+    if (!headers.has('Content-Type') && !(opts.body instanceof Blob)) {
+      headers.set('Content-Type', 'application/json');
+    }
+    if (bearer) headers.set('Authorization', `Bearer ${bearer}`);
+    return fetch(url, { ...opts, headers });
   };
 
   const primaryUrl = `${API_BASE}${path}`;
@@ -135,7 +139,7 @@ export async function deleteSupabaseProductApi(productId: string) {
 }
 
 export async function updateHomeContentApi(payload: Record<string, unknown>) {
-  return callApi('/home-content', { method: 'PATCH', body: JSON.stringify(payload) });
+  return callApi('/home-content', { method: 'PATCH', body: JSON.stringify(mapHomeContentPayload(payload)) });
 }
 
 export async function createInventoryMovement(productId: string, delta: number, reason?: string) {

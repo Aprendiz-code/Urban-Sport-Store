@@ -4,6 +4,15 @@ export function isValidUuid(value?: string | null): boolean {
 
 export const MAX_PRODUCT_GALLERY_IMAGES = 10;
 
+function isPermanentImageUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' || url.protocol === 'http:';
+  } catch {
+    return false;
+  }
+}
+
 export function validateProductForm(form: {
   name?: string;
   brand?: string;
@@ -49,6 +58,18 @@ export function validateProductForm(form: {
 
   if (!hasImage) {
     errors.image = 'Al menos una imagen es requerida';
+  }
+
+  const mainImage = String(form.image ?? '').trim();
+  if (mainImage && !isPermanentImageUrl(mainImage)) {
+    errors.image = 'La imagen principal debe ser una URL HTTP o HTTPS permanente.';
+  }
+
+  const galleryImages = Array.isArray(form.images)
+    ? form.images.map((entry) => typeof entry === 'string' ? entry : entry?.url ?? '').filter((entry) => entry.trim().length > 0)
+    : [];
+  if (galleryImages.some((image) => !isPermanentImageUrl(image.trim()))) {
+    errors.gallery = 'Las imágenes de galería deben ser URLs HTTP o HTTPS permanentes.';
   }
 
   if ((form.images?.length ?? 0) > MAX_PRODUCT_GALLERY_IMAGES) {
