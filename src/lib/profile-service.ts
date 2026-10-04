@@ -17,6 +17,15 @@ export class ProfileServiceError extends Error {
   }
 }
 
+const PROFILE_ACCESS_ERROR_MESSAGE = 'No fue posible verificar los permisos de tu cuenta. Inténtalo de nuevo más tarde.';
+
+export class ProfileAccessVerificationError extends Error {
+  constructor() {
+    super(PROFILE_ACCESS_ERROR_MESSAGE);
+    this.name = 'ProfileAccessVerificationError';
+  }
+}
+
 const API_ROOT = resolveApiBaseUrl(import.meta.env.VITE_API_URL);
 
 async function requestMyProfile(method: 'GET' | 'PATCH', body?: PersonalProfileUpdate): Promise<{
@@ -59,16 +68,21 @@ const KNOWN_ROLES: readonly UserRole[] = [
 ];
 
 export async function getProfileByUserId(userId: string): Promise<UserProfile | null> {
-  if (!isSupabaseEnabled() || !userId) return null;
+  if (!userId) return null;
+  if (!isSupabaseEnabled()) {
+    console.warn('Profile access verification failed.', { reason: 'supabase_unavailable' });
+    throw new ProfileAccessVerificationError();
+  }
 
   try {
     const { data, error } = await getSupabaseClient()
       .from('profiles')
-      .select('id, role, is_active, email, first_name, last_name, full_name, phone, created_at, updated_at')
+      .select('id, role, is_active')
       .eq('id', userId)
       .maybeSingle();
 
-    if (error || !data || typeof data.role !== 'string' || !KNOWN_ROLES.includes(data.role.toUpperCase() as UserRole)) {
+    if (error) throw error;
+    if (!data || typeof data.role !== 'string' || !KNOWN_ROLES.includes(data.role.toUpperCase() as UserRole)) {
       return null;
     }
 
@@ -76,27 +90,25 @@ export async function getProfileByUserId(userId: string): Promise<UserProfile | 
       id: data.id,
       role: data.role.toUpperCase() as UserRole,
       isActive: data.is_active === true,
-      email: data.email ?? null,
-      firstName: data.first_name ?? null,
-      lastName: data.last_name ?? null,
-      fullName: data.full_name ?? null,
-      phone: data.phone ?? null,
-      createdAt: data.created_at ?? undefined,
-      updatedAt: data.updated_at ?? undefined,
     };
-  } catch {
-    return null;
+  } catch (error) {
+    const errorCode = error && typeof error === 'object' && 'code' in error && typeof error.code === 'string'
+      ? error.code
+      : 'PROFILE_QUERY_FAILED';
+    const safeCode = /^[A-Z0-9_]{1,32}$/.test(errorCode) ? errorCode : 'PROFILE_QUERY_FAILED';
+    console.warn('Profile access verification failed.', { code: safeCode });
+    throw new ProfileAccessVerificationError();
   }
 }
 
 export async function getProfileAccess(user: Pick<User, 'id'> | null) {
-  if (!user) return { role: null, isAdmin: false };
+  if (!user) return { status: 'missing' as const, role: null, isAdmin: false };
 
   const profile = await getProfileByUserId(user.id);
-  if (!profile || !profile.isActive) return { role: null, isAdmin: false };
+  if (!profile) return { status: 'missing' as const, role: null, isAdmin: false };
+  if (!profile.isActive) return { status: 'inactive' as const, role: null, isAdmin: false };
 
-  return {
-    role: profile.role,
-    isAdmin: profile.role !== 'CUSTOMER',
-  };
+  return profile.role === 'CUSTOMER'
+    ? { status: 'customer' as const, role: profile.role, isAdmin: false }
+    : { status: 'admin' as const, role: profile.role, isAdmin: true };
 }

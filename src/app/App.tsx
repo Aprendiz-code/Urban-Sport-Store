@@ -36,7 +36,7 @@ import {
   requestPasswordRecovery,
   updatePassword,
 } from "../lib/supabase-auth";
-import { getMyProfile, getProfileAccess, updateMyProfile } from "../lib/profile-service";
+import { getMyProfile, getProfileAccess, ProfileAccessVerificationError, updateMyProfile } from "../lib/profile-service";
 
 import adminApi, { createSupabaseProductApi, updateSupabaseProductApi, deleteSupabaseProductApi, updateHomeContentApi } from "../lib/admin-api";
 import { uploadProductImage, deleteProductImage, getPublicUrl, buildProductImagePath, getStoragePathFromPublicUrl, STORAGE_BUCKET } from "../lib/supabase-store";
@@ -587,6 +587,7 @@ function TopBenefitsBar() {
   ];
 
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [previousIndex, setPreviousIndex] = useState<number | null>(null);
   const [isPaused, setIsPaused] = useState(false);
   const [isPageVisible, setIsPageVisible] = useState(() => document.visibilityState === "visible");
 
@@ -601,11 +602,19 @@ function TopBenefitsBar() {
     if (isPaused || !isPageVisible) return;
 
     const timer = window.setTimeout(() => {
+      setPreviousIndex(currentIndex);
       setCurrentIndex((index) => (index + 1) % benefits.length);
     }, 4000);
 
     return () => window.clearTimeout(timer);
   }, [currentIndex, benefits.length, isPaused, isPageVisible]);
+
+  useEffect(() => {
+    if (previousIndex === null) return;
+
+    const timer = window.setTimeout(() => setPreviousIndex(null), 600);
+    return () => window.clearTimeout(timer);
+  }, [previousIndex, currentIndex]);
 
   return (
     <>
@@ -623,22 +632,37 @@ function TopBenefitsBar() {
         .benefit-center {
           position: absolute;
           inset: 0;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+          display: grid;
+          place-items: center;
           overflow: hidden;
         }
 
         .benefit-message {
-          position: relative;
+          position: absolute;
+          inset: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 100%;
+          height: 100%;
+          max-width: min(100%, 60rem);
+          margin-inline: auto;
+          box-sizing: border-box;
           font-family: 'Roboto', sans-serif;
           font-size: 0.76rem;
           font-weight: 600;
           line-height: 1.25;
           text-align: center;
-          max-width: min(100% - 1.5rem, 60rem);
-          padding: 0 0.5rem;
-          animation: benefit-fade 320ms ease-out both;
+          padding: 0 0.75rem;
+          overflow-wrap: anywhere;
+        }
+
+        .benefit-message--entering {
+          animation: benefit-enter 600ms cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
+        .benefit-message--leaving {
+          animation: benefit-exit 600ms cubic-bezier(0.22, 1, 0.36, 1) both;
         }
 
         .top-benefits-bar:hover .benefit-message,
@@ -652,35 +676,58 @@ function TopBenefitsBar() {
           }
         }
 
-        @keyframes benefit-fade {
+        @keyframes benefit-enter {
           from {
+            transform: translateY(100%);
             opacity: 0;
-            transform: translateY(3px);
           }
           to {
-            opacity: 1;
             transform: translateY(0);
+            opacity: 1;
+          }
+        }
+
+        @keyframes benefit-exit {
+          from {
+            transform: translateY(0);
+            opacity: 1;
+          }
+          to {
+            transform: translateY(-100%);
+            opacity: 0;
           }
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .benefit-message {
+          .benefit-message--entering,
+          .benefit-message--leaving {
             animation: none;
+          }
+
+          .benefit-message--leaving {
+            display: none;
           }
         }
       `}</style>
 
       <div
         className="top-benefits-bar"
-        aria-live="polite"
+        aria-live={isPaused ? "polite" : "off"}
         aria-atomic="true"
         onMouseEnter={() => setIsPaused(true)}
         onMouseLeave={() => setIsPaused(false)}
         onFocus={() => setIsPaused(true)}
         onBlur={() => setIsPaused(false)}
       >
-        <div className="benefit-center" key={currentIndex}>
-          <span className="benefit-message">{benefits[currentIndex]}</span>
+        <div className="benefit-center">
+          {previousIndex !== null && (
+            <span className="benefit-message benefit-message--leaving" aria-hidden="true">
+              {benefits[previousIndex]}
+            </span>
+          )}
+          <span className={`benefit-message${previousIndex !== null ? " benefit-message--entering" : ""}`}>
+            {benefits[currentIndex]}
+          </span>
         </div>
       </div>
     </>
@@ -2071,6 +2118,10 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
 
         user = signUpResult.data.user;
         const profileAccess = await getProfileAccess(user);
+        if (profileAccess.status === "missing" || profileAccess.status === "inactive") {
+          setError("No fue posible verificar los permisos de tu cuenta. Inténtalo de nuevo más tarde.");
+          return;
+        }
         onLogin(user, profileAccess.isAdmin, profileAccess.role);
         const signUpNeedsConfirmation = 'needsConfirmation' in signUpResult && Boolean(signUpResult.needsConfirmation);
         toast.success(signUpNeedsConfirmation ? "Cuenta creada. Revisa tu correo si tu configuración de Supabase requiere confirmación; ya puedes seguir usando la tienda." : "Registro exitoso. Ya puedes continuar en la tienda.");
@@ -2087,9 +2138,17 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
       user = signInResult.data.user;
 
       const profileAccess = await getProfileAccess(user);
+      if (profileAccess.status === "missing" || profileAccess.status === "inactive") {
+        setError("No fue posible verificar los permisos de tu cuenta. Inténtalo de nuevo más tarde.");
+        return;
+      }
       onLogin(user, profileAccess.isAdmin, profileAccess.role);
       onNavigate(profileAccess.isAdmin ? "admin" : "home");
     } catch (err) {
+      if (err instanceof ProfileAccessVerificationError) {
+        setError(err.message);
+        return;
+      }
       const message = err instanceof Error ? err.message : "";
       setError(message === "Failed to fetch"
         ? "No fue posible conectar con el servicio de autenticación. Intenta nuevamente más tarde."
@@ -4127,6 +4186,7 @@ export default function App() {
   const [authUser, setAuthUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [profileRole, setProfileRole] = useState<string | null>(null);
+  const [profileAccessError, setProfileAccessError] = useState(false);
   const [authReady, setAuthReady] = useState(false);
   const [homeContent, setHomeContent] = useState<HomePageContent>({
     heroTitle: "VISTE TU ESTILO. MARCA LA DIFERENCIA.",
@@ -4234,11 +4294,21 @@ export default function App() {
 
     const syncProfileAccess = async (user: User | null) => {
       const requestId = ++profileRequest;
-      const access = await getProfileAccess(user);
-      if (requestId !== profileRequest) return;
-      setIsAdmin(access.isAdmin);
-      setProfileRole(access.role);
-      setAuthReady(true);
+      try {
+        const access = await getProfileAccess(user);
+        if (requestId !== profileRequest) return;
+        setIsAdmin(access.isAdmin);
+        setProfileRole(access.role);
+        setProfileAccessError(Boolean(user) && (access.status === "missing" || access.status === "inactive"));
+      } catch {
+        if (requestId !== profileRequest) return;
+        console.warn("No se pudo verificar el acceso del perfil.", { reason: "verification_failed" });
+        setIsAdmin(false);
+        setProfileRole(null);
+        setProfileAccessError(Boolean(user));
+      } finally {
+        if (requestId === profileRequest) setAuthReady(true);
+      }
     };
 
     const syncSession = async () => {
@@ -4291,6 +4361,7 @@ export default function App() {
     setIsLoggedIn(Boolean(user) || adminStatus);
     setIsAdmin(adminStatus);
     setProfileRole(role);
+    setProfileAccessError(false);
   };
 
   const handleLogout = async () => {
@@ -4307,6 +4378,7 @@ export default function App() {
     setIsLoggedIn(false);
     setIsAdmin(false);
     setProfileRole(null);
+    setProfileAccessError(false);
     navigate("home");
   };
 
@@ -4494,6 +4566,29 @@ export default function App() {
   const cartRestoreStatus: ProductsStatus = productsStatus !== "ready"
     ? productsStatus
     : cartRestoreComplete ? "ready" : "loading";
+
+  if (profileAccessError) {
+    return (
+      <div className="min-h-screen bg-[#f4f5f7] px-4 text-slate-900">
+        <main className="mx-auto flex min-h-screen max-w-lg flex-col items-center justify-center gap-5 text-center">
+          <p role="alert" aria-live="polite" className="text-base font-medium">
+            No fue posible verificar los permisos de tu cuenta. Inténtalo de nuevo más tarde.
+          </p>
+          <button
+            type="button"
+            className="min-h-11 rounded-md bg-slate-900 px-5 py-2 text-sm font-semibold text-white hover:bg-slate-700"
+            onClick={() => {
+              setProfileAccessError(false);
+              navigate("login");
+            }}
+          >
+            Volver al inicio de sesión
+          </button>
+        </main>
+        <Toaster />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#f4f5f7] text-slate-900">
