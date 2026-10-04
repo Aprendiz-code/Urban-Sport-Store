@@ -581,10 +581,10 @@ function ProductCard({ product, onSelect, onAddToCart }: {
 function TopBenefitsBar() {
   const benefits = [
     "10% de descuento en tu primera compra",
-    "Envío gratis a toda Colombia a partir de $300.000",
-    "Soporte en línea 24/7",
-    "Compra segura y pagos protegidos",
-    "Productos seleccionados para tu estilo",
+    "Envíos gratis a toda Colombia a partir de $300.000",
+    "Soporte en línea 24/7 para asesorarte",
+    "Compra 100% segura con todos los medios de pago",
+    "Productos 100% originales con garantía oficial",
   ];
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -602,12 +602,12 @@ function TopBenefitsBar() {
   useEffect(() => {
     if (isPaused || !isPageVisible) return;
 
-    const timer = window.setTimeout(() => {
+    const interval = window.setInterval(() => {
       setPreviousIndex(currentIndex);
       setCurrentIndex((index) => (index + 1) % benefits.length);
     }, 4000);
 
-    return () => window.clearTimeout(timer);
+    return () => window.clearInterval(interval);
   }, [currentIndex, benefits.length, isPaused, isPageVisible]);
 
   useEffect(() => {
@@ -679,22 +679,22 @@ function TopBenefitsBar() {
 
         @keyframes benefit-enter {
           from {
-            transform: translateY(100%);
+            transform: translateX(100%);
             opacity: 0;
           }
           to {
-            transform: translateY(0);
+            transform: translateX(0);
             opacity: 1;
           }
         }
 
         @keyframes benefit-exit {
           from {
-            transform: translateY(0);
+            transform: translateX(0);
             opacity: 1;
           }
           to {
-            transform: translateY(-100%);
+            transform: translateX(-100%);
             opacity: 0;
           }
         }
