@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getSupabaseClient, isSupabaseEnabled } from './supabase-client';
 import { getProfileAccess, ProfileAccessVerificationError } from './profile-service';
+import { getAdminPanelMenuLink } from '../app/admin-panel-menu';
 
 vi.mock('./supabase-client', () => ({
   getSupabaseClient: vi.fn(),
@@ -31,10 +32,17 @@ describe('getProfileAccess', () => {
   it('grants admin access only to an active ADMIN profile', async () => {
     const query = mockProfileQuery({ id: 'user-1', role: 'ADMIN', is_active: true });
 
-    await expect(getProfileAccess({ id: 'user-1' })).resolves.toEqual({
+    const access = await getProfileAccess({ id: 'user-1' });
+
+    expect(access).toEqual({
       status: 'admin',
       role: 'ADMIN',
       isAdmin: true,
+    });
+    expect(getAdminPanelMenuLink(access.role, access.isAdmin)).toEqual({
+      label: 'Panel de Administración',
+      view: 'admin',
+      href: '/admin',
     });
     expect(query.select).toHaveBeenCalledWith('id, role, is_active');
   });
@@ -42,21 +50,27 @@ describe('getProfileAccess', () => {
   it('returns customer access without admin permissions', async () => {
     mockProfileQuery({ id: 'user-1', role: 'CUSTOMER', is_active: true });
 
-    await expect(getProfileAccess({ id: 'user-1' })).resolves.toEqual({
+    const access = await getProfileAccess({ id: 'user-1' });
+
+    expect(access).toEqual({
       status: 'customer',
       role: 'CUSTOMER',
       isAdmin: false,
     });
+    expect(getAdminPanelMenuLink(access.role, access.isAdmin)).toBeNull();
   });
 
   it('rejects admin access for an inactive ADMIN profile', async () => {
     mockProfileQuery({ id: 'user-1', role: 'ADMIN', is_active: false });
 
-    await expect(getProfileAccess({ id: 'user-1' })).resolves.toEqual({
+    const access = await getProfileAccess({ id: 'user-1' });
+
+    expect(access).toEqual({
       status: 'inactive',
       role: null,
       isAdmin: false,
     });
+    expect(getAdminPanelMenuLink(access.role, access.isAdmin)).toBeNull();
   });
 
   it('distinguishes a missing profile from a valid customer', async () => {

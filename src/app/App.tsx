@@ -37,6 +37,7 @@ import {
   updatePassword,
 } from "../lib/supabase-auth";
 import { getMyProfile, getProfileAccess, ProfileAccessVerificationError, updateMyProfile } from "../lib/profile-service";
+import { getAdminPanelMenuLink } from "./admin-panel-menu";
 
 import adminApi, { createSupabaseProductApi, updateSupabaseProductApi, deleteSupabaseProductApi, updateHomeContentApi } from "../lib/admin-api";
 import { uploadProductImage, deleteProductImage, getPublicUrl, buildProductImagePath, getStoragePathFromPublicUrl, STORAGE_BUCKET } from "../lib/supabase-store";
@@ -734,9 +735,9 @@ function TopBenefitsBar() {
   );
 }
 
-function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, currentView, onLoginClick, onLogout, onCategorySelect, onSelectProduct, products, categories }: {
+function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, profileRole, authUser, currentView, onLoginClick, onLogout, onCategorySelect, onSelectProduct, products, categories }: {
   cart: StorefrontCartLine[]; onNavigate: (v: View) => void;
-  onCartOpen: () => void; isLoggedIn: boolean; isAdmin: boolean;
+  onCartOpen: () => void; isLoggedIn: boolean; isAdmin: boolean; profileRole: string | null;
   authUser: User | null; currentView: View; onLoginClick: () => void; onLogout: () => void;
   onCategorySelect: (c: Category | null) => void;
   onSelectProduct?: (p: Product) => void;
@@ -747,6 +748,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
   const [searchVal, setSearchVal] = useState("");
   const [suggestions, setSuggestions] = useState<Product[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const adminPanelMenuLink = getAdminPanelMenuLink(profileRole, isAdmin);
   const suggestTimer = useRef<number | null>(null);
   const cartCount = cart.reduce((s, i) => s + i.qty, 0);
   const availableCategories = HOME_NAV_CATEGORIES;
@@ -852,10 +854,10 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, authUser, c
                             <Package size={14} /> Mis pedidos
                           </button>
                         )}
-                        {isAdmin && (
-                          <button type="button" onClick={() => { onNavigate("admin"); setUserOpen(false); }}
-                            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
-                            <BarChart2 size={14} /> Panel admin
+                        {adminPanelMenuLink && (
+                          <button type="button" onClick={() => { onNavigate(adminPanelMenuLink.view); setUserOpen(false); }}
+                            className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors">
+                            <BarChart2 size={14} /> {adminPanelMenuLink.label}
                           </button>
                         )}
                         <div className="border-t border-slate-100 mt-1 pt-1">
@@ -2143,7 +2145,7 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
         return;
       }
       onLogin(user, profileAccess.isAdmin, profileAccess.role);
-      onNavigate(profileAccess.isAdmin ? "admin" : "home");
+      onNavigate("home");
     } catch (err) {
       if (err instanceof ProfileAccessVerificationError) {
         setError(err.message);
@@ -4599,6 +4601,7 @@ export default function App() {
             onCartOpen={() => setCartOpen(true)}
             isLoggedIn={isLoggedIn}
             isAdmin={isAdmin}
+            profileRole={profileRole}
             authUser={authUser}
             currentView={view}
             products={products}
