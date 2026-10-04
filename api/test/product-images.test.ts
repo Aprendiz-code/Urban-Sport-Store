@@ -17,7 +17,7 @@ vi.mock('../../lib/api-helpers/admin.js', () => ({
   requirePermission: apiMocks.requirePermission,
 }));
 
-import handler, { resolveProductStorageBucket } from '../admin/product-images.js';
+import { handleProductImageUpload as handler, resolveProductStorageBucket } from '../../lib/api-helpers/product-image-upload.js';
 
 function createRequest(contentType: string, bytes: Buffer) {
   return {

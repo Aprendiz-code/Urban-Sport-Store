@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import { jsonError, jsonResponse, jsonSupabaseError, ApiError } from '../../lib/api-helpers/response.ts';
-import { supabaseAdmin } from '../../lib/api-helpers/supabase.ts';
-import { requirePermission } from '../../lib/api-helpers/admin.ts';
-import { requireAuthenticatedUser } from '../../lib/api-helpers/auth.ts';
+import { jsonError, jsonResponse, jsonSupabaseError, ApiError } from './response.js';
+import { supabaseAdmin } from './supabase.js';
+import { requirePermission } from './admin.js';
+import { requireAuthenticatedUser } from './auth.js';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const IMAGE_TYPES = new Map([
@@ -43,7 +43,7 @@ function readImageBody(req: any): Promise<Buffer> {
   });
 }
 
-export default async function handler(req: any, res: any) {
+export async function handleProductImageUpload(req: any, res: any) {
   try {
     if (req.method !== 'POST') return jsonError(res, 405, 'Method not allowed.');
     const user = await requireAuthenticatedUser(req);

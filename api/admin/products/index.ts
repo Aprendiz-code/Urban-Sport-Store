@@ -3,6 +3,15 @@ import { supabaseAdmin } from '../../../lib/api-helpers/supabase.ts';
 import { requirePermission } from '../../../lib/api-helpers/admin.ts';
 import { requireAuthenticatedUser } from '../../../lib/api-helpers/auth.ts';
 import { normalizeProductPayload } from '../../../lib/api-helpers/product-helpers.ts';
+import { handleProductImageUpload } from '../../../lib/api-helpers/product-image-upload.ts';
+
+function isProductImageUploadRequest(req: any): boolean {
+  const requestUrl = new URL(req.url ?? '', 'http://localhost');
+  const pathname = requestUrl.pathname.replace(/\/+$/, '');
+  return pathname === '/api/admin/product-images'
+    || requestUrl.searchParams.get('resource') === 'product-image'
+    || req.query?.resource === 'product-image';
+}
 
 function parseJsonBody(req: any): Promise<any> {
   return new Promise((resolve, reject) => {
@@ -22,6 +31,10 @@ function parseJsonBody(req: any): Promise<any> {
 }
 
 export default async function handler(req: any, res: any) {
+  if (isProductImageUploadRequest(req)) {
+    return handleProductImageUpload(req, res);
+  }
+
   try {
     const user = await requireAuthenticatedUser(req);
 

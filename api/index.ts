@@ -43,7 +43,7 @@ async function resolveRoute(req: http.IncomingMessage, res: http.ServerResponse)
     '/api/admin/home-content': () => import('./admin/home-content.ts'),
     '/api/admin/audit': () => import('./admin/audit.ts'),
     '/api/admin/products': () => import('./admin/products/index.ts'),
-    '/api/admin/product-images': () => import('./admin/product-images.ts'),
+    '/api/admin/product-images': () => import('./admin/products/index.ts'),
   };
 
   const directHandler = handlers[pathname];

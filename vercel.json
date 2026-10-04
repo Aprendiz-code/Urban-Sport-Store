@@ -1,5 +1,6 @@
 {
   "rewrites": [
+    { "source": "/api/admin/product-images", "destination": "/api/admin/products?resource=product-image" },
     { "source": "/((?!api).*)", "destination": "/index.html" }
   ]
 }
