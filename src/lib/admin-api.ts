@@ -10,10 +10,42 @@ export function parseAdminApiError(status: number, text: string): Error {
     const json = JSON.parse(text);
     const errorMessage = json?.error?.message || json?.message || fallbackMessage;
     const errorCode = json?.error?.code || json?.code || 'UNKNOWN_ERROR';
-    return new Error(`[${errorCode}] ${errorMessage}`);
+    return new AdminApiError(
+      status,
+      String(errorCode),
+      String(errorMessage),
+      typeof json?.error?.details === 'string' ? json.error.details : undefined,
+      typeof json?.error?.hint === 'string' ? json.error.hint : undefined,
+    );
   } catch {
-    return new Error(text ? `${status} ${text}` : fallbackMessage);
+    return new AdminApiError(status, 'UNKNOWN_ERROR', text || fallbackMessage);
   }
+}
+
+export class AdminApiError extends Error {
+  readonly apiMessage: string;
+
+  constructor(
+    readonly status: number,
+    readonly code: string,
+    message: string,
+    readonly details?: string,
+    readonly hint?: string,
+  ) {
+    const diagnostics = [details, hint]
+      .filter((value): value is string => Boolean(value?.trim()))
+      .join(' | ');
+    super(`[${code}] ${message}${diagnostics ? ` (${diagnostics})` : ''}`);
+    this.name = 'AdminApiError';
+    this.apiMessage = message;
+  }
+}
+
+export function formatAdminApiError(error: unknown, fallback: string): string {
+  if (error instanceof AdminApiError) return `HTTP ${error.status} ${error.message}`;
+
+  if (error instanceof Error && error.message.trim()) return error.message;
+  return fallback;
 }
 
 const API_ROOT = resolveApiBaseUrl(import.meta.env.VITE_API_URL);
@@ -69,6 +101,15 @@ export async function createProductApi(payload: Partial<Product>) {
   return callApi('/products', { method: 'POST', body: JSON.stringify(payload) });
 }
 
+export async function uploadProductImageApi(file: File) {
+  const response = await callApi('/product-images', {
+    method: 'POST',
+    headers: { 'Content-Type': file.type },
+    body: file,
+  });
+  return (response as any)?.data ?? response;
+}
+
 export async function updateProductApi(productId: string, payload: Partial<Product>) {
   return callApi(`/products/${productId}`, { method: 'PATCH', body: JSON.stringify(payload) });
 }
@@ -105,4 +146,4 @@ export async function fetchAuditLogs(limit = 200) {
   return callApi(`/audit?limit=${limit}`, { method: 'GET' });
 }
 
-export default { fetchProducts, createProductApi, fetchSupabaseProducts, createSupabaseProductApi, updateSupabaseProductApi, deleteSupabaseProductApi, updateProductApi, deleteProductApi, updateHomeContentApi, createInventoryMovement, fetchAuditLogs };
+export default { fetchProducts, createProductApi, uploadProductImageApi, fetchSupabaseProducts, createSupabaseProductApi, updateSupabaseProductApi, deleteSupabaseProductApi, updateProductApi, deleteProductApi, updateHomeContentApi, createInventoryMovement, fetchAuditLogs };

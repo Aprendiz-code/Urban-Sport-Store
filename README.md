@@ -180,7 +180,7 @@ Archivo base a crear en la raíz del proyecto:
 ```env
 VITE_SUPABASE_URL=
 VITE_SUPABASE_ANON_KEY=
-VITE_SUPABASE_STORAGE_BUCKET=product-images
+VITE_SUPABASE_STORAGE_BUCKET=products
 VITE_API_URL=http://localhost:4000
 VITE_TERMS_URL=
 VITE_PRIVACY_POLICY_URL=
@@ -231,7 +231,7 @@ WHERE id = 'REEMPLAZAR_CON_UUID_DEL_USUARIO';
 ```env
 VITE_SUPABASE_URL=https://project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
-VITE_SUPABASE_STORAGE_BUCKET=product-images
+VITE_SUPABASE_STORAGE_BUCKET=products
 VITE_TERMS_URL=
 VITE_PRIVACY_POLICY_URL=
 ```
@@ -242,6 +242,7 @@ VITE_PRIVACY_POLICY_URL=
 DATABASE_URL=postgresql://user:password@localhost/urbansportstore
 SUPABASE_URL=https://project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+SUPABASE_STORAGE_BUCKET=products
 JWT_SECRET=your-jwt-secret
 CORS_ORIGINS=http://localhost:5173
 ```

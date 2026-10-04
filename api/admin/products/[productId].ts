@@ -1,4 +1,4 @@
-import { jsonError, jsonResponse, ApiError } from '../../../lib/api-helpers/response.ts';
+import { jsonError, jsonResponse, jsonSupabaseError, ApiError } from '../../../lib/api-helpers/response.ts';
 import { supabaseAdmin } from '../../../lib/api-helpers/supabase.ts';
 import { requirePermission } from '../../../lib/api-helpers/admin.ts';
 import { requireAuthenticatedUser } from '../../../lib/api-helpers/auth.ts';
@@ -57,13 +57,24 @@ export default async function handler(req: any, res: any) {
         .select('*')
         .eq('id', productId)
         .maybeSingle();
-      if (beforeError || !beforeData) {
+      if (beforeError) {
+        return jsonSupabaseError(res, '[Admin Products] Product lookup before update failed', beforeError, 'Unable to load product before update.');
+      }
+      if (!beforeData) {
         return jsonError(res, 404, 'Product not found.');
+      }
+
+      if ('main_image' in updates || 'images' in updates) {
+        const mainImage = updates.main_image ?? beforeData.main_image;
+        const images = updates.images ?? beforeData.images;
+        if (!mainImage && !(Array.isArray(images) && images.length > 0)) {
+          throw new ApiError(400, 'El producto debe conservar al menos una imagen.');
+        }
       }
 
       const { data, error } = await supabaseAdmin.from('products').update(updates).eq('id', productId).select('*').maybeSingle();
       if (error) {
-        return jsonError(res, 500, error.message || 'Unable to update product.');
+        return jsonSupabaseError(res, '[Admin Products] Product update failed', error, 'Unable to update product.');
       }
       if (!data) {
         return jsonError(res, 404, 'Product not found.');
@@ -89,13 +100,16 @@ export default async function handler(req: any, res: any) {
         .select('*')
         .eq('id', productId)
         .maybeSingle();
-      if (beforeError || !beforeData) {
+      if (beforeError) {
+        return jsonSupabaseError(res, '[Admin Products] Product lookup before archive failed', beforeError, 'Unable to load product before archive.');
+      }
+      if (!beforeData) {
         return jsonError(res, 404, 'Product not found.');
       }
 
       const { data, error } = await supabaseAdmin.from('products').update({ is_active: false }).eq('id', productId).select('*').maybeSingle();
       if (error) {
-        return jsonError(res, 500, error.message || 'Unable to delete product.');
+        return jsonSupabaseError(res, '[Admin Products] Product archive failed', error, 'Unable to delete product.');
       }
       if (!data) {
         return jsonError(res, 404, 'Product not found.');
@@ -119,6 +133,9 @@ export default async function handler(req: any, res: any) {
   } catch (error: any) {
     if (error instanceof ApiError) {
       return jsonError(res, error.status, error.message);
+    }
+    if (error && typeof error === 'object' && 'code' in error) {
+      return jsonSupabaseError(res, '[Admin Products] Request failed', error, 'Unable to handle product request.');
     }
     return jsonError(res, 500, error?.message ?? 'Unable to handle request.');
   }

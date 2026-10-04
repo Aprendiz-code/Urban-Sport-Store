@@ -1,4 +1,5 @@
 import { getSupabaseClient } from './supabase-client';
+import { uploadProductImageApi } from './admin-api';
 
 export interface ProductRecord {
   id: string;
@@ -8,10 +9,12 @@ export interface ProductRecord {
   original_price?: number | null;
   discount?: number | null;
   rating?: number | null;
+  compare_at_price?: number | null;
   reviews?: number | null;
   image: string;
   category: string;
   category_id?: string | null;
+  main_image?: string | null;
   slug?: string | null;
   subcategory?: string | null;
   stock?: number | null;
@@ -24,9 +27,14 @@ export interface ProductRecord {
   is_new?: boolean | null;
   is_featured?: boolean | null;
   specs?: string[] | null;
+  reviews_count?: number | null;
 }
 
-export const STORAGE_BUCKET = import.meta.env.VITE_SUPABASE_STORAGE_BUCKET ?? 'product-images';
+export function resolveStorageBucket(configuredBucket?: string): string {
+  return configuredBucket?.trim() || 'products';
+}
+
+export const STORAGE_BUCKET = resolveStorageBucket(import.meta.env.VITE_SUPABASE_STORAGE_BUCKET);
 const SUPPORTED_IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp'];
 
 const getFileExtension = (file: File) => {
@@ -49,8 +57,8 @@ export const buildProductImagePath = (file: File, prefix = 'products') => {
   return `${prefix}/${crypto.randomUUID()}-${timestamp}.${extension}`;
 };
 
-export const uploadProductImage = async (_file: File, _path?: string): Promise<never> => {
-  throw new Error('La carga de imágenes está desactivada hasta configurar un proveedor de almacenamiento server-side.');
+export const uploadProductImage = async (file: File, _path?: string): Promise<{ path: string }> => {
+  return uploadProductImageApi(file);
 };
 
 export const deleteProductImage = async (_path: string): Promise<never> => {

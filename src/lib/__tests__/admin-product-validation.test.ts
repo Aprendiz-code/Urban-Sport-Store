@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { validateProductForm, isValidUuid } from '../admin-product-form';
-import adminApi, { parseAdminApiError } from '../admin-api';
+import adminApi, { formatAdminApiError, parseAdminApiError } from '../admin-api';
 import { getAccessToken } from '../supabase-auth';
 
 vi.mock('../supabase-auth', () => ({
@@ -14,6 +14,7 @@ describe('admin product validation', () => {
     expect(isValidUuid(validUuid)).toBe(true);
     expect(validateProductForm({
       name: 'Zapatilla Test',
+      brand: 'Marca Test',
       sku: 'SKU-1',
       price: 120000,
       stock: 10,
@@ -24,6 +25,7 @@ describe('admin product validation', () => {
 
     expect(validateProductForm({
       name: 'Zapatilla Test',
+      brand: 'Marca Test',
       sku: 'SKU-1',
       price: 120000,
       stock: 10,
@@ -33,6 +35,24 @@ describe('admin product validation', () => {
     })).toMatchObject({
       category: 'Selecciona una categoría válida.',
     });
+  });
+
+  it('accepts zero price and rejects negative price, fractional stock, and oversized galleries', () => {
+    const validProduct = {
+      name: 'Zapatilla Test',
+      brand: 'Marca Test',
+      sku: 'SKU-1',
+      price: 0,
+      stock: 0,
+      categoryId: '123e4567-e89b-12d3-a456-426614174000',
+      image: 'https://example.test/image.jpg',
+      images: [],
+    };
+
+    expect(validateProductForm(validProduct)).toEqual({});
+    expect(validateProductForm({ ...validProduct, price: -1 })).toHaveProperty('price');
+    expect(validateProductForm({ ...validProduct, stock: 1.5 })).toHaveProperty('stock');
+    expect(validateProductForm({ ...validProduct, images: Array.from({ length: 11 }, (_, index) => `image-${index}`) })).toHaveProperty('gallery');
   });
 });
 
@@ -56,6 +76,31 @@ describe('admin API response handling', () => {
     const err = parseAdminApiError(Number(status), text);
     expect(err.message).toContain(responseText.replace(/^\[[A-Z_]+\]\s/, ''));
     expect(err.message).toContain('[');
+  });
+
+  it('preserves Supabase code, details, and hint for UI diagnostics', () => {
+    const err = parseAdminApiError(400, JSON.stringify({
+      error: {
+        code: '23514',
+        message: 'new row violates check constraint',
+        details: 'Failing row contains an invalid value.',
+        hint: 'Check stock is an integer.',
+      },
+    }));
+
+    expect(err.message).toContain('[23514]');
+    expect(err.message).toContain('Failing row contains an invalid value.');
+    expect(err.message).toContain('Check stock is an integer.');
+    expect(err).toMatchObject({
+      status: 400,
+      code: '23514',
+      apiMessage: 'new row violates check constraint',
+      details: 'Failing row contains an invalid value.',
+      hint: 'Check stock is an integer.',
+    });
+    expect(formatAdminApiError(err, 'Error al guardar.')).toContain('HTTP 400 [23514] new row violates check constraint');
+    expect(formatAdminApiError(err, 'Error al guardar.')).toContain('Failing row contains an invalid value.');
+    expect(formatAdminApiError(err, 'Error al guardar.')).toContain('Check stock is an integer.');
   });
 
   it('throws a clear network error when the backend is down', async () => {

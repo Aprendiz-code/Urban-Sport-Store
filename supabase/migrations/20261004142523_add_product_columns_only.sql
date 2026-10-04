@@ -1,0 +1,8 @@
+BEGIN;
+
+ALTER TABLE public.products
+  ADD COLUMN IF NOT EXISTS brand text NOT NULL DEFAULT '',
+  ADD COLUMN IF NOT EXISTS main_image text,
+  ADD COLUMN IF NOT EXISTS images jsonb NOT NULL DEFAULT '[]'::jsonb;
+
+COMMIT;

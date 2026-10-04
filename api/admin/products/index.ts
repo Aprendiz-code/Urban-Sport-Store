@@ -1,4 +1,4 @@
-import { jsonError, jsonResponse, ApiError } from '../../../lib/api-helpers/response.ts';
+import { jsonError, jsonResponse, jsonSupabaseError, ApiError } from '../../../lib/api-helpers/response.ts';
 import { supabaseAdmin } from '../../../lib/api-helpers/supabase.ts';
 import { requirePermission } from '../../../lib/api-helpers/admin.ts';
 import { requireAuthenticatedUser } from '../../../lib/api-helpers/auth.ts';
@@ -29,7 +29,7 @@ export default async function handler(req: any, res: any) {
       await requirePermission(user, 'products.read');
       const { data, error } = await supabaseAdmin.from('products').select('*').order('created_at', { ascending: false });
       if (error) {
-        return jsonError(res, 500, error.message || 'Unable to fetch products.');
+        return jsonSupabaseError(res, '[Admin Products] Product list query failed', error, 'Unable to fetch products.');
       }
       return jsonResponse(res, { data });
     }
@@ -39,13 +39,16 @@ export default async function handler(req: any, res: any) {
       const body = await parseJsonBody(req);
       const payload = await normalizeProductPayload(body);
 
-      if (!payload.slug || !payload.name || payload.price === undefined || !payload.category_id) {
-        throw new ApiError(400, 'Missing required fields: slug, name, price, category_id');
+      if (!payload.slug || !payload.name || !payload.brand || payload.price === undefined || !payload.sku || !payload.category_id) {
+        throw new ApiError(400, 'Los campos nombre, marca, precio, SKU y categoría son obligatorios.');
+      }
+      if (!payload.main_image && !(Array.isArray(payload.images) && payload.images.length > 0)) {
+        throw new ApiError(400, 'El producto requiere al menos una imagen cargada.');
       }
 
       const { data, error } = await supabaseAdmin.from('products').insert([payload]).select('*').single();
       if (error) {
-        return jsonError(res, 500, error.message || 'Unable to create product.');
+        return jsonSupabaseError(res, '[Admin Products] Product insert failed', error, 'Unable to create product.');
       }
 
       await supabaseAdmin.from('audit_logs').insert({
@@ -65,6 +68,9 @@ export default async function handler(req: any, res: any) {
   } catch (error: any) {
     if (error instanceof ApiError) {
       return jsonError(res, error.status, error.message);
+    }
+    if (error && typeof error === 'object' && 'code' in error) {
+      return jsonSupabaseError(res, '[Admin Products] Request failed', error, 'Unable to handle products request.');
     }
     return jsonError(res, 500, error?.message ?? 'Unable to handle request.');
   }

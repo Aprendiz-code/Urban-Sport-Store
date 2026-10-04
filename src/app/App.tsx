@@ -27,6 +27,7 @@ import {
 // promoRibbon moved to src/assets/cinta-10.png
 import type { ProductRecord } from "../lib/supabase-store";
 import { createProductViaAdminApi, deleteProductViaAdminApi, updateProductViaAdminApi } from "../lib/admin-product-fallback";
+import { buildAdminProductPayload, runAdminProductSubmission } from "../lib/admin-product-payload";
 import {
   signInWithEmail,
   signUpWithEmail,
@@ -39,7 +40,7 @@ import {
 import { getMyProfile, getProfileAccess, ProfileAccessVerificationError, updateMyProfile } from "../lib/profile-service";
 import { getAdminPanelMenuLink } from "./admin-panel-menu";
 
-import adminApi, { createSupabaseProductApi, updateSupabaseProductApi, deleteSupabaseProductApi, updateHomeContentApi } from "../lib/admin-api";
+import adminApi, { createSupabaseProductApi, updateSupabaseProductApi, deleteSupabaseProductApi, updateHomeContentApi, formatAdminApiError } from "../lib/admin-api";
 import { uploadProductImage, deleteProductImage, getPublicUrl, buildProductImagePath, getStoragePathFromPublicUrl, STORAGE_BUCKET } from "../lib/supabase-store";
 import { recordAction, getAudit } from "../lib/audit";
 import { productSchema } from '../lib/schemas';
@@ -203,7 +204,7 @@ const mapProductRecordToAppProduct = (record: ProductRecord, categories: readonl
   discount: record.discount ?? undefined,
   rating: record.rating ?? 0,
   reviews: record.reviews ?? 0,
-  image: record.image,
+  image: record.main_image ?? record.image ?? "",
   images: record.images ?? [],
   category: resolveProductCategoryName(record.category_id, record.category, categories),
   categoryId: record.category_id ?? undefined,
@@ -217,31 +218,6 @@ const mapProductRecordToAppProduct = (record: ProductRecord, categories: readonl
   isNew: record.is_new ?? false,
   isFeatured: record.is_featured ?? false,
   specs: record.specs ?? [],
-});
-
-const mapAppProductToProductRecord = (product: Partial<Product> & { id?: string }): ProductRecord => ({
-  id: product.id ?? crypto.randomUUID(),
-  name: product.name ?? "",
-  brand: product.brand ?? "",
-  price: Number(product.price ?? 0),
-  original_price: product.originalPrice ?? null,
-  discount: product.discount ?? null,
-  rating: Number(product.rating ?? 0),
-  reviews: Number(product.reviews ?? 0),
-  image: product.image ?? "",
-  category: product.category ?? "Zapatos",
-  category_id: product.categoryId ?? product.category ?? null,
-  images: product.images ?? [],
-  subcategory: product.subcategory ?? "",
-  stock: Number(product.stock ?? 0),
-  sku: product.sku ?? "",
-  description: product.description ?? "",
-  colors: product.colors ?? [],
-  sizes: product.sizes ?? [],
-  gender: (product.gender ?? "Unisex") as string,
-  is_new: product.isNew ?? false,
-  is_featured: product.isFeatured ?? false,
-  specs: product.specs ?? [],
 });
 
 // ─── DATA ────────────────────────────────────────────────────────────────────
@@ -745,6 +721,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, profileRole
   categories: CategoryOption[];
 }) {
   const [userOpen, setUserOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchVal, setSearchVal] = useState("");
   const [suggestions, setSuggestions] = useState<Product[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -753,6 +730,12 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, profileRole
   const cartCount = cart.reduce((s, i) => s + i.qty, 0);
   const availableCategories = HOME_NAV_CATEGORIES;
   const showCustomerOrders = !isAdmin;
+  const primaryLinks = [
+    { label: "Inicio", onClick: () => onNavigate("home") },
+    { label: "Catálogo", onClick: () => onNavigate("catalog") },
+    { label: "Envíos", onClick: () => onNavigate("shipping") },
+    { label: "Contacto", onClick: () => onNavigate("contact") },
+  ];
 
   // suggestions effect
   useEffect(() => {
@@ -771,16 +754,23 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, profileRole
     return () => { if (suggestTimer.current) window.clearTimeout(suggestTimer.current); };
   }, [searchVal, products]);
 
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const handleMenuKeydown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobileMenuOpen(false);
+    };
+    window.addEventListener("keydown", handleMenuKeydown);
+    return () => window.removeEventListener("keydown", handleMenuKeydown);
+  }, [mobileMenuOpen]);
+
   return (
     <>
       <div className="fixed top-0 left-0 right-0 z-50">
         <TopBenefitsBar />
 
-        {/* Main Navbar */}
-        <nav className="bg-white border-b border-slate-100 shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-2 sm:gap-4">
-            {/* Logo */}
-            <button onClick={() => onNavigate("home")} className="flex items-center shrink-0">
+        <nav className="border-b border-slate-100 bg-white/95 shadow-sm backdrop-blur-sm">
+          <div className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-4 sm:px-6 sm:gap-4">
+            <button type="button" onClick={() => onNavigate("home")} className="flex shrink-0 items-center" aria-label="Ir a inicio">
               <span className="brand-lockup">
                 <span className="brand-wordmark">
                   <span className="brand-urban">Urban</span><span className="brand-sport">Sport</span>
@@ -789,13 +779,25 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, profileRole
               </span>
             </button>
 
-            {/* Search */}
-            {/* Desktop search */}
-            <div className="flex-1 max-w-xl hidden sm:flex relative">
+            <nav aria-label="Navegación principal" className="hidden items-center gap-1 rounded-full bg-slate-100 p-1 lg:flex">
+              {primaryLinks.map((link) => (
+                <button
+                  key={link.label}
+                  type="button"
+                  onClick={link.onClick}
+                  className="rounded-full px-3 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-white hover:text-[#1d4ed8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8]"
+                >
+                  {link.label}
+                </button>
+              ))}
+            </nav>
+
+            <div className="hidden flex-1 max-w-xl sm:flex relative">
               <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 value={searchVal} onChange={(e) => setSearchVal(e.target.value)}
                 placeholder="Buscar zapatillas, ropa, relojes..."
+                aria-label="Buscar productos"
                 className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:border-[#1d4ed8]/50 focus:bg-white transition-all"
                 onFocus={() => setShowSuggestions(true)}
                 onBlur={() => setTimeout(() => setShowSuggestions(false), 180)}
@@ -814,30 +816,41 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, profileRole
               )}
             </div>
 
-            {/* Actions */}
             <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
               <button
                 type="button"
                 aria-label={`Abrir carrito, ${cartCount} artículos`}
                 onClick={onCartOpen}
-                className="relative w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
+                className="relative h-10 w-10 rounded-xl flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
               >
                 <ShoppingCart size={19} />
                 {cartCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 w-4.5 h-4.5 w-5 h-5 rounded-full bg-[#f97316] text-white text-[10px] font-bold flex items-center justify-center">
+                  <span className="absolute -top-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#f97316] text-[10px] font-bold text-white">
                     {cartCount}
                   </span>
                 )}
               </button>
 
-              <div className="relative">
+              <button
+                type="button"
+                aria-label={mobileMenuOpen ? "Cerrar menú móvil" : "Abrir menú móvil"}
+                aria-expanded={mobileMenuOpen}
+                aria-controls="mobile-nav-panel"
+                onClick={() => setMobileMenuOpen((value) => !value)}
+                className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8] sm:hidden"
+              >
+                {mobileMenuOpen ? <X size={19} /> : <Grid3X3 size={19} />}
+              </button>
+
+              <div className="relative hidden sm:block">
                 <button
                     type="button"
                     onClick={() => setUserOpen(!userOpen)}
-                    className="w-10 h-10 rounded-xl flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
+                    aria-label={isLoggedIn ? "Abrir menú de usuario" : "Iniciar sesión o crear cuenta"}
+                    className="h-10 w-10 rounded-xl flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
                   >
                   {isLoggedIn
-                    ? <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#1d4ed8] to-[#f97316] flex items-center justify-center text-xs font-bold text-white">V</div>
+                    ? <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#1d4ed8] to-[#f97316] text-xs font-bold text-white">V</div>
                     : <Users size={19} />}
                 </button>
                 {userOpen && (
@@ -884,6 +897,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, profileRole
               </div>
             </div>
           </div>
+
           <div className="relative px-4 pb-3 sm:hidden">
             <Search size={15} aria-hidden="true" className="absolute left-7 top-1/2 -translate-y-1/2 text-slate-400" />
             <label htmlFor="mobile-product-search" className="sr-only">Buscar productos</label>
@@ -907,6 +921,32 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, profileRole
               </div>
             )}
           </div>
+
+          {mobileMenuOpen && (
+            <div id="mobile-nav-panel" className="border-t border-slate-100 bg-white px-4 py-3 sm:hidden">
+              <div className="grid gap-2">
+                {primaryLinks.map((link) => (
+                  <button
+                    key={link.label}
+                    type="button"
+                    onClick={() => { link.onClick(); setMobileMenuOpen(false); }}
+                    className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 hover:text-[#1d4ed8]"
+                  >
+                    <span>{link.label}</span>
+                    <ChevronRight size={14} />
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => { onNavigate(isLoggedIn ? "account" : "login"); setMobileMenuOpen(false); }}
+                  className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 hover:text-[#1d4ed8]"
+                >
+                  <span>{isLoggedIn ? "Mi cuenta" : "Iniciar sesión"}</span>
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
         </nav>
       </div>
 
@@ -1107,9 +1147,12 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
 
     if (status === "error") {
       return (
-        <div role="alert" className="flex flex-col items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-950 sm:flex-row sm:items-center sm:justify-between">
+        <div role="alert" aria-live="polite" className="flex flex-col items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-950 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-2">
-            <p className="text-sm">No pudimos cargar el catálogo. Intenta de nuevo en unos momentos.</p>
+            <p className="text-sm font-semibold">No pudimos cargar el catálogo en este entorno.</p>
+            <p className="text-sm text-amber-900/80">
+              Revisa la configuración de <span className="font-semibold">VITE_API_URL</span> y vuelve a intentarlo cuando la API pública esté disponible.
+            </p>
             {onCategorySelect && (
               <button type="button" onClick={() => onCategorySelect(null)} className="text-sm font-semibold text-amber-900 underline underline-offset-2">
                 Explorar catálogo
@@ -1146,6 +1189,9 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
   const hasRealDiscounts = onSale.some((product) => typeof product.originalPrice === "number" && product.originalPrice > product.price);
   const privacyPolicyUrl = import.meta.env.VITE_PRIVACY_POLICY_URL?.trim() || STORE_CONFIG.privacyPolicyPath;
   const newsletterAvailable = !import.meta.env.DEV || Boolean(import.meta.env.VITE_API_URL?.trim());
+  const heroImage = content.heroImage?.trim() || "https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=1600&h=900&fit=crop&auto=format";
+  const heroTitle = content.heroTitle?.trim() || "VISTE TU ESTILO. MARCA LA DIFERENCIA.";
+  const heroSubtitle = content.heroSubtitle?.trim() || "Explora calzado, ropa deportiva y accesorios para completar tu estilo.";
   const [newsletterEmail, setNewsletterEmail] = useState("");
   const [newsletterLoading, setNewsletterLoading] = useState(false);
   const [newsletterMessage, setNewsletterMessage] = useState("");
@@ -1195,10 +1241,13 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
     <main>
       <section className="relative flex min-h-[430px] items-center justify-center overflow-hidden bg-[#0b1220] sm:min-h-[480px] md:min-h-[520px]">
         <img
-          src="https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=1600&h=900&fit=crop&auto=format"
-          alt="Atleta entrenando al aire libre"
+          src={heroImage}
+          alt={heroTitle}
           loading="eager"
+          fetchPriority="high"
           decoding="async"
+          width={1600}
+          height={900}
           className="absolute inset-0 h-full w-full object-cover object-center"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-[#0b1220]/95 via-[#0b1220]/80 to-[#0b1220]/45 md:from-[#0b1220]/95 md:via-[#0b1220]/80 md:to-[#0b1220]/50" />
@@ -1206,13 +1255,13 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
         <div className="relative z-10 mx-auto w-full max-w-7xl px-3 py-6 sm:px-4 sm:py-8 md:px-6 md:py-10">
           <div className="max-w-2xl">
             <span className="mb-4 inline-flex items-center rounded-full border border-white/30 bg-white/10 px-3 py-1.5 text-[10px] font-bold uppercase text-white backdrop-blur-sm sm:text-xs">
-              COLECCIÓN 2026
+              {content.categorySectionLabel || "COLECCIÓN 2026"}
             </span>
             <h1 className="mb-3 max-w-xl font-display text-[2.6rem] leading-[0.98] text-white sm:text-[3.4rem] md:text-[4.1rem] lg:text-[4.6rem]">
-              VISTE TU ESTILO. MARCA LA DIFERENCIA.
+              {heroTitle}
             </h1>
             <p className="mb-6 max-w-lg text-base leading-relaxed text-slate-200 sm:text-lg md:text-xl">
-              Explora calzado, ropa deportiva y accesorios para completar tu estilo.
+              {heroSubtitle}
             </p>
             <div className="flex w-full flex-col gap-3 min-[480px]:w-auto min-[480px]:flex-row">
               <Btn
@@ -1231,7 +1280,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
                 onClick={() => onNavigate("catalog")}
                 className="w-full justify-center !border-white/35 !bg-slate-950/35 !text-white hover:!bg-slate-900/70 min-[480px]:w-auto"
               >
-                Ver novedades
+                Ver catálogo
               </Btn>
             </div>
           </div>
@@ -1290,7 +1339,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
             <p className="mb-4">Explora nuestras categorías mientras actualizamos el catálogo.</p>
             <div className="flex flex-wrap gap-3">
               {homeCategories.slice(0, 3).map((category) => (
-                <button key={category.name} type="button" onClick={() => onCategorySelect(category.name)} className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 font-semibold text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8]">
+                <button key={category.name} type="button" onClick={() => onCategorySelect(category.filterCategory)} className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 font-semibold text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8]">
                   {category.name}
                 </button>
               ))}
@@ -1444,7 +1493,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
                 <ul className="space-y-2">
                   {homeCategories.map((category) => (
                     <li key={category.name}>
-                      <button type="button" onClick={() => { onCategorySelect(category.name); onNavigate("catalog"); }} className="min-h-10 w-full text-left text-xs text-slate-400 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
+                      <button type="button" onClick={() => { onCategorySelect(category.filterCategory); onNavigate("catalog"); }} className="min-h-10 w-full text-left text-xs text-slate-400 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
                         {category.name}
                       </button>
                     </li>
@@ -3018,39 +3067,24 @@ function AdminDashboard({ onNavigate, products, categories, createProduct, updat
     if (!payload.sku) payload.sku = `SKU-${Date.now().toString().slice(-6)}`;
 
     setIsSubmitting(true);
-    const executeUpdate = async () => {
-      if (formMode === "edit" && activeProduct) {
-        try {
-          await updateProduct(activeProduct.id, payload);
-          resetForm();
-          setAdminSection("products");
-        } catch (e) {
-          console.error("Error updating product:", e);
-          toast.error("Error al actualizar el producto");
-        } finally {
-          setIsSubmitting(false);
+    const editingProduct = formMode === "edit" ? activeProduct : null;
+    void runAdminProductSubmission(
+      async () => {
+        if (editingProduct) {
+          await updateProduct(editingProduct.id, payload);
+        } else {
+          await createProduct(payload);
         }
-      }
-    };
-
-    const executeCreate = async () => {
-      try {
-        await createProduct(payload);
+      },
+      () => {
         resetForm();
         setAdminSection("products");
-      } catch (e) {
-        console.error("Error creating product:", e);
-        toast.error("Error al crear el producto");
-      } finally {
-        setIsSubmitting(false);
-      }
-    };
-
-    if (formMode === "edit" && activeProduct) {
-      void executeUpdate();
-    } else {
-      void executeCreate();
-    }
+      },
+      (error) => {
+        console.error(editingProduct ? "Error updating product:" : "Error creating product:", error);
+        toast.error(formatAdminApiError(error, editingProduct ? "Error al actualizar el producto." : "Error al crear el producto."));
+      },
+    ).finally(() => setIsSubmitting(false));
   };
 
   const handleDeleteProduct = (productId: string) => {
@@ -4388,32 +4422,24 @@ export default function App() {
 
   const createProduct = async (product: Omit<Product, "id">) => {
     try {
-      const record = mapAppProductToProductRecord({ ...product, id: crypto.randomUUID() });
-      const adminPayload: Record<string, unknown> = {
-        slug: record.slug ?? undefined,
-        name: record.name,
-        price: record.price,
-        description: record.description,
-        sku: record.sku,
-        stock: record.stock,
-        category_id: record.category_id && /^[0-9a-fA-F-]{36}$/.test(record.category_id) ? record.category_id : undefined,
-        compare_at_price: record.original_price ?? undefined,
-        is_active: true,
-      };
+      const adminPayload = buildAdminProductPayload(product, true);
 
       if (!adminPayload.category_id) {
         throw new Error('Selecciona una categoría válida.');
       }
 
       const created = await createProductViaAdminApi(adminPayload);
+      if (!created || typeof created.id !== 'string' || !created.id) {
+        throw new Error('La API no devolvió el ID del producto guardado.');
+      }
       const createdAppProduct = mapProductRecordToAppProduct(created);
       refreshProducts();
       toast.success("Producto creado y guardado correctamente.");
       try { recordAction('create_product', { id: createdAppProduct.id, name: createdAppProduct.name }); } catch (e) { }
-      return;
+      return createdAppProduct;
     } catch (err) {
       console.error("Backend create product failed:", err);
-      toast.error("Error creando producto. Intenta nuevamente.");
+      throw err;
     }
   };
 
@@ -4423,27 +4449,24 @@ export default function App() {
       if (!productToUpdate) {
         throw new Error('Producto no encontrado');
       }
-      const record = mapAppProductToProductRecord({ ...productToUpdate, ...updates, id: productId });
-      const { id: _ignoredId, ...recordUpdates } = record;
-      const adminUpdates: Record<string, unknown> = {
-        ...recordUpdates,
-        category_id: recordUpdates.category_id ?? recordUpdates.category ?? undefined,
-        compare_at_price: record.original_price ?? undefined,
-      };
+      const adminUpdates = buildAdminProductPayload({ ...productToUpdate, ...updates });
 
       if (!adminUpdates.category_id && (updates.category ?? productToUpdate.category)) {
         adminUpdates.category = updates.category ?? productToUpdate.category;
       }
 
       const updated = await updateProductViaAdminApi(productId, adminUpdates);
+      if (!updated || updated.id !== productId) {
+        throw new Error('La API no confirmó el producto actualizado.');
+      }
       const updatedAppProduct = mapProductRecordToAppProduct(updated);
       refreshProducts();
       toast.success("Producto actualizado correctamente.");
       try { recordAction('update_product', { id: updatedAppProduct.id, name: updatedAppProduct.name }); } catch (e) { }
-      return;
+      return updatedAppProduct;
     } catch (err) {
       console.error("Backend update failed:", err);
-      toast.error("Error actualizando producto. Intenta nuevamente.");
+      throw err;
     }
   };
 

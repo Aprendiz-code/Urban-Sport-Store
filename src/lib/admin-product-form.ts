@@ -1,9 +1,12 @@
 export function isValidUuid(value?: string | null): boolean {
-  return typeof value === 'string' && /^[0-9a-fA-F-]{36}$/.test(value.trim());
+  return typeof value === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(value.trim());
 }
+
+export const MAX_PRODUCT_GALLERY_IMAGES = 10;
 
 export function validateProductForm(form: {
   name?: string;
+  brand?: string;
   sku?: string;
   price?: number | string;
   stock?: number | string;
@@ -17,18 +20,22 @@ export function validateProductForm(form: {
     errors.name = 'El nombre es requerido';
   }
 
+  if (!String(form.brand ?? '').trim()) {
+    errors.brand = 'La marca es requerida';
+  }
+
   if (!String(form.sku ?? '').trim()) {
     errors.sku = 'El SKU es requerido';
   }
 
   const price = Number(form.price ?? 0);
-  if (Number.isFinite(price) && price <= 0) {
-    errors.price = 'El precio debe ser mayor a 0';
+  if (!Number.isFinite(price) || price < 0) {
+    errors.price = 'El precio debe ser un número mayor o igual a 0';
   }
 
   const stock = Number(form.stock ?? 0);
-  if (Number.isFinite(stock) && stock < 0) {
-    errors.stock = 'El stock no puede ser negativo';
+  if (!Number.isInteger(stock) || stock < 0) {
+    errors.stock = 'El stock debe ser un entero mayor o igual a 0';
   }
 
   if (!isValidUuid(form.categoryId)) {
@@ -42,6 +49,10 @@ export function validateProductForm(form: {
 
   if (!hasImage) {
     errors.image = 'Al menos una imagen es requerida';
+  }
+
+  if ((form.images?.length ?? 0) > MAX_PRODUCT_GALLERY_IMAGES) {
+    errors.gallery = `La galería admite hasta ${MAX_PRODUCT_GALLERY_IMAGES} imágenes`;
   }
 
   return errors;

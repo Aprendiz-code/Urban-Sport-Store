@@ -1,29 +1,28 @@
-# 🚀 Urban Sport Store - Ready for Production
+# Urban Sport Store: inicio rápido
 
-## ✅ Configuración Activa
+## Variables de entorno
 
-### Frontend (`.env.local`)
+Configura los valores del proyecto en los archivos locales ignorados por Git. No incluyas claves reales en la documentación.
+
+Frontend (`.env.local`):
+
 ```env
-VITE_SUPABASE_URL=https://vgfvjmpaftiufykejagk.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGc...  # Clave pública - segura en frontend
-VITE_SUPABASE_STORAGE_BUCKET=product-images
+VITE_SUPABASE_URL=
+VITE_SUPABASE_ANON_KEY=
+VITE_SUPABASE_STORAGE_BUCKET=products
 VITE_API_URL=http://localhost:4000/api
 ```
 
-**✓ Protección RLS activa**: El frontend solo puede leer productos, sin permisos de escritura
+API (`api/.env.local`):
 
----
-
-### Backend (`api/.env.local`)
 ```env
-PORT=4000
-SUPABASE_URL=https://vgfvjmpaftiufykejagk.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=eyJhbGc...  # Clave secreta - SOLO BACKEND ⚠️
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/urbansportstore
-JWT_SECRET=dev-secret-change-in-production
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+SUPABASE_STORAGE_BUCKET=products
 ```
 
-**✓ Service role configurada**: El backend puede crear/editar/eliminar productos con permiso de administración
+La clave de servicio solo pertenece al entorno servidor. Mantén ambas variables de bucket alineadas con `products`.
 
 ---
 
