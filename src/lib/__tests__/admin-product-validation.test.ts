@@ -81,8 +81,8 @@ describe('admin API response handling', () => {
 
   it.each([
     [400, 'Bad Request', '[BAD_REQUEST] Petición inválida'],
-    [401, 'Unauthorized', '[UNAUTHORIZED] No autorizado'],
-    [403, 'Forbidden', '[FORBIDDEN] No autorizado'],
+    [401, 'Unauthorized', '[UNAUTHORIZED] Sesión administrativa requerida'],
+    [403, 'Forbidden', '[FORBIDDEN] No tienes permisos para esta operación.'],
     [409, 'Conflict', '[CONFLICT] Ya existe'],
   ])('maps status %i to a clear error', async (status, _label, responseText) => {
     const text = JSON.stringify({ error: { code: String(status).startsWith('4') ? 'BAD_REQUEST' : status === 401 ? 'UNAUTHORIZED' : status === 403 ? 'FORBIDDEN' : 'CONFLICT', message: responseText.replace(/^\[[A-Z_]+\]\s/, '') }, message: responseText });
@@ -120,7 +120,7 @@ describe('admin API response handling', () => {
     vi.mocked(getAccessToken).mockResolvedValue('token-123');
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('fetch failed')));
 
-    await expect(adminApi.createProductApi({ name: 'Zapatilla' })).rejects.toThrow(/Network error/i);
+    await expect(adminApi.createProductApi({ name: 'Zapatilla' })).rejects.toThrow(/Error de red/i);
   });
 
   it('returns the created product payload when the API responds 201', async () => {

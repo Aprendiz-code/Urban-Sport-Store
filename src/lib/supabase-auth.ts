@@ -100,19 +100,38 @@ export const getCurrentUser = async () => {
   return user;
 };
 
-export const getAccessToken = async () => {
+export const clearLocalAuthSession = async () => {
+  if (!isSupabaseEnabled()) return;
+
+  const client = getSupabaseClient();
+  await client.auth.signOut({ scope: 'local' });
+};
+
+export const getAccessToken = async (forceRefresh = false) => {
   if (!isSupabaseEnabled()) {
     return null;
   }
 
   const client = getSupabaseClient();
-  const { data } = await client.auth.getSession();
-  // session may be null
-  // access_token is required for backend auth bridging
-  // return null when not available
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const session = (data as any)?.session ?? null;
-  return session?.access_token ?? null;
+  const { data, error } = await client.auth.getSession();
+  if (error) return null;
+
+  const session = data.session;
+  if (!session?.access_token) return null;
+
+  const refreshThreshold = Math.floor(Date.now() / 1000) + 30;
+  const shouldRefresh = forceRefresh || (typeof session.expires_at === 'number' && session.expires_at <= refreshThreshold);
+  if (!shouldRefresh) return session.access_token;
+
+  const refreshed = await client.auth.refreshSession();
+  if (refreshed.error || !refreshed.data.session?.access_token) {
+    try {
+      await clearLocalAuthSession();
+    } catch {}
+    return null;
+  }
+
+  return refreshed.data.session.access_token;
 };
 
 export const onAuthStateChange = (callback: (event: string, session: { user: User | null } | null) => void) => {

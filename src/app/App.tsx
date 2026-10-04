@@ -41,7 +41,7 @@ import {
 import { getMyProfile, getProfileAccess, ProfileAccessVerificationError, updateMyProfile } from "../lib/profile-service";
 import { getAdminPanelMenuLink } from "./admin-panel-menu";
 
-import adminApi, { createSupabaseProductApi, updateSupabaseProductApi, deleteSupabaseProductApi, updateHomeContentApi, formatAdminApiError } from "../lib/admin-api";
+import adminApi, { createSupabaseProductApi, updateSupabaseProductApi, deleteSupabaseProductApi, updateHomeContentApi, formatAdminApiError, isAdminAuthenticationError } from "../lib/admin-api";
 import { uploadProductImage, deleteProductImage, getPublicUrl, buildProductImagePath, getStoragePathFromPublicUrl, STORAGE_BUCKET } from "../lib/supabase-store";
 import { recordAction, getAudit } from "../lib/audit";
 import { productSchema } from '../lib/schemas';
@@ -2747,9 +2747,10 @@ function AccountPage({ onNavigate, onLogout, authUser, addresses, onCreateAddres
 
 // ─── ADMIN DASHBOARD ──────────────────────────────────────────────────────────
 
-function AdminDashboard({ onNavigate, products, categories, productsStatus, onRetryProducts, createProduct, updateProduct, deleteProduct, adjustStock, productRefresh, initialSection, adminRole, homeContent, setHomeContent, homePreviewProducts, setHomePreviewProducts, homeSaleProducts, setHomeSaleProducts, homeNewArrivals, setHomeNewArrivals, saveHomeContent, homeContentSaving, backendAdminAvailable }: {
+function AdminDashboard({ onNavigate, products, productsError, categories, productsStatus, onRetryProducts, createProduct, updateProduct, deleteProduct, adjustStock, productRefresh, initialSection, adminRole, homeContent, setHomeContent, homePreviewProducts, setHomePreviewProducts, homeSaleProducts, setHomeSaleProducts, homeNewArrivals, setHomeNewArrivals, saveHomeContent, homeContentSaving, backendAdminAvailable }: {
   onNavigate: (v: View) => void;
   products: Product[];
+  productsError: string | null;
   categories: CategoryOption[];
   productsStatus: ProductsStatus;
   onRetryProducts: () => void;
@@ -3464,7 +3465,7 @@ function AdminDashboard({ onNavigate, products, categories, productsStatus, onRe
                     {productsStatus === "loading" ? (
                       <tr><td colSpan={6} role="status" className="px-4 py-10 text-center text-sm text-slate-500">Cargando productos…</td></tr>
                     ) : productsStatus === "error" ? (
-                      <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-red-700"><div role="alert">No se pudo cargar la tabla de productos.</div><button type="button" onClick={onRetryProducts} className="mt-2 font-semibold underline">Reintentar</button></td></tr>
+                      <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-red-700"><div role="alert">{productsError ?? "No se pudo cargar la tabla de productos."}</div><button type="button" onClick={onRetryProducts} className="mt-2 font-semibold underline">Reintentar</button></td></tr>
                     ) : paginatedProducts.length === 0 ? (
                       <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-slate-500">{searchTerm ? 'No hay productos que coincidan con la búsqueda.' : 'No hay productos activos.'}</td></tr>
                     ) : paginatedProducts.map((p) => (
@@ -4088,6 +4089,9 @@ export default function App() {
   const [initialAdminSection, setInitialAdminSection] = useState<string | undefined>(getInitialAdminSection);
   const [products, setProducts] = useState<Product[]>([]);
   const [productsStatus, setProductsStatus] = useState<ProductsStatus>("loading");
+  const [adminProducts, setAdminProducts] = useState<Product[]>([]);
+  const [adminProductsStatus, setAdminProductsStatus] = useState<ProductsStatus>("loading");
+  const [adminProductsError, setAdminProductsError] = useState<string | null>(null);
   const [categoryOptions, setCategoryOptions] = useState<CategoryOption[]>([]);
   const [productRefresh, setProductRefresh] = useState(0);
   const [headerOffset, setHeaderOffset] = useState<number>(0);
@@ -4440,6 +4444,33 @@ export default function App() {
     }
   }, [view, isAdmin, authReady]);
 
+  useEffect(() => {
+    if (!authReady || !isAdmin || view !== "admin") return;
+
+    let isActive = true;
+    setAdminProducts([]);
+    setAdminProductsError(null);
+    setAdminProductsStatus("loading");
+
+    void adminApi.fetchProducts().then((records) => {
+      if (!Array.isArray(records)) throw new Error("La API administrativa devolvió una respuesta inválida.");
+      if (!isActive) return;
+      setAdminProducts(records.map((record: ProductRecord) => mapProductRecordToAppProduct(record, categoryOptions)));
+      setAdminProductsStatus("ready");
+    }).catch((error: unknown) => {
+      if (!isActive) return;
+      const message = formatAdminApiError(error, "No se pudieron cargar los productos administrativos.");
+      setAdminProducts([]);
+      setAdminProductsError(message);
+      setAdminProductsStatus("error");
+      toast.error(isAdminAuthenticationError(error) ? "Sesión administrativa requerida" : message);
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, [authReady, isAdmin, view, productRefresh, categoryOptions]);
+
   const handleAuthSuccess = (user: User | null, adminStatus: boolean, role: string | null) => {
     setAuthUser(user);
     setIsLoggedIn(Boolean(user) || adminStatus);
@@ -4493,7 +4524,7 @@ export default function App() {
 
   const updateProduct = async (productId: string, updates: Partial<Product>) => {
     try {
-      const productToUpdate = products.find((product) => product.id === productId);
+      const productToUpdate = adminProducts.find((product) => product.id === productId);
       if (!productToUpdate) {
         throw new Error('Producto no encontrado');
       }
@@ -4579,6 +4610,19 @@ export default function App() {
       console.error('navigate failed', err, v);
     }
   };
+
+  useEffect(() => {
+    const handleAdminSessionRequired = () => {
+      setAuthUser(null);
+      setIsLoggedIn(false);
+      setIsAdmin(false);
+      setProfileRole(null);
+      navigate("admin-login");
+    };
+
+    window.addEventListener('admin-session-required', handleAdminSessionRequired);
+    return () => window.removeEventListener('admin-session-required', handleAdminSessionRequired);
+  }, [navigate]);
 
   const handleSelectProduct = (p: Product) => {
     setSelectedProduct(p);
@@ -4751,9 +4795,10 @@ export default function App() {
         <AdminDashboard
           onNavigate={navigate}
           adminRole={profileRole ?? ""}
-          products={products}
+          products={adminProducts}
           categories={categoryOptions}
-          productsStatus={productsStatus}
+          productsStatus={adminProductsStatus}
+          productsError={adminProductsError}
           onRetryProducts={refreshProducts}
           createProduct={createProduct}
           updateProduct={updateProduct}

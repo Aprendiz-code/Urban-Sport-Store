@@ -1,4 +1,4 @@
-import { getAccessToken } from './supabase-auth';
+import { clearLocalAuthSession, getAccessToken } from './supabase-auth';
 import { resolveApiBaseUrl } from './api-config';
 import { mapHomeContentPayload } from './admin-home-content';
 
@@ -9,8 +9,16 @@ export function parseAdminApiError(status: number, text: string): Error {
 
   try {
     const json = JSON.parse(text);
-    const errorMessage = json?.error?.message || json?.message || fallbackMessage;
-    const errorCode = json?.error?.code || json?.code || 'UNKNOWN_ERROR';
+    const errorMessage = status === 401
+      ? 'Sesión administrativa requerida'
+      : status === 403
+        ? 'No tienes permisos para esta operación.'
+        : json?.error?.message || json?.message || fallbackMessage;
+    const errorCode = status === 401
+      ? 'ADMIN_SESSION_REQUIRED'
+      : status === 403
+        ? 'FORBIDDEN'
+        : json?.error?.code || json?.code || 'UNKNOWN_ERROR';
     return new AdminApiError(
       status,
       String(errorCode),
@@ -19,6 +27,8 @@ export function parseAdminApiError(status: number, text: string): Error {
       typeof json?.error?.hint === 'string' ? json.error.hint : undefined,
     );
   } catch {
+    if (status === 401) return new AdminApiError(status, 'ADMIN_SESSION_REQUIRED', 'Sesión administrativa requerida');
+    if (status === 403) return new AdminApiError(status, 'FORBIDDEN', 'No tienes permisos para esta operación.');
     return new AdminApiError(status, 'UNKNOWN_ERROR', text || fallbackMessage);
   }
 }
@@ -49,39 +59,70 @@ export function formatAdminApiError(error: unknown, fallback: string): string {
   return fallback;
 }
 
+export function isAdminAuthenticationError(error: unknown): boolean {
+  return error instanceof AdminApiError && error.status === 401;
+}
+
 const API_ROOT = resolveApiBaseUrl(import.meta.env.VITE_API_URL);
 const API_BASE = `${API_ROOT}/admin`;
 
-async function callApi(path: string, opts: RequestInit = {}) {
-  const supabaseToken = await getAccessToken();
+function notifyAdminSessionRequired() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('admin-session-required'));
+  }
+}
 
-  const makeRequest = async (url: string, bearer?: string) => {
+function sessionRequiredError() {
+  return new AdminApiError(401, 'ADMIN_SESSION_REQUIRED', 'Sesión administrativa requerida');
+}
+
+async function callApi(path: string, opts: RequestInit = {}) {
+  const makeRequest = async (url: string, bearer: string) => {
     const headers = new Headers(opts.headers);
     if (!headers.has('Content-Type') && !(opts.body instanceof Blob)) {
       headers.set('Content-Type', 'application/json');
     }
-    if (bearer) headers.set('Authorization', `Bearer ${bearer}`);
-    return fetch(url, { ...opts, headers });
+    headers.set('Authorization', `Bearer ${bearer}`);
+    try {
+      return await fetch(url, { ...opts, headers });
+    } catch {
+      throw new Error('Error de red al consultar el servicio administrativo.');
+    }
   };
 
   const primaryUrl = `${API_BASE}${path}`;
-  let res: Response | null = null;
-  let primaryError: unknown = null;
+  let supabaseToken: string | null = null;
+  try {
+    supabaseToken = await getAccessToken();
+  } catch {
+    supabaseToken = null;
+  }
 
   if (!supabaseToken) {
-    const error = new Error('No Supabase session token available. Por favor inicia sesión y recarga la aplicación.');
-    console.error('[admin-api] callApi no supabase token available', { path });
-    throw error;
+    notifyAdminSessionRequired();
+    throw sessionRequiredError();
   }
 
-  try {
-    res = await makeRequest(primaryUrl, supabaseToken);
-  } catch (error) {
-    primaryError = error;
-  }
+  let res = await makeRequest(primaryUrl, supabaseToken);
+  if (res.status === 401) {
+    let refreshedToken: string | null = null;
+    try {
+      refreshedToken = await getAccessToken(true);
+    } catch {
+      refreshedToken = null;
+    }
 
-  if (!res) {
-    throw new Error(`Network error calling ${primaryUrl}: ${primaryError ?? 'unknown error'}`);
+    if (refreshedToken) {
+      res = await makeRequest(primaryUrl, refreshedToken);
+    }
+
+    if (!refreshedToken || res.status === 401) {
+      try {
+        await clearLocalAuthSession();
+      } catch {}
+      notifyAdminSessionRequired();
+      if (!refreshedToken) throw sessionRequiredError();
+    }
   }
 
   if (!res.ok) {
