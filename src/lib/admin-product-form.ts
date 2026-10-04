@@ -4,6 +4,14 @@ export function isValidUuid(value?: string | null): boolean {
 
 export const MAX_PRODUCT_GALLERY_IMAGES = 10;
 
+export async function submitAdminProductForm(
+  save: () => Promise<unknown>,
+  onSuccess: () => void,
+): Promise<void> {
+  await save();
+  onSuccess();
+}
+
 function isPermanentImageUrl(value: string): boolean {
   try {
     const url = new URL(value);
@@ -22,6 +30,7 @@ export function validateProductForm(form: {
   categoryId?: string | null;
   image?: string | null;
   images?: Array<string | { url?: string } | null> | null;
+  pendingImageCount?: number;
 }): Record<string, string> {
   const errors: Record<string, string> = {};
 
@@ -51,7 +60,7 @@ export function validateProductForm(form: {
     errors.category = 'Selecciona una categoría válida.';
   }
 
-  const hasImage = Boolean(String(form.image ?? '').trim()) || (Array.isArray(form.images) && form.images.some((entry) => {
+  const hasImage = Boolean(String(form.image ?? '').trim()) || (form.pendingImageCount ?? 0) > 0 || (Array.isArray(form.images) && form.images.some((entry) => {
     if (typeof entry === 'string') return entry.trim().length > 0;
     return typeof entry?.url === 'string' && entry.url.trim().length > 0;
   }));
@@ -72,7 +81,8 @@ export function validateProductForm(form: {
     errors.gallery = 'Las imágenes de galería deben ser URLs HTTP o HTTPS permanentes.';
   }
 
-  if ((form.images?.length ?? 0) > MAX_PRODUCT_GALLERY_IMAGES) {
+  const pendingGalleryCount = Math.max(0, (form.pendingImageCount ?? 0) - (mainImage ? 0 : 1));
+  if ((form.images?.length ?? 0) + pendingGalleryCount > MAX_PRODUCT_GALLERY_IMAGES) {
     errors.gallery = `La galería admite hasta ${MAX_PRODUCT_GALLERY_IMAGES} imágenes`;
   }
 

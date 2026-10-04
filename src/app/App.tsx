@@ -10,7 +10,6 @@ import {
 } from "lucide-react";
 import HorizontalProductCarousel from "./components/ProductCarousel";
 import { STORE_CONFIG } from "./store-config";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "./components/ui/sheet";
 
 import { subscribeToNewsletter } from "../lib/newsletter";
 import { fetchPublicCategories, resolveProductCategoryName, type CategoryOption } from "../lib/category-service";
@@ -28,7 +27,6 @@ import {
 // promoRibbon moved to src/assets/cinta-10.png
 import type { ProductRecord } from "../lib/supabase-store";
 import { createProductViaAdminApi, deleteProductViaAdminApi, updateProductViaAdminApi } from "../lib/admin-product-fallback";
-import { buildAdminProductPayload, runAdminProductSubmission } from "../lib/admin-product-payload";
 import {
   signInWithEmail,
   signUpWithEmail,
@@ -46,7 +44,7 @@ import { uploadProductImage, deleteProductImage, getPublicUrl, buildProductImage
 import { recordAction, getAudit } from "../lib/audit";
 import { productSchema } from '../lib/schemas';
 import { normalizeGuestCartEntries } from '../lib/cart-service';
-import { validateProductForm } from '../lib/admin-product-form';
+import { submitAdminProductForm, validateProductForm } from '../lib/admin-product-form';
 import Toaster from './components/LazyToaster';
 import { toast } from '../lib/lazyToast';
 import type { Address as DomainAddress, GuestCartItem, Product as DomainProduct } from '../types/domain';
@@ -170,6 +168,15 @@ interface HomePageContent {
 }
 
 const LOCAL_ADDRESS_STORAGE = "urbansport_addresses";
+const DEFAULT_HERO_TITLE = "VISTE TU ESTILO. MARCA LA DIFERENCIA.";
+const DEFAULT_HERO_SUBTITLE = "Explora calzado, ropa deportiva y accesorios para completar tu estilo.";
+const TOP_BENEFITS_MESSAGES = [
+  "10% de descuento en tu primera compra",
+  "Envíos gratis a toda Colombia a partir de $300.000",
+  "Soporte en línea 24/7 para asesorarte",
+  "Compra 100% segura con todos los medios de pago",
+  "Productos 100% originales con garantía oficial",
+] as const;
 
 const loadStoredAddresses = (): Address[] => {
   if (typeof window === "undefined") return [];
@@ -205,7 +212,7 @@ const mapProductRecordToAppProduct = (record: ProductRecord, categories: readonl
   discount: record.discount ?? undefined,
   rating: record.rating ?? 0,
   reviews: record.reviews ?? 0,
-  image: record.main_image ?? record.image ?? "",
+  image: record.image ?? record.main_image ?? record.images?.[0] ?? "",
   images: record.images ?? [],
   category: resolveProductCategoryName(record.category_id, record.category, categories),
   categoryId: record.category_id ?? undefined,
@@ -219,6 +226,31 @@ const mapProductRecordToAppProduct = (record: ProductRecord, categories: readonl
   isNew: record.is_new ?? false,
   isFeatured: record.is_featured ?? false,
   specs: record.specs ?? [],
+});
+
+const mapAppProductToProductRecord = (product: Partial<Product> & { id?: string }): ProductRecord => ({
+  id: product.id ?? crypto.randomUUID(),
+  name: product.name ?? "",
+  brand: product.brand ?? "",
+  price: Number(product.price ?? 0),
+  original_price: product.originalPrice ?? null,
+  discount: product.discount ?? null,
+  rating: Number(product.rating ?? 0),
+  reviews: Number(product.reviews ?? 0),
+  image: product.image ?? "",
+  category: product.category ?? "Zapatos",
+  category_id: product.categoryId ?? product.category ?? null,
+  images: product.images ?? [],
+  subcategory: product.subcategory ?? "",
+  stock: Number(product.stock ?? 0),
+  sku: product.sku ?? "",
+  description: product.description ?? "",
+  colors: product.colors ?? [],
+  sizes: product.sizes ?? [],
+  gender: (product.gender ?? "Unisex") as string,
+  is_new: product.isNew ?? false,
+  is_featured: product.isFeatured ?? false,
+  specs: product.specs ?? [],
 });
 
 // ─── DATA ────────────────────────────────────────────────────────────────────
@@ -556,20 +588,16 @@ function ProductCard({ product, onSelect, onAddToCart }: {
 // ─── NAVBAR ──────────────────────────────────────────────────────────────────
 
 function TopBenefitsBar() {
-  const benefits = [
-    "10% de descuento en tu primera compra",
-    "Envíos gratis a toda Colombia a partir de $300.000",
-    "Soporte en línea 24/7 para asesorarte",
-    "Compra 100% segura con todos los medios de pago",
-    "Productos 100% originales con garantía oficial",
-  ];
+  const benefits = TOP_BENEFITS_MESSAGES;
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [previousIndex, setPreviousIndex] = useState<number | null>(null);
   const [isPaused, setIsPaused] = useState(false);
-  const [isPageVisible, setIsPageVisible] = useState(() => document.visibilityState === "visible");
+  const [isPageVisible, setIsPageVisible] = useState(() => typeof document !== "undefined" ? document.visibilityState === "visible" : true);
 
   useEffect(() => {
+    if (typeof document === "undefined") return;
+
     const handleVisibilityChange = () => setIsPageVisible(document.visibilityState === "visible");
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
@@ -1190,9 +1218,9 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
   const hasRealDiscounts = onSale.some((product) => typeof product.originalPrice === "number" && product.originalPrice > product.price);
   const privacyPolicyUrl = import.meta.env.VITE_PRIVACY_POLICY_URL?.trim() || STORE_CONFIG.privacyPolicyPath;
   const newsletterAvailable = !import.meta.env.DEV || Boolean(import.meta.env.VITE_API_URL?.trim());
-  const heroImage = content.heroImage?.trim() || "https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?w=1600&h=900&fit=crop&auto=format";
-  const heroTitle = content.heroTitle?.trim() || "VISTE TU ESTILO. MARCA LA DIFERENCIA.";
-  const heroSubtitle = content.heroSubtitle?.trim() || "Explora calzado, ropa deportiva y accesorios para completar tu estilo.";
+  const heroImage = content.heroImage?.trim() || "/images/hero-bg.jpg";
+  const heroTitle = content.heroTitle?.trim() || DEFAULT_HERO_TITLE;
+  const heroSubtitle = content.heroSubtitle?.trim() || DEFAULT_HERO_SUBTITLE;
   const [newsletterEmail, setNewsletterEmail] = useState("");
   const [newsletterLoading, setNewsletterLoading] = useState(false);
   const [newsletterMessage, setNewsletterMessage] = useState("");
@@ -2747,16 +2775,16 @@ function AccountPage({ onNavigate, onLogout, authUser, addresses, onCreateAddres
 
 // ─── ADMIN DASHBOARD ──────────────────────────────────────────────────────────
 
-function AdminDashboard({ onNavigate, products, productsError, categories, productsStatus, onRetryProducts, createProduct, updateProduct, deleteProduct, adjustStock, productRefresh, initialSection, adminRole, homeContent, setHomeContent, homePreviewProducts, setHomePreviewProducts, homeSaleProducts, setHomeSaleProducts, homeNewArrivals, setHomeNewArrivals, saveHomeContent, homeContentSaving, backendAdminAvailable }: {
+function AdminDashboard({ onNavigate, products, productsStatus, productsError, onRetryProducts, categories, createProduct, updateProduct, deleteProduct, adjustStock, productRefresh, initialSection, adminRole, homeContent, setHomeContent, homePreviewProducts, setHomePreviewProducts, homeSaleProducts, setHomeSaleProducts, homeNewArrivals, setHomeNewArrivals, saveHomeContent, homeContentSaving, backendAdminAvailable }: {
   onNavigate: (v: View) => void;
   products: Product[];
-  productsError: string | null;
-  categories: CategoryOption[];
   productsStatus: ProductsStatus;
+  productsError: string | null;
   onRetryProducts: () => void;
-  createProduct: (product: Omit<Product, "id">) => void;
-  updateProduct: (productId: string, updates: Partial<Product>) => void;
-  deleteProduct: (productId: string) => Promise<boolean>;
+  categories: CategoryOption[];
+  createProduct: (product: Omit<Product, "id">) => Promise<void>;
+  updateProduct: (productId: string, updates: Partial<Product>) => Promise<void>;
+  deleteProduct: (productId: string) => Promise<void>;
   adjustStock: (productId: string, delta: number) => void;
   productRefresh: number;
   initialSection?: string;
@@ -2777,7 +2805,6 @@ function AdminDashboard({ onNavigate, products, productsError, categories, produ
   const [searchTerm, setSearchTerm] = useState("");
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [activeProduct, setActiveProduct] = useState<Product | null>(null);
-  const [isProductFormOpen, setIsProductFormOpen] = useState(false);
   const [productForm, setProductForm] = useState<Omit<Product, "id">>({
     name: "", brand: "", price: 0, originalPrice: undefined, discount: undefined,
     rating: 0, reviews: 0, image: "", images: [], category: "", categoryId: undefined, subcategory: "",
@@ -2893,7 +2920,7 @@ function AdminDashboard({ onNavigate, products, productsError, categories, produ
       }
     } catch (err) {
       console.warn('Section image upload failed', err);
-      toast.error(formatAdminApiError(err, 'La carga de imágenes no está disponible.'));
+      toast.error(err instanceof Error ? err.message : 'La carga de imágenes no está disponible.');
     }
   };
 
@@ -3002,7 +3029,6 @@ function AdminDashboard({ onNavigate, products, productsError, categories, produ
   const handleEditProduct = (product: Product) => {
     setActiveProduct(product);
     setFormMode("edit");
-    setIsProductFormOpen(true);
     setProductForm({
       name: product.name,
       brand: product.brand,
@@ -3073,32 +3099,31 @@ function AdminDashboard({ onNavigate, products, productsError, categories, produ
     if (!payload.sku) payload.sku = `SKU-${Date.now().toString().slice(-6)}`;
 
     setIsSubmitting(true);
-    const editingProduct = formMode === "edit" ? activeProduct : null;
-    void runAdminProductSubmission(
-      async () => {
-        if (editingProduct) {
-          await updateProduct(editingProduct.id, payload);
-        } else {
-          await createProduct(payload);
-        }
-      },
-      () => {
-        resetForm();
-        setIsProductFormOpen(false);
-        setAdminSection("products");
-      },
-      (error) => {
-        console.error(editingProduct ? "Error updating product:" : "Error creating product:", error);
-        toast.error(formatAdminApiError(error, editingProduct ? "Error al actualizar el producto." : "Error al crear el producto."));
-      },
-    ).finally(() => setIsSubmitting(false));
+    const executeSave = async () => {
+      try {
+        const save = formMode === "edit" && activeProduct
+          ? () => updateProduct(activeProduct.id, payload)
+          : () => createProduct(payload);
+        await submitAdminProductForm(save, () => {
+          resetForm();
+          setAdminSection("products");
+        });
+      } catch (error) {
+        toast.error(formatAdminApiError(error, "No se pudo guardar el producto."));
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
+
+    void executeSave();
   };
 
   const handleDeleteProduct = async (productId: string) => {
-    const archived = await deleteProduct(productId);
-    if (archived && activeProduct?.id === productId) {
-      resetForm();
-      setIsProductFormOpen(false);
+    try {
+      await deleteProduct(productId);
+      if (activeProduct?.id === productId) resetForm();
+    } catch (error) {
+      toast.error(formatAdminApiError(error, "No se pudo archivar el producto."));
     }
   };
 
@@ -3441,12 +3466,12 @@ function AdminDashboard({ onNavigate, products, productsError, categories, produ
 
       case "products":
         return (
-          <>
-          <div className="mb-6 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] p-5">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <div className="lg:col-span-2 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] p-5">
               <div className="flex items-center justify-between gap-4 mb-4">
-                <input type="search" aria-label="Buscar productos por nombre, marca o SKU" value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }} placeholder="Buscar productos por nombre, marca o SKU"
+                <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar productos por nombre, marca o SKU"
                   className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none" />
-                <button type="button" onClick={() => { resetForm(); setFormMode('create'); setIsProductFormOpen(true); }}
+                <button onClick={() => { resetForm(); setFormMode('create'); }}
                   className="ml-3 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-black text-white font-semibold hover:bg-slate-900">
                   <Plus size={14} /> Nuevo producto
                 </button>
@@ -3463,11 +3488,11 @@ function AdminDashboard({ onNavigate, products, productsError, categories, produ
                   </thead>
                   <tbody>
                     {productsStatus === "loading" ? (
-                      <tr><td colSpan={6} role="status" className="px-4 py-10 text-center text-sm text-slate-500">Cargando productos…</td></tr>
+                      <tr><td colSpan={6} role="status" className="px-4 py-10 text-center text-sm text-slate-500">Cargando productos administrativos...</td></tr>
                     ) : productsStatus === "error" ? (
-                      <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-red-700"><div role="alert">{productsError ?? "No se pudo cargar la tabla de productos."}</div><button type="button" onClick={onRetryProducts} className="mt-2 font-semibold underline">Reintentar</button></td></tr>
+                      <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-red-700"><div role="alert">{productsError ?? "No se pudieron cargar los productos administrativos."}</div><button type="button" onClick={onRetryProducts} className="mt-2 font-semibold underline">Reintentar</button></td></tr>
                     ) : paginatedProducts.length === 0 ? (
-                      <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-slate-500">{searchTerm ? 'No hay productos que coincidan con la búsqueda.' : 'No hay productos activos.'}</td></tr>
+                      <tr><td colSpan={6} role="status" className="px-4 py-10 text-center text-sm text-slate-500">No hay productos administrativos.</td></tr>
                     ) : paginatedProducts.map((p) => (
                       <tr key={p.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
                         <td className="px-4 py-3"><img src={p.image} alt={p.name} className="w-12 h-12 object-cover rounded-lg" /></td>
@@ -3477,8 +3502,8 @@ function AdminDashboard({ onNavigate, products, productsError, categories, produ
                         <td className="px-4 py-3 text-sm text-slate-700">{p.stock}</td>
                         <td className="px-4 py-3">
                           <div className="flex gap-2">
-                            <button type="button" aria-label={`Editar ${p.name}`} onClick={() => handleEditProduct(p)} className="px-3 py-1.5 rounded-lg bg-black text-white font-semibold">Editar</button>
-                            <button type="button" aria-label={`Archivar ${p.name}`} onClick={() => { if (confirm(`Archivar ${p.name}? Dejará de aparecer en la tienda pública.`)) void handleDeleteProduct(p.id); }} className="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 font-semibold">Archivar</button>
+                            <button onClick={() => handleEditProduct(p)} className="px-3 py-1.5 rounded-lg bg-black text-white font-semibold">Editar</button>
+                            <button onClick={() => { if (confirm(`Archivar ${p.name}? Dejará de aparecer en la tienda pública.`)) handleDeleteProduct(p.id); }} className="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 font-semibold">Archivar</button>
                           </div>
                         </td>
                       </tr>
@@ -3487,7 +3512,7 @@ function AdminDashboard({ onNavigate, products, productsError, categories, produ
                 </table>
               </div>
               <div className="flex items-center justify-between mt-3">
-                <div className="text-sm text-slate-500">Mostrando {filteredProducts.length === 0 ? 0 : (page - 1) * perPage + 1} - {Math.min(page * perPage, filteredProducts.length)} de {filteredProducts.length}</div>
+                <div className="text-sm text-slate-500">Mostrando {(page - 1) * perPage + 1} - {Math.min(page * perPage, filteredProducts.length)} de {filteredProducts.length}</div>
                 <div className="flex items-center gap-2">
                   <button disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} className="px-3 py-1 rounded-md bg-slate-100">Anterior</button>
                   <div className="text-sm text-slate-600">{page} / {totalPages}</div>
@@ -3496,22 +3521,15 @@ function AdminDashboard({ onNavigate, products, productsError, categories, produ
               </div>
             </div>
 
-          <Sheet open={isProductFormOpen} onOpenChange={setIsProductFormOpen}>
-            <SheetContent side="right" className="w-full max-w-2xl overflow-y-auto p-5 sm:max-w-2xl">
-              <SheetHeader className="p-0 pr-10">
-                <SheetTitle className="text-lg font-extrabold text-slate-900">{formMode === 'edit' ? 'Editar producto' : 'Crear nuevo producto'}</SheetTitle>
-                <SheetDescription>Los cambios se guardan en el catálogo cuando la API confirma la operación.</SheetDescription>
-              </SheetHeader>
+            <div className="bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] p-5">
+              <h3 className="text-lg font-extrabold text-slate-900 mb-4">{formMode === 'edit' ? '✏️ Editar producto' : '➕ Crear nuevo producto'}</h3>
               <form onSubmit={handleFormSubmit} className="space-y-4">
                 {/* Nombre y Marca */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label htmlFor="admin-product-name" className="text-xs font-bold text-slate-600 uppercase block mb-2">Nombre *</label>
+                    <label className="text-xs font-bold text-slate-600 uppercase block mb-2">Nombre *</label>
                     <input 
-                      id="admin-product-name"
                       value={productForm.name} 
-                      required
-                      aria-invalid={Boolean(formErrors.name)}
                       onChange={(e) => { updateField('name', e.target.value); setFormErrors({...formErrors, name: ''}) }}
                       placeholder="Ej: Nike Air Force 1" 
                       className={`w-full px-4 py-3 rounded-xl border-2 transition-colors ${formErrors.name ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-white hover:border-slate-300 focus:border-slate-500'} focus:outline-none`} 
@@ -3519,32 +3537,24 @@ function AdminDashboard({ onNavigate, products, productsError, categories, produ
                     {formErrors.name && <p className="text-xs text-red-600 mt-1">{formErrors.name}</p>}
                   </div>
                   <div>
-                    <label htmlFor="admin-product-brand" className="text-xs font-bold text-slate-600 uppercase block mb-2">Marca *</label>
+                    <label className="text-xs font-bold text-slate-600 uppercase block mb-2">Marca</label>
                     <input 
-                      id="admin-product-brand"
                       value={productForm.brand} 
-                      required
-                      aria-invalid={Boolean(formErrors.brand)}
                       onChange={(e) => updateField('brand', e.target.value)}
                       placeholder="Ej: Nike" 
                       className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-white hover:border-slate-300 focus:border-slate-500 focus:outline-none transition-colors" 
                     />
-                    {formErrors.brand && <p className="text-xs text-red-600 mt-1">{formErrors.brand}</p>}
                   </div>
                 </div>
 
                 {/* Precio y Stock */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label htmlFor="admin-product-price" className="text-xs font-bold text-slate-600 uppercase block mb-2">Precio *</label>
+                    <label className="text-xs font-bold text-slate-600 uppercase block mb-2">Precio *</label>
                     <div className="relative">
                       <span className="absolute left-4 top-3 text-slate-600 font-semibold">$</span>
                       <input 
-                        id="admin-product-price"
                         type="number" 
-                        min="0"
-                        step="any"
-                        required
                         value={productForm.price as any} 
                         onChange={(e) => { updateField('price', Number(e.target.value)); setFormErrors({...formErrors, price: ''}) }}
                         placeholder="0" 
@@ -3554,13 +3564,9 @@ function AdminDashboard({ onNavigate, products, productsError, categories, produ
                     {formErrors.price && <p className="text-xs text-red-600 mt-1">{formErrors.price}</p>}
                   </div>
                   <div>
-                    <label htmlFor="admin-product-stock" className="text-xs font-bold text-slate-600 uppercase block mb-2">Stock *</label>
+                    <label className="text-xs font-bold text-slate-600 uppercase block mb-2">Stock *</label>
                     <input 
-                      id="admin-product-stock"
                       type="number" 
-                      min="0"
-                      step="1"
-                      required
                       value={productForm.stock as any} 
                       onChange={(e) => { updateField('stock', Number(e.target.value)); setFormErrors({...formErrors, stock: ''}) }}
                       placeholder="0" 
@@ -3573,11 +3579,9 @@ function AdminDashboard({ onNavigate, products, productsError, categories, produ
                 {/* SKU y Categoría */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label htmlFor="admin-product-sku" className="text-xs font-bold text-slate-600 uppercase block mb-2">SKU *</label>
+                    <label className="text-xs font-bold text-slate-600 uppercase block mb-2">SKU *</label>
                     <input 
-                      id="admin-product-sku"
                       value={productForm.sku} 
-                      required
                       onChange={(e) => { updateField('sku', e.target.value); setFormErrors({...formErrors, sku: ''}) }}
                       placeholder="Ej: NKE-AF1-001" 
                       className={`w-full px-4 py-3 rounded-xl border-2 transition-colors ${formErrors.sku ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-white hover:border-slate-300 focus:border-slate-500'} focus:outline-none`}
@@ -3585,11 +3589,9 @@ function AdminDashboard({ onNavigate, products, productsError, categories, produ
                     {formErrors.sku && <p className="text-xs text-red-600 mt-1">{formErrors.sku}</p>}
                   </div>
                   <div>
-                    <label htmlFor="admin-product-category" className="text-xs font-bold text-slate-600 uppercase block mb-2">Categoría *</label>
+                    <label className="text-xs font-bold text-slate-600 uppercase block mb-2">Categoría *</label>
                     <select 
-                      id="admin-product-category"
                       value={productForm.categoryId ?? ""}
-                      required
                       onChange={(e) => {
                         const nextCategoryId = e.target.value;
                         const selectedOption = categories.find((option) => option.id === nextCategoryId);
@@ -3657,8 +3659,6 @@ function AdminDashboard({ onNavigate, products, productsError, categories, produ
                     {/* O URL */}
                     <div className="mt-2 text-xs text-slate-500 text-center">O</div>
                     <input 
-                      aria-label="URL pública de imagen principal"
-                      type="url"
                       value={productForm.image} 
                       onChange={(e) => { updateField('image', e.target.value); setMainImagePreview(e.target.value); }}
                       placeholder="Pega una URL pública (ej: https://example.com/image.jpg)" 
@@ -3687,13 +3687,11 @@ function AdminDashboard({ onNavigate, products, productsError, categories, produ
                     {/* O URL */}
                     <div className="mt-3 flex gap-2">
                       <input 
-                        aria-label="URL pública de imagen de galería"
-                        type="url"
                         value={galleryUrl} 
                         onChange={(e) => setGalleryUrl(e.target.value)} 
                         placeholder="O pega una URL pública" 
                         className="flex-1 px-4 py-3 rounded-xl border-2 border-slate-200 bg-white hover:border-slate-300 focus:border-slate-500 focus:outline-none transition-colors"
-                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addGalleryImageUrl(); } }}
+                        onKeyPress={(e) => e.key === 'Enter' && addGalleryImageUrl()}
                       />
                       <button 
                         type="button" 
@@ -3729,7 +3727,7 @@ function AdminDashboard({ onNavigate, products, productsError, categories, produ
                 <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
                   <button 
                     type="submit" 
-                    disabled={isSubmitting || isUploadingImage || isUploadingGallery}
+                    disabled={isSubmitting}
                     className={`flex-1 px-6 py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 ${isSubmitting ? 'bg-slate-300 text-slate-600 cursor-not-allowed' : 'bg-black text-white hover:bg-slate-900 active:scale-95'}`}
                   >
                     {isSubmitting ? (
@@ -3745,16 +3743,15 @@ function AdminDashboard({ onNavigate, products, productsError, categories, produ
                   </button>
                   <button 
                     type="button" 
-                    onClick={() => { resetForm(); setIsProductFormOpen(false); }}
+                    onClick={() => resetForm()}
                     className="flex-1 px-6 py-3 rounded-xl bg-slate-100 text-slate-700 font-semibold hover:bg-slate-200 transition-colors active:scale-95"
                   >
                     ✕ Cancelar
                   </button>
                 </div>
               </form>
-            </SheetContent>
-          </Sheet>
-          </>
+            </div>
+          </div>
         );
 
       case "orders":
@@ -3962,7 +3959,7 @@ function AdminDashboard({ onNavigate, products, productsError, categories, produ
       }
     } catch (err) {
       console.warn('Image upload failed', err);
-      toast.error(formatAdminApiError(err, 'La carga de imágenes no está disponible.'));
+      toast.error(err instanceof Error ? err.message : 'La carga de imágenes no está disponible.');
     } finally {
       setIsUploadingImage(false);
     }
@@ -3996,7 +3993,7 @@ function AdminDashboard({ onNavigate, products, productsError, categories, produ
         }
       } catch (err) {
         console.warn(`Gallery image upload failed for ${file.name}`, err);
-        toast.error(formatAdminApiError(err, 'La carga de imágenes no está disponible.'));
+        toast.error(err instanceof Error ? err.message : 'La carga de imágenes no está disponible.');
       }
     }
 
@@ -4126,21 +4123,31 @@ export default function App() {
       return `${trimmed}/api`;
     };
 
-    const normalizeHomeContentResponse = (data: Record<string, unknown>): Partial<HomePageContent> => ({
-      ...data,
-      heroTitle: typeof data.hero_title === 'string' ? data.hero_title : typeof data.heroTitle === 'string' ? data.heroTitle : undefined,
-      heroSubtitle: typeof data.hero_subtitle === 'string' ? data.hero_subtitle : typeof data.heroSubtitle === 'string' ? data.heroSubtitle : undefined,
-      heroImage: typeof data.hero_image === 'string' ? data.hero_image : typeof data.heroImage === 'string' ? data.heroImage : undefined,
-      featuredCategoryIds: normalizeHomeContentIds(data.featured_category_ids ?? data.featuredCategoryIds),
-      featuredProductIds: normalizeHomeContentIds(data.featured_product_ids ?? data.featuredProductIds),
-      discountedProductIds: normalizeHomeContentIds(data.discounted_product_ids ?? data.discountedProductIds),
-      promoBanner: typeof data.promo_banner === 'string' ? data.promo_banner : typeof data.promoBanner === 'string' ? data.promoBanner : undefined,
-      newsletterEnabled: typeof data.newsletter_enabled === 'boolean' ? data.newsletter_enabled : typeof data.newsletterEnabled === 'boolean' ? data.newsletterEnabled : undefined,
-    });
+    const normalizeHomeContentResponse = (data: Record<string, unknown>): Partial<HomePageContent> => {
+      const normalized: Partial<HomePageContent> = {
+        ...data,
+        heroTitle: typeof data.hero_title === 'string' ? data.hero_title : typeof data.heroTitle === 'string' ? data.heroTitle : undefined,
+        heroSubtitle: typeof data.hero_subtitle === 'string' ? data.hero_subtitle : typeof data.heroSubtitle === 'string' ? data.heroSubtitle : undefined,
+        heroImage: typeof data.hero_image === 'string' ? data.hero_image : typeof data.heroImage === 'string' ? data.heroImage : undefined,
+        featuredCategoryIds: typeof data.featured_category_ids === 'string' ? data.featured_category_ids : typeof data.featuredCategoryIds === 'string' ? data.featuredCategoryIds : undefined,
+        featuredProductIds: typeof data.featured_product_ids === 'string' ? data.featured_product_ids : typeof data.featuredProductIds === 'string' ? data.featuredProductIds : undefined,
+        discountedProductIds: typeof data.discounted_product_ids === 'string' ? data.discounted_product_ids : typeof data.discountedProductIds === 'string' ? data.discountedProductIds : undefined,
+        promoBanner: typeof data.promo_banner === 'string' ? data.promo_banner : typeof data.promoBanner === 'string' ? data.promoBanner : undefined,
+        newsletterEnabled: typeof data.newsletter_enabled === 'boolean' ? data.newsletter_enabled : typeof data.newsletterEnabled === 'boolean' ? data.newsletterEnabled : undefined,
+      };
 
-    const normalizeHomeContentIds = (value: unknown): string | string[] | undefined => {
-      if (typeof value === 'string') return value;
-      return Array.isArray(value) && value.every((item) => typeof item === 'string') ? value : undefined;
+      const undesiredHeroTitle = ['Urban Sport Store', 'Bienvenido a Urban Sport Store', 'URBAN SPORT STORE'].includes(normalized.heroTitle ?? '');
+      const undesiredHeroSubtitle = ['Descubre productos deportivos seleccionados', 'Explora el catálogo principal con categorías y productos mínimos para pruebas públicas'].includes(normalized.heroSubtitle ?? '');
+
+      if (undesiredHeroTitle || undesiredHeroSubtitle) {
+        return {
+          ...normalized,
+          heroTitle: DEFAULT_HERO_TITLE,
+          heroSubtitle: DEFAULT_HERO_SUBTITLE,
+        };
+      }
+
+      return normalized;
     };
 
     const loadHomeContent = async () => {
@@ -4277,8 +4284,8 @@ export default function App() {
   const [profileAccessError, setProfileAccessError] = useState(false);
   const [authReady, setAuthReady] = useState(false);
   const [homeContent, setHomeContent] = useState<HomePageContent>({
-    heroTitle: "VISTE TU ESTILO. MARCA LA DIFERENCIA.",
-    heroSubtitle: "Explora calzado, ropa deportiva y accesorios para completar tu estilo.",
+    heroTitle: DEFAULT_HERO_TITLE,
+    heroSubtitle: DEFAULT_HERO_SUBTITLE,
     featuredSectionTitle: "Productos destacados",
     newArrivalsSectionTitle: "Novedades",
     saleSectionTitle: "En descuento ahora",
@@ -4308,7 +4315,7 @@ export default function App() {
       toast.success('Contenido de la home guardado.');
     } catch (error) {
       console.error('Error guardando contenido de la home:', error);
-      toast.error(formatAdminApiError(error, 'No se pudo guardar el contenido.'));
+      toast.error('No se pudo guardar el contenido. Intenta nuevamente.');
     } finally {
       setHomeContentSaving(false);
     }
@@ -4500,67 +4507,60 @@ export default function App() {
   const refreshProducts = () => setProductRefresh((value) => value + 1);
 
   const createProduct = async (product: Omit<Product, "id">) => {
-    try {
-      const adminPayload = buildAdminProductPayload(product, true);
+    const record = mapAppProductToProductRecord({ ...product, id: crypto.randomUUID() });
+    const adminPayload: Record<string, unknown> = {
+      slug: record.slug ?? undefined,
+      name: record.name,
+      price: record.price,
+      description: record.description,
+      sku: record.sku,
+      stock: record.stock,
+      category_id: record.category_id && /^[0-9a-fA-F-]{36}$/.test(record.category_id) ? record.category_id : undefined,
+      compare_at_price: record.original_price ?? undefined,
+      is_active: true,
+    };
 
-      if (!adminPayload.category_id) {
-        throw new Error('Selecciona una categoría válida.');
-      }
-
-      const created = await createProductViaAdminApi(adminPayload);
-      if (!created || typeof created.id !== 'string' || !created.id) {
-        throw new Error('La API no devolvió el ID del producto guardado.');
-      }
-      const createdAppProduct = mapProductRecordToAppProduct(created);
-      refreshProducts();
-      toast.success("Producto creado y guardado correctamente.");
-      try { recordAction('create_product', { id: createdAppProduct.id, name: createdAppProduct.name }); } catch (e) { }
-      return createdAppProduct;
-    } catch (err) {
-      console.error("Backend create product failed:", err);
-      throw err;
+    if (!adminPayload.category_id) {
+      throw new Error('Selecciona una categoría válida.');
     }
+
+    const created = await createProductViaAdminApi(adminPayload);
+    const createdAppProduct = mapProductRecordToAppProduct(created);
+    refreshProducts();
+    toast.success("Producto creado y guardado correctamente.");
+    try { recordAction('create_product', { id: createdAppProduct.id, name: createdAppProduct.name }); } catch (e) { }
   };
 
   const updateProduct = async (productId: string, updates: Partial<Product>) => {
-    try {
-      const productToUpdate = adminProducts.find((product) => product.id === productId);
-      if (!productToUpdate) {
-        throw new Error('Producto no encontrado');
-      }
-      const adminUpdates = buildAdminProductPayload({ ...productToUpdate, ...updates });
-
-      if (!adminUpdates.category_id && (updates.category ?? productToUpdate.category)) {
-        adminUpdates.category = updates.category ?? productToUpdate.category;
-      }
-
-      const updated = await updateProductViaAdminApi(productId, adminUpdates);
-      if (!updated || updated.id !== productId) {
-        throw new Error('La API no confirmó el producto actualizado.');
-      }
-      const updatedAppProduct = mapProductRecordToAppProduct(updated);
-      refreshProducts();
-      toast.success("Producto actualizado correctamente.");
-      try { recordAction('update_product', { id: updatedAppProduct.id, name: updatedAppProduct.name }); } catch (e) { }
-      return updatedAppProduct;
-    } catch (err) {
-      console.error("Backend update failed:", err);
-      throw err;
+    const productToUpdate = adminProducts.find((product) => product.id === productId);
+    if (!productToUpdate) {
+      throw new Error('Producto no encontrado');
     }
+
+    const record = mapAppProductToProductRecord({ ...productToUpdate, ...updates, id: productId });
+    const { id: _ignoredId, ...recordUpdates } = record;
+    const adminUpdates: Record<string, unknown> = {
+      ...recordUpdates,
+      category_id: recordUpdates.category_id ?? recordUpdates.category ?? undefined,
+      compare_at_price: record.original_price ?? undefined,
+    };
+
+    if (!adminUpdates.category_id && (updates.category ?? productToUpdate.category)) {
+      adminUpdates.category = updates.category ?? productToUpdate.category;
+    }
+
+    const updated = await updateProductViaAdminApi(productId, adminUpdates);
+    const updatedAppProduct = mapProductRecordToAppProduct(updated);
+    refreshProducts();
+    toast.success("Producto actualizado correctamente.");
+    try { recordAction('update_product', { id: updatedAppProduct.id, name: updatedAppProduct.name }); } catch (e) { }
   };
 
   const deleteProduct = async (productId: string) => {
-    try {
-      await deleteProductViaAdminApi(productId);
-      refreshProducts();
-      toast.success("Producto eliminado correctamente.");
-      try { recordAction('delete_product', { id: productId }); } catch (e) { }
-      return true;
-    } catch (err) {
-      console.error("Backend delete failed:", err);
-      toast.error(formatAdminApiError(err, "Error eliminando el producto."));
-      return false;
-    }
+    await deleteProductViaAdminApi(productId);
+    refreshProducts();
+    toast.success("Producto eliminado correctamente.");
+    try { recordAction('delete_product', { id: productId }); } catch (e) { }
   };
 
   const adjustStock = async (productId: string, delta: number) => {
@@ -4796,10 +4796,10 @@ export default function App() {
           onNavigate={navigate}
           adminRole={profileRole ?? ""}
           products={adminProducts}
-          categories={categoryOptions}
           productsStatus={adminProductsStatus}
           productsError={adminProductsError}
           onRetryProducts={refreshProducts}
+          categories={categoryOptions}
           createProduct={createProduct}
           updateProduct={updateProduct}
           deleteProduct={deleteProduct}

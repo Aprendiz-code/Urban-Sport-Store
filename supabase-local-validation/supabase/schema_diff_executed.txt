@@ -1,0 +1,897 @@
+warning: in the working copy of 'C:\Users\crist\OneDrive\Escritorio\Urban Sport Store\supabase\generated_schema.sql', LF will be replaced by CRLF the next time Git touches it
+diff --git "a/C:\\Users\\crist\\OneDrive\\Escritorio\\Urban Sport Store\\supabase\\generated_schema.sql" "b/C:\\Users\\crist\\OneDrive\\Escritorio\\Urban Sport Store\\SUPABASE_INIT.sql"
+index 4fa6e0c..fba1534 100644
+--- "a/C:\\Users\\crist\\OneDrive\\Escritorio\\Urban Sport Store\\supabase\\generated_schema.sql"	
++++ "b/C:\\Users\\crist\\OneDrive\\Escritorio\\Urban Sport Store\\SUPABASE_INIT.sql"	
+@@ -1,527 +1,405 @@
+---
+--- PostgreSQL database dump
+---
++-- Urban Sport Store - Supabase Database Initialization
++-- Execute all of this SQL in: Supabase Dashboard ÔåÆ SQL Editor
+ 
+-\restrict JmPQnXwZzhMaTmTEPMlG0p5g6xvLlAqJcXK2KK7VMJgsL6KdVpfid9B58tw6o5r
++-- CreateEnum
++CREATE TYPE "RoleType" AS ENUM ('CUSTOMER', 'ADMIN');
+ 
+--- Dumped from database version 15.18 (Debian 15.18-1.pgdg13+1)
+--- Dumped by pg_dump version 15.18 (Debian 15.18-1.pgdg13+1)
++-- CreateEnum
++CREATE TYPE "ProductStatus" AS ENUM ('ACTIVE', 'INACTIVE', 'DRAFT');
+ 
+-SET statement_timeout = 0;
+-SET lock_timeout = 0;
+-SET idle_in_transaction_session_timeout = 0;
+-SET client_encoding = 'UTF8';
+-SET standard_conforming_strings = on;
+-SELECT pg_catalog.set_config('search_path', '', false);
+-SET check_function_bodies = false;
+-SET xmloption = content;
+-SET client_min_messages = warning;
+-SET row_security = off;
++-- CreateEnum
++CREATE TYPE "OrderStatus" AS ENUM ('PENDING_PAYMENT', 'PAID', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'REFUNDED');
+ 
+---
+--- Name: pgcrypto; Type: EXTENSION; Schema: -; Owner: -
+---
++-- CreateEnum
++CREATE TYPE "PaymentStatus" AS ENUM ('PENDING', 'COMPLETED', 'FAILED', 'REFUNDED');
+ 
+-CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public;
++-- CreateEnum
++CREATE TYPE "CouponType" AS ENUM ('PERCENTAGE', 'FIXED');
+ 
++-- CreateEnum
++CREATE TYPE "InventoryMovementType" AS ENUM ('IN', 'OUT', 'ADJUSTMENT');
+ 
+---
+--- Name: EXTENSION pgcrypto; Type: COMMENT; Schema: -; Owner: 
+---
++-- CreateTable
++CREATE TABLE "Role" (
++    "id" TEXT NOT NULL,
++    "name" "RoleType" NOT NULL,
++    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
++    "updatedAt" TIMESTAMP(3) NOT NULL,
+ 
+-COMMENT ON EXTENSION pgcrypto IS 'cryptographic functions';
+-
+-
+---
+--- Name: handle_auth_user_created(); Type: FUNCTION; Schema: public; Owner: postgres
+---
+-
+-CREATE FUNCTION public.handle_auth_user_created() RETURNS trigger
+-    LANGUAGE plpgsql
+-    AS $$
+-BEGIN
+-  INSERT INTO public.profiles (id, email, full_name, role, created_at, updated_at)
+-  VALUES (NEW.id, NEW.email, COALESCE(NEW.user_metadata->>'full_name', NEW.email), 'USER', now(), now())
+-  ON CONFLICT (id) DO NOTHING;
+-  RETURN NEW;
+-END;
+-$$;
+-
+-
+-ALTER FUNCTION public.handle_auth_user_created() OWNER TO postgres;
+-
+---
+--- Name: set_updated_at(); Type: FUNCTION; Schema: public; Owner: postgres
+---
+-
+-CREATE FUNCTION public.set_updated_at() RETURNS trigger
+-    LANGUAGE plpgsql
+-    AS $$
+-BEGIN
+-  NEW.updated_at = now();
+-  RETURN NEW;
+-END;
+-$$;
+-
+-
+-ALTER FUNCTION public.set_updated_at() OWNER TO postgres;
+-
+-SET default_tablespace = '';
+-
+-SET default_table_access_method = heap;
+-
+---
+--- Name: audit_logs; Type: TABLE; Schema: public; Owner: postgres
+---
+-
+-CREATE TABLE public.audit_logs (
+-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+-    actor_id uuid,
+-    action text NOT NULL,
+-    entity text,
+-    entity_id text,
+-    changes jsonb,
+-    created_at timestamp with time zone DEFAULT now(),
+-    before_data jsonb,
+-    after_data jsonb,
+-    entity_id_uuid uuid
++    CONSTRAINT "Role_pkey" PRIMARY KEY ("id")
+ );
+ 
+-
+-ALTER TABLE public.audit_logs OWNER TO postgres;
+-
+---
+--- Name: COLUMN audit_logs.before_data; Type: COMMENT; Schema: public; Owner: postgres
+---
+-
+-COMMENT ON COLUMN public.audit_logs.before_data IS 'State before change (null for CREATE actions)';
+-
+-
+---
+--- Name: COLUMN audit_logs.after_data; Type: COMMENT; Schema: public; Owner: postgres
+---
+-
+-COMMENT ON COLUMN public.audit_logs.after_data IS 'State after change';
+-
+-
+---
+--- Name: COLUMN audit_logs.entity_id_uuid; Type: COMMENT; Schema: public; Owner: postgres
+---
+-
+-COMMENT ON COLUMN public.audit_logs.entity_id_uuid IS 'UUID of the audited entity (canonical)';
+-
+-
+---
+--- Name: categories; Type: TABLE; Schema: public; Owner: postgres
+---
+-
+-CREATE TABLE public.categories (
+-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+-    name text NOT NULL,
+-    slug text NOT NULL,
+-    description text,
+-    image text,
+-    sort_order integer DEFAULT 0,
+-    is_active boolean DEFAULT true,
+-    created_at timestamp with time zone DEFAULT now(),
+-    updated_at timestamp with time zone DEFAULT now()
++-- CreateTable
++CREATE TABLE "User" (
++    "id" TEXT NOT NULL,
++    "name" TEXT NOT NULL,
++    "email" TEXT NOT NULL,
++    "passwordHash" TEXT NOT NULL,
++    "isActive" BOOLEAN NOT NULL DEFAULT true,
++    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
++    "updatedAt" TIMESTAMP(3) NOT NULL,
++    "deletedAt" TIMESTAMP(3),
++
++    CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+ );
+ 
++-- CreateTable
++CREATE TABLE "UserRole" (
++    "id" TEXT NOT NULL,
++    "userId" TEXT NOT NULL,
++    "roleId" TEXT NOT NULL,
++    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ 
+-ALTER TABLE public.categories OWNER TO postgres;
+-
+---
+--- Name: home_content; Type: TABLE; Schema: public; Owner: postgres
+---
+-
+-CREATE TABLE public.home_content (
+-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+-    key text NOT NULL,
+-    hero_title text,
+-    hero_subtitle text,
+-    hero_image text,
+-    featured_category_ids uuid[] DEFAULT '{}'::uuid[],
+-    featured_product_ids uuid[] DEFAULT '{}'::uuid[],
+-    discounted_product_ids uuid[] DEFAULT '{}'::uuid[],
+-    promo_banner jsonb,
+-    newsletter_enabled boolean DEFAULT true,
+-    created_at timestamp with time zone DEFAULT now(),
+-    updated_at timestamp with time zone DEFAULT now()
++    CONSTRAINT "UserRole_pkey" PRIMARY KEY ("id")
+ );
+ 
+-
+-ALTER TABLE public.home_content OWNER TO postgres;
+-
+---
+--- Name: newsletter_subscribers; Type: TABLE; Schema: public; Owner: postgres
+---
+-
+-CREATE TABLE public.newsletter_subscribers (
+-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+-    email text NOT NULL,
+-    created_at timestamp with time zone DEFAULT now(),
+-    status text DEFAULT 'ACTIVE'::text,
+-    source text,
+-    updated_at timestamp with time zone DEFAULT now(),
+-    CONSTRAINT check_newsletter_status CHECK ((status = ANY (ARRAY['ACTIVE'::text, 'UNSUBSCRIBED'::text, 'BOUNCED'::text])))
++-- CreateTable
++CREATE TABLE "Address" (
++    "id" TEXT NOT NULL,
++    "userId" TEXT NOT NULL,
++    "fullName" TEXT NOT NULL,
++    "line1" TEXT NOT NULL,
++    "line2" TEXT,
++    "city" TEXT NOT NULL,
++    "state" TEXT NOT NULL,
++    "postalCode" TEXT NOT NULL,
++    "country" TEXT NOT NULL,
++    "phone" TEXT NOT NULL,
++    "isDefault" BOOLEAN NOT NULL DEFAULT false,
++    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
++    "updatedAt" TIMESTAMP(3) NOT NULL,
++    "deletedAt" TIMESTAMP(3),
++
++    CONSTRAINT "Address_pkey" PRIMARY KEY ("id")
+ );
+ 
+-
+-ALTER TABLE public.newsletter_subscribers OWNER TO postgres;
+-
+---
+--- Name: COLUMN newsletter_subscribers.status; Type: COMMENT; Schema: public; Owner: postgres
+---
+-
+-COMMENT ON COLUMN public.newsletter_subscribers.status IS 'Subscription status: ACTIVE, UNSUBSCRIBED, BOUNCED';
+-
+-
+---
+--- Name: COLUMN newsletter_subscribers.source; Type: COMMENT; Schema: public; Owner: postgres
+---
+-
+-COMMENT ON COLUMN public.newsletter_subscribers.source IS 'Subscription source: homepage, footer, modal, etc.';
+-
+-
+---
+--- Name: products; Type: TABLE; Schema: public; Owner: postgres
+---
+-
+-CREATE TABLE public.products (
+-    id uuid DEFAULT gen_random_uuid() NOT NULL,
+-    slug text NOT NULL,
+-    name text NOT NULL,
+-    brand text,
+-    short_description text,
+-    description text,
+-    price numeric(10,2) NOT NULL,
+-    original_price numeric(10,2),
+-    discount_percentage numeric(5,2),
+-    category_id uuid,
+-    subcategory text,
+-    gender text,
+-    sizes text[],
+-    colors jsonb,
+-    stock integer DEFAULT 0,
+-    sku text,
+-    main_image text,
+-    images jsonb,
+-    is_featured boolean DEFAULT false,
+-    is_discounted boolean DEFAULT false,
+-    is_active boolean DEFAULT true,
+-    rating numeric(3,2),
+-    reviews_count integer DEFAULT 0,
+-    created_at timestamp with time zone DEFAULT now(),
+-    updated_at timestamp with time zone DEFAULT now()
++-- CreateTable
++CREATE TABLE "Category" (
++    "id" TEXT NOT NULL,
++    "name" TEXT NOT NULL,
++    "slug" TEXT NOT NULL,
++    "description" TEXT,
++    "imageUrl" TEXT,
++    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
++    "updatedAt" TIMESTAMP(3) NOT NULL,
++    "deletedAt" TIMESTAMP(3),
++
++    CONSTRAINT "Category_pkey" PRIMARY KEY ("id")
+ );
+ 
++-- CreateTable
++CREATE TABLE "Brand" (
++    "id" TEXT NOT NULL,
++    "name" TEXT NOT NULL,
++    "slug" TEXT NOT NULL,
++    "description" TEXT,
++    "imageUrl" TEXT,
++    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
++    "updatedAt" TIMESTAMP(3) NOT NULL,
++    "deletedAt" TIMESTAMP(3),
++
++    CONSTRAINT "Brand_pkey" PRIMARY KEY ("id")
++);
+ 
+-ALTER TABLE public.products OWNER TO postgres;
+-
+---
+--- Name: audit_logs audit_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+---
+-
+-ALTER TABLE ONLY public.audit_logs
+-    ADD CONSTRAINT audit_logs_pkey PRIMARY KEY (id);
+-
+-
+---
+--- Name: categories categories_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+---
+-
+-ALTER TABLE ONLY public.categories
+-    ADD CONSTRAINT categories_pkey PRIMARY KEY (id);
+-
+-
+---
+--- Name: categories categories_slug_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+---
+-
+-ALTER TABLE ONLY public.categories
+-    ADD CONSTRAINT categories_slug_key UNIQUE (slug);
+-
+-
+---
+--- Name: home_content home_content_key_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+---
+-
+-ALTER TABLE ONLY public.home_content
+-    ADD CONSTRAINT home_content_key_key UNIQUE (key);
+-
+-
+---
+--- Name: home_content home_content_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+---
+-
+-ALTER TABLE ONLY public.home_content
+-    ADD CONSTRAINT home_content_pkey PRIMARY KEY (id);
+-
+-
+---
+--- Name: newsletter_subscribers newsletter_subscribers_email_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+---
+-
+-ALTER TABLE ONLY public.newsletter_subscribers
+-    ADD CONSTRAINT newsletter_subscribers_email_key UNIQUE (email);
+-
+-
+---
+--- Name: newsletter_subscribers newsletter_subscribers_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+---
+-
+-ALTER TABLE ONLY public.newsletter_subscribers
+-    ADD CONSTRAINT newsletter_subscribers_pkey PRIMARY KEY (id);
+-
+-
+---
+--- Name: products products_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+---
+-
+-ALTER TABLE ONLY public.products
+-    ADD CONSTRAINT products_pkey PRIMARY KEY (id);
+-
+-
+---
+--- Name: products products_sku_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+---
+-
+-ALTER TABLE ONLY public.products
+-    ADD CONSTRAINT products_sku_key UNIQUE (sku);
+-
+-
+---
+--- Name: products products_slug_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+---
+-
+-ALTER TABLE ONLY public.products
+-    ADD CONSTRAINT products_slug_key UNIQUE (slug);
+-
+-
+---
+--- Name: categories_is_active_sort_order_idx; Type: INDEX; Schema: public; Owner: postgres
+---
+-
+-CREATE INDEX categories_is_active_sort_order_idx ON public.categories USING btree (is_active, sort_order);
+-
+-
+---
+--- Name: idx_audit_actor_id; Type: INDEX; Schema: public; Owner: postgres
+---
+-
+-CREATE INDEX idx_audit_actor_id ON public.audit_logs USING btree (actor_id);
+-
+-
+---
+--- Name: idx_audit_created_at; Type: INDEX; Schema: public; Owner: postgres
+---
+-
+-CREATE INDEX idx_audit_created_at ON public.audit_logs USING btree (created_at);
+-
+-
+---
+--- Name: idx_audit_entity; Type: INDEX; Schema: public; Owner: postgres
+---
+-
+-CREATE INDEX idx_audit_entity ON public.audit_logs USING btree (entity);
+-
+-
+---
+--- Name: idx_audit_entity_id_uuid; Type: INDEX; Schema: public; Owner: postgres
+---
+-
+-CREATE INDEX idx_audit_entity_id_uuid ON public.audit_logs USING btree (entity_id_uuid);
+-
+-
+---
+--- Name: idx_categories_active; Type: INDEX; Schema: public; Owner: postgres
+---
+-
+-CREATE INDEX idx_categories_active ON public.categories USING btree (is_active);
+-
+-
+---
+--- Name: idx_categories_sort; Type: INDEX; Schema: public; Owner: postgres
+---
+-
+-CREATE INDEX idx_categories_sort ON public.categories USING btree (sort_order);
+-
+-
+---
+--- Name: idx_home_key; Type: INDEX; Schema: public; Owner: postgres
+---
+-
+-CREATE INDEX idx_home_key ON public.home_content USING btree (key);
+-
+-
+---
+--- Name: idx_newsletter_email; Type: INDEX; Schema: public; Owner: postgres
+---
+-
+-CREATE INDEX idx_newsletter_email ON public.newsletter_subscribers USING btree (email);
+-
+-
+---
+--- Name: idx_newsletter_status; Type: INDEX; Schema: public; Owner: postgres
+---
+-
+-CREATE INDEX idx_newsletter_status ON public.newsletter_subscribers USING btree (status);
+-
+-
+---
+--- Name: idx_products_active; Type: INDEX; Schema: public; Owner: postgres
+---
+-
+-CREATE INDEX idx_products_active ON public.products USING btree (is_active);
+-
+-
+---
+--- Name: idx_products_category; Type: INDEX; Schema: public; Owner: postgres
+---
+-
+-CREATE INDEX idx_products_category ON public.products USING btree (category_id);
+-
+-
+---
+--- Name: idx_products_discounted; Type: INDEX; Schema: public; Owner: postgres
+---
+-
+-CREATE INDEX idx_products_discounted ON public.products USING btree (is_discounted);
+-
+-
+---
+--- Name: idx_products_featured; Type: INDEX; Schema: public; Owner: postgres
+---
+-
+-CREATE INDEX idx_products_featured ON public.products USING btree (is_featured);
+-
+-
+---
+--- Name: idx_products_sku; Type: INDEX; Schema: public; Owner: postgres
+---
+-
+-CREATE INDEX idx_products_sku ON public.products USING btree (sku);
+-
+-
+---
+--- Name: products_category_id_idx; Type: INDEX; Schema: public; Owner: postgres
+---
+-
+-CREATE INDEX products_category_id_idx ON public.products USING btree (category_id);
+-
+-
+---
+--- Name: products_is_active_created_at_idx; Type: INDEX; Schema: public; Owner: postgres
+---
+-
+-CREATE INDEX products_is_active_created_at_idx ON public.products USING btree (is_active, created_at DESC);
+-
+-
+---
+--- Name: categories trg_categories_set_updated_at; Type: TRIGGER; Schema: public; Owner: postgres
+---
+-
+-CREATE TRIGGER trg_categories_set_updated_at BEFORE UPDATE ON public.categories FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+-
+-
+---
+--- Name: home_content trg_home_content_set_updated_at; Type: TRIGGER; Schema: public; Owner: postgres
+---
+-
+-CREATE TRIGGER trg_home_content_set_updated_at BEFORE UPDATE ON public.home_content FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+-
+-
+---
+--- Name: newsletter_subscribers trg_newsletter_subscribers_set_updated_at; Type: TRIGGER; Schema: public; Owner: postgres
+---
+-
+-CREATE TRIGGER trg_newsletter_subscribers_set_updated_at BEFORE UPDATE ON public.newsletter_subscribers FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+-
+-
+---
+--- Name: products trg_products_set_updated_at; Type: TRIGGER; Schema: public; Owner: postgres
+---
+-
+-CREATE TRIGGER trg_products_set_updated_at BEFORE UPDATE ON public.products FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+-
+-
+---
+--- Name: products fk_products_category_id; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+---
+-
+-ALTER TABLE ONLY public.products
+-    ADD CONSTRAINT fk_products_category_id FOREIGN KEY (category_id) REFERENCES public.categories(id) ON DELETE RESTRICT;
+-
+-
+---
+--- Name: products products_category_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+---
+-
+-ALTER TABLE ONLY public.products
+-    ADD CONSTRAINT products_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id) ON DELETE SET NULL;
+-
+-
+---
+--- Name: audit_logs; Type: ROW SECURITY; Schema: public; Owner: postgres
+---
+-
+-ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
+-
+---
+--- Name: categories; Type: ROW SECURITY; Schema: public; Owner: postgres
+---
+-
+-ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
++-- CreateTable
++CREATE TABLE "Product" (
++    "id" TEXT NOT NULL,
++    "name" TEXT NOT NULL,
++    "slug" TEXT NOT NULL,
++    "sku" TEXT NOT NULL,
++    "description" TEXT,
++    "price" DECIMAL(10,2) NOT NULL,
++    "compareAtPrice" DECIMAL(10,2),
++    "status" "ProductStatus" NOT NULL DEFAULT 'ACTIVE',
++    "stock" INTEGER NOT NULL DEFAULT 0,
++    "categoryId" TEXT NOT NULL,
++    "brandId" TEXT NOT NULL,
++    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
++    "updatedAt" TIMESTAMP(3) NOT NULL,
++    "deletedAt" TIMESTAMP(3),
++
++    CONSTRAINT "Product_pkey" PRIMARY KEY ("id")
++);
+ 
+---
+--- Name: home_content; Type: ROW SECURITY; Schema: public; Owner: postgres
+---
++-- CreateTable
++CREATE TABLE "ProductImage" (
++    "id" TEXT NOT NULL,
++    "productId" TEXT NOT NULL,
++    "url" TEXT NOT NULL,
++    "altText" TEXT,
++    "isPrimary" BOOLEAN NOT NULL DEFAULT false,
++    "sortOrder" INTEGER NOT NULL DEFAULT 0,
++    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
++    "updatedAt" TIMESTAMP(3) NOT NULL,
++
++    CONSTRAINT "ProductImage_pkey" PRIMARY KEY ("id")
++);
+ 
+-ALTER TABLE public.home_content ENABLE ROW LEVEL SECURITY;
++-- CreateTable
++CREATE TABLE "ProductVariant" (
++    "id" TEXT NOT NULL,
++    "productId" TEXT NOT NULL,
++    "name" TEXT NOT NULL,
++    "sku" TEXT NOT NULL,
++    "price" DECIMAL(10,2),
++    "stock" INTEGER NOT NULL DEFAULT 0,
++    "attributes" JSONB NOT NULL,
++    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
++    "updatedAt" TIMESTAMP(3) NOT NULL,
++
++    CONSTRAINT "ProductVariant_pkey" PRIMARY KEY ("id")
++);
+ 
+---
+--- Name: newsletter_subscribers; Type: ROW SECURITY; Schema: public; Owner: postgres
+---
++-- CreateTable
++CREATE TABLE "InventoryMovement" (
++    "id" TEXT NOT NULL,
++    "productId" TEXT NOT NULL,
++    "type" "InventoryMovementType" NOT NULL,
++    "quantity" INTEGER NOT NULL,
++    "reason" TEXT,
++    "reference" TEXT,
++    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
++
++    CONSTRAINT "InventoryMovement_pkey" PRIMARY KEY ("id")
++);
+ 
+-ALTER TABLE public.newsletter_subscribers ENABLE ROW LEVEL SECURITY;
++-- CreateTable
++CREATE TABLE "Cart" (
++    "id" TEXT NOT NULL,
++    "userId" TEXT NOT NULL,
++    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
++    "updatedAt" TIMESTAMP(3) NOT NULL,
+ 
+---
+--- Name: products; Type: ROW SECURITY; Schema: public; Owner: postgres
+---
++    CONSTRAINT "Cart_pkey" PRIMARY KEY ("id")
++);
+ 
+-ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
++-- CreateTable
++CREATE TABLE "CartItem" (
++    "id" TEXT NOT NULL,
++    "cartId" TEXT NOT NULL,
++    "productId" TEXT NOT NULL,
++    "quantity" INTEGER NOT NULL,
++    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
++    "updatedAt" TIMESTAMP(3) NOT NULL,
+ 
+---
+--- Name: newsletter_subscribers public_insert_newsletter; Type: POLICY; Schema: public; Owner: postgres
+---
++    CONSTRAINT "CartItem_pkey" PRIMARY KEY ("id")
++);
+ 
+-CREATE POLICY public_insert_newsletter ON public.newsletter_subscribers FOR INSERT WITH CHECK (true);
++-- CreateTable
++CREATE TABLE "Coupon" (
++    "id" TEXT NOT NULL,
++    "code" TEXT NOT NULL,
++    "type" "CouponType" NOT NULL,
++    "value" DECIMAL(10,2) NOT NULL,
++    "minimumAmount" DECIMAL(10,2),
++    "totalLimit" INTEGER,
++    "perUserLimit" INTEGER,
++    "startsAt" TIMESTAMP(3) NOT NULL,
++    "expiresAt" TIMESTAMP(3) NOT NULL,
++    "isActive" BOOLEAN NOT NULL DEFAULT true,
++    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
++    "updatedAt" TIMESTAMP(3) NOT NULL,
++    "deletedAt" TIMESTAMP(3),
++
++    CONSTRAINT "Coupon_pkey" PRIMARY KEY ("id")
++);
+ 
++-- CreateTable
++CREATE TABLE "CouponUsage" (
++    "id" TEXT NOT NULL,
++    "couponId" TEXT NOT NULL,
++    "userId" TEXT NOT NULL,
++    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ 
+---
+--- Name: categories public_select_categories; Type: POLICY; Schema: public; Owner: postgres
+---
++    CONSTRAINT "CouponUsage_pkey" PRIMARY KEY ("id")
++);
+ 
+-CREATE POLICY public_select_categories ON public.categories FOR SELECT USING ((is_active = true));
++-- CreateTable
++CREATE TABLE "Order" (
++    "id" TEXT NOT NULL,
++    "userId" TEXT NOT NULL,
++    "status" "OrderStatus" NOT NULL DEFAULT 'PENDING_PAYMENT',
++    "subtotal" DECIMAL(10,2) NOT NULL,
++    "discountAmount" DECIMAL(10,2) NOT NULL,
++    "taxAmount" DECIMAL(10,2) NOT NULL,
++    "total" DECIMAL(10,2) NOT NULL,
++    "currency" TEXT NOT NULL DEFAULT 'USD',
++    "couponCode" TEXT,
++    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
++    "updatedAt" TIMESTAMP(3) NOT NULL,
++
++    CONSTRAINT "Order_pkey" PRIMARY KEY ("id")
++);
+ 
++-- CreateTable
++CREATE TABLE "OrderItem" (
++    "id" TEXT NOT NULL,
++    "orderId" TEXT NOT NULL,
++    "productId" TEXT NOT NULL,
++    "productName" TEXT NOT NULL,
++    "productSku" TEXT NOT NULL,
++    "unitPrice" DECIMAL(10,2) NOT NULL,
++    "quantity" INTEGER NOT NULL,
++    "discountAmount" DECIMAL(10,2) NOT NULL,
++    "taxAmount" DECIMAL(10,2) NOT NULL,
++    "lineTotal" DECIMAL(10,2) NOT NULL,
++    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
++
++    CONSTRAINT "OrderItem_pkey" PRIMARY KEY ("id")
++);
+ 
+---
+--- Name: home_content public_select_home_content; Type: POLICY; Schema: public; Owner: postgres
+---
++-- CreateTable
++CREATE TABLE "Payment" (
++    "id" TEXT NOT NULL,
++    "orderId" TEXT NOT NULL,
++    "status" "PaymentStatus" NOT NULL DEFAULT 'PENDING',
++    "provider" TEXT NOT NULL,
++    "providerReference" TEXT,
++    "currency" TEXT NOT NULL DEFAULT 'USD',
++    "amount" DECIMAL(10,2) NOT NULL,
++    "idempotencyKey" TEXT NOT NULL,
++    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
++    "updatedAt" TIMESTAMP(3) NOT NULL,
++
++    CONSTRAINT "Payment_pkey" PRIMARY KEY ("id")
++);
+ 
+-CREATE POLICY public_select_home_content ON public.home_content FOR SELECT USING (true);
++-- CreateTable
++CREATE TABLE "PaymentEvent" (
++    "id" TEXT NOT NULL,
++    "paymentId" TEXT NOT NULL,
++    "eventType" TEXT NOT NULL,
++    "payload" JSONB NOT NULL,
++    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ 
++    CONSTRAINT "PaymentEvent_pkey" PRIMARY KEY ("id")
++);
+ 
+---
+--- Name: products public_select_products; Type: POLICY; Schema: public; Owner: postgres
+---
++-- CreateTable
++CREATE TABLE "Shipment" (
++    "id" TEXT NOT NULL,
++    "orderId" TEXT NOT NULL,
++    "addressId" TEXT NOT NULL,
++    "carrier" TEXT,
++    "trackingNumber" TEXT,
++    "status" TEXT NOT NULL DEFAULT 'PENDING',
++    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
++    "updatedAt" TIMESTAMP(3) NOT NULL,
++
++    CONSTRAINT "Shipment_pkey" PRIMARY KEY ("id")
++);
+ 
+-CREATE POLICY public_select_products ON public.products FOR SELECT USING ((is_active = true));
++-- CreateTable
++CREATE TABLE "Review" (
++    "id" TEXT NOT NULL,
++    "productId" TEXT NOT NULL,
++    "userId" TEXT NOT NULL,
++    "orderId" TEXT,
++    "rating" INTEGER NOT NULL,
++    "comment" TEXT,
++    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
++    "updatedAt" TIMESTAMP(3) NOT NULL,
++
++    CONSTRAINT "Review_pkey" PRIMARY KEY ("id")
++);
+ 
++-- CreateTable
++CREATE TABLE "AuditLog" (
++    "id" TEXT NOT NULL,
++    "actorId" TEXT,
++    "action" TEXT NOT NULL,
++    "entity" TEXT NOT NULL,
++    "entityId" TEXT,
++    "changes" JSONB,
++    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
++
++    CONSTRAINT "AuditLog_pkey" PRIMARY KEY ("id")
++);
+ 
+---
+--- PostgreSQL database dump complete
+---
++-- CreateTable
++CREATE TABLE "PasswordResetToken" (
++    "id" TEXT NOT NULL,
++    "userId" TEXT NOT NULL,
++    "tokenHash" TEXT NOT NULL,
++    "expiresAt" TIMESTAMP(3) NOT NULL,
++    "usedAt" TIMESTAMP(3),
++    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ 
+-\unrestrict JmPQnXwZzhMaTmTEPMlG0p5g6xvLlAqJcXK2KK7VMJgsL6KdVpfid9B58tw6o5r
++    CONSTRAINT "PasswordResetToken_pkey" PRIMARY KEY ("id")
++);
+ 
++-- CreateIndex
++CREATE UNIQUE INDEX "Role_name_key" ON "Role"("name");
++CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
++CREATE INDEX "UserRole_userId_idx" ON "UserRole"("userId");
++CREATE INDEX "UserRole_roleId_idx" ON "UserRole"("roleId");
++CREATE UNIQUE INDEX "UserRole_userId_roleId_key" ON "UserRole"("userId", "roleId");
++CREATE INDEX "Address_userId_idx" ON "Address"("userId");
++CREATE UNIQUE INDEX "Category_slug_key" ON "Category"("slug");
++CREATE INDEX "Category_slug_idx" ON "Category"("slug");
++CREATE UNIQUE INDEX "Brand_slug_key" ON "Brand"("slug");
++CREATE INDEX "Brand_slug_idx" ON "Brand"("slug");
++CREATE UNIQUE INDEX "Product_slug_key" ON "Product"("slug");
++CREATE UNIQUE INDEX "Product_sku_key" ON "Product"("sku");
++CREATE INDEX "Product_slug_idx" ON "Product"("slug");
++CREATE INDEX "Product_sku_idx" ON "Product"("sku");
++CREATE INDEX "Product_categoryId_idx" ON "Product"("categoryId");
++CREATE INDEX "Product_brandId_idx" ON "Product"("brandId");
++CREATE INDEX "Product_name_idx" ON "Product"("name");
++CREATE INDEX "ProductImage_productId_idx" ON "ProductImage"("productId");
++CREATE UNIQUE INDEX "ProductVariant_sku_key" ON "ProductVariant"("sku");
++CREATE INDEX "ProductVariant_productId_idx" ON "ProductVariant"("productId");
++CREATE INDEX "InventoryMovement_productId_idx" ON "InventoryMovement"("productId");
++CREATE INDEX "InventoryMovement_createdAt_idx" ON "InventoryMovement"("createdAt");
++CREATE INDEX "Cart_userId_idx" ON "Cart"("userId");
++CREATE UNIQUE INDEX "Cart_userId_key" ON "Cart"("userId");
++CREATE INDEX "CartItem_cartId_idx" ON "CartItem"("cartId");
++CREATE INDEX "CartItem_productId_idx" ON "CartItem"("productId");
++CREATE UNIQUE INDEX "Coupon_code_key" ON "Coupon"("code");
++CREATE INDEX "Coupon_code_idx" ON "Coupon"("code");
++CREATE INDEX "CouponUsage_couponId_idx" ON "CouponUsage"("couponId");
++CREATE INDEX "CouponUsage_userId_idx" ON "CouponUsage"("userId");
++CREATE UNIQUE INDEX "CouponUsage_couponId_userId_key" ON "CouponUsage"("couponId", "userId");
++CREATE INDEX "Order_status_idx" ON "Order"("status");
++CREATE INDEX "Order_createdAt_idx" ON "Order"("createdAt");
++CREATE INDEX "Order_userId_idx" ON "Order"("userId");
++CREATE INDEX "OrderItem_orderId_idx" ON "OrderItem"("orderId");
++CREATE INDEX "OrderItem_productId_idx" ON "OrderItem"("productId");
++CREATE UNIQUE INDEX "Payment_idempotencyKey_key" ON "Payment"("idempotencyKey");
++CREATE INDEX "Payment_orderId_idx" ON "Payment"("orderId");
++CREATE INDEX "PaymentEvent_paymentId_idx" ON "PaymentEvent"("paymentId");
++CREATE INDEX "Shipment_orderId_idx" ON "Shipment"("orderId");
++CREATE INDEX "Shipment_addressId_idx" ON "Shipment"("addressId");
++CREATE INDEX "Review_productId_idx" ON "Review"("productId");
++CREATE INDEX "Review_userId_idx" ON "Review"("userId");
++CREATE INDEX "AuditLog_entity_idx" ON "AuditLog"("entity");
++CREATE INDEX "AuditLog_createdAt_idx" ON "AuditLog"("createdAt");
++CREATE UNIQUE INDEX "PasswordResetToken_tokenHash_key" ON "PasswordResetToken"("tokenHash");
++CREATE INDEX "PasswordResetToken_userId_idx" ON "PasswordResetToken"("userId");
++
++-- AddForeignKey
++ALTER TABLE "UserRole" ADD CONSTRAINT "UserRole_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
++ALTER TABLE "UserRole" ADD CONSTRAINT "UserRole_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "Role"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
++ALTER TABLE "Address" ADD CONSTRAINT "Address_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
++ALTER TABLE "Product" ADD CONSTRAINT "Product_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "Category"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
++ALTER TABLE "Product" ADD CONSTRAINT "Product_brandId_fkey" FOREIGN KEY ("brandId") REFERENCES "Brand"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
++ALTER TABLE "ProductImage" ADD CONSTRAINT "ProductImage_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
++ALTER TABLE "ProductVariant" ADD CONSTRAINT "ProductVariant_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
++ALTER TABLE "InventoryMovement" ADD CONSTRAINT "InventoryMovement_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
++ALTER TABLE "Cart" ADD CONSTRAINT "Cart_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
++ALTER TABLE "CartItem" ADD CONSTRAINT "CartItem_cartId_fkey" FOREIGN KEY ("cartId") REFERENCES "Cart"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
++ALTER TABLE "CartItem" ADD CONSTRAINT "CartItem_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
++ALTER TABLE "Coupon" ADD CONSTRAINT "Coupon_id_fkey" FOREIGN KEY ("id") REFERENCES "Coupon"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
++ALTER TABLE "CouponUsage" ADD CONSTRAINT "CouponUsage_couponId_fkey" FOREIGN KEY ("couponId") REFERENCES "Coupon"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
++ALTER TABLE "CouponUsage" ADD CONSTRAINT "CouponUsage_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
++ALTER TABLE "Order" ADD CONSTRAINT "Order_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
++ALTER TABLE "OrderItem" ADD CONSTRAINT "OrderItem_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
++ALTER TABLE "OrderItem" ADD CONSTRAINT "OrderItem_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
++ALTER TABLE "Payment" ADD CONSTRAINT "Payment_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
++ALTER TABLE "PaymentEvent" ADD CONSTRAINT "PaymentEvent_paymentId_fkey" FOREIGN KEY ("paymentId") REFERENCES "Payment"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
++ALTER TABLE "Shipment" ADD CONSTRAINT "Shipment_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
++ALTER TABLE "Shipment" ADD CONSTRAINT "Shipment_addressId_fkey" FOREIGN KEY ("addressId") REFERENCES "Address"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
++ALTER TABLE "Review" ADD CONSTRAINT "Review_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
++ALTER TABLE "Review" ADD CONSTRAINT "Review_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
++ALTER TABLE "AuditLog" ADD CONSTRAINT "AuditLog_actorId_fkey" FOREIGN KEY ("actorId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
++ALTER TABLE "PasswordResetToken" ADD CONSTRAINT "PasswordResetToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

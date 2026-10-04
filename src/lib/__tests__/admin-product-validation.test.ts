@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { validateProductForm, isValidUuid } from '../admin-product-form';
+import { validateProductForm, isValidUuid, submitAdminProductForm } from '../admin-product-form';
 import adminApi, { formatAdminApiError, parseAdminApiError } from '../admin-api';
 import { getAccessToken } from '../supabase-auth';
 
 vi.mock('../supabase-auth', () => ({
   getAccessToken: vi.fn(),
+  clearLocalAuthSession: vi.fn(),
 }));
 
 describe('admin product validation', () => {
@@ -67,6 +68,31 @@ describe('admin product validation', () => {
       images: [],
     })).toHaveProperty('image');
   });
+
+  it('accepts queued local images before upload and enforces the gallery limit', () => {
+    const localImageDraft = {
+      name: 'Zapatilla Test',
+      brand: 'Marca Test',
+      sku: 'SKU-1',
+      price: 1,
+      stock: 1,
+      categoryId: '123e4567-e89b-12d3-a456-426614174000',
+      image: '',
+      images: [],
+      pendingImageCount: 1,
+    };
+
+    expect(validateProductForm(localImageDraft)).toEqual({});
+    expect(validateProductForm({ ...localImageDraft, pendingImageCount: 12 })).toHaveProperty('gallery');
+  });
+
+  it('does not reset the product form when an admin save fails with 401', async () => {
+    const resetForm = vi.fn();
+    const unauthorized = Object.assign(new Error('Sesión administrativa requerida'), { status: 401 });
+
+    await expect(submitAdminProductForm(async () => { throw unauthorized; }, resetForm)).rejects.toMatchObject({ status: 401 });
+    expect(resetForm).not.toHaveBeenCalled();
+  });
 });
 
 describe('admin API response handling', () => {
@@ -80,14 +106,14 @@ describe('admin API response handling', () => {
   });
 
   it.each([
-    [400, 'Bad Request', '[BAD_REQUEST] Petición inválida'],
-    [401, 'Unauthorized', '[UNAUTHORIZED] Sesión administrativa requerida'],
-    [403, 'Forbidden', '[FORBIDDEN] No tienes permisos para esta operación.'],
-    [409, 'Conflict', '[CONFLICT] Ya existe'],
-  ])('maps status %i to a clear error', async (status, _label, responseText) => {
+    [400, '[BAD_REQUEST] Petición inválida', 'Petición inválida'],
+    [401, '[UNAUTHORIZED] No autorizado', 'Sesión administrativa requerida'],
+    [403, '[FORBIDDEN] No autorizado', 'No tienes permisos para esta operación.'],
+    [409, '[CONFLICT] Ya existe', 'Ya existe'],
+  ])('maps status %i to a clear error', async (status, responseText, expectedMessage) => {
     const text = JSON.stringify({ error: { code: String(status).startsWith('4') ? 'BAD_REQUEST' : status === 401 ? 'UNAUTHORIZED' : status === 403 ? 'FORBIDDEN' : 'CONFLICT', message: responseText.replace(/^\[[A-Z_]+\]\s/, '') }, message: responseText });
     const err = parseAdminApiError(Number(status), text);
-    expect(err.message).toContain(responseText.replace(/^\[[A-Z_]+\]\s/, ''));
+    expect(err.message).toContain(expectedMessage);
     expect(err.message).toContain('[');
   });
 
@@ -135,6 +161,105 @@ describe('admin API response handling', () => {
       id: 'product-1',
       name: 'Zapatilla',
     });
+
+    const requestInit = vi.mocked(fetch).mock.calls[0]?.[1];
+    expect(requestInit?.method).toBe('POST');
+    expect(new Headers(requestInit?.headers).get('Authorization')).toBe('Bearer token-123');
+  });
+
+  it('loads the admin product table from the protected products endpoint', async () => {
+    vi.mocked(getAccessToken).mockResolvedValue('admin-session-token');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ ok: true, data: [{ id: 'admin-product-1', name: 'Producto privado' }] }),
+    }));
+
+    await expect(adminApi.fetchProducts()).resolves.toEqual([{ id: 'admin-product-1', name: 'Producto privado' }]);
+
+    const [url, requestInit] = vi.mocked(fetch).mock.calls[0] ?? [];
+    expect(new URL(String(url), 'http://localhost').pathname).toBe('/api/admin/products');
+    expect(requestInit?.method).toBe('GET');
+    expect(new Headers(requestInit?.headers).get('Authorization')).toBe('Bearer admin-session-token');
+  });
+
+  it('sends Authorization on PATCH admin product requests', async () => {
+    vi.mocked(getAccessToken).mockResolvedValue('admin-session-token');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ ok: true, data: { id: 'product-1' } }),
+    }));
+
+    await adminApi.updateProductApi('product-1', { name: 'Editado' });
+
+    const requestInit = vi.mocked(fetch).mock.calls[0]?.[1];
+    expect(requestInit?.method).toBe('PATCH');
+    expect(new Headers(requestInit?.headers).get('Authorization')).toBe('Bearer admin-session-token');
+  });
+
+  it('sends Authorization on DELETE admin product requests', async () => {
+    vi.mocked(getAccessToken).mockResolvedValue('admin-session-token');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 204 }));
+
+    await adminApi.deleteProductApi('product-1');
+
+    const requestInit = vi.mocked(fetch).mock.calls[0]?.[1];
+    expect(requestInit?.method).toBe('DELETE');
+    expect(new Headers(requestInit?.headers).get('Authorization')).toBe('Bearer admin-session-token');
+  });
+
+  it('blocks admin requests without a session and does not call fetch', async () => {
+    vi.mocked(getAccessToken).mockResolvedValue(null);
+
+    await expect(adminApi.fetchProducts()).rejects.toThrow('Sesión administrativa requerida');
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('does not retry a write when 401 is followed by a failed session refresh', async () => {
+    vi.mocked(getAccessToken)
+      .mockResolvedValueOnce('expired-session-token')
+      .mockResolvedValueOnce(null);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      text: async () => JSON.stringify({ error: { code: 'UNAUTHORIZED', message: 'No autenticado.' } }),
+    }));
+
+    await expect(adminApi.createProductApi({ name: 'Producto' })).rejects.toThrow('Sesión administrativa requerida');
+    expect(fetch).toHaveBeenCalledOnce();
+  });
+
+  it('reports 403 as a permissions error', async () => {
+    vi.mocked(getAccessToken).mockResolvedValue('admin-session-token');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false,
+      status: 403,
+      text: async () => JSON.stringify({ error: { code: 'FORBIDDEN', message: 'No autorizado.' } }),
+    }));
+
+    await expect(adminApi.fetchProducts()).rejects.toMatchObject({
+      status: 403,
+      message: expect.stringContaining('No tienes permisos'),
+    });
+  });
+
+  it('never writes the access token to console logs', async () => {
+    const token = 'secret-session-token';
+    vi.mocked(getAccessToken).mockResolvedValue(token);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ ok: true, data: [] }),
+    }));
+    const consoleSpies = [vi.spyOn(console, 'log').mockImplementation(() => {}), vi.spyOn(console, 'warn').mockImplementation(() => {}), vi.spyOn(console, 'error').mockImplementation(() => {})];
+
+    await adminApi.fetchProducts();
+
+    for (const spy of consoleSpies) {
+      expect(spy.mock.calls.flat().join(' ')).not.toContain(token);
+      spy.mockRestore();
+    }
   });
 
   it('keeps the session bearer when uploading a file with its image content type', async () => {

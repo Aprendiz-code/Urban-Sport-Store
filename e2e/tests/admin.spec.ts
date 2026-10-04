@@ -35,17 +35,12 @@ test('admin end-to-end: login, products CRUD and read-only admin sections', asyn
   const categoryId = await categorySelect.locator('option:not([disabled])').first().getAttribute('value');
   test.skip(!categoryId, 'Requires an active product category.');
   await categorySelect.selectOption(categoryId!);
-  await page.getByLabel('Selecciona una imagen').setInputFiles({
-    name: 'product.png',
-    mimeType: 'image/png',
-    buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-  });
-  await expect(page.getByText('Imagen cargada exitosamente')).toBeVisible({ timeout: 15000 });
-  await page.getByLabel('Selecciona múltiples imágenes').setInputFiles([
+  await page.getByLabel('Seleccionar imágenes del producto').setInputFiles([
+    { name: 'product.png', mimeType: 'image/png', buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]) },
     { name: 'gallery-1.png', mimeType: 'image/png', buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]) },
     { name: 'gallery-2.png', mimeType: 'image/png', buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]) },
   ]);
-  await expect(page.getByText('2 imagen(es) en galería')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByText('3 seleccionadas')).toBeVisible({ timeout: 15000 });
 
   await page.click('button:has-text("✅ Crear producto")');
   const productRow = page.locator('tr', { hasText: productName });

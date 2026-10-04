@@ -12,7 +12,11 @@ const IMAGE_TYPES = new Map([
 ]);
 
 export function resolveProductStorageBucket(configuredBucket = process.env.SUPABASE_STORAGE_BUCKET): string {
-  return configuredBucket?.trim() || 'products';
+  const bucket = configuredBucket?.trim();
+  if (bucket && bucket !== 'products') {
+    throw new Error('SUPABASE_STORAGE_BUCKET debe ser products.');
+  }
+  return 'products';
 }
 
 function readImageBody(req: any): Promise<Buffer> {

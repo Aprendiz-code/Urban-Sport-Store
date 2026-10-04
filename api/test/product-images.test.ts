@@ -64,9 +64,10 @@ describe('admin product image upload', () => {
     expect(JSON.parse(response.body)).toEqual({ data: { path: 'products/stored.png' } });
   });
 
-  it('uses products only as the default and respects an explicit bucket setting', () => {
+  it('uses only products and rejects a divergent bucket setting', () => {
     expect(resolveProductStorageBucket()).toBe('products');
-    expect(resolveProductStorageBucket('custom-product-assets')).toBe('custom-product-assets');
+    expect(resolveProductStorageBucket('products')).toBe('products');
+    expect(() => resolveProductStorageBucket('product-images')).toThrow('debe ser products');
   });
 
   it('rejects unsupported content types without writing to Storage', async () => {

@@ -31,7 +31,11 @@ export interface ProductRecord {
 }
 
 export function resolveStorageBucket(configuredBucket?: string): string {
-  return configuredBucket?.trim() || 'products';
+  const bucket = configuredBucket?.trim();
+  if (bucket && bucket !== 'products') {
+    throw new Error('VITE_SUPABASE_STORAGE_BUCKET debe ser products.');
+  }
+  return 'products';
 }
 
 export const STORAGE_BUCKET = resolveStorageBucket(import.meta.env.VITE_SUPABASE_STORAGE_BUCKET);

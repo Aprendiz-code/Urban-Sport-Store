@@ -1,0 +1,92 @@
+Structural diff (textual/structural) between SUPABASE_INIT.sql and supabase/migrations/* (approximate, repo-only)
+
+Method: compared textual object names and statements across files; no SQL executed.
+
+1) Tables present in SUPABASE_INIT.sql but NOT present in migrations (public/*.sql):
+- Role
+- User
+- UserRole
+- Address
+- Brand
+- ProductImage (note: ProductImage exists in init but migrations model images differently in products as JSONB)
+- ProductVariant
+- InventoryMovement
+- Cart
+- CartItem
+- Coupon
+- CouponUsage
+- Order
+- OrderItem
+- Payment
+- PaymentEvent
+- Shipment
+- Review
+- PasswordResetToken
+
+These are full domain/tables in SUPABASE_INIT.sql not represented in the migrations set (migrations focus on catalog, profiles, audit, home_content, newsletter).
+
+2) Tables present in migrations but absent (name mismatch) in SUPABASE_INIT.sql:
+- public.profiles  <-- SUPABASE_INIT.sql models "User" and "UserRole" and "Role" instead
+- public.home_content  (SUPABASE_INIT.sql has no `home_content` but has similar fields inside 'Category'/'Product' etc.)
+- public.newsletter_subscribers (exists but column names differ)
+- public.audit_logs (SUPABASE_INIT.sql has AuditLog -> similar but column names differ)
+
+3) Column name differences (representative, not exhaustive):
+- Category table:
+  - SUPABASE_INIT.sql: Category(name, slug, description, imageUrl, createdAt, updatedAt, deletedAt)
+  - migrations: public.categories(name, slug, description, image_url, image, sort_order, is_active, created_at, updated_at)
+  => Differences: imageUrl vs image_url/image; createdAt vs created_at; added columns in migrations (is_active, sort_order); deletedAt present in INIT only
+
+- Product table:
+  - SUPABASE_INIT.sql: Product(name, slug, sku, description, price, compareAtPrice, status(enum), stock, categoryId, brandId, createdAt, updatedAt, deletedAt)
+  - migrations: public.products(slug, name, brand, short_description, description, price, original_price/compare_at_price, discount_percentage, category_id, sizes, colors jsonb, stock, sku, main_image, images jsonb, is_featured, is_discounted, is_active, rating, reviews_count, created_at, updated_at)
+  => Differences: brandId vs brand text; product images modeled differently; different status enum usage; many extra fields in migrations; migrations use category_id snake_case; some fields in INIT (deletedAt, status enum) absent in migrations; migrations include arrays and JSON fields not in INIT
+
+- audit/audit_logs:
+  - SUPABASE_INIT.sql: AuditLog(actorId, action, entity, entityId(text), changes jsonb, createdAt)
+  - migrations: public.audit_logs(actor_id uuid, action text, entity text, entity_id uuid, changes jsonb, before_data jsonb, after_data jsonb, entity_id_uuid uuid)
+  => Differences: migrations move to uuid typed entity_id, add before_data/after_data; INIT keeps text entityId and changes; phase4 adds entity_id_uuid
+
+- newsletter_subscribers:
+  - SUPABASE_INIT.sql: (id, email, createdAt, possibly deletedAt) + policies
+  - migrations: (id, email, source, created_at, updated_at, status) + check constraint in minimal-align
+  => Migrations add columns and updated_at; INIT lacks them
+
+- profiles/users:
+  - SUPABASE_INIT.sql: User table with name, email, passwordHash, isActive, deletedAt
+  - migrations: public.profiles referencing auth.users(id) and role only (minimal)
+  => Different user modeling: INIT has standalone User table; migrations expect auth.users + profiles
+
+4) Index differences (sample):
+- SUPABASE_INIT.sql defines many explicit indexes with PascalCase names (e.g. "Product_sku_key", "Category_slug_key").
+- Migrations define indexes with snake_case names (e.g. products_sku_key, categories_slug_key) and some additional indexes (is_active, sort_order combos).
+- Some indexes or unique constraints exist in one and not the other (e.g. ProductVariant_sku_key in INIT vs ProductVariant not present in migrations).
+
+5) Foreign key semantics differences
+- SUPABASE_INIT.sql: FK definitions mostly use ON DELETE RESTRICT (seen in script), but some tables reference others via camelCase names.
+- migrations: 0001_init initially had products.category_id REFERENCES public.categories(id) ON DELETE SET NULL (in one file), then phase4 explicitly changes to ON DELETE RESTRICT. There's a timing/order difference: INIT shows ON DELETE RESTRICT already.
+- FK references in migrations often use `auth.users(id)` for profiles while INIT models users separately.
+
+6) Functions & triggers
+- migrations define `public.set_updated_at()` and multiple triggers `trg_*_set_updated_at` (or variants like categories_set_updated_at) and drop/recreate behavior in DO $$ blocks.
+- SUPABASE_INIT.sql does not clearly define `set_updated_at()` function in same form; it uses timestamp columns but I didn't find a function definition in the snapshot (requires validation executed).
+- Some DO $$ blocks and trigger management exist in migrations and phase4; these conditional DO blocks cannot be fully validated without execution context. (requires validation executed)
+
+7) RLS / Policies
+- migrations: 0001_init.sql and phase3 propose specific RLS policies for profiles/products/categories/home_content/newsletter_subscribers/audit_logs with auth.uid() checks; many policies are present.
+- SUPABASE_INIT.sql: also contains policies (similar intention) but uses different table/column names and possibly different policy definitions (because naming differs). Therefore policy content is not directly interchangeable without renaming columns.
+- Some policy changes in migration proposals are guarded with comments (e.g., do not enable RLS yet). Phase3 explicitly states DO NOT APPLY.
+
+8) Storage policies
+- No explicit storage policies (Supabase storage) detected in the inspected files; `remote_schema.sql` is empty. If storage policies exist elsewhere, they were not in these files.
+
+9) Seeds / Inserts
+- SUPABASE_INIT.sql: appears to be schema-only snapshot; I did not find seed INSERTS in it.
+- Migrations: `20260723_phase1_public_catalog.sql` and `20260723_phase3_backend_contract_proposal.sql` include seed/home_content seed row; `seed.sql` and `seed_phase1_public.sql` include multiple idempotent seed inserts for categories, products, home_content, newsletter_subscribers, audit_logs.
+
+10) Conditional / dynamic SQL (requires execution to confirm)
+- Several files use DO $$ ... $$ blocks to check existing triggers/constraints before creating them and to attempt constraint drops/creates (phase4). Exact runtime effect depends on DB state and cannot be determined by static text alone. Marked in notes as "requires validation executed".
+
+Summary (short):
+- The migrations tree is focused on public.* snake_case schema, incremental, includes triggers and policies and seeds; it's the active incremental history.
+- `SUPABASE_INIT.sql` is a larger monolithic snapshot including many additional domain tables (orders/payments/etc) and using PascalCase naming. They are not in sync; there are many naming and structural mismatches.

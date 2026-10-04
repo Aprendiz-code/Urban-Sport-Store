@@ -15,7 +15,8 @@ import { deleteProductImage, resolveStorageBucket, STORAGE_BUCKET, uploadProduct
 describe('browser image storage writes', () => {
   it('defaults to the existing products bucket but respects an explicit setting', () => {
     expect(resolveStorageBucket()).toBe('products');
-    expect(resolveStorageBucket('custom-product-assets')).toBe('custom-product-assets');
+    expect(resolveStorageBucket('products')).toBe('products');
+    expect(() => resolveStorageBucket('product-images')).toThrow('debe ser products');
     expect(STORAGE_BUCKET).toBe('products');
   });
 
