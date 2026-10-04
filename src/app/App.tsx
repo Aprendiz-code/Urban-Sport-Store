@@ -2145,7 +2145,7 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
         return;
       }
       onLogin(user, profileAccess.isAdmin, profileAccess.role);
-      onNavigate("home");
+      onNavigate(profileAccess.isAdmin ? "admin" : "home");
     } catch (err) {
       if (err instanceof ProfileAccessVerificationError) {
         setError(err.message);
