@@ -132,7 +132,7 @@ async function callApi(path: string, opts: RequestInit = {}) {
 
   if (res.status === 204) return null;
   const json = await res.json();
-  if (json && typeof json === 'object' && 'ok' in json && json.ok && 'data' in json) {
+  if (json && typeof json === 'object' && 'data' in json && (!('ok' in json) || json.ok === true)) {
     return json.data;
   }
   return json;

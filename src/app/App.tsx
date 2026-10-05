@@ -928,7 +928,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, profileRole
                     className="h-10 w-10 rounded-xl flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
                   >
                   {isLoggedIn
-                    ? <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#1d4ed8] to-[#f97316] text-xs font-bold text-white">V</div>
+                    ? <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#1d4ed8] to-[#f97316] text-xs font-bold text-white">{isAdmin ? "A" : "V"}</div>
                     : <Users size={19} />}
                 </button>
                 {userOpen && (

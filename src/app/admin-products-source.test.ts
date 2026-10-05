@@ -78,4 +78,8 @@ describe('admin products table data source', () => {
     expect(appSource).toContain('Producto eliminado de forma segura y conservado como inactivo.');
     expect(appSource).toContain('adminApi.deleteProductApi(productId)');
   });
+
+  it('marks an authenticated admin avatar with A while preserving the regular user initial', () => {
+    expect(appSource).toContain('{isAdmin ? "A" : "V"}');
+  });
 });

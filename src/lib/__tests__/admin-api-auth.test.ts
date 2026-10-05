@@ -39,6 +39,17 @@ describe('authenticated admin API client', () => {
     expect(new Headers(options?.headers).get('Authorization')).toBe('Bearer current-admin-token');
   });
 
+  it('unwraps the data envelope returned directly by API handlers', async () => {
+    const products = [{ id: 'admin-1' }, { id: 'admin-2' }];
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ data: products }),
+    } as Response);
+
+    await expect(adminApi.fetchProducts()).resolves.toEqual(products);
+  });
+
   it('uses the authenticated client for create, edit, archive, and image upload', async () => {
     vi.mocked(fetch)
       .mockResolvedValueOnce(successfulResponse(201, { id: 'created-1' }) as Response)
