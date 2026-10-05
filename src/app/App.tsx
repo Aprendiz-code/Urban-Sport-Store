@@ -40,13 +40,13 @@ import { getMyProfile, getProfileAccess, ProfileAccessVerificationError, updateM
 import { getAdminPanelMenuLink } from "./admin-panel-menu";
 
 import adminApi, { createSupabaseProductApi, updateSupabaseProductApi, deleteSupabaseProductApi, updateHomeContentApi, formatAdminApiError, isAdminAuthenticationError } from "../lib/admin-api";
-import { uploadProductImage, deleteProductImage, getPublicUrl, buildProductImagePath, getStoragePathFromPublicUrl, STORAGE_BUCKET } from "../lib/supabase-store";
+import { uploadProductImage, getPublicUrl, STORAGE_BUCKET } from "../lib/supabase-store";
 import { recordAction, getAudit } from "../lib/audit";
 import { productSchema } from '../lib/schemas';
 import { normalizeGuestCartEntries } from '../lib/cart-service';
-import { submitAdminProductForm, validateProductForm } from '../lib/admin-product-form';
+import { MAX_PRODUCT_GALLERY_IMAGES, MAX_PRODUCT_TOTAL_IMAGES, submitAdminProductForm, validateProductForm } from '../lib/admin-product-form';
 import { buildAdminProductPayload } from '../lib/admin-product-payload';
-import { normalizeProductImageList } from '../lib/admin-product-images';
+import { normalizeProductImageList, resolveProductPublicImageUrl, uploadSelectedProductImages } from '../lib/admin-product-images';
 import ProductGallery from './components/ProductGallery';
 import Toaster from './components/LazyToaster';
 import { toast } from '../lib/lazyToast';
@@ -67,6 +67,8 @@ function getInitialView(): View {
   const query = new URLSearchParams(search);
   const hash = new URLSearchParams(window.location.hash.slice(1));
   if (pathname === "/reset-password" || query.get("type") === "recovery" || hash.get("type") === "recovery") return "password-reset";
+  if (query.get("product")) return "product";
+  if (query.get("view") === "catalog") return "catalog";
   if (pathname === "/admin/login") return "admin-login";
   if (pathname === "/admin" || pathname.startsWith("/admin/") || new URLSearchParams(search).get("view") === "admin") return "admin";
   if (pathname === "/login") return "login";
@@ -91,6 +93,7 @@ function getInitialAdminSection(): string | undefined {
 
 type Category = string;
 type Product = DomainProduct;
+type AdminProductImageSelection = { id: string; src: string; permanentUrl?: string; file?: File; previewUrl?: string };
 
 const HOME_NAV_CATEGORIES = [
   { name: "Zapatos", filterCategory: "Running" },
@@ -201,30 +204,39 @@ const loadStoredAddresses = (): Address[] => {
   }
 };
 
-const mapProductRecordToAppProduct = (record: ProductRecord, categories: readonly CategoryOption[] = []): Product => ({
-  id: record.id,
-  name: record.name,
-  brand: record.brand,
-  price: record.price,
-  originalPrice: record.original_price ?? undefined,
-  discount: record.discount ?? undefined,
-  rating: record.rating ?? 0,
-  reviews: record.reviews ?? 0,
-  image: record.image ?? record.main_image ?? record.images?.[0] ?? "",
-  images: record.images ?? [],
-  category: resolveProductCategoryName(record.category_id, record.category, categories),
-  categoryId: record.category_id ?? undefined,
-  subcategory: record.subcategory ?? "",
-  stock: record.stock ?? 0,
-  sku: record.sku ?? record.id,
-  description: record.description ?? "Producto cargado desde Supabase",
-  colors: record.colors ?? [],
-  sizes: record.sizes ?? [],
-  gender: record.gender as Product["gender"],
-  isNew: record.is_new ?? false,
-  isFeatured: record.is_featured ?? false,
-  specs: record.specs ?? [],
-});
+const mapProductRecordToAppProduct = (record: ProductRecord, categories: readonly CategoryOption[] = []): Product => {
+  const productImages = normalizeProductImageList(
+    record.main_image ?? record.image ?? record.images?.[0],
+    record.images ?? [],
+    (path) => getPublicUrl(STORAGE_BUCKET, path),
+  );
+
+  return {
+    id: record.id,
+    slug: record.slug ?? undefined,
+    name: record.name,
+    brand: record.brand,
+    price: record.price,
+    originalPrice: record.original_price ?? undefined,
+    discount: record.discount ?? undefined,
+    rating: record.rating ?? 0,
+    reviews: record.reviews ?? 0,
+    image: productImages.mainImage,
+    images: productImages.gallery,
+    category: resolveProductCategoryName(record.category_id, record.category, categories),
+    categoryId: record.category_id ?? undefined,
+    subcategory: record.subcategory ?? "",
+    stock: record.stock ?? 0,
+    sku: record.sku ?? record.id,
+    description: record.description ?? "Producto cargado desde Supabase",
+    colors: record.colors ?? [],
+    sizes: record.sizes ?? [],
+    gender: record.gender as Product["gender"],
+    isNew: record.is_new ?? false,
+    isFeatured: record.is_featured ?? false,
+    specs: record.specs ?? [],
+  };
+};
 
 const mapAppProductToProductRecord = (product: Partial<Product> & { id?: string }): ProductRecord => ({
   id: product.id ?? crypto.randomUUID(),
@@ -523,10 +535,12 @@ function ProductCard({ product, onSelect, onAddToCart }: {
         <article className="group relative w-full max-w-full h-full bg-white rounded-[20px] sm:rounded-[30px] overflow-hidden border border-slate-200/80 shadow-[0_15px_40px_-28px_rgba(15,23,42,0.35)] hover:-translate-y-1 hover:shadow-[0_20px_60px_-30px_rgba(15,23,42,0.45)] transition-all duration-300 flex flex-col">
       {/* Image */}
       <div className="relative w-full aspect-[4/3] bg-slate-100 overflow-hidden">
-        <img src={product.image} alt={product.name} onError={(event) => { event.currentTarget.style.display = "none"; }}
-          loading="lazy" decoding="async"
-          className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
-        />
+        <a href={`/?product=${encodeURIComponent(product.slug ?? product.id)}`} onClick={(event) => { event.preventDefault(); onSelect(product); }} aria-label={`Ver ${product.name}`} className="block h-full w-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-blue-600">
+          <img src={product.image} alt={product.name} onError={(event) => { event.currentTarget.style.display = "none"; }}
+            loading="lazy" decoding="async"
+            className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
+          />
+        </a>
         {/* Badges */}
         <div className="absolute top-3 left-3 flex flex-col gap-1.5">
           {hasRealDiscount && product.discount && <Badge variant="sale">-{product.discount}%</Badge>}
@@ -539,7 +553,7 @@ function ProductCard({ product, onSelect, onAddToCart }: {
           aria-label={wished ? `Quitar ${product.name} de favoritos` : `Agregar ${product.name} a favoritos`}
           aria-pressed={wished}
           onClick={() => setWished((value) => !value)}
-          className="absolute top-3 right-3 w-11 h-11 rounded-full bg-white/95 backdrop-blur flex items-center justify-center shadow-md hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8] transition-colors"
+          className="absolute top-3 right-3 z-10 w-11 h-11 rounded-full bg-white/95 backdrop-blur flex items-center justify-center shadow-md hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8] transition-colors"
         >
           <Heart size={15} className={wished ? "fill-red-500 text-red-500" : "text-slate-400"} />
         </button>
@@ -550,7 +564,7 @@ function ProductCard({ product, onSelect, onAddToCart }: {
         <div>
           <p className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-[#1d4ed8] mb-2">{product.brand}</p>
           <h3 className="font-display text-[22px] sm:text-2xl text-slate-900 line-clamp-2 leading-[1.05]">
-            <button type="button" onClick={() => onSelect(product)} className="font-display text-left hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8]">{product.name}</button>
+            <a href={`/?product=${encodeURIComponent(product.slug ?? product.id)}`} onClick={(event) => { event.preventDefault(); onSelect(product); }} className="font-display text-left hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8]">{product.name}</a>
           </h3>
           <p className="text-sm text-slate-500 mt-1">{product.subcategory}{product.gender ? ` · ${product.gender}` : ""}</p>
         </div>
@@ -1593,8 +1607,10 @@ function LegalPage({ kind, onNavigate }: { kind: View; onNavigate: (v: View) => 
 
 // ─── CATALOG PAGE ─────────────────────────────────────────────────────────────
 
-function CatalogPage({ filterCategory, onSelectProduct, onAddToCart, onNavigate, onCategorySelect, products, categories, productsStatus, onRetryProducts }: {
+function CatalogPage({ filterCategory, selectedBrand, setSelectedBrand, sortBy, setSortBy, onSelectProduct, onAddToCart, onNavigate, onCategorySelect, products, categories, productsStatus, onRetryProducts }: {
   filterCategory: Category | null; onSelectProduct: (p: Product) => void;
+  selectedBrand: string | null; setSelectedBrand: React.Dispatch<React.SetStateAction<string | null>>;
+  sortBy: string; setSortBy: React.Dispatch<React.SetStateAction<string>>;
   onAddToCart: (p: Product, size: string, color: string) => void;
   onNavigate: (v: View) => void;
   onCategorySelect: (c: Category | null) => void;
@@ -1604,8 +1620,6 @@ function CatalogPage({ filterCategory, onSelectProduct, onAddToCart, onNavigate,
   onRetryProducts: () => void;
 }) {
   const selectedCat = filterCategory;
-  const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState("relevancia");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
@@ -1764,10 +1778,12 @@ function CatalogPage({ filterCategory, onSelectProduct, onAddToCart, onNavigate,
 
 // ─── PRODUCT DETAIL ───────────────────────────────────────────────────────────
 
-function ProductDetailPage({ product, products, onBack, onAddToCart, onNavigate }: {
+function ProductDetailPage({ product, products, onBack, onAddToCart, onNavigate, onSelectProduct, headerOffset }: {
   product: Product; products: Product[]; onBack: () => void;
   onAddToCart: (p: Product, size: string, color: string) => void;
   onNavigate: (v: View) => void;
+  onSelectProduct: (product: Product) => void;
+  headerOffset: number;
 }) {
   const [selectedSize, setSelectedSize] = useState(product.sizes[0] ?? "");
   const [selectedColor, setSelectedColor] = useState(product.colors[0]?.name ?? "");
@@ -1786,8 +1802,11 @@ function ProductDetailPage({ product, products, onBack, onAddToCart, onNavigate 
   };
 
   return (
-    <main className="pt-8 sm:pt-10 md:pt-12 pb-8 min-h-screen max-w-7xl mx-auto px-4 sm:px-6">
+    <main style={{ paddingTop: `${headerOffset + 16}px` }} className="pb-8 min-h-screen max-w-7xl mx-auto px-4 sm:px-6">
       {/* Breadcrumbs */}
+      <button type="button" onClick={onBack} className="mb-4 inline-flex min-h-10 items-center gap-2 text-sm font-semibold text-slate-700 hover:text-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">
+        <ChevronLeft size={16} /> Volver al catálogo
+      </button>
       <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-6">
         <button onClick={() => onNavigate("home")} className="hover:text-slate-600">Inicio</button>
         <ChevronRight size={12} />
@@ -1798,7 +1817,7 @@ function ProductDetailPage({ product, products, onBack, onAddToCart, onNavigate 
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-16">
         {/* Gallery */}
-        <ProductGallery main_image={product.image} images={product.images} productName={product.name} />
+        <ProductGallery key={product.id} main_image={product.image} images={product.images} productName={product.name} />
 
         {/* Info */}
         <div className="space-y-5">
@@ -1925,7 +1944,7 @@ function ProductDetailPage({ product, products, onBack, onAddToCart, onNavigate 
         <h3 className="font-display text-2xl sm:text-[28px] text-slate-900 leading-[1.05] mb-6">También te puede interesar</h3>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-5">
           {products.filter((p) => p.id !== product.id && p.category === product.category).slice(0, 4).map((p) => (
-            <ProductCard key={p.id} product={p} onSelect={onBack as unknown as (p: Product) => void} onAddToCart={onAddToCart} />
+            <ProductCard key={p.id} product={p} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
           ))}
         </div>
       </div>
@@ -2795,11 +2814,17 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
 
   const selectedCategoryOption = useMemo(() => categories.find((option) => option.id === productForm.categoryId || option.name === productForm.category), [categories, productForm.category, productForm.categoryId]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isUploadingImage, setIsUploadingImage] = useState(false);
-  const [isUploadingGallery, setIsUploadingGallery] = useState(false);
+  const [productImageSelections, setProductImageSelections] = useState<AdminProductImageSelection[]>([]);
+  const [primaryImageSelectionId, setPrimaryImageSelectionId] = useState<string | null>(null);
+  const [imageUploadProgress, setImageUploadProgress] = useState<{ completed: number; total: number } | null>(null);
+  const objectUrlsRef = useRef(new Set<string>());
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  const [mainImagePreview, setMainImagePreview] = useState<string>("");
   const availableCategories = [...new Set([...categories.map((category) => category.name), ...getProductCategories(products)])];
+
+  useEffect(() => () => {
+    objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    objectUrlsRef.current.clear();
+  }, []);
 
   const metrics = [
     { label: "Productos activos", value: products.length.toString(), icon: <Package size={18} /> },
@@ -2976,7 +3001,17 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / perPage));
   const paginatedProducts = filteredProducts.slice((page - 1) * perPage, page * perPage);
 
+  const releaseImagePreview = (url?: string) => {
+    if (!url || !objectUrlsRef.current.delete(url)) return;
+    URL.revokeObjectURL(url);
+  };
+
   const resetForm = () => {
+    productImageSelections.forEach((entry) => releaseImagePreview(entry.previewUrl));
+    setProductImageSelections([]);
+    setPrimaryImageSelectionId(null);
+    setImageUploadProgress(null);
+    setFormErrors({});
     setFormMode("create");
     setActiveProduct(null);
     setProductForm({
@@ -3006,6 +3041,17 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
   };
 
   const handleEditProduct = (product: Product) => {
+    productImageSelections.forEach((entry) => releaseImagePreview(entry.previewUrl));
+    const normalizedImages = normalizeProductImageList(
+      product.image,
+      product.images ?? [],
+      (path) => getPublicUrl(STORAGE_BUCKET, path),
+    );
+    const existingImages = [normalizedImages.mainImage, ...normalizedImages.gallery]
+      .filter(Boolean)
+      .map((url, index) => ({ id: `existing-${product.id}-${index}`, src: url, permanentUrl: url }));
+    setProductImageSelections(existingImages);
+    setPrimaryImageSelectionId(existingImages[0]?.id ?? null);
     setActiveProduct(product);
     setFormMode("edit");
     setProductForm({
@@ -3035,6 +3081,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
 
   const handleFormSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (isSubmitting) return;
     const normalizedCategoryId = productForm.categoryId && /^[0-9a-fA-F-]{36}$/.test(productForm.categoryId) ? productForm.categoryId : undefined;
 
     const payload: Omit<Product, "id"> = {
@@ -3051,6 +3098,8 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       discount: productForm.discount ? Number(productForm.discount) : undefined,
     };
 
+    const selectedPrimaryImage = productImageSelections.find((entry) => entry.id === primaryImageSelectionId);
+    const selectedGalleryImages = productImageSelections.filter((entry) => entry.id !== selectedPrimaryImage?.id);
     const errors = validateProductForm({
       name: productForm.name,
       brand: productForm.brand,
@@ -3058,9 +3107,14 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       price: productForm.price,
       stock: productForm.stock,
       categoryId: normalizedCategoryId,
-      image: productForm.image,
-      images: productForm.images,
+      image: selectedPrimaryImage?.permanentUrl ?? "",
+      images: selectedGalleryImages.flatMap((entry) => entry.permanentUrl ? [entry.permanentUrl] : []),
+      pendingImageCount: productImageSelections.filter((entry) => Boolean(entry.file)).length,
     });
+
+    if (productImageSelections.length > MAX_PRODUCT_TOTAL_IMAGES) {
+      errors.gallery = `Máximo ${MAX_PRODUCT_TOTAL_IMAGES} imágenes en total: 1 principal y hasta ${MAX_PRODUCT_GALLERY_IMAGES} adicionales.`;
+    }
 
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
@@ -3080,9 +3134,29 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     setIsSubmitting(true);
     const executeSave = async () => {
       try {
+        const pendingUploads = productImageSelections.filter((entry) => Boolean(entry.file)).length;
+        if (pendingUploads) setImageUploadProgress({ completed: 0, total: pendingUploads });
+        const imagePayload = await uploadSelectedProductImages(
+          productImageSelections,
+          primaryImageSelectionId,
+          uploadProductImage,
+          (path) => getPublicUrl(STORAGE_BUCKET, path),
+          (images, completed, total, uploadedImage) => {
+            const originalPreview = productImageSelections.find((entry) => entry.id === uploadedImage.id)?.previewUrl;
+            releaseImagePreview(originalPreview);
+            setProductImageSelections(images);
+            setImageUploadProgress({ completed, total });
+          },
+        );
+        const productPayload = {
+          ...payload,
+          image: imagePayload.mainImage,
+          images: imagePayload.images,
+        };
+
         const save = formMode === "edit" && activeProduct
-          ? () => updateProduct(activeProduct.id, payload)
-          : () => createProduct(payload);
+          ? () => updateProduct(activeProduct.id, productPayload)
+          : () => createProduct(productPayload);
         await submitAdminProductForm(save, () => {
           resetForm();
           setAdminSection("products");
@@ -3090,6 +3164,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       } catch (error) {
         toast.error(formatAdminApiError(error, "No se pudo guardar el producto."));
       } finally {
+        setImageUploadProgress(null);
         setIsSubmitting(false);
       }
     };
@@ -3607,78 +3682,63 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                   </div>
                 </div>
 
-                {/* Imágenes - Mejorado */}
-                <div className="bg-slate-50 rounded-xl p-4 space-y-4">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-4">
                   <div>
-                    <label className="text-xs font-bold text-slate-600 uppercase block mb-3 flex items-center gap-2">
-                      <span>🖼️ Imagen principal</span>
-                      {isUploadingImage && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full animate-pulse">Cargando...</span>}
-                    </label>
-                    
-                    {/* Preview de imagen principal */}
-                    {(productForm.image || mainImagePreview) && (
-                      <div className="mb-3 rounded-xl overflow-hidden border-2 border-slate-200 bg-white">
-                        <img 
-                          src={mainImagePreview || productForm.image} 
-                          alt="Preview" 
-                          className="w-full h-40 object-cover"
-                        />
-                      </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <h3 className="text-sm font-bold text-slate-800">Imágenes del producto</h3>
+                      <span className="text-xs font-medium text-slate-500">{productImageSelections.length} seleccionadas</span>
+                    </div>
+                    <p className="mt-1 text-xs text-slate-500">Máximo {MAX_PRODUCT_TOTAL_IMAGES} fotos: 1 principal y hasta {MAX_PRODUCT_GALLERY_IMAGES} adicionales.</p>
+                    {imageUploadProgress && (
+                      <p role="status" className="mt-2 text-xs font-semibold text-blue-700">
+                        Subiendo imágenes: {imageUploadProgress.completed}/{imageUploadProgress.total}
+                      </p>
                     )}
-
-                    {/* Input file */}
-                    <label className="w-full px-4 py-3 rounded-xl border-2 border-dashed border-slate-300 bg-white hover:bg-slate-50 cursor-pointer transition-colors flex flex-col items-center justify-center gap-2">
-                      <span className="text-2xl">📁</span>
-                      <span className="text-sm font-semibold text-slate-600">Selecciona una imagen</span>
-                      <input 
-                        type="file" 
-                        accept="image/*" 
-                        onChange={handleImageFileChange} 
-                        disabled={isUploadingImage}
-                        className="hidden" 
-                      />
-                    </label>
-
-                    {formErrors.image && <p className="text-xs text-red-600 mt-1">{formErrors.image}</p>}
                   </div>
-                  <div>
-                    <label className="text-xs font-bold text-slate-600 uppercase block mb-3 flex items-center gap-2">
-                      <span>📸 Galería de imágenes</span>
-                      {isUploadingGallery && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full animate-pulse">Cargando...</span>}
-                    </label>
-                    {/* Input file múltiple */}
-                    <label className="w-full px-4 py-3 rounded-xl border-2 border-dashed border-slate-300 bg-white hover:bg-slate-50 cursor-pointer transition-colors flex flex-col items-center justify-center gap-2">
-                      <span className="text-2xl">📸</span>
-                      <span className="text-sm font-semibold text-slate-600">Selecciona múltiples imágenes</span>
-                      <input 
-                        type="file" 
-                        accept="image/*" 
-                        multiple 
-                        onChange={handleGalleryFilesChange} 
-                        disabled={isUploadingGallery}
-                        className="hidden" 
-                      />
-                    </label>
-                    {(productForm.images?.length ?? 0) > 0 && (
-                      <div className="mt-3">
-                        <p className="text-xs font-semibold text-slate-600 mb-2">{productForm.images?.length ?? 0} imagen(es) en galería</p>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-                        {(productForm.images ?? []).map((img, index) => (
-                            <div key={index} className="relative rounded-xl overflow-hidden border-2 border-slate-200 bg-white hover:border-slate-400 transition-colors group">
-                            <img src={img} alt={`Galería ${index + 1}`} className="w-full h-24 object-cover" />
-                              <button 
-                                type="button" 
-                                onClick={() => removeGalleryImage(index)} 
-                                className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-                              >
-                                <span className="text-white text-2xl font-bold">✕</span>
+
+                  <label className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-slate-300 bg-white px-4 py-4 text-center hover:border-blue-500 hover:bg-blue-50/40">
+                    <span className="text-sm font-semibold text-slate-700">Seleccionar imágenes</span>
+                    <span className="text-xs text-slate-500">JPG, PNG o WebP · máximo 5 MB cada una</span>
+                    <input
+                      type="file"
+                      aria-label="Seleccionar imágenes del producto"
+                      accept="image/jpeg,image/png,image/webp"
+                      multiple
+                      onChange={handleProductImageFilesChange}
+                      disabled={isSubmitting || productImageSelections.length >= MAX_PRODUCT_TOTAL_IMAGES}
+                      className="sr-only"
+                    />
+                  </label>
+
+                  {productImageSelections.length > 0 && (
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                      {productImageSelections.map((entry, index) => {
+                        const isPrimary = entry.id === primaryImageSelectionId;
+                        return (
+                          <div key={entry.id} className={`overflow-hidden rounded-lg border bg-white ${isPrimary ? 'border-blue-600 ring-1 ring-blue-600' : 'border-slate-200'}`}>
+                            <div className="relative aspect-square bg-slate-100">
+                              <img src={entry.src} alt={`Foto ${index + 1} de ${productForm.name || 'producto'}`} className="h-full w-full object-contain" />
+                              {isPrimary && <span className="absolute left-2 top-2 rounded bg-blue-700 px-2 py-1 text-[11px] font-bold text-white">Principal</span>}
+                              <button type="button" aria-label={`Quitar foto ${index + 1}`} onClick={() => removeProductImage(entry.id)} disabled={isSubmitting} className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-white text-slate-700 shadow hover:bg-red-50 hover:text-red-700 disabled:opacity-50">
+                                <X size={16} />
                               </button>
                             </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                            <div className="min-h-12 p-2">
+                              {!isPrimary ? (
+                                <button type="button" onClick={() => setPrimaryImageSelectionId(entry.id)} disabled={isSubmitting} className="text-left text-xs font-semibold text-blue-700 hover:underline disabled:opacity-50">Usar como principal</button>
+                              ) : (
+                                <span className="text-xs font-medium text-slate-600">Imagen principal</span>
+                              )}
+                              {entry.file && <span className="mt-1 block text-[11px] text-amber-700">Pendiente de carga</span>}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {formErrors.image && <p className="text-xs text-red-600">{formErrors.image}</p>}
+                  {formErrors.gallery && <p className="text-xs text-red-600">{formErrors.gallery}</p>}
                 </div>
 
                 {/* Botones de acción mejorados */}
@@ -3858,120 +3918,52 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
   };
 
   const validateImageFile = (file: File) => {
-    const supportedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    const supportedTypes = ['image/jpeg', 'image/png', 'image/webp'];
     const maxSizeBytes = 5 * 1024 * 1024;
 
-    if (!supportedTypes.includes(file.type)) {
-      return 'Formato no válido. Usa JPG, JPEG, PNG o WebP.';
-    }
-
-    if (file.size > maxSizeBytes) {
-      return 'El archivo excede el límite de 5 MB.';
-    }
-
+    if (!supportedTypes.includes(file.type)) return 'Formato no válido. Usa JPG, PNG o WebP.';
+    if (file.size === 0) return 'El archivo está vacío.';
+    if (file.size > maxSizeBytes) return 'El archivo excede el límite de 5 MB.';
     return null;
   };
 
-  const cleanupStorageImage = async (url: string) => {
-    const path = getStoragePathFromPublicUrl(url);
-    if (!path) return;
+  const handleProductImageFilesChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const input = event.currentTarget;
+    const files = Array.from(input.files ?? []);
+    input.value = '';
+    if (!files.length) return;
 
-    try {
-      await deleteProductImage(path);
-    } catch (err) {
-      console.warn('No se pudo eliminar la imagen antigua en storage:', url, err);
-    }
-  };
-
-  const handleImageFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const validationError = validateImageFile(file);
-    if (validationError) {
-      setFormErrors((prev) => ({ ...prev, image: validationError }));
-      toast.error(validationError);
-      return;
-    }
-
-    setFormErrors((prev) => ({ ...prev, image: '' }));
-    const previousImage = productForm.image;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setMainImagePreview(event.target?.result as string);
-    };
-    reader.readAsDataURL(file);
-
-    setIsUploadingImage(true);
-    try {
-      const filePath = buildProductImagePath(file, 'products');
-      const data = await uploadProductImage(file, filePath);
-      const path = (data as any)?.path ?? (data as any)?.Key ?? filePath;
-      const publicUrl = getPublicUrl(STORAGE_BUCKET, path);
-      updateField('image', publicUrl as any);
-      toast.success('Imagen cargada exitosamente');
-
-      if (previousImage && previousImage !== publicUrl) {
-        await cleanupStorageImage(previousImage);
-      }
-    } catch (err) {
-      console.warn('Image upload failed', err);
-      toast.error(err instanceof Error ? err.message : 'La carga de imágenes no está disponible.');
-    } finally {
-      setIsUploadingImage(false);
-    }
-  };
-
-  const handleGalleryFilesChange = async (e: ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files?.length) return;
-
-    const uploadedUrls: string[] = [];
-    const totalFiles = files.length;
-    let uploadedCount = 0;
-
-    setIsUploadingGallery(true);
-
-    for (const file of Array.from(files)) {
+    let remainingSlots = MAX_PRODUCT_TOTAL_IMAGES - productImageSelections.length;
+    const additions: AdminProductImageSelection[] = [];
+    for (const file of files) {
       const validationError = validateImageFile(file);
       if (validationError) {
-        toast.error(`Imagen ${file.name}: ${validationError}`);
+        toast.error(`${file.name}: ${validationError}`);
         continue;
       }
-
-      const filePath = buildProductImagePath(file, 'products');
-      try {
-        const data = await uploadProductImage(file, filePath);
-        const path = (data as any)?.path ?? (data as any)?.Key ?? filePath;
-        uploadedUrls.push(getPublicUrl(STORAGE_BUCKET, path) as string);
-        uploadedCount++;
-        if (uploadedCount % Math.ceil(totalFiles / 3) === 0 || uploadedCount === totalFiles) {
-          toast.success(`Cargadas ${uploadedCount}/${totalFiles} imágenes`);
-        }
-      } catch (err) {
-        console.warn(`Gallery image upload failed for ${file.name}`, err);
-        toast.error(err instanceof Error ? err.message : 'La carga de imágenes no está disponible.');
+      if (remainingSlots <= 0) {
+        toast.error(`Máximo ${MAX_PRODUCT_TOTAL_IMAGES} imágenes en total: 1 principal y hasta ${MAX_PRODUCT_GALLERY_IMAGES} adicionales.`);
+        break;
       }
+
+      const previewUrl = URL.createObjectURL(file);
+      objectUrlsRef.current.add(previewUrl);
+      additions.push({ id: crypto.randomUUID(), src: previewUrl, file, previewUrl });
+      remainingSlots -= 1;
     }
 
-    if (uploadedUrls.length > 0) {
-      const mergedImages = normalizeProductImageList(
-        productForm.image || uploadedUrls[0],
-        [...(productForm.images ?? []), ...uploadedUrls],
-        (path) => getPublicUrl(STORAGE_BUCKET, path),
-      );
-
-      updateField('image', mergedImages.mainImage || productForm.image || uploadedUrls[0] || "");
-      updateField('images', mergedImages.gallery as any);
-      toast.success(`${uploadedUrls.length} imágenes cargadas a la galería`);
-    }
-
-    setIsUploadingGallery(false);
+    if (!additions.length) return;
+    setProductImageSelections((previous) => [...previous, ...additions]);
+    setPrimaryImageSelectionId((previous) => previous ?? additions[0].id);
+    setFormErrors((previous) => ({ ...previous, image: '', gallery: '' }));
   };
 
-  const removeGalleryImage = (index: number) => {
-    updateField('images', (productForm.images ?? []).filter((_, i) => i !== index) as any);
+  const removeProductImage = (imageId: string) => {
+    const removed = productImageSelections.find((entry) => entry.id === imageId);
+    releaseImagePreview(removed?.previewUrl);
+    const remaining = productImageSelections.filter((entry) => entry.id !== imageId);
+    setProductImageSelections(remaining);
+    if (primaryImageSelectionId === imageId) setPrimaryImageSelectionId(remaining[0]?.id ?? null);
   };
 
   return (
@@ -4173,6 +4165,26 @@ export default function App() {
   }, [productRefresh]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [filterCategory, setFilterCategory] = useState<Category | null>(null);
+  const [catalogBrand, setCatalogBrand] = useState<string | null>(null);
+  const [catalogSort, setCatalogSort] = useState("relevancia");
+
+  useEffect(() => {
+    if (view !== "product" || productsStatus !== "ready") return;
+    const productKey = new URLSearchParams(window.location.search).get("product");
+    if (!productKey) return;
+    const matchedProduct = products.find((product) => product.id === productKey || product.slug === productKey);
+    if (matchedProduct) {
+      setSelectedProduct(matchedProduct);
+      return;
+    }
+
+    setSelectedProduct(null);
+    setView("catalog");
+    const url = new URL(window.location.href);
+    url.searchParams.delete("product");
+    url.searchParams.set("view", "catalog");
+    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+  }, [products, productsStatus, view]);
 
   useEffect(() => {
     const isPublicImageUrl = (value: string | null | undefined): value is string => {
@@ -4348,13 +4360,19 @@ export default function App() {
 
   useEffect(() => {
     const handlePopState = () => {
-      setView(getInitialView());
+      const nextView = getInitialView();
+      setView(nextView);
       setInitialAdminSection(getInitialAdminSection());
+      if (nextView === "product") {
+        const productKey = new URLSearchParams(window.location.search).get("product");
+        const matchedProduct = products.find((product) => product.id === productKey || product.slug === productKey);
+        if (matchedProduct) setSelectedProduct(matchedProduct);
+      }
     };
 
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
-  }, []);
+  }, [products]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -4543,6 +4561,9 @@ export default function App() {
     }
 
     const created = await createProductViaAdminApi(adminPayload);
+    if (!created || typeof created.id !== 'string' || !created.id) {
+      throw new Error('La API no confirmó el ID del producto creado.');
+    }
     const createdAppProduct = mapProductRecordToAppProduct(created);
     refreshProducts();
     toast.success("Producto creado y guardado correctamente.");
@@ -4598,7 +4619,7 @@ export default function App() {
     }
   };
 
-  const navigate = (v: View) => {
+  const navigate = (v: View, product?: Product) => {
     try {
       setView(v);
 
@@ -4622,7 +4643,17 @@ export default function App() {
           contact: "/contacto",
         };
         url.pathname = routePaths[v];
-        url.searchParams.delete("view");
+        if (v === "catalog") {
+          url.searchParams.delete("product");
+          url.searchParams.set("view", "catalog");
+        } else if (v === "product") {
+          const selected = product ?? selectedProduct;
+          if (selected) url.searchParams.set("product", selected.slug ?? selected.id);
+          else url.searchParams.delete("product");
+        } else {
+          url.searchParams.delete("view");
+          url.searchParams.delete("product");
+        }
         if (v !== "admin") url.searchParams.delete("adminSection");
         window.history.pushState({}, "", `${url.pathname}${url.search}${url.hash}`);
       }
@@ -4649,7 +4680,7 @@ export default function App() {
 
   const handleSelectProduct = (p: Product) => {
     setSelectedProduct(p);
-    navigate("product");
+    navigate("product", p);
   };
 
   const handleCategorySelect = (cat: Category | null) => {
@@ -4772,6 +4803,10 @@ export default function App() {
           products={products}
           categories={categoryOptions}
           filterCategory={filterCategory}
+          selectedBrand={catalogBrand}
+          setSelectedBrand={setCatalogBrand}
+          sortBy={catalogSort}
+          setSortBy={setCatalogSort}
           onSelectProduct={handleSelectProduct}
           onAddToCart={handleAddToCart}
           onNavigate={navigate}
@@ -4782,11 +4817,14 @@ export default function App() {
       )}
       {view === "product" && selectedProduct && (
         <ProductDetailPage
+          key={selectedProduct.id}
           product={selectedProduct}
           products={products}
           onBack={() => navigate("catalog")}
           onAddToCart={handleAddToCart}
           onNavigate={navigate}
+          onSelectProduct={handleSelectProduct}
+          headerOffset={headerOffset}
         />
       )}
       {view === "checkout" && (

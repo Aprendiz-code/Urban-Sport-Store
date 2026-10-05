@@ -3,10 +3,52 @@ import {
   buildImageGalleryState,
   getAdjacentImageIndex,
   normalizeProductImageList,
+  uploadSelectedProductImages,
   uploadQueuedProductImages,
 } from './admin-product-images';
 
 describe('queued product image uploads', () => {
+  it('keeps a successful upload for retry and preserves the selected primary and gallery order', async () => {
+    const savedSelections: Array<{ id: string; src: string; permanentUrl?: string; file?: string }> = [];
+    const upload = vi.fn()
+      .mockResolvedValueOnce({ path: 'products/one.png' })
+      .mockRejectedValueOnce(new Error('Storage unavailable'));
+    const selectedImages = [
+      { id: 'old-main', src: 'https://storage.example/main.png', permanentUrl: 'https://storage.example/main.png' },
+      { id: 'first-new', src: 'blob:first', file: 'first' },
+      { id: 'second-new', src: 'blob:second', file: 'second' },
+    ];
+
+    await expect(uploadSelectedProductImages(
+      selectedImages,
+      'second-new',
+      upload,
+      (path) => `https://storage.example/${path}`,
+      (images) => savedSelections.splice(0, savedSelections.length, ...images),
+    )).rejects.toThrow('Storage unavailable');
+
+    expect(savedSelections).toEqual([
+      { id: 'old-main', src: 'https://storage.example/main.png', permanentUrl: 'https://storage.example/main.png' },
+      { id: 'first-new', src: 'https://storage.example/products/one.png', permanentUrl: 'https://storage.example/products/one.png' },
+      { id: 'second-new', src: 'blob:second', file: 'second' },
+    ]);
+
+    const retryUpload = vi.fn(async (file: string) => ({ path: `products/${file}.png` }));
+    const result = await uploadSelectedProductImages(
+      savedSelections,
+      'second-new',
+      retryUpload,
+      (path) => `https://storage.example/${path}`,
+    );
+
+    expect(retryUpload).toHaveBeenCalledOnce();
+    expect(retryUpload).toHaveBeenCalledWith('second');
+    expect(result).toEqual({
+      mainImage: 'https://storage.example/products/second.png',
+      images: ['https://storage.example/main.png', 'https://storage.example/products/one.png'],
+    });
+  });
+
   it('uploads sequentially and assigns the first URL as main, the rest as gallery', async () => {
     const events: string[] = [];
     const upload = vi.fn(async (file: string) => {
@@ -58,6 +100,14 @@ describe('queued product image uploads', () => {
       mainImage: 'https://cdn.example.com/main.jpg',
       gallery: ['https://cdn.example.com/side.jpg'],
     });
+  });
+
+  it('keeps every available gallery image in its original order', () => {
+    const gallery = Array.from({ length: 14 }, (_, index) => `https://storage.example/${index}.jpg`);
+    const state = buildImageGalleryState('https://storage.example/main.jpg', gallery);
+
+    expect(state.mainImage).toBe('https://storage.example/main.jpg');
+    expect(state.gallery).toEqual(gallery);
   });
 
   it('accepts a storage path and converts it to a public URL', () => {

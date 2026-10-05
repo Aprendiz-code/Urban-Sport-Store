@@ -3,6 +3,14 @@ export interface ProductImageUrls {
   gallery: string[];
 }
 
+export interface ProductImageSelection<TFile> {
+  id: string;
+  src: string;
+  permanentUrl?: string;
+  file?: TFile;
+  previewUrl?: string;
+}
+
 export function resolveProductPublicImageUrl(
   value: string | null | undefined,
   resolvePublicUrl?: (path: string) => string,
@@ -114,4 +122,40 @@ export async function uploadQueuedProductImages<TFile>(
   }
 
   return urls;
+}
+
+export async function uploadSelectedProductImages<TFile>(
+  selectedImages: readonly ProductImageSelection<TFile>[],
+  primaryImageId: string | null,
+  upload: (file: TFile) => Promise<{ path: string }>,
+  resolvePublicUrl: (path: string) => string,
+  onUploaded?: (images: ProductImageSelection<TFile>[], completed: number, total: number, uploadedImage: ProductImageSelection<TFile>) => void,
+): Promise<{ mainImage: string; images: string[] }> {
+  const images = selectedImages.map((image) => ({ ...image }));
+  const totalUploads = images.filter((image) => image.file !== undefined).length;
+  let completedUploads = 0;
+
+  for (let index = 0; index < images.length; index += 1) {
+    const image = images[index];
+    if (image.file === undefined) continue;
+
+    const uploaded = await upload(image.file);
+    const permanentUrl = resolveProductPublicImageUrl(uploaded.path, resolvePublicUrl);
+    if (!permanentUrl) throw new Error('Storage no devolvió una referencia permanente para la imagen.');
+
+    images[index] = { id: image.id, src: permanentUrl, permanentUrl };
+    completedUploads += 1;
+    onUploaded?.(images.map((entry) => ({ ...entry })), completedUploads, totalUploads, image);
+  }
+
+  const primaryImage = images.find((image) => image.id === primaryImageId) ?? images[0];
+  const mainImage = resolveProductPublicImageUrl(primaryImage?.permanentUrl ?? primaryImage?.src, resolvePublicUrl);
+  if (!mainImage) throw new Error('Selecciona al menos una imagen principal válida.');
+
+  const galleryImages = images
+    .filter((image) => image.id !== primaryImage.id)
+    .map((image) => resolveProductPublicImageUrl(image.permanentUrl ?? image.src, resolvePublicUrl));
+  if (galleryImages.some((image) => !image)) throw new Error('No se pudieron preparar todas las imágenes seleccionadas.');
+
+  return { mainImage, images: galleryImages as string[] };
 }

@@ -3,6 +3,7 @@ export function isValidUuid(value?: string | null): boolean {
 }
 
 export const MAX_PRODUCT_GALLERY_IMAGES = 10;
+export const MAX_PRODUCT_TOTAL_IMAGES = MAX_PRODUCT_GALLERY_IMAGES + 1;
 
 export async function submitAdminProductForm(
   save: () => Promise<unknown>,

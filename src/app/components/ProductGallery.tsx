@@ -23,7 +23,15 @@ export default function ProductGallery({ main_image, images = [], productName = 
 
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [failedImages, setFailedImages] = useState<Set<string>>(() => new Set());
   const dialogRef = useRef<HTMLDivElement | null>(null);
+  const imagesSignature = imagesList.join('\u0000');
+
+  useEffect(() => {
+    setSelectedIndex(0);
+    setFailedImages(new Set());
+    setIsExpanded(false);
+  }, [main_image, productName, imagesSignature]);
 
   useEffect(() => {
     if (!imagesList.length) {
@@ -97,6 +105,16 @@ export default function ProductGallery({ main_image, images = [], productName = 
 
   const currentImage = imagesList[selectedIndex];
 
+  const markImageFailed = (image: string) => {
+    setFailedImages((previous) => new Set(previous).add(image));
+  };
+
+  const imageFallback = (label: string, compact = false) => (
+    <div role="img" aria-label={label} className={`flex h-full w-full items-center justify-center bg-slate-100 text-center text-slate-500 ${compact ? 'px-1 text-[10px]' : 'text-sm'}`}>
+      Imagen no disponible
+    </div>
+  );
+
   const skipToIndex = (nextIndex: number) => {
     setSelectedIndex(Math.min(imagesList.length - 1, Math.max(0, nextIndex)));
   };
@@ -104,14 +122,17 @@ export default function ProductGallery({ main_image, images = [], productName = 
   return (
     <div className="space-y-3">
       <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
-        <div className="aspect-square w-full overflow-hidden">
-          <img
-            src={currentImage}
-            alt={`${productName} - vista ${selectedIndex + 1}`}
-            className="h-full w-full object-contain"
-            loading="eager"
-          />
-        </div>
+        <button type="button" aria-label="Ampliar imagen del producto" onClick={() => setIsExpanded(true)} className="block aspect-square w-full overflow-hidden focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-600">
+          {failedImages.has(currentImage) ? imageFallback(`${productName}, imagen no disponible`) : (
+            <img
+              src={currentImage}
+              alt={`${productName} - vista ${selectedIndex + 1}`}
+              onError={() => markImageFailed(currentImage)}
+              className="h-full w-full object-contain"
+              loading="eager"
+            />
+          )}
+        </button>
 
         {imagesList.length > 1 && (
           <>
@@ -151,11 +172,14 @@ export default function ProductGallery({ main_image, images = [], productName = 
             key={`${src}-${index}`}
             type="button"
             aria-label={`Ver imagen ${index + 1}`}
+            aria-pressed={selectedIndex === index}
             onClick={() => skipToIndex(index)}
             className={`overflow-hidden rounded-xl border-2 transition ${selectedIndex === index ? 'border-[#1d4ed8]' : 'border-slate-200 hover:border-slate-300'}`}
           >
             <div className="aspect-square w-full overflow-hidden">
-              <img src={src} alt={`Miniatura ${index + 1}`} className="h-full w-full object-cover" loading="lazy" />
+              {failedImages.has(src) ? imageFallback(`Miniatura ${index + 1} no disponible`, true) : (
+                <img src={src} alt={`Miniatura ${index + 1}`} onError={() => markImageFailed(src)} className="h-full w-full object-cover" loading="lazy" />
+              )}
             </div>
           </button>
         ))}
@@ -163,7 +187,7 @@ export default function ProductGallery({ main_image, images = [], productName = 
 
       {isExpanded && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4" role="dialog" aria-modal="true" aria-label={`${productName} vista ampliada`}>
-          <div ref={dialogRef} tabIndex={-1} className="relative w-full max-w-5xl rounded-[28px] border border-slate-200 bg-white p-4 shadow-2xl outline-none">
+          <div ref={dialogRef} tabIndex={-1} className="relative max-h-[calc(100dvh-2rem)] w-full max-w-5xl overflow-y-auto rounded-[28px] border border-slate-200 bg-white p-4 shadow-2xl outline-none">
             <button
               type="button"
               aria-label="Cerrar vista ampliada"
@@ -174,8 +198,10 @@ export default function ProductGallery({ main_image, images = [], productName = 
             </button>
 
             <div className="relative overflow-hidden rounded-2xl bg-slate-50">
-              <div className="flex aspect-[4/3] items-center justify-center">
-                <img src={currentImage} alt={`${productName} ampliada`} className="h-full w-full object-contain" />
+              <div className="flex aspect-[4/3] max-h-[60vh] items-center justify-center">
+                {failedImages.has(currentImage) ? imageFallback(`${productName}, imagen no disponible`) : (
+                  <img src={currentImage} alt={`${productName} ampliada`} onError={() => markImageFailed(currentImage)} className="h-full w-full object-contain" />
+                )}
               </div>
             </div>
 
