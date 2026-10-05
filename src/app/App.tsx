@@ -46,6 +46,8 @@ import { productSchema } from '../lib/schemas';
 import { normalizeGuestCartEntries } from '../lib/cart-service';
 import { submitAdminProductForm, validateProductForm } from '../lib/admin-product-form';
 import { buildAdminProductPayload } from '../lib/admin-product-payload';
+import { normalizeProductImageList } from '../lib/admin-product-images';
+import ProductGallery from './components/ProductGallery';
 import Toaster from './components/LazyToaster';
 import { toast } from '../lib/lazyToast';
 import type { Address as DomainAddress, GuestCartItem, Product as DomainProduct } from '../types/domain';
@@ -172,13 +174,7 @@ const LOCAL_ADDRESS_STORAGE = "urbansport_addresses";
 const DEFAULT_HERO_TITLE = "VISTE TU ESTILO. MARCA LA DIFERENCIA.";
 const DEFAULT_HERO_SUBTITLE = "Explora calzado, ropa deportiva y accesorios para completar tu estilo.";
 const DEFAULT_HERO_IMAGE = "https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?auto=format&fit=crop&w=1600&h=900&q=85";
-const TOP_BENEFITS_MESSAGES = [
-  "10% de descuento en tu primera compra",
-  "Envíos gratis a toda Colombia a partir de $300.000",
-  "Soporte en línea 24/7 para asesorarte",
-  "Compra 100% segura con todos los medios de pago",
-  "Productos 100% originales con garantía oficial",
-] as const;
+const TOP_BENEFITS_MESSAGES = ["Calzado, ropa y accesorios deportivos"] as const;
 
 const loadStoredAddresses = (): Address[] => {
   if (typeof window === "undefined") return [];
@@ -519,19 +515,22 @@ function ProductCard({ product, onSelect, onAddToCart }: {
   const [wished, setWished] = useState(false);
   const defaultSize = product.sizes[0] === "Talla única" ? "Talla única" : product.sizes[2] ?? product.sizes[0];
   const defaultColor = product.colors[0]?.name ?? "";
-  const savings = product.originalPrice ? product.originalPrice - product.price : 0;
+  const originalPrice = product.originalPrice;
+  const hasRealDiscount = typeof originalPrice === "number" && originalPrice > product.price;
+  const savings = hasRealDiscount ? (originalPrice ?? 0) - product.price : 0;
 
   return (
         <article className="group relative w-full max-w-full h-full bg-white rounded-[20px] sm:rounded-[30px] overflow-hidden border border-slate-200/80 shadow-[0_15px_40px_-28px_rgba(15,23,42,0.35)] hover:-translate-y-1 hover:shadow-[0_20px_60px_-30px_rgba(15,23,42,0.45)] transition-all duration-300 flex flex-col">
       {/* Image */}
       <div className="relative w-full aspect-[4/3] bg-slate-100 overflow-hidden">
         <img src={product.image} alt={product.name} onError={(event) => { event.currentTarget.style.display = "none"; }}
+          loading="lazy" decoding="async"
           className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
         />
         {/* Badges */}
         <div className="absolute top-3 left-3 flex flex-col gap-1.5">
-          {product.discount && <Badge variant="sale">-{product.discount}%</Badge>}
-          {product.isNew && !product.discount && <Badge variant="new">Nuevo</Badge>}
+          {hasRealDiscount && product.discount && <Badge variant="sale">-{product.discount}%</Badge>}
+          {product.isNew && !hasRealDiscount && <Badge variant="new">Nuevo</Badge>}
           {product.stock <= 10 && <Badge variant="low">Pocas</Badge>}
         </div>
         {/* Wishlist */}
@@ -568,8 +567,8 @@ function ProductCard({ product, onSelect, onAddToCart }: {
 
         <div className="flex items-baseline gap-3">
           <span className="price text-lg text-slate-900">{fmt(product.price)}</span>
-          {product.originalPrice && (
-            <span className="price text-xs text-slate-400 line-through">{fmt(product.originalPrice)}</span>
+          {hasRealDiscount && originalPrice !== undefined && (
+            <span className="price text-xs text-slate-400 line-through">{fmt(originalPrice)}</span>
           )}
         </div>
         {savings > 0 && <p className="price text-xs text-emerald-600 -mt-1">Ahorras {fmt(savings)}</p>}
@@ -607,7 +606,7 @@ function TopBenefitsBar() {
   }, []);
 
   useEffect(() => {
-    if (isPaused || !isPageVisible) return;
+    if (benefits.length < 2 || isPaused || !isPageVisible) return;
 
     const interval = window.setInterval(() => {
       setPreviousIndex(currentIndex);
@@ -1216,7 +1215,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
   const homeCategories = HOME_COLLECTIONS;
   const hasRealDiscounts = onSale.some((product) => typeof product.originalPrice === "number" && product.originalPrice > product.price);
   const privacyPolicyUrl = import.meta.env.VITE_PRIVACY_POLICY_URL?.trim() || STORE_CONFIG.privacyPolicyPath;
-  const newsletterAvailable = !import.meta.env.DEV || Boolean(import.meta.env.VITE_API_URL?.trim());
+  const newsletterAvailable = content.newsletterEnabled === true && (!import.meta.env.DEV || Boolean(import.meta.env.VITE_API_URL?.trim()));
   const heroImage = content.heroImage?.trim() || DEFAULT_HERO_IMAGE;
   const heroTitle = content.heroTitle?.trim() || DEFAULT_HERO_TITLE;
   const heroSubtitle = content.heroSubtitle?.trim() || DEFAULT_HERO_SUBTITLE;
@@ -1270,7 +1269,8 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
       <section className="relative flex min-h-[380px] items-center justify-center overflow-hidden bg-[#0b1220] sm:min-h-[440px] md:min-h-[520px]">
         <img
           src={heroImage}
-          alt={heroTitle}
+          alt=""
+          aria-hidden="true"
           loading="eager"
           fetchPriority="high"
           decoding="async"
@@ -1394,21 +1394,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
         )}
       </section>
 
-      <section className="mx-auto max-w-7xl px-3 pb-6 pt-2 sm:px-4 sm:pb-10 md:px-6" aria-label="Oferta especial">
-        <div className="mb-3">
-          <p className="mb-1 font-display text-sm uppercase tracking-[0.08em] text-[#c2410c] sm:text-base">OFERTA ESPECIAL</p>
-          <h2 className="font-display text-xl uppercase leading-[1.05] text-[#0b1220] sm:text-2xl">Beneficio exclusivo para tu primera compra</h2>
-        </div>
-        <img
-          src="/images/promo-discount-10.png"
-          alt="Descuento del 10% en tu primera compra"
-          loading="lazy"
-          decoding="async"
-          className="w-full rounded-2xl border border-slate-200 object-cover shadow-[0_12px_30px_-18px_rgba(15,23,42,0.3)]"
-        />
-      </section>
-
-      <section className="mx-auto max-w-7xl px-3 pb-8 sm:px-4 sm:pb-12 md:px-6" aria-label="Productos con descuento">
+      {hasRealDiscounts && <section className="mx-auto max-w-7xl px-3 pb-8 sm:px-4 sm:pb-12 md:px-6" aria-label="Productos con descuento">
         <div className="mb-4 flex items-end justify-between gap-3 sm:mb-6">
           <div>
             <p className="mb-1 font-display text-sm uppercase tracking-[0.08em] text-[#c2410c] sm:text-base">{content.saleSectionLabel || "OFERTA ESPECIAL"}</p>
@@ -1418,20 +1404,14 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
             Ver todos <ChevronRight size={14} />
           </Btn>
         </div>
-        {hasRealDiscounts ? (
-          <ProductGrid>
-            {onSale.slice(0, 4).map((product) => (
-              <div key={product.id} className="min-w-0">
-                <ProductCard product={product} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
-              </div>
-            ))}
-          </ProductGrid>
-        ) : (
-          <div role="status" className="flex min-h-24 items-center justify-center rounded-2xl border border-orange-100 bg-orange-50/70 px-4 py-6 text-center text-sm text-slate-600">
-            No hay productos con descuento publicados por ahora.
-          </div>
-        )}
-      </section>
+        <ProductGrid>
+          {onSale.filter((product) => typeof product.originalPrice === "number" && product.originalPrice > product.price).slice(0, 4).map((product) => (
+            <div key={product.id} className="min-w-0">
+              <ProductCard product={product} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
+            </div>
+          ))}
+        </ProductGrid>
+      </section>}
 
       <section className="py-8 sm:py-12 md:py-16">
         <div className="mx-auto max-w-7xl px-3 sm:px-4 md:px-6">
@@ -1476,8 +1456,8 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
       <section className="bg-[#0b1220] py-5 sm:py-6 md:py-7">
         <div className="mx-auto max-w-xl px-3 text-center sm:px-4">
           <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-blue-200 sm:text-xs">Mantente al día</p>
-          <h2 className="font-display text-2xl leading-[1.05] text-white sm:text-3xl">Recibe ofertas exclusivas</h2>
-          <p className="mt-2 text-xs text-blue-200 sm:text-sm">Suscríbete para recibir novedades y promociones disponibles.</p>
+          <h2 className="font-display text-2xl leading-[1.05] text-white sm:text-3xl">Recibe novedades</h2>
+          <p className="mt-2 text-xs text-blue-200 sm:text-sm">Novedades de UrbanSport Store.</p>
           <form onSubmit={handleNewsletterSubmit} className="mx-auto mt-4 flex max-w-sm flex-col gap-2 sm:flex-row" aria-live="polite">
             <label htmlFor="newsletter-email" className="sr-only">Correo electrónico</label>
             <input
@@ -1497,7 +1477,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
               disabled={newsletterLoading || !newsletterAvailable || !newsletterConsent}
               className="w-full whitespace-nowrap rounded-xl bg-[#00e676] px-5 py-3 text-sm font-bold text-slate-950 transition-colors hover:bg-[#00c853] disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
             >
-              {newsletterLoading ? "Enviando…" : "Recibir mi descuento"}
+              {newsletterLoading ? "Enviando…" : "Suscribirme"}
             </button>
           </form>
           <label className="mx-auto mt-3 flex max-w-sm items-start gap-2 text-left text-xs text-blue-100">
@@ -1794,7 +1774,9 @@ function ProductDetailPage({ product, products, onBack, onAddToCart, onNavigate 
   const [qty, setQty] = useState(1);
   const [tab, setTab] = useState<"desc" | "specs" | "reviews">("desc");
   const [added, setAdded] = useState(false);
-  const savings = product.originalPrice ? product.originalPrice - product.price : 0;
+  const originalPrice = product.originalPrice;
+  const hasRealDiscount = typeof originalPrice === "number" && originalPrice > product.price;
+  const savings = hasRealDiscount ? (originalPrice ?? 0) - product.price : 0;
 
   const handleAdd = () => {
     if (product.stock <= 0) return;
@@ -1816,26 +1798,7 @@ function ProductDetailPage({ product, products, onBack, onAddToCart, onNavigate 
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-16">
         {/* Gallery */}
-        <div className="space-y-3">
-          {(() => {
-            const gallery = product.images?.length ? product.images : [product.image];
-            const mainImage = gallery[0] ?? product.image;
-            return (
-              <>
-                <div className="aspect-square bg-slate-50 rounded-2xl overflow-hidden border border-slate-100">
-                  <img src={mainImage} alt={product.name} onError={(event) => { event.currentTarget.style.display = "none"; }} className="w-full h-full object-cover" />
-                </div>
-                <div className="grid grid-cols-4 gap-2">
-                  {gallery.slice(0, 4).map((src, index) => (
-                    <div key={index} className={`aspect-square rounded-xl overflow-hidden border-2 cursor-pointer transition-colors ${index === 0 ? "border-[#1d4ed8]" : "border-slate-200 hover:border-slate-300"}`}>
-                      <img src={src} alt={`Miniatura ${index + 1}`} onError={(event) => { event.currentTarget.style.display = "none"; }} className="w-full h-full object-cover" />
-                    </div>
-                  ))}
-                </div>
-              </>
-            );
-          })()}
-        </div>
+        <ProductGallery main_image={product.image} images={product.images} productName={product.name} />
 
         {/* Info */}
         <div className="space-y-5">
@@ -1854,10 +1817,10 @@ function ProductDetailPage({ product, products, onBack, onAddToCart, onNavigate 
           <div className="p-4 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_45px_-35px_rgba(15,23,42,0.12)]">
             <div className="flex items-baseline gap-3 flex-wrap">
               <span className="price text-3xl text-slate-900">{fmt(product.price)}</span>
-              {product.originalPrice && (
-                <span className="price text-lg text-slate-400 line-through">{fmt(product.originalPrice)}</span>
+              {hasRealDiscount && originalPrice !== undefined && (
+                <span className="price text-lg text-slate-400 line-through">{fmt(originalPrice)}</span>
               )}
-              {product.discount && <Badge variant="sale">-{product.discount}%</Badge>}
+              {hasRealDiscount && product.discount && <Badge variant="sale">-{product.discount}%</Badge>}
             </div>
             {savings > 0 && (
               <p className="price text-sm text-emerald-600 mt-1">Ahorras {fmt(savings)} COP</p>
@@ -2831,7 +2794,6 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
   });
 
   const selectedCategoryOption = useMemo(() => categories.find((option) => option.id === productForm.categoryId || option.name === productForm.category), [categories, productForm.category, productForm.categoryId]);
-  const [galleryUrl, setGalleryUrl] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isUploadingGallery, setIsUploadingGallery] = useState(false);
@@ -3023,7 +2985,6 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       stock: 0, sku: "", description: "", colors: [], sizes: [], gender: "Unisex",
       isNew: false, isFeatured: false, specs: [],
     });
-    setGalleryUrl("");
   };
 
   const [auditEntries, setAuditEntries] = useState<{ id: string; ts: number; action: string; meta?: Record<string, any> }[]>([]);
@@ -3070,7 +3031,6 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       isFeatured: product.isFeatured ?? false,
       specs: product.specs ?? [],
     });
-    setGalleryUrl("");
   };
 
   const handleFormSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -3679,14 +3639,6 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                       />
                     </label>
 
-                    {/* O URL */}
-                    <div className="mt-2 text-xs text-slate-500 text-center">O</div>
-                    <input 
-                      value={productForm.image} 
-                      onChange={(e) => { updateField('image', e.target.value); setMainImagePreview(e.target.value); }}
-                      placeholder="Pega una URL pública (ej: https://example.com/image.jpg)" 
-                      className={`w-full px-4 py-3 mt-2 rounded-xl border-2 transition-colors ${formErrors.image ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-white hover:border-slate-300 focus:border-slate-500'} focus:outline-none`}
-                    />
                     {formErrors.image && <p className="text-xs text-red-600 mt-1">{formErrors.image}</p>}
                   </div>
                   <div>
@@ -3707,23 +3659,6 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                         className="hidden" 
                       />
                     </label>
-                    {/* O URL */}
-                    <div className="mt-3 flex gap-2">
-                      <input 
-                        value={galleryUrl} 
-                        onChange={(e) => setGalleryUrl(e.target.value)} 
-                        placeholder="O pega una URL pública" 
-                        className="flex-1 px-4 py-3 rounded-xl border-2 border-slate-200 bg-white hover:border-slate-300 focus:border-slate-500 focus:outline-none transition-colors"
-                        onKeyPress={(e) => e.key === 'Enter' && addGalleryImageUrl()}
-                      />
-                      <button 
-                        type="button" 
-                        onClick={addGalleryImageUrl} 
-                        className="px-4 py-3 rounded-xl bg-slate-900 text-white font-semibold hover:bg-slate-800 transition-colors"
-                      >
-                        Agregar
-                      </button>
-                    </div>
                     {(productForm.images?.length ?? 0) > 0 && (
                       <div className="mt-3">
                         <p className="text-xs font-semibold text-slate-600 mb-2">{productForm.images?.length ?? 0} imagen(es) en galería</p>
@@ -4021,18 +3956,18 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     }
 
     if (uploadedUrls.length > 0) {
-      updateField('images', [...(productForm.images ?? []), ...uploadedUrls] as any);
+      const mergedImages = normalizeProductImageList(
+        productForm.image || uploadedUrls[0],
+        [...(productForm.images ?? []), ...uploadedUrls],
+        (path) => getPublicUrl(STORAGE_BUCKET, path),
+      );
+
+      updateField('image', mergedImages.mainImage || productForm.image || uploadedUrls[0] || "");
+      updateField('images', mergedImages.gallery as any);
       toast.success(`${uploadedUrls.length} imágenes cargadas a la galería`);
     }
 
     setIsUploadingGallery(false);
-  };
-
-  const addGalleryImageUrl = () => {
-    const url = galleryUrl.trim();
-    if (!url) return;
-    updateField('images', [...(productForm.images ?? []), url] as any);
-    setGalleryUrl("");
   };
 
   const removeGalleryImage = (index: number) => {
@@ -4238,6 +4173,62 @@ export default function App() {
   }, [productRefresh]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [filterCategory, setFilterCategory] = useState<Category | null>(null);
+
+  useEffect(() => {
+    const isPublicImageUrl = (value: string | null | undefined): value is string => {
+      if (!value) return false;
+      try {
+        const url = new URL(value);
+        return url.protocol === "https:" || url.protocol === "http:";
+      } catch {
+        return false;
+      }
+    };
+
+    const productPage = view === "product" ? selectedProduct : null;
+    const pageTitles: Partial<Record<View, string>> = {
+      home: STORE_CONFIG.homeTitle,
+      catalog: `Catálogo | ${STORE_CONFIG.brand}`,
+      checkout: `Checkout no disponible | ${STORE_CONFIG.brand}`,
+      login: `Iniciar sesión | ${STORE_CONFIG.brand}`,
+      register: `Crear cuenta | ${STORE_CONFIG.brand}`,
+      account: `Mi cuenta | ${STORE_CONFIG.brand}`,
+      "admin-login": `Administración | ${STORE_CONFIG.brand}`,
+      admin: `Administración | ${STORE_CONFIG.brand}`,
+      privacy: `Privacidad | ${STORE_CONFIG.brand}`,
+      terms: `Términos | ${STORE_CONFIG.brand}`,
+      shipping: `Envíos | ${STORE_CONFIG.brand}`,
+      returns: `Cambios y devoluciones | ${STORE_CONFIG.brand}`,
+      contact: `Contacto | ${STORE_CONFIG.brand}`,
+      "password-reset": `Restablecer contraseña | ${STORE_CONFIG.brand}`,
+    };
+    const pageTitle = productPage ? `${productPage.name} | ${STORE_CONFIG.brand}` : pageTitles[view] ?? STORE_CONFIG.homeTitle;
+    const productDescription = productPage?.description?.trim();
+    const pageDescription = productDescription && productDescription !== "Producto cargado desde Supabase"
+      ? productDescription
+      : STORE_CONFIG.homeDescription;
+    const pageImage = productPage && isPublicImageUrl(productPage.image) ? productPage.image : DEFAULT_HERO_IMAGE;
+    const canonicalUrl = new URL(window.location.pathname, window.location.origin).toString();
+
+    document.title = pageTitle;
+
+    const setMeta = (selector: string, value: string, attribute: "content" | "href" = "content") => {
+      const element = document.querySelector<HTMLMetaElement | HTMLLinkElement>(selector);
+      if (element) element.setAttribute(attribute, value);
+    };
+
+    setMeta('meta[name="description"]', pageDescription);
+    setMeta('meta[property="og:title"]', pageTitle);
+    setMeta('meta[property="og:description"]', pageDescription);
+    setMeta('meta[property="og:type"]', productPage ? "product" : "website");
+    setMeta('meta[property="og:url"]', canonicalUrl);
+    setMeta('meta[property="og:image"]', pageImage);
+    setMeta('meta[name="twitter:title"]', pageTitle);
+    setMeta('meta[name="twitter:description"]', pageDescription);
+    setMeta('meta[name="twitter:image"]', pageImage);
+    setMeta('link[rel="canonical"]', canonicalUrl, "href");
+  }, [selectedProduct, view]);
+
   const [cart, setCart] = useState<StorefrontCartLine[]>([]);
   const [unavailableCartItems, setUnavailableCartItems] = useState<GuestCartItem[]>([]);
   const [cartRestoreComplete, setCartRestoreComplete] = useState(false);

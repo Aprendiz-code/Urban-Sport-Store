@@ -7,6 +7,11 @@
   display: none; /* Chrome, Safari, Opera */
 }
 
+:focus-visible {
+  outline: 2px solid #2457d6;
+  outline-offset: 2px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;

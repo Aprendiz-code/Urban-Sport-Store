@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { uploadQueuedProductImages } from './admin-product-images';
+import {
+  buildImageGalleryState,
+  getAdjacentImageIndex,
+  normalizeProductImageList,
+  uploadQueuedProductImages,
+} from './admin-product-images';
 
 describe('queued product image uploads', () => {
   it('uploads sequentially and assigns the first URL as main, the rest as gallery', async () => {
@@ -40,5 +45,53 @@ describe('queued product image uploads', () => {
       (path) => `https://storage.example/${path}`,
     )).rejects.toThrow('Storage upload failed');
     expect(upload).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps the first valid image as main and removes duplicates, placeholders, and invalid URLs', () => {
+    const state = normalizeProductImageList(
+      'https://cdn.example.com/main.jpg',
+      ['https://cdn.example.com/main.jpg', '', 'blob:https://cdn.example.com/evil', 'data:image/png;base64,abc', 'https://cdn.example.com/side.jpg', 'https://cdn.example.com/side.jpg'],
+      () => 'https://cdn.example.com/fallback.jpg',
+    );
+
+    expect(state).toEqual({
+      mainImage: 'https://cdn.example.com/main.jpg',
+      gallery: ['https://cdn.example.com/side.jpg'],
+    });
+  });
+
+  it('accepts a storage path and converts it to a public URL', () => {
+    const state = normalizeProductImageList(
+      'products/hero.jpg',
+      ['products/side.jpg', 'https://cdn.example.com/ok.jpg'],
+      (path) => `https://storage.example/${path}`,
+    );
+
+    expect(state.mainImage).toBe('https://storage.example/products/hero.jpg');
+    expect(state.gallery).toEqual([
+      'https://storage.example/products/side.jpg',
+      'https://cdn.example.com/ok.jpg',
+    ]);
+  });
+
+  it('returns a placeholder state when no valid image exists', () => {
+    expect(buildImageGalleryState('', [], () => 'https://storage.example/fallback.jpg')).toEqual({
+      mainImage: '',
+      gallery: [],
+      hasImages: false,
+    });
+
+    expect(buildImageGalleryState('blob:https://cdn.example.com/evil', ['data:image/png;base64,abc'], () => 'https://storage.example/fallback.jpg')).toEqual({
+      mainImage: '',
+      gallery: [],
+      hasImages: false,
+    });
+  });
+
+  it('moves through gallery indexes without wrapping past the valid range', () => {
+    expect(getAdjacentImageIndex(0, 3, 'next')).toBe(1);
+    expect(getAdjacentImageIndex(2, 3, 'next')).toBe(2);
+    expect(getAdjacentImageIndex(0, 3, 'previous')).toBe(0);
+    expect(getAdjacentImageIndex(2, 3, 'previous')).toBe(1);
   });
 });
