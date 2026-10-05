@@ -24,7 +24,12 @@ describe('product payload normalization', () => {
       category_id: categoryId,
       image: 'https://storage.test/main.png',
       images: ['https://storage.test/gallery.png'],
-      description: 'Calzado deportivo',
+      description: 'Calzado deportivo\n\nIdeal para entrenamiento.',
+      sizes: [' 7.5 ', '40 EU', '10 US'],
+      specifications: [
+        { name: ' Material ', value: ' Cuero sintético ' },
+        { name: 'Suela', value: 'Caucho' },
+      ],
     })).resolves.toEqual({
       slug: 'nike-air-force-1-nke-af1-001',
       name: 'Nike Air Force 1',
@@ -36,7 +41,12 @@ describe('product payload normalization', () => {
       sku: 'NKE-AF1-001',
       main_image: 'https://storage.test/main.png',
       images: ['https://storage.test/gallery.png'],
-      description: 'Calzado deportivo',
+      description: 'Calzado deportivo\n\nIdeal para entrenamiento.',
+      sizes: ['7.5', '40 EU', '10 US'],
+      specifications: [
+        { name: 'Material', value: 'Cuero sintético' },
+        { name: 'Suela', value: 'Caucho' },
+      ],
     });
     expect(supabaseMocks.from).not.toHaveBeenCalled();
   });
@@ -46,11 +56,17 @@ describe('product payload normalization', () => {
       brand: 'Nike Sportswear',
       image: 'https://storage.test/updated.png',
       images: [],
+      description: '',
+      sizes: [],
+      specifications: [],
       stock: 0,
     })).resolves.toEqual({
       brand: 'Nike Sportswear',
       main_image: 'https://storage.test/updated.png',
       images: [],
+      description: '',
+      sizes: [],
+      specifications: [],
       stock: 0,
     });
     expect(supabaseMocks.from).not.toHaveBeenCalled();
@@ -87,5 +103,34 @@ describe('product payload normalization', () => {
 
     await expect(normalizeProductPayload(payload)).rejects.toThrow('URL HTTP o HTTPS permanente');
     expect(supabaseMocks.from).not.toHaveBeenCalled();
+  });
+
+  it('rejects non-text descriptions instead of stringifying untrusted objects', async () => {
+    await expect(normalizeProductPayload({ name: 'Producto', description: { html: '<script>' } }))
+      .rejects.toThrow('La descripción debe ser texto.');
+    expect(supabaseMocks.from).not.toHaveBeenCalled();
+  });
+
+  it('removes blank values from sizes and empty specification rows without reordering', async () => {
+    await expect(normalizeProductPayload({
+      name: 'Producto',
+      sizes: [' 38 ', '', '40 EU'],
+      specifications: [
+        { name: ' ', value: '' },
+        { name: 'Material', value: 'Lona' },
+      ],
+    })).resolves.toMatchObject({
+      sizes: ['38', '40 EU'],
+      specifications: [{ name: 'Material', value: 'Lona' }],
+    });
+  });
+
+  it.each([
+    { sizes: ['38', ' 38 '], message: 'tallas duplicadas' },
+    { sizes: [38], message: 'Cada talla debe ser texto' },
+    { specifications: [{ name: 'Material', value: '' }], message: 'Completa el nombre y el valor' },
+    { specifications: [{ name: 'Color', value: 'Blanco' }, { name: ' color ', value: 'Negro' }], message: 'nombres de especificación duplicados' },
+  ])('rejects invalid product information: $message', async (fields) => {
+    await expect(normalizeProductPayload({ name: 'Producto', ...fields })).rejects.toThrow(fields.message);
   });
 });

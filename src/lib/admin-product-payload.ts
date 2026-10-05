@@ -13,6 +13,10 @@ export function buildAdminProductPayload(product: Partial<Product>, isCreating =
   const images = Array.isArray(product.images)
     ? product.images.filter((image): image is string => typeof image === 'string')
     : [];
+  const sizes = Array.isArray(product.sizes)
+    ? product.sizes.filter((size): size is string => typeof size === 'string')
+    : [];
+  const specifications = Array.isArray(product.specifications) ? product.specifications : [];
 
   return {
     slug: product.slug?.trim() || generatedSlug || `product-${Date.now()}`,
@@ -24,6 +28,8 @@ export function buildAdminProductPayload(product: Partial<Product>, isCreating =
     sku,
     category_id: product.categoryId ?? undefined,
     description: product.description ?? undefined,
+    sizes,
+    specifications,
     main_image: product.image ?? '',
     images,
     ...(isCreating ? { is_active: true } : {}),

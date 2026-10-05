@@ -13,6 +13,8 @@ const ALLOWED_PRODUCT_COLUMNS = new Set([
   'sku',
   'main_image',
   'images',
+  'sizes',
+  'specifications',
   'is_active',
 ]);
 const UUID_PATTERN = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
@@ -63,15 +65,60 @@ function parseStringArray(value: unknown): string[] | undefined {
   return value.every((item) => typeof item === 'string') ? value : undefined;
 }
 
+function normalizeProductSizes(value: unknown): string[] {
+  if (!Array.isArray(value)) throw new ApiError(400, 'Las tallas deben ser una lista de textos.');
+
+  const sizes: string[] = [];
+  const seen = new Set<string>();
+  for (const item of value) {
+    if (typeof item !== 'string') throw new ApiError(400, 'Cada talla debe ser texto.');
+    const size = item.trim();
+    if (!size) continue;
+    const normalized = size.toLowerCase();
+    if (seen.has(normalized)) throw new ApiError(400, 'No se permiten tallas duplicadas.');
+    seen.add(normalized);
+    sizes.push(size);
+  }
+
+  return sizes;
+}
+
+function normalizeProductSpecifications(value: unknown): Array<{ name: string; value: string }> {
+  if (!Array.isArray(value)) throw new ApiError(400, 'Las especificaciones deben ser una lista de pares nombre/valor.');
+
+  const specifications: Array<{ name: string; value: string }> = [];
+  const seenNames = new Set<string>();
+  for (const item of value) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) {
+      throw new ApiError(400, 'Cada especificación debe contener nombre y valor.');
+    }
+    const name = typeof item.name === 'string' ? item.name.trim() : '';
+    const specificationValue = typeof item.value === 'string' ? item.value.trim() : '';
+    if (!name && !specificationValue) continue;
+    if (!name || !specificationValue) throw new ApiError(400, 'Completa el nombre y el valor de cada especificación.');
+
+    const normalizedName = name.toLowerCase();
+    if (seenNames.has(normalizedName)) throw new ApiError(400, 'No se permiten nombres de especificación duplicados.');
+    seenNames.add(normalizedName);
+    specifications.push({ name, value: specificationValue });
+  }
+
+  return specifications;
+}
+
 function setProductFields(payload: Record<string, unknown>, body: any) {
   const name = parseString(body.name);
   const sku = parseString(body.sku);
   const slug = parseString(body.slug);
   if (slug || name) payload.slug = slug ?? createProductSlug(name as string, sku);
   if (name) payload.name = name;
-  for (const column of ['brand', 'description', 'sku'] as const) {
+  for (const column of ['brand', 'sku'] as const) {
     const value = parseString(body[column]);
     if (value) payload[column] = value;
+  }
+  if (body.description !== undefined) {
+    if (typeof body.description !== 'string') throw new ApiError(400, 'La descripción debe ser texto.');
+    payload.description = body.description.trim();
   }
 
   if (body.price !== undefined) {
@@ -115,6 +162,8 @@ function setProductFields(payload: Record<string, unknown>, body: any) {
     }
     payload.images = images;
   }
+  if (body.sizes !== undefined) payload.sizes = normalizeProductSizes(body.sizes);
+  if (body.specifications !== undefined) payload.specifications = normalizeProductSpecifications(body.specifications);
   if (typeof body.is_active === 'boolean') payload.is_active = body.is_active;
 }
 

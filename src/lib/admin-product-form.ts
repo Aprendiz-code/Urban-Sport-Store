@@ -1,9 +1,23 @@
+import type { ProductSpecification } from '../types/domain';
+
 export function isValidUuid(value?: string | null): boolean {
   return typeof value === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(value.trim());
 }
 
 export const MAX_PRODUCT_GALLERY_IMAGES = 10;
 export const MAX_PRODUCT_TOTAL_IMAGES = MAX_PRODUCT_GALLERY_IMAGES + 1;
+
+export function normalizeProductSizes(sizes: readonly string[]): string[] {
+  return sizes.map((size) => size.trim()).filter(Boolean);
+}
+
+export function normalizeProductSpecifications(specifications: readonly ProductSpecification[]): ProductSpecification[] {
+  return specifications.flatMap(({ name, value }) => {
+    const normalizedName = name.trim();
+    const normalizedValue = value.trim();
+    return normalizedName || normalizedValue ? [{ name: normalizedName, value: normalizedValue }] : [];
+  });
+}
 
 export async function submitAdminProductForm(
   save: () => Promise<unknown>,
@@ -32,6 +46,8 @@ export function validateProductForm(form: {
   image?: string | null;
   images?: Array<string | { url?: string } | null> | null;
   pendingImageCount?: number;
+  sizes?: readonly string[];
+  specifications?: readonly ProductSpecification[];
 }): Record<string, string> {
   const errors: Record<string, string> = {};
 
@@ -59,6 +75,29 @@ export function validateProductForm(form: {
 
   if (!isValidUuid(form.categoryId)) {
     errors.category = 'Selecciona una categoría válida.';
+  }
+
+  const normalizedSizes = (form.sizes ?? []).map((size) => size.trim());
+  const uniqueSizes = new Set(normalizedSizes.filter(Boolean).map((size) => size.toLowerCase()));
+  if (uniqueSizes.size !== normalizedSizes.filter(Boolean).length) {
+    errors.sizes = 'No se permiten tallas duplicadas.';
+  }
+
+  const seenSpecificationNames = new Set<string>();
+  for (const specification of form.specifications ?? []) {
+    const name = specification.name.trim();
+    const value = specification.value.trim();
+    if (!name && !value) continue;
+    if (!name || !value) {
+      errors.specifications = 'Completa el nombre y el valor de cada especificación.';
+      break;
+    }
+    const normalizedName = name.toLowerCase();
+    if (seenSpecificationNames.has(normalizedName)) {
+      errors.specifications = 'No se permiten nombres de especificación duplicados.';
+      break;
+    }
+    seenSpecificationNames.add(normalizedName);
   }
 
   const hasImage = Boolean(String(form.image ?? '').trim()) || (form.pendingImageCount ?? 0) > 0 || (Array.isArray(form.images) && form.images.some((entry) => {

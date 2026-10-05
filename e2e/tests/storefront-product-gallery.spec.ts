@@ -15,7 +15,7 @@ const products = [
     main_image: 'https://images.example/uno-main.jpg',
     images: ['https://images.example/uno-side.jpg', 'https://images.example/uno-back.jpg'],
     colors: [],
-    sizes: ['Única'],
+    sizes: ['38', '39'],
     is_featured: true,
   },
   {
@@ -31,7 +31,7 @@ const products = [
     main_image: 'https://images.example/dos-main.jpg',
     images: ['https://images.example/dos-side.jpg'],
     colors: [],
-    sizes: ['Única'],
+    sizes: [],
   },
 ];
 
@@ -74,6 +74,10 @@ test('product cards open the matching detail and its gallery actions stay indepe
   expect(desktopInfoBox!.x).toBeGreaterThan(desktopImageBox!.x + desktopImageBox!.width * 0.8);
   expect(new URL(page.url()).searchParams.get('product')).toBe('uno-running');
   await expect(page.getByText('Descripción real de la primera zapatilla.')).toBeVisible();
+  await expect(page.getByText('Las especificaciones técnicas aún no están disponibles.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Selecciona una talla' })).toBeDisabled();
+  await page.getByRole('button', { name: '38', exact: true }).click();
+  await expect(page.getByRole('main').first().getByRole('button', { name: 'Agregar al carrito' }).first()).toBeEnabled();
   await page.getByRole('button', { name: 'Ver imagen 2' }).click();
   await expect(page.locator('img[alt="Zapatilla Uno - vista 2"]')).toHaveAttribute('src', products[0].images[0]);
 
@@ -108,6 +112,7 @@ test('product cards open the matching detail and its gallery actions stay indepe
 
   await page.getByRole('button', { name: 'Agregar Zapatilla Uno a favoritos' }).first().click();
   expect(new URL(page.url()).searchParams.get('product')).toBeNull();
+  await page.getByRole('combobox', { name: 'Seleccionar talla de Zapatilla Uno' }).first().selectOption('39');
   await page.getByRole('button', { name: 'Agregar al carrito' }).first().click();
   expect(new URL(page.url()).searchParams.get('product')).toBeNull();
 });

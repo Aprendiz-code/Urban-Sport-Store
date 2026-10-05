@@ -28,6 +28,11 @@ export interface Category {
   updatedAt?: string;
 }
 
+export interface ProductSpecification {
+  name: string;
+  value: string;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -53,6 +58,7 @@ export interface Product {
   isFeatured?: boolean;
   isActive?: boolean;
   specs?: string[];
+  specifications?: ProductSpecification[];
 }
 
 export interface ProductImage {

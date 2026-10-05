@@ -1,5 +1,6 @@
 import { getSupabaseClient } from './supabase-client';
 import { uploadProductImageApi } from './admin-api';
+import type { ProductSpecification } from '../types/domain';
 
 export interface ProductRecord {
   id: string;
@@ -27,6 +28,7 @@ export interface ProductRecord {
   is_new?: boolean | null;
   is_featured?: boolean | null;
   specs?: string[] | null;
+  specifications?: ProductSpecification[] | null;
   reviews_count?: number | null;
 }
 

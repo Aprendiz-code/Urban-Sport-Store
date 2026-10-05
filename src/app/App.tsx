@@ -4,7 +4,7 @@ import {
   ShoppingCart, Search, X, Star, ChevronRight, Package,
   Users, TrendingUp, AlertTriangle, Check, Eye, EyeOff,
   Bell, LogOut, Plus, Minus, Trash2, MapPin, Shield,
-  Truck, ChevronLeft, Heart, ArrowRight, Filter,
+  Truck, ChevronLeft, ChevronUp, ChevronDown, Heart, ArrowRight, Filter,
   BarChart2, Home, Settings, Tag, Layers, Edit,
   RefreshCw, Award, Grid3X3, ThumbsUp, DollarSign
 } from "lucide-react";
@@ -44,7 +44,7 @@ import { uploadProductImage, getPublicUrl, STORAGE_BUCKET } from "../lib/supabas
 import { recordAction, getAudit } from "../lib/audit";
 import { productSchema } from '../lib/schemas';
 import { normalizeGuestCartEntries } from '../lib/cart-service';
-import { MAX_PRODUCT_GALLERY_IMAGES, MAX_PRODUCT_TOTAL_IMAGES, submitAdminProductForm, validateProductForm } from '../lib/admin-product-form';
+import { MAX_PRODUCT_GALLERY_IMAGES, MAX_PRODUCT_TOTAL_IMAGES, normalizeProductSizes, normalizeProductSpecifications, submitAdminProductForm, validateProductForm } from '../lib/admin-product-form';
 import { buildAdminProductPayload } from '../lib/admin-product-payload';
 import { normalizeProductImageList, resolveProductPublicImageUrl, uploadSelectedProductImages } from '../lib/admin-product-images';
 import ProductGallery from './components/ProductGallery';
@@ -228,9 +228,10 @@ const mapProductRecordToAppProduct = (record: ProductRecord, categories: readonl
     subcategory: record.subcategory ?? "",
     stock: record.stock ?? 0,
     sku: record.sku ?? record.id,
-    description: record.description ?? "Producto cargado desde Supabase",
+    description: record.description ?? "",
     colors: record.colors ?? [],
     sizes: record.sizes ?? [],
+    specifications: record.specifications ?? [],
     gender: record.gender as Product["gender"],
     isNew: record.is_new ?? false,
     isFeatured: record.is_featured ?? false,
@@ -257,6 +258,7 @@ const mapAppProductToProductRecord = (product: Partial<Product> & { id?: string 
   description: product.description ?? "",
   colors: product.colors ?? [],
   sizes: product.sizes ?? [],
+  specifications: product.specifications ?? [],
   gender: (product.gender ?? "Unisex") as string,
   is_new: product.isNew ?? false,
   is_featured: product.isFeatured ?? false,
@@ -383,7 +385,7 @@ function ColorSelector({ colors, selected, onSelect }: {
 function SizeSelector({ sizes, selected, onSelect }: {
   sizes: string[]; selected: string; onSelect: (size: string) => void;
 }) {
-  if (!sizes.length || sizes[0] === "Talla única") {
+  if (!hasSelectableSizes(sizes)) {
     return <span className="text-sm text-slate-500">Talla única</span>;
   }
   return (
@@ -402,6 +404,10 @@ function SizeSelector({ sizes, selected, onSelect }: {
       ))}
     </div>
   );
+}
+
+function hasSelectableSizes(sizes: string[]): boolean {
+  return sizes.length > 0 && !(sizes.length === 1 && sizes[0].trim().toLowerCase() === 'talla única');
 }
 
 function ProductCarousel({ children }: { children: React.ReactNode }) {
@@ -525,7 +531,9 @@ function ProductCard({ product, onSelect, onAddToCart }: {
   product: Product; onSelect: (p: Product) => void; onAddToCart: (p: Product, size: string, color: string) => void;
 }) {
   const [wished, setWished] = useState(false);
-  const defaultSize = product.sizes[0] === "Talla única" ? "Talla única" : product.sizes[2] ?? product.sizes[0];
+  const requiresSize = hasSelectableSizes(product.sizes);
+  const [selectedSize, setSelectedSize] = useState('');
+  const cartSize = requiresSize ? selectedSize : product.sizes[0] ?? '';
   const defaultColor = product.colors[0]?.name ?? "";
   const originalPrice = product.originalPrice;
   const hasRealDiscount = typeof originalPrice === "number" && originalPrice > product.price;
@@ -579,6 +587,21 @@ function ProductCard({ product, onSelect, onAddToCart }: {
           </div>
         )}
 
+        {requiresSize && (
+          <label className="block text-xs font-semibold text-slate-600">
+            Talla
+            <select
+              aria-label={`Seleccionar talla de ${product.name}`}
+              value={selectedSize}
+              onChange={(event) => setSelectedSize(event.target.value)}
+              className="mt-1 min-h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20"
+            >
+              <option value="" disabled>Selecciona una talla</option>
+              {product.sizes.map((size) => <option key={size} value={size}>{size}</option>)}
+            </select>
+          </label>
+        )}
+
         <div className="flex items-baseline gap-3">
           <span className="price text-lg text-slate-900">{fmt(product.price)}</span>
           {hasRealDiscount && originalPrice !== undefined && (
@@ -589,8 +612,8 @@ function ProductCard({ product, onSelect, onAddToCart }: {
 
         <button
           type="button"
-          disabled={product.stock <= 0}
-          onClick={() => onAddToCart(product, defaultSize, defaultColor)}
+          disabled={product.stock <= 0 || (requiresSize && !selectedSize)}
+          onClick={() => onAddToCart(product, cartSize, defaultColor)}
           className="mt-auto w-full min-h-11 py-3 rounded-full text-sm font-bold bg-black text-white hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600 transition-all duration-200 flex items-center justify-center gap-2 shadow-sm shadow-slate-200"
         >
           {product.stock <= 0 ? "Agotado" : <><ShoppingCart size={14} /> Agregar al carrito</>}
@@ -1785,20 +1808,22 @@ function ProductDetailPage({ product, products, onBack, onAddToCart, onNavigate,
   onSelectProduct: (product: Product) => void;
   headerOffset: number;
 }) {
-  const [selectedSize, setSelectedSize] = useState(product.sizes[0] ?? "");
+  const requiresSize = hasSelectableSizes(product.sizes);
+  const [selectedSize, setSelectedSize] = useState(requiresSize ? "" : product.sizes[0] ?? "");
   const [selectedColor, setSelectedColor] = useState(product.colors[0]?.name ?? "");
   const [qty, setQty] = useState(1);
-  const [tab, setTab] = useState<"desc" | "specs" | "reviews">("desc");
+  const [tab, setTab] = useState<"specs" | "reviews">("specs");
   const [added, setAdded] = useState(false);
   const originalPrice = product.originalPrice;
   const hasRealDiscount = typeof originalPrice === "number" && originalPrice > product.price;
   const savings = hasRealDiscount ? (originalPrice ?? 0) - product.price : 0;
 
   const handleAdd = () => {
-    if (product.stock <= 0) return;
+    if (product.stock <= 0 || (requiresSize && !selectedSize)) return false;
     for (let i = 0; i < qty; i++) onAddToCart(product, selectedSize, selectedColor);
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
+    return true;
   };
 
   return (
@@ -1866,15 +1891,15 @@ function ProductDetailPage({ product, products, onBack, onAddToCart, onNavigate,
             </div>
           )}
 
-          {/* Size selector */}
-          <div>
-            <div className="flex justify-between items-center mb-2.5">
-              <p className="text-sm font-bold text-slate-700">
-                Talla u opción
-              </p>
+          {product.sizes.length > 0 && (
+            <div>
+              <div className="flex justify-between items-center mb-2.5">
+                <p className="text-sm font-bold text-slate-700">Talla u opción</p>
+              </div>
+              <SizeSelector sizes={product.sizes} selected={selectedSize} onSelect={setSelectedSize} />
+              {requiresSize && !selectedSize && <p role="status" className="mt-2 text-xs text-slate-500">Selecciona una talla para agregar este producto.</p>}
             </div>
-            <SizeSelector sizes={product.sizes} selected={selectedSize} onSelect={setSelectedSize} />
-          </div>
+          )}
 
           {/* Qty */}
           <div className="flex items-center gap-4">
@@ -1894,13 +1919,13 @@ function ProductDetailPage({ product, products, onBack, onAddToCart, onNavigate,
 
           {/* CTAs */}
           <div className="flex flex-col sm:flex-row gap-3">
-            <button type="button" disabled={product.stock <= 0} onClick={handleAdd}
+            <button type="button" disabled={product.stock <= 0 || (requiresSize && !selectedSize)} onClick={handleAdd}
               className={`flex-1 py-3.5 rounded-xl text-sm font-extrabold flex items-center justify-center gap-2 transition-all duration-300 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600 ${
                 added ? "bg-emerald-500 text-white shadow-lg shadow-emerald-200" : "bg-black text-white hover:bg-slate-900 shadow-lg shadow-slate-800"
               }`}>
-              {product.stock <= 0 ? "Agotado" : added ? <><Check size={16} /> Agregado al carrito</> : <><ShoppingCart size={16} /> Agregar al carrito</>}
+              {product.stock <= 0 ? "Agotado" : requiresSize && !selectedSize ? "Selecciona una talla" : added ? <><Check size={16} /> Agregado al carrito</> : <><ShoppingCart size={16} /> Agregar al carrito</>}
             </button>
-            <button type="button" disabled={product.stock <= 0} onClick={() => { handleAdd(); onNavigate("checkout"); }}
+            <button type="button" disabled={product.stock <= 0 || (requiresSize && !selectedSize)} onClick={() => { if (handleAdd()) onNavigate("checkout"); }}
               className="flex-1 py-3.5 rounded-xl text-sm font-extrabold border-2 border-black text-black hover:bg-slate-100 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-100 disabled:text-slate-500 flex items-center justify-center gap-2 transition-colors">
               Comprar ahora
             </button>
@@ -1908,34 +1933,57 @@ function ProductDetailPage({ product, products, onBack, onAddToCart, onNavigate,
         </div>
       </div>
 
+      <section aria-labelledby="product-description-title" className="mb-10 border-t border-slate-200 pt-8">
+        <h2 id="product-description-title" className="mb-3 text-xl font-bold text-slate-900">Descripción</h2>
+        {product.description.trim() ? (
+          <p className="max-w-3xl whitespace-pre-line text-sm leading-7 text-slate-600">{product.description}</p>
+        ) : (
+          <p className="text-sm text-slate-500">Este producto aún no tiene descripción.</p>
+        )}
+      </section>
+
       {/* Tabs */}
       <div className="border-b border-slate-200 mb-6 flex gap-1">
-        {(["desc", "specs", "reviews"] as const).map((t) => (
+        {(["specs", "reviews"] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)}
             className={`px-5 py-3 text-sm font-bold border-b-2 transition-all ${
               tab === t ? "border-[#1d4ed8] text-[#1d4ed8]" : "border-transparent text-slate-400 hover:text-slate-700"
             }`}>
-            {{ desc: "Descripción", specs: "Especificaciones", reviews: "Reseñas" }[t]}
+            {{ specs: "Especificaciones", reviews: "Reseñas" }[t]}
           </button>
         ))}
       </div>
 
-      {tab === "desc" && <p className="max-w-2xl text-slate-600 leading-relaxed">{product.description}</p>}
-
-      {tab === "specs" && product.specs && (
-        <div className="max-w-2xl grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {product.specs.map((spec, i) => (
-            <div key={i} className="flex items-start gap-3 p-4 rounded-[28px] bg-white/95 border border-slate-200/80 shadow-[0_18px_48px_-40px_rgba(15,23,42,0.15)]">
-              <Check size={14} className="text-[#1d4ed8] mt-0.5 shrink-0" />
-              <span className="text-sm text-slate-600">{spec}</span>
-            </div>
-          ))}
+      {tab === "specs" && product.specifications?.length ? (
+        <div className="max-w-3xl overflow-x-auto">
+          <table className="w-full border-collapse text-left text-sm">
+            <caption className="sr-only">Especificaciones de {product.name}</caption>
+            <tbody>
+              {product.specifications.map((specification, index) => (
+                <tr key={`${specification.name}-${index}`} className="border-b border-slate-200">
+                  <th scope="row" className="w-1/3 py-3 pr-4 font-semibold text-slate-700">{specification.name}</th>
+                  <td className="whitespace-pre-line py-3 text-slate-600">{specification.value}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      )}
+      ) : tab === "specs" && product.specs?.length ? (
+        <ul className="max-w-3xl space-y-2">
+          {product.specs.map((specification, index) => (
+            <li key={index} className="flex items-start gap-3 border-b border-slate-200 py-3 text-sm text-slate-600">
+              <Check size={14} className="mt-0.5 shrink-0 text-[#1d4ed8]" />
+              <span>{specification}</span>
+            </li>
+          ))}
+        </ul>
+      ) : tab === "specs" ? (
+        <p className="max-w-2xl text-sm text-slate-500">Las especificaciones técnicas aún no están disponibles.</p>
+      ) : null}
 
       {tab === "reviews" && (
         <p className="max-w-2xl rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
-          Aún no hay reseñas verificadas para este producto.
+          Las reseñas aún no están disponibles para este producto.
         </p>
       )}
 
@@ -2809,8 +2857,9 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     name: "", brand: "", price: 0, originalPrice: undefined, discount: undefined,
     rating: 0, reviews: 0, image: "", images: [], category: "", categoryId: undefined, subcategory: "",
     stock: 0, sku: "", description: "", colors: [], sizes: [], gender: "Unisex",
-    isNew: false, isFeatured: false, specs: [],
+    isNew: false, isFeatured: false, specs: [], specifications: [],
   });
+  const [newProductSize, setNewProductSize] = useState('');
 
   const selectedCategoryOption = useMemo(() => categories.find((option) => option.id === productForm.categoryId || option.name === productForm.category), [categories, productForm.category, productForm.categoryId]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -3008,6 +3057,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
 
   const resetForm = () => {
     productImageSelections.forEach((entry) => releaseImagePreview(entry.previewUrl));
+    setNewProductSize('');
     setProductImageSelections([]);
     setPrimaryImageSelectionId(null);
     setImageUploadProgress(null);
@@ -3018,7 +3068,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       name: "", brand: "", price: 0, originalPrice: undefined, discount: undefined,
       rating: 0, reviews: 0, image: "", images: [], category: "", categoryId: undefined, subcategory: "",
       stock: 0, sku: "", description: "", colors: [], sizes: [], gender: "Unisex",
-      isNew: false, isFeatured: false, specs: [],
+      isNew: false, isFeatured: false, specs: [], specifications: [],
     });
   };
 
@@ -3042,6 +3092,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
 
   const handleEditProduct = (product: Product) => {
     productImageSelections.forEach((entry) => releaseImagePreview(entry.previewUrl));
+    setNewProductSize('');
     const normalizedImages = normalizeProductImageList(
       product.image,
       product.images ?? [],
@@ -3072,6 +3123,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       description: product.description,
       colors: product.colors,
       sizes: product.sizes,
+      specifications: product.specifications ?? [],
       gender: product.gender ?? "Unisex",
       isNew: product.isNew ?? false,
       isFeatured: product.isFeatured ?? false,
@@ -3083,13 +3135,16 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     event.preventDefault();
     if (isSubmitting) return;
     const normalizedCategoryId = productForm.categoryId && /^[0-9a-fA-F-]{36}$/.test(productForm.categoryId) ? productForm.categoryId : undefined;
+    const normalizedSizes = normalizeProductSizes(productForm.sizes);
+    const normalizedSpecifications = normalizeProductSpecifications(productForm.specifications ?? []);
 
     const payload: Omit<Product, "id"> = {
       ...productForm,
       categoryId: normalizedCategoryId,
       category: productForm.category || selectedCategoryOption?.name || '',
       colors: productForm.colors.map((color) => ({ name: color.name, hex: color.hex })),
-      sizes: productForm.sizes,
+      sizes: normalizedSizes,
+      specifications: normalizedSpecifications,
       rating: Number(productForm.rating) || 0,
       reviews: Number(productForm.reviews) || 0,
       price: Number(productForm.price) || 0,
@@ -3110,6 +3165,8 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       image: selectedPrimaryImage?.permanentUrl ?? "",
       images: selectedGalleryImages.flatMap((entry) => entry.permanentUrl ? [entry.permanentUrl] : []),
       pendingImageCount: productImageSelections.filter((entry) => Boolean(entry.file)).length,
+      sizes: normalizedSizes,
+      specifications: normalizedSpecifications,
     });
 
     if (productImageSelections.length > MAX_PRODUCT_TOTAL_IMAGES) {
@@ -3682,6 +3739,90 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                   </div>
                 </div>
 
+                <section aria-labelledby="product-information-heading" className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+                  <h4 id="product-information-heading" className="text-sm font-bold text-slate-800">Información del producto</h4>
+                  <div className="space-y-3 border-b border-slate-200 pb-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <h5 className="text-sm font-semibold text-slate-800">Tallas disponibles</h5>
+                        <p className="text-xs text-slate-500">Las tallas se guardan como texto y conservan el orden.</p>
+                      </div>
+                      <span className="text-xs text-slate-500">{productForm.sizes.length} disponibles</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        aria-label="Nueva talla"
+                        value={newProductSize}
+                        onChange={(event) => setNewProductSize(event.target.value)}
+                        onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addProductSize(); } }}
+                        placeholder="Ej: 40 EU, 7.5, M"
+                        className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20"
+                      />
+                      <button type="button" onClick={addProductSize} className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700">Agregar</button>
+                    </div>
+                    {productForm.sizes.map((size, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <input
+                          aria-label={`Editar talla ${index + 1}`}
+                          value={size}
+                          onChange={(event) => updateProductSize(index, event.target.value)}
+                          className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20"
+                        />
+                        <button type="button" aria-label={`Subir talla ${size || index + 1}`} title="Subir talla" disabled={index === 0} onClick={() => moveProductSize(index, -1)} className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40"><ChevronUp size={16} /></button>
+                        <button type="button" aria-label={`Bajar talla ${size || index + 1}`} title="Bajar talla" disabled={index === productForm.sizes.length - 1} onClick={() => moveProductSize(index, 1)} className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40"><ChevronDown size={16} /></button>
+                        <button type="button" aria-label={`Quitar talla ${size || index + 1}`} onClick={() => removeProductSize(index)} className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:border-red-200 hover:text-red-700"><X size={16} /></button>
+                      </div>
+                    ))}
+                    {formErrors.sizes && <p role="alert" className="text-xs text-red-600">{formErrors.sizes}</p>}
+                  </div>
+
+                  <div className="space-y-3 border-b border-slate-200 pb-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <h5 className="text-sm font-semibold text-slate-800">Especificaciones</h5>
+                        <p className="text-xs text-slate-500">Agrega nombre y valor; se mostrarán en este orden.</p>
+                      </div>
+                      <button type="button" onClick={addProductSpecification} className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Agregar fila</button>
+                    </div>
+                    {(productForm.specifications ?? []).map((specification, index) => (
+                      <div key={index} className="grid grid-cols-[1fr_1fr_auto] items-start gap-2">
+                        <input
+                          aria-label={`Nombre de especificación ${index + 1}`}
+                          value={specification.name}
+                          onChange={(event) => updateProductSpecification(index, 'name', event.target.value)}
+                          placeholder="Nombre"
+                          className="min-w-0 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20"
+                        />
+                        <input
+                          aria-label={`Valor de especificación ${index + 1}`}
+                          value={specification.value}
+                          onChange={(event) => updateProductSpecification(index, 'value', event.target.value)}
+                          placeholder="Valor"
+                          className="min-w-0 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20"
+                        />
+                        <div className="flex gap-1">
+                          <button type="button" aria-label={`Subir especificación ${index + 1}`} title="Subir especificación" disabled={index === 0} onClick={() => moveProductSpecification(index, -1)} className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40"><ChevronUp size={16} /></button>
+                          <button type="button" aria-label={`Bajar especificación ${index + 1}`} title="Bajar especificación" disabled={index === (productForm.specifications?.length ?? 0) - 1} onClick={() => moveProductSpecification(index, 1)} className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40"><ChevronDown size={16} /></button>
+                          <button type="button" aria-label={`Quitar especificación ${index + 1}`} onClick={() => removeProductSpecification(index)} className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:border-red-200 hover:text-red-700"><X size={16} /></button>
+                        </div>
+                      </div>
+                    ))}
+                    {formErrors.specifications && <p role="alert" className="text-xs text-red-600">{formErrors.specifications}</p>}
+                  </div>
+
+                  <div>
+                    <label htmlFor="product-description" className="mb-2 block text-xs font-bold uppercase text-slate-600">Descripción</label>
+                    <textarea
+                      id="product-description"
+                      value={productForm.description}
+                      onChange={(event) => updateField('description', event.target.value)}
+                      rows={6}
+                      placeholder="Describe materiales, ajuste, uso y otros detalles del producto."
+                      className="w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm leading-6 text-slate-800 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20"
+                    />
+                  </div>
+                </section>
+
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-4">
                   <div>
                     <div className="flex items-center justify-between gap-3">
@@ -3915,6 +4056,56 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
   type UpdateFieldFn = <K extends keyof Omit<Product, "id">>(field: K, value: Omit<Product, "id">[K]) => void;
   const updateField: UpdateFieldFn = (field, value) => {
     setProductForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const addProductSize = () => {
+    const size = newProductSize.trim();
+    if (!size) return;
+    if (productForm.sizes.some((existingSize) => existingSize.trim().toLowerCase() === size.toLowerCase())) {
+      toast.error('Esa talla ya está agregada.');
+      return;
+    }
+    updateField('sizes', [...productForm.sizes, size]);
+    setNewProductSize('');
+  };
+
+  const updateProductSize = (index: number, size: string) => {
+    updateField('sizes', productForm.sizes.map((existingSize, currentIndex) => currentIndex === index ? size : existingSize));
+  };
+
+  const moveProductSize = (index: number, direction: -1 | 1) => {
+    const nextIndex = index + direction;
+    if (nextIndex < 0 || nextIndex >= productForm.sizes.length) return;
+    const reordered = [...productForm.sizes];
+    [reordered[index], reordered[nextIndex]] = [reordered[nextIndex], reordered[index]];
+    updateField('sizes', reordered);
+  };
+
+  const removeProductSize = (index: number) => {
+    updateField('sizes', productForm.sizes.filter((_, currentIndex) => currentIndex !== index));
+  };
+
+  const updateProductSpecification = (index: number, field: 'name' | 'value', value: string) => {
+    const specifications = productForm.specifications ?? [];
+    updateField('specifications', specifications.map((specification, currentIndex) => (
+      currentIndex === index ? { ...specification, [field]: value } : specification
+    )));
+  };
+
+  const addProductSpecification = () => {
+    updateField('specifications', [...(productForm.specifications ?? []), { name: '', value: '' }]);
+  };
+
+  const moveProductSpecification = (index: number, direction: -1 | 1) => {
+    const specifications = [...(productForm.specifications ?? [])];
+    const nextIndex = index + direction;
+    if (nextIndex < 0 || nextIndex >= specifications.length) return;
+    [specifications[index], specifications[nextIndex]] = [specifications[nextIndex], specifications[index]];
+    updateField('specifications', specifications);
+  };
+
+  const removeProductSpecification = (index: number) => {
+    updateField('specifications', (productForm.specifications ?? []).filter((_, currentIndex) => currentIndex !== index));
   };
 
   const validateImageFile = (file: File) => {

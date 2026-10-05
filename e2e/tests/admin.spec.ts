@@ -35,6 +35,11 @@ test('admin end-to-end: login, products CRUD and read-only admin sections', asyn
   const categoryId = await categorySelect.locator('option:not([disabled])').first().getAttribute('value');
   test.skip(!categoryId, 'Requires an active product category.');
   await categorySelect.selectOption(categoryId!);
+  await page.getByLabel('Nueva talla').fill('40 EU');
+  await page.getByRole('button', { name: 'Agregar', exact: true }).click();
+  await page.getByRole('button', { name: 'Agregar fila' }).click();
+  await page.getByLabel('Nombre de especificación 1').fill('Material');
+  await page.getByLabel('Valor de especificación 1').fill('Cuero sintético');
   const productImagesInput = page.getByLabel('Seleccionar imágenes del producto');
   await productImagesInput.setInputFiles([
     { name: 'product.png', mimeType: 'image/png', buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]) },
@@ -69,6 +74,9 @@ test('admin end-to-end: login, products CRUD and read-only admin sections', asyn
   await productRow.locator('button:has-text("Editar")').click();
   await expect(page.getByPlaceholder(/Pega una URL pública|URL pública/)).toHaveCount(0);
   await expect(page.getByText('3 seleccionadas')).toBeVisible();
+  await expect(page.getByLabel('Editar talla 1')).toHaveValue('40 EU');
+  await expect(page.getByLabel('Nombre de especificación 1')).toHaveValue('Material');
+  await expect(page.getByLabel('Valor de especificación 1')).toHaveValue('Cuero sintético');
   await page.getByLabel('Nombre *').fill(updatedProductName);
   await page.click('button:has-text("💾 Guardar cambios")');
   await expect(page.locator('tr', { hasText: updatedProductName })).toBeVisible({ timeout: 15000 });

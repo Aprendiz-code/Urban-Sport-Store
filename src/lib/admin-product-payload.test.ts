@@ -12,6 +12,8 @@ const product = {
   categoryId: '11111111-1111-1111-1111-111111111111',
   image: 'https://images.example/main.jpg',
   images: ['https://images.example/main.jpg', 'https://images.example/side.jpg'],
+  sizes: ['7.5', '40 EU'],
+  specifications: [{ name: 'Material', value: 'Cuero sintético' }],
   slug: 'tenis-rapidos-test-7',
 };
 
@@ -30,9 +32,13 @@ describe('admin product API payload', () => {
       category_id: '11111111-1111-1111-1111-111111111111',
       main_image: 'https://images.example/main.jpg',
       images: ['https://images.example/main.jpg', 'https://images.example/side.jpg'],
+      sizes: ['7.5', '40 EU'],
+      specifications: [{ name: 'Material', value: 'Cuero sintético' }],
       is_active: true,
     });
     expect(Array.isArray(payload.images)).toBe(true);
+    expect(Array.isArray(payload.sizes)).toBe(true);
+    expect(Array.isArray(payload.specifications)).toBe(true);
     expect((payload.images as unknown[]).every((image) => typeof image === 'string')).toBe(true);
     expect(typeof payload.images).not.toBe('string');
   });

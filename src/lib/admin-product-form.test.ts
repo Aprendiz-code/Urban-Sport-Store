@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_PRODUCT_GALLERY_IMAGES, MAX_PRODUCT_TOTAL_IMAGES, validateProductForm } from './admin-product-form';
+import { MAX_PRODUCT_GALLERY_IMAGES, MAX_PRODUCT_TOTAL_IMAGES, normalizeProductSizes, normalizeProductSpecifications, validateProductForm } from './admin-product-form';
 
 const validForm = {
   name: 'Zapatilla de entrenamiento',
@@ -25,5 +25,29 @@ describe('admin product image limits', () => {
     const gallery = Array.from({ length: MAX_PRODUCT_GALLERY_IMAGES - 1 }, (_, index) => `https://storage.example/${index}.jpg`);
 
     expect(validateProductForm({ ...validForm, images: gallery, pendingImageCount: 1 })).not.toHaveProperty('gallery');
+  });
+});
+
+describe('admin product information', () => {
+  it('keeps size formats as strings and preserves specification order', () => {
+    expect(normalizeProductSizes([' 7.5 ', '40 EU', ''])).toEqual(['7.5', '40 EU']);
+    expect(normalizeProductSpecifications([
+      { name: ' ', value: '' },
+      { name: ' Material ', value: ' Cuero sintético ' },
+      { name: 'Suela', value: 'Caucho' },
+    ])).toEqual([
+      { name: 'Material', value: 'Cuero sintético' },
+      { name: 'Suela', value: 'Caucho' },
+    ]);
+  });
+
+  it('rejects duplicate sizes, duplicate spec names, and incomplete spec rows', () => {
+    expect(validateProductForm({ ...validForm, sizes: ['38', ' 38 '] })).toHaveProperty('sizes');
+    expect(validateProductForm({ ...validForm, specifications: [
+      { name: 'Material', value: 'Lona' },
+      { name: ' material ', value: 'Cuero' },
+    ] })).toHaveProperty('specifications');
+    expect(validateProductForm({ ...validForm, specifications: [{ name: 'Material', value: '' }] }))
+      .toHaveProperty('specifications');
   });
 });

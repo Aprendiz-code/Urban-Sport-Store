@@ -33,6 +33,8 @@ const createBody = () => ({
   category_id: categoryId,
   main_image: 'https://storage.example/products/main.png',
   images: ['https://storage.example/products/main.png'],
+  sizes: ['40 EU', '41 EU'],
+  specifications: [{ name: 'Material', value: 'Cuero sintético' }],
 });
 
 function createRequest(body: Record<string, unknown>) {
@@ -102,6 +104,8 @@ describe('admin product create endpoint', () => {
       category_id: categoryId,
       main_image: 'https://storage.example/products/main.png',
       images: ['https://storage.example/products/main.png'],
+      sizes: ['40 EU', '41 EU'],
+      specifications: [{ name: 'Material', value: 'Cuero sintético' }],
     })]);
     expect(Array.isArray(apiMocks.insert.mock.calls[0][0][0].images)).toBe(true);
     expect(response.statusCode).toBe(201);
