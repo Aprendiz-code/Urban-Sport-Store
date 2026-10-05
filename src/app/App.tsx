@@ -45,6 +45,7 @@ import { recordAction, getAudit } from "../lib/audit";
 import { productSchema } from '../lib/schemas';
 import { normalizeGuestCartEntries } from '../lib/cart-service';
 import { submitAdminProductForm, validateProductForm } from '../lib/admin-product-form';
+import { buildAdminProductPayload } from '../lib/admin-product-payload';
 import Toaster from './components/LazyToaster';
 import { toast } from '../lib/lazyToast';
 import type { Address as DomainAddress, GuestCartItem, Product as DomainProduct } from '../types/domain';
@@ -170,6 +171,7 @@ interface HomePageContent {
 const LOCAL_ADDRESS_STORAGE = "urbansport_addresses";
 const DEFAULT_HERO_TITLE = "VISTE TU ESTILO. MARCA LA DIFERENCIA.";
 const DEFAULT_HERO_SUBTITLE = "Explora calzado, ropa deportiva y accesorios para completar tu estilo.";
+const DEFAULT_HERO_IMAGE = "https://images.unsplash.com/photo-1538805060514-97d9cc17730c?auto=format&fit=crop&w=1600&h=900&q=85";
 const TOP_BENEFITS_MESSAGES = [
   "10% de descuento en tu primera compra",
   "Envíos gratis a toda Colombia a partir de $300.000",
@@ -1176,12 +1178,9 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
 
     if (status === "error") {
       return (
-        <div role="alert" aria-live="polite" className="flex flex-col items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-950 sm:flex-row sm:items-center sm:justify-between">
+        <div role="alert" aria-live="polite" className="flex flex-col items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-950 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-2">
-            <p className="text-sm font-semibold">No pudimos cargar el catálogo en este entorno.</p>
-            <p className="text-sm text-amber-900/80">
-              Revisa la configuración de <span className="font-semibold">VITE_API_URL</span> y vuelve a intentarlo cuando la API pública esté disponible.
-            </p>
+            <p className="text-sm font-semibold">No pudimos cargar el catálogo. Intenta de nuevo en unos momentos.</p>
             {onCategorySelect && (
               <button type="button" onClick={() => onCategorySelect(null)} className="text-sm font-semibold text-amber-900 underline underline-offset-2">
                 Explorar catálogo
@@ -1218,7 +1217,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
   const hasRealDiscounts = onSale.some((product) => typeof product.originalPrice === "number" && product.originalPrice > product.price);
   const privacyPolicyUrl = import.meta.env.VITE_PRIVACY_POLICY_URL?.trim() || STORE_CONFIG.privacyPolicyPath;
   const newsletterAvailable = !import.meta.env.DEV || Boolean(import.meta.env.VITE_API_URL?.trim());
-  const heroImage = content.heroImage?.trim() || "/images/hero-bg.jpg";
+  const heroImage = content.heroImage?.trim() || DEFAULT_HERO_IMAGE;
   const heroTitle = content.heroTitle?.trim() || DEFAULT_HERO_TITLE;
   const heroSubtitle = content.heroSubtitle?.trim() || DEFAULT_HERO_SUBTITLE;
   const [newsletterEmail, setNewsletterEmail] = useState("");
@@ -1268,7 +1267,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
 
   return (
     <main>
-      <section className="relative flex min-h-[430px] items-center justify-center overflow-hidden bg-[#0b1220] sm:min-h-[480px] md:min-h-[520px]">
+      <section className="relative flex min-h-[380px] items-center justify-center overflow-hidden bg-[#0b1220] sm:min-h-[440px] md:min-h-[520px]">
         <img
           src={heroImage}
           alt={heroTitle}
@@ -1283,8 +1282,8 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
 
         <div className="relative z-10 mx-auto w-full max-w-7xl px-3 py-6 sm:px-4 sm:py-8 md:px-6 md:py-10">
           <div className="max-w-2xl">
-            <span className="mb-4 inline-flex items-center rounded-full border border-white/30 bg-white/10 px-3 py-1.5 text-[10px] font-bold uppercase text-white backdrop-blur-sm sm:text-xs">
-              {content.categorySectionLabel || "COLECCIÓN 2026"}
+            <span className="mb-4 inline-flex items-center rounded-md border border-amber-300/40 bg-amber-400/15 px-2.5 py-1 text-[10px] font-bold uppercase text-amber-300 sm:text-xs">
+              COLECCIÓN 2026
             </span>
             <h1 className="mb-3 max-w-xl font-display text-[2.6rem] leading-[0.98] text-white sm:text-[3.4rem] md:text-[4.1rem] lg:text-[4.6rem]">
               {heroTitle}
@@ -1306,10 +1305,14 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
                 type="button"
                 variant="secondary"
                 size="lg"
-                onClick={() => onNavigate("catalog")}
+                onClick={() => {
+                  const newArrivalsSection = document.getElementById("home-new-arrivals");
+                  if (newArrivalsSection) newArrivalsSection.scrollIntoView({ behavior: "smooth" });
+                  else onNavigate("catalog");
+                }}
                 className="w-full justify-center !border-white/35 !bg-slate-950/35 !text-white hover:!bg-slate-900/70 min-[480px]:w-auto"
               >
-                Ver catálogo
+                Ver novedades
               </Btn>
             </div>
           </div>
@@ -1328,7 +1331,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
               type="button"
               aria-label={`${cat.name}: ${cat.subtitle}`}
               onClick={() => onCategorySelect(cat.filterCategory)}
-              className="group relative aspect-[1.12] min-h-[150px] overflow-hidden rounded-2xl border border-slate-200 bg-slate-800 text-left shadow-[0_12px_30px_-18px_rgba(15,23,42,0.38)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-18px_rgba(15,23,42,0.4)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8] active:scale-[0.99]"
+              className="group relative aspect-[1.35] min-h-[118px] overflow-hidden rounded-2xl border border-slate-200 bg-slate-800 text-left shadow-[0_12px_30px_-18px_rgba(15,23,42,0.38)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-18px_rgba(15,23,42,0.4)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8] active:scale-[0.99]"
             >
               <img
                 src={cat.image}
@@ -1339,7 +1342,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
                 className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-[#0b1220]/85 via-[#0b1220]/25 to-transparent" />
-              <div className="relative flex h-full min-h-[150px] flex-col justify-end p-3 sm:min-h-[190px] sm:p-4">
+              <div className="relative flex h-full min-h-[118px] flex-col justify-end p-3 sm:min-h-[190px] sm:p-4">
                 <p className="font-display text-xl leading-[1.05] text-white sm:text-2xl">{cat.name}</p>
                 <p className="mt-1 text-[11px] leading-relaxed text-slate-200 sm:text-xs">{cat.subtitle}</p>
               </div>
@@ -1348,7 +1351,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-3 py-8 sm:px-4 sm:py-12 md:px-6 md:py-16">
+      <section className="mx-auto max-w-7xl px-3 py-6 sm:px-4 sm:py-12 md:px-6 md:py-16">
         <div className="mb-6 flex items-end justify-between gap-4 sm:mb-8">
           <div>
             <p className="mb-1 font-display text-sm uppercase tracking-[0.08em] text-[#1d4ed8] sm:text-base">{content.featuredSectionLabel}</p>
@@ -1391,26 +1394,41 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
         )}
       </section>
 
-      <section className="mx-auto max-w-7xl px-3 sm:px-4 md:px-6" aria-label="Ofertas destacadas o promoción general">
+      <section className="mx-auto max-w-7xl px-3 pb-6 pt-2 sm:px-4 sm:pb-10 md:px-6" aria-label="Oferta especial">
+        <div className="mb-3">
+          <p className="mb-1 font-display text-sm uppercase tracking-[0.08em] text-[#c2410c] sm:text-base">OFERTA ESPECIAL</p>
+          <h2 className="font-display text-xl uppercase leading-[1.05] text-[#0b1220] sm:text-2xl">Beneficio exclusivo para tu primera compra</h2>
+        </div>
+        <img
+          src="/images/promo-discount-10.png"
+          alt="Descuento del 10% en tu primera compra"
+          loading="lazy"
+          decoding="async"
+          className="w-full rounded-2xl border border-slate-200 object-cover shadow-[0_12px_30px_-18px_rgba(15,23,42,0.3)]"
+        />
+      </section>
+
+      <section className="mx-auto max-w-7xl px-3 pb-8 sm:px-4 sm:pb-12 md:px-6" aria-label="Productos con descuento">
+        <div className="mb-4 flex items-end justify-between gap-3 sm:mb-6">
+          <div>
+            <p className="mb-1 font-display text-sm uppercase tracking-[0.08em] text-[#c2410c] sm:text-base">{content.saleSectionLabel || "OFERTA ESPECIAL"}</p>
+            <h2 className="font-display text-[1.7rem] uppercase leading-[1.05] text-[#0b1220] sm:text-[2.4rem] md:text-[2.8rem]">{content.saleSectionTitle || "En descuento ahora"}</h2>
+          </div>
+          <Btn variant="ghost" onClick={() => onNavigate("catalog")} className="shrink-0">
+            Ver todos <ChevronRight size={14} />
+          </Btn>
+        </div>
         {hasRealDiscounts ? (
-          <>
-            <div className="mb-6 flex items-end justify-between gap-4">
-              <div>
-                <p className="mb-1 font-display text-sm uppercase tracking-[0.08em] text-[#c2410c] sm:text-base">OFERTAS DESTACADAS</p>
-                <h2 className="font-display text-[1.8rem] leading-[1.05] text-[#0b1220] sm:text-[2.4rem] md:text-[2.8rem]">Productos con descuento real</h2>
+          <ProductGrid>
+            {onSale.slice(0, 4).map((product) => (
+              <div key={product.id} className="min-w-0">
+                <ProductCard product={product} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
               </div>
-            </div>
-            <ProductGrid>
-              {onSale.slice(0, 4).map((product) => (
-                <div key={product.id} className="min-w-0">
-                  <ProductCard product={product} onSelect={onSelectProduct} onAddToCart={onAddToCart} />
-                </div>
-              ))}
-            </ProductGrid>
-          </>
+            ))}
+          </ProductGrid>
         ) : (
-          <div role="status" className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-700">
-            No hay promociones verificables publicadas.
+          <div role="status" className="flex min-h-24 items-center justify-center rounded-2xl border border-orange-100 bg-orange-50/70 px-4 py-6 text-center text-sm text-slate-600">
+            No hay productos con descuento publicados por ahora.
           </div>
         )}
       </section>
@@ -1432,7 +1450,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
       </section>
 
       {newArrivals.length > 0 && (
-        <section className="mx-auto max-w-7xl px-3 py-2 sm:px-4 md:px-6">
+        <section id="home-new-arrivals" className="mx-auto max-w-7xl px-3 py-2 sm:px-4 md:px-6">
           <div className="mb-6 flex items-end justify-between gap-4 sm:mb-8">
             <div>
               <p className="mb-1 font-display text-sm uppercase tracking-[0.08em] text-emerald-700 sm:text-base">{content.newArrivalsLabel}</p>
@@ -4149,6 +4167,7 @@ export default function App() {
           ...normalized,
           heroTitle: DEFAULT_HERO_TITLE,
           heroSubtitle: DEFAULT_HERO_SUBTITLE,
+          heroImage: DEFAULT_HERO_IMAGE,
         };
       }
 
@@ -4513,19 +4532,22 @@ export default function App() {
 
   const createProduct = async (product: Omit<Product, "id">) => {
     const record = mapAppProductToProductRecord({ ...product, id: crypto.randomUUID() });
-    const adminPayload: Record<string, unknown> = {
+    const adminPayload = buildAdminProductPayload({
+      ...product,
+      id: record.id,
       slug: record.slug ?? undefined,
-      name: record.name,
-      price: record.price,
-      description: record.description,
-      sku: record.sku,
-      stock: record.stock,
-      category_id: record.category_id && /^[0-9a-fA-F-]{36}$/.test(record.category_id) ? record.category_id : undefined,
-      compare_at_price: record.original_price ?? undefined,
-      is_active: true,
-    };
+      categoryId: record.category_id ?? product.categoryId,
+      image: record.image || product.image || "",
+      images: product.images ?? record.images ?? [],
+      brand: product.brand ?? record.brand ?? "",
+      sku: product.sku ?? record.sku ?? "",
+      price: Number(product.price ?? record.price ?? 0),
+      stock: Number(product.stock ?? record.stock ?? 0),
+      description: product.description ?? record.description ?? "",
+      originalPrice: product.originalPrice ?? record.original_price ?? undefined,
+    }, true);
 
-    if (!adminPayload.category_id) {
+    if (!adminPayload.category_id || typeof adminPayload.category_id !== 'string' || !/^[0-9a-fA-F-]{36}$/.test(String(adminPayload.category_id))) {
       throw new Error('Selecciona una categoría válida.');
     }
 
@@ -4543,16 +4565,21 @@ export default function App() {
     }
 
     const record = mapAppProductToProductRecord({ ...productToUpdate, ...updates, id: productId });
-    const { id: _ignoredId, ...recordUpdates } = record;
-    const adminUpdates: Record<string, unknown> = {
-      ...recordUpdates,
-      category_id: recordUpdates.category_id ?? recordUpdates.category ?? undefined,
-      compare_at_price: record.original_price ?? undefined,
-    };
-
-    if (!adminUpdates.category_id && (updates.category ?? productToUpdate.category)) {
-      adminUpdates.category = updates.category ?? productToUpdate.category;
-    }
+    const adminUpdates = buildAdminProductPayload({
+      ...productToUpdate,
+      ...updates,
+      id: productId,
+      slug: record.slug ?? undefined,
+      brand: updates.brand ?? productToUpdate.brand ?? record.brand ?? "",
+      categoryId: record.category_id ?? updates.categoryId ?? productToUpdate.categoryId,
+      image: updates.image ?? productToUpdate.image ?? record.image ?? "",
+      images: updates.images ?? productToUpdate.images ?? record.images ?? [],
+      price: Number(updates.price ?? productToUpdate.price ?? record.price ?? 0),
+      stock: Number(updates.stock ?? productToUpdate.stock ?? record.stock ?? 0),
+      originalPrice: updates.originalPrice ?? productToUpdate.originalPrice ?? record.original_price ?? undefined,
+      description: updates.description ?? productToUpdate.description ?? record.description ?? "",
+      sku: updates.sku ?? productToUpdate.sku ?? record.sku ?? "",
+    });
 
     const updated = await updateProductViaAdminApi(productId, adminUpdates);
     const updatedAppProduct = mapProductRecordToAppProduct(updated);
