@@ -54,6 +54,17 @@ create table if not exists public.products (
   check (compare_at_price is null or compare_at_price >= price)
 );
 
+alter table public.products add column if not exists is_active boolean not null default true;
+alter table public.products add column if not exists is_featured boolean not null default false;
+
+update public.products
+set is_active = true
+where is_active is null;
+
+update public.products
+set is_featured = false
+where is_featured is null;
+
 create table if not exists public.product_images (
   id uuid primary key default gen_random_uuid(),
   product_id uuid not null references public.products(id) on delete cascade,
