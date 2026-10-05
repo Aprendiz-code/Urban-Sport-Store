@@ -171,7 +171,7 @@ interface HomePageContent {
 const LOCAL_ADDRESS_STORAGE = "urbansport_addresses";
 const DEFAULT_HERO_TITLE = "VISTE TU ESTILO. MARCA LA DIFERENCIA.";
 const DEFAULT_HERO_SUBTITLE = "Explora calzado, ropa deportiva y accesorios para completar tu estilo.";
-const DEFAULT_HERO_IMAGE = "https://images.unsplash.com/photo-1538805060514-97d9cc17730c?auto=format&fit=crop&w=1600&h=900&q=85";
+const DEFAULT_HERO_IMAGE = "https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?auto=format&fit=crop&w=1600&h=900&q=85";
 const TOP_BENEFITS_MESSAGES = [
   "10% de descuento en tu primera compra",
   "Envíos gratis a toda Colombia a partir de $300.000",
