@@ -69,14 +69,24 @@ describe('admin products table data source', () => {
     expect(appSource).toContain('break-words text-xs text-slate-600">{p.brand} · {p.category');
   });
 
-  it('offers safe logical deletion with an explicit relationship warning and pending state', () => {
+  it('offers permanent deletion with confirmation, loading state, and a safe FK fallback', () => {
     expect(appSource).toContain('handleSafeProductDelete');
-    expect(appSource).toContain('softDeleteProduct(product.id)');
-    expect(appSource).toContain('imágenes, las variantes y las referencias de carritos y pedidos');
-    expect(appSource).toContain('Eliminar de forma segura');
+    expect(appSource).toContain('hardDeleteProduct(product.id)');
+    expect(appSource).toContain('¿Eliminar permanentemente "${product.name}"?');
+    expect(appSource).toContain('se intentará limpiar sus archivos de Storage');
+    expect(appSource).toContain('los carritos asociados pueden bloquear el borrado');
+    expect(appSource).toContain('No se puede eliminar permanentemente porque tiene pedidos u registros asociados.');
+    expect(appSource).toContain('Eliminar permanentemente');
+    expect(appSource).not.toContain('{p.isActive !== false && <button type="button" onClick={() => void handleSafeProductDelete(p)}');
     expect(appSource).toContain('Eliminando…');
-    expect(appSource).toContain('Producto eliminado de forma segura y conservado como inactivo.');
+    expect(appSource).toContain('Producto eliminado permanentemente');
     expect(appSource).toContain('adminApi.deleteProductApi(productId)');
+    const deleteAction = appSource.match(/const hardDeleteProduct = async[\s\S]*?\n  };/)?.[0] ?? '';
+    expect(deleteAction.indexOf('await adminApi.deleteProductApi(productId)')).toBeGreaterThanOrEqual(0);
+    expect(deleteAction.indexOf('await adminApi.deleteProductApi(productId)')).toBeLessThan(deleteAction.indexOf('setAdminProducts((current) => current.filter((product) => product.id !== productId))'));
+    expect(appSource).toContain('El producto sí se eliminó de la base de datos, pero falló la limpieza de Storage');
+    expect(appSource).toContain('se conservaron ${sharedCount} archivo(s) de Storage compartidos');
+    expect(appSource).not.toContain('toast.success("Producto eliminado permanentemente");\n    } catch (error)');
   });
 
   it('marks an authenticated admin avatar with A while preserving the regular user initial', () => {

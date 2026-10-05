@@ -19,6 +19,8 @@ describe('storefront product navigation', () => {
     expect(productCardSource).toContain('onClick={() => setWished((value) => !value)}');
     expect(productCardSource).toContain('onClick={() => onAddToCart(product, cartSize, defaultColor)}');
     expect(productCardSource).not.toContain('onClick={() => { onSelect(product); onAddToCart');
+    expect(productCardSource).toContain('<span className="sm:hidden">Agregar</span>');
+    expect(productCardSource).toContain('aria-label={product.stock <= 0 ? `Agotado: ${product.name}` : `Agregar ${product.name} al carrito`}');
   });
 
   it('resets the existing gallery component for the opened product and preserves catalog state', () => {
@@ -50,6 +52,23 @@ describe('storefront product navigation', () => {
     expect(appSource).toContain('const [selectedSize, setSelectedSize] = useState(requiresSize ? "" : product.sizes[0] ?? "")');
     expect(appSource).toContain('if (product.stock <= 0 || (requiresSize && !selectedSize)) return false');
     expect(appSource).toContain('selectedSize === size');
+  });
+
+  it('renders compact product cards in two mobile columns and responsive wider grids', () => {
+    expect(appSource).toContain('grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 lg:gap-5 2xl:grid-cols-5');
+    expect(appSource).toContain('aspect-square w-full overflow-hidden bg-slate-100 sm:aspect-[4/3]');
+    expect(productCardSource).toContain('line-clamp-2 break-words font-display text-sm');
+    expect(productCardSource).toContain('p-2.5 sm:space-y-3 sm:p-4');
+    expect(productCardSource).toContain('<option value="" disabled>Elige talla</option>');
+    expect(appSource).toContain('w-[calc((100vw-3.5rem)/2)] max-w-[220px]');
+  });
+
+  it('keeps the top benefits banner rotating through multiple messages', () => {
+    const messages = appSource.match(/const TOP_BENEFITS_MESSAGES = \[([\s\S]*?)\] as const;/)?.[1];
+
+    expect(messages?.match(/"[^"]+"/g)).toHaveLength(3);
+    expect(appSource).toContain('if (benefits.length < 2 || isPaused || !isPageVisible) return;');
+    expect(appSource).toContain('}, 4000);');
   });
 
   it('edits ordered specification pairs and renders them as a semantic table', () => {
