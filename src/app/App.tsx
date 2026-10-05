@@ -1278,7 +1278,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
           height={900}
           className="absolute inset-0 h-full w-full object-cover object-center"
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#0b1220]/95 via-[#0b1220]/80 to-[#0b1220]/45 md:from-[#0b1220]/95 md:via-[#0b1220]/80 md:to-[#0b1220]/50" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#0b1220]/80 via-[#0b1220]/50 to-[#0b1220]/20 md:from-[#0b1220]/80 md:via-[#0b1220]/50 md:to-[#0b1220]/20" />
 
         <div className="relative z-10 mx-auto w-full max-w-7xl px-3 py-6 sm:px-4 sm:py-8 md:px-6 md:py-10">
           <div className="max-w-2xl">
