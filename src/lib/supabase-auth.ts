@@ -3,8 +3,57 @@ import { getSupabaseClient, isSupabaseEnabled } from './supabase-client';
 
 type RealtimeSubscription = { unsubscribe: () => void };
 
+type AuthDiagnosticFields = {
+  userId?: string | null;
+  email?: string | null;
+  sessionPresent?: boolean;
+  httpStatus?: number | null;
+  code?: string | null;
+  message?: string | null;
+  table?: string;
+  rowFound?: boolean;
+  role?: string | null;
+  isAdmin?: boolean;
+  authEvent?: string;
+  redirectTo?: string;
+  itemCount?: number;
+};
+
+export const logAuthDiagnostic = (event: string, fields: AuthDiagnosticFields = {}) => {
+  if (!import.meta.env.DEV) return;
+
+  const email = fields.email?.trim();
+  const emailMask = email && email.includes('@')
+    ? `${email.slice(0, 2)}***@${email.split('@').at(-1)}`
+    : email ? '[email]' : undefined;
+  const code = fields.code && /^[A-Za-z0-9_.-]{1,40}$/.test(fields.code) ? fields.code : undefined;
+  const message = fields.message
+    ?.replace(/\bBearer\s+[^\s,;]+/gi, 'Bearer [redacted]')
+    .replace(/\beyJ[A-Za-z0-9_.-]+/g, '[redacted]')
+    .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, '[email]')
+    .slice(0, 240);
+
+  console.info('[auth-diagnostic]', {
+    event,
+    ...(fields.userId ? { userIdPrefix: fields.userId.slice(0, 8) } : {}),
+    ...(emailMask ? { email: emailMask } : {}),
+    ...(typeof fields.sessionPresent === 'boolean' ? { sessionPresent: fields.sessionPresent } : {}),
+    ...(fields.httpStatus !== undefined ? { httpStatus: fields.httpStatus } : {}),
+    ...(code ? { code } : {}),
+    ...(message ? { message } : {}),
+    ...(fields.table ? { table: fields.table } : {}),
+    ...(typeof fields.rowFound === 'boolean' ? { rowFound: fields.rowFound } : {}),
+    ...(fields.role ? { role: fields.role.trim().slice(0, 40) } : {}),
+    ...(typeof fields.isAdmin === 'boolean' ? { isAdmin: fields.isAdmin } : {}),
+    ...(fields.authEvent ? { authEvent: fields.authEvent.slice(0, 40) } : {}),
+    ...(fields.redirectTo ? { redirectTo: fields.redirectTo.slice(0, 40) } : {}),
+    ...(typeof fields.itemCount === 'number' ? { itemCount: fields.itemCount } : {}),
+  });
+};
+
 export const signInWithEmail = async (email: string, password: string) => {
   if (!isSupabaseEnabled()) {
+    logAuthDiagnostic('sign-in.unavailable', { email, sessionPresent: false });
     return {
       data: { user: null },
       error: new Error('El inicio de sesión requiere configurar Supabase. No hay credenciales demo activas en producción.'),
@@ -13,6 +62,14 @@ export const signInWithEmail = async (email: string, password: string) => {
 
   const client = getSupabaseClient();
   const result = await client.auth.signInWithPassword({ email, password });
+  logAuthDiagnostic('sign-in.result', {
+    email: result.data.user?.email ?? email,
+    userId: result.data.user?.id,
+    sessionPresent: Boolean(result.data.session),
+    httpStatus: result.error?.status ?? (result.error ? null : 200),
+    code: result.error?.code,
+    message: result.error?.message,
+  });
 
   if (result.error) {
     if (result.error.message?.includes('Email not confirmed') || result.error.code === 'email_not_confirmed') {
@@ -87,7 +144,14 @@ export const signOut = async () => {
   }
 
   const client = getSupabaseClient();
-  return client.auth.signOut();
+  const result = await client.auth.signOut();
+  logAuthDiagnostic('sign-out.result', {
+    sessionPresent: false,
+    httpStatus: result.error?.status ?? (result.error ? null : 204),
+    code: result.error?.code,
+    message: result.error?.message,
+  });
+  return result;
 };
 
 export const getCurrentUser = async () => {
@@ -96,7 +160,15 @@ export const getCurrentUser = async () => {
   }
 
   const client = getSupabaseClient();
-  const { data: { user } } = await client.auth.getUser();
+  const { data: { user }, error } = await client.auth.getUser();
+  logAuthDiagnostic('session.restore.result', {
+    userId: user?.id,
+    email: user?.email,
+    sessionPresent: Boolean(user),
+    httpStatus: error?.status ?? (error ? null : 200),
+    code: error?.code,
+    message: error?.message,
+  });
   return user;
 };
 
@@ -114,10 +186,16 @@ export const getAccessToken = async (forceRefresh = false) => {
 
   const client = getSupabaseClient();
   const { data, error } = await client.auth.getSession();
-  if (error) return null;
+  if (error) {
+    logAuthDiagnostic('session.read.failed', { httpStatus: error.status, code: error.code, message: error.message });
+    return null;
+  }
 
   const session = data.session;
-  if (!session?.access_token) return null;
+  if (!session?.access_token) {
+    logAuthDiagnostic('session.read.empty', { sessionPresent: false });
+    return null;
+  }
 
   const refreshThreshold = Math.floor(Date.now() / 1000) + 30;
   const shouldRefresh = forceRefresh || (typeof session.expires_at === 'number' && session.expires_at <= refreshThreshold);
@@ -125,12 +203,19 @@ export const getAccessToken = async (forceRefresh = false) => {
 
   const refreshed = await client.auth.refreshSession();
   if (refreshed.error || !refreshed.data.session?.access_token) {
+    logAuthDiagnostic('session.refresh.failed', {
+      sessionPresent: false,
+      httpStatus: refreshed.error?.status,
+      code: refreshed.error?.code,
+      message: refreshed.error?.message,
+    });
     try {
       await clearLocalAuthSession();
     } catch {}
     return null;
   }
 
+  logAuthDiagnostic('session.refresh.succeeded', { sessionPresent: true, httpStatus: 200 });
   return refreshed.data.session.access_token;
 };
 
@@ -141,6 +226,12 @@ export const onAuthStateChange = (callback: (event: string, session: { user: Use
 
   const client = getSupabaseClient();
   const { data } = client.auth.onAuthStateChange((event, session) => {
+    logAuthDiagnostic('auth-state.changed', {
+      authEvent: event,
+      userId: session?.user.id,
+      email: session?.user.email,
+      sessionPresent: Boolean(session),
+    });
     callback(event, session);
   });
   return data.subscription as RealtimeSubscription;

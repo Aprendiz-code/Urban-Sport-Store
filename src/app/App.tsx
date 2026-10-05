@@ -33,6 +33,7 @@ import {
   signOut,
   getCurrentUser,
   onAuthStateChange,
+  logAuthDiagnostic,
   requestPasswordRecovery,
   updatePassword,
 } from "../lib/supabase-auth";
@@ -1840,12 +1841,12 @@ function ProductDetailPage({ product, products, onBack, onAddToCart, onNavigate,
         <span className="text-slate-700 font-semibold truncate max-w-xs">{product.name}</span>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-16">
-        {/* Gallery */}
-        <ProductGallery key={product.id} main_image={product.image} images={product.images} productName={product.name} />
+      <div className="mb-14 grid min-w-0 grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1.08fr)_minmax(20rem,0.92fr)] lg:gap-10">
+        <section aria-label={`Galería de ${product.name}`} className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+          <ProductGallery key={product.id} main_image={product.image} images={product.images} productName={product.name} />
+        </section>
 
-        {/* Info */}
-        <div className="space-y-5">
+        <section aria-label={`Información de ${product.name}`} className="min-w-0 space-y-6 py-1 sm:py-2">
           <div>
             <div className="flex items-center gap-2 mb-2">
               <span className="text-sm font-extrabold text-[#1d4ed8]">{product.brand}</span>
@@ -1858,8 +1859,8 @@ function ProductDetailPage({ product, products, onBack, onAddToCart, onNavigate,
           </div>
 
           {/* Price */}
-          <div className="p-4 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_45px_-35px_rgba(15,23,42,0.12)]">
-            <div className="flex items-baseline gap-3 flex-wrap">
+          <div className="border-y border-slate-200 py-4">
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <span className="price text-3xl text-slate-900">{fmt(product.price)}</span>
               {hasRealDiscount && originalPrice !== undefined && (
                 <span className="price text-lg text-slate-400 line-through">{fmt(originalPrice)}</span>
@@ -1894,7 +1895,7 @@ function ProductDetailPage({ product, products, onBack, onAddToCart, onNavigate,
           {product.sizes.length > 0 && (
             <div>
               <div className="flex justify-between items-center mb-2.5">
-                <p className="text-sm font-bold text-slate-700">Talla u opción</p>
+                <p className="text-sm font-bold text-slate-700">Tallas disponibles</p>
               </div>
               <SizeSelector sizes={product.sizes} selected={selectedSize} onSelect={setSelectedSize} />
               {requiresSize && !selectedSize && <p role="status" className="mt-2 text-xs text-slate-500">Selecciona una talla para agregar este producto.</p>}
@@ -1930,7 +1931,7 @@ function ProductDetailPage({ product, products, onBack, onAddToCart, onNavigate,
               Comprar ahora
             </button>
           </div>
-        </div>
+        </section>
       </div>
 
       <section aria-labelledby="product-description-title" className="mb-10 border-t border-slate-200 pt-8">
@@ -2252,6 +2253,7 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
         }
         onLogin(user, profileAccess.isAdmin, profileAccess.role);
         const signUpNeedsConfirmation = 'needsConfirmation' in signUpResult && Boolean(signUpResult.needsConfirmation);
+        logAuthDiagnostic("login.redirect", { userId: user.id, email: user.email, sessionPresent: Boolean(signUpResult.data.session), isAdmin: profileAccess.isAdmin, redirectTo: profileAccess.isAdmin ? "admin" : "home" });
         toast.success(signUpNeedsConfirmation ? "Cuenta creada. Revisa tu correo si tu configuración de Supabase requiere confirmación; ya puedes seguir usando la tienda." : "Registro exitoso. Ya puedes continuar en la tienda.");
         setEmail("");
         setPassword("");
@@ -2271,6 +2273,7 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
         return;
       }
       onLogin(user, profileAccess.isAdmin, profileAccess.role);
+      logAuthDiagnostic("login.redirect", { userId: user.id, email: user.email, sessionPresent: Boolean(signInResult.data.session), isAdmin: profileAccess.isAdmin, redirectTo: profileAccess.isAdmin ? "admin" : "home" });
       onNavigate(profileAccess.isAdmin ? "admin" : "home");
     } catch (err) {
       if (err instanceof ProfileAccessVerificationError) {
@@ -3811,7 +3814,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                   </div>
 
                   <div>
-                    <label htmlFor="product-description" className="mb-2 block text-xs font-bold uppercase text-slate-600">Descripción</label>
+                    <label htmlFor="product-description" className="mb-2 block text-xs font-bold uppercase text-slate-600">Descripción del producto</label>
                     <textarea
                       id="product-description"
                       value={productForm.description}
@@ -4662,10 +4665,12 @@ export default function App() {
   useEffect(() => {
     if (!authReady) return;
     if (!isAdmin && view === "admin") {
+      logAuthDiagnostic("route-guard.redirect", { userId: authUser?.id, email: authUser?.email, sessionPresent: Boolean(authUser), isAdmin: false, redirectTo: "admin-login" });
       navigate("admin-login");
       return;
     }
     if (isAdmin && view === "admin-login") {
+      logAuthDiagnostic("route-guard.redirect", { userId: authUser?.id, email: authUser?.email, sessionPresent: Boolean(authUser), isAdmin: true, redirectTo: "admin" });
       navigate("admin");
       return;
     }
@@ -4682,14 +4687,26 @@ export default function App() {
     setAdminProducts([]);
     setAdminProductsError(null);
     setAdminProductsStatus("loading");
+    logAuthDiagnostic("admin-data.started", { userId: authUser?.id, email: authUser?.email, sessionPresent: Boolean(authUser), isAdmin: true, redirectTo: "admin" });
 
     void adminApi.fetchProducts().then((records) => {
       if (!Array.isArray(records)) throw new Error("La API administrativa devolvió una respuesta inválida.");
       if (!isActive) return;
+      logAuthDiagnostic("admin-data.succeeded", { userId: authUser?.id, email: authUser?.email, sessionPresent: true, isAdmin: true, itemCount: records.length });
       setAdminProducts(records.map((record: ProductRecord) => mapProductRecordToAppProduct(record, categoryOptions)));
       setAdminProductsStatus("ready");
     }).catch((error: unknown) => {
       if (!isActive) return;
+      const details = error && typeof error === "object" ? error as { status?: unknown; code?: unknown } : {};
+      logAuthDiagnostic("admin-data.failed", {
+        userId: authUser?.id,
+        email: authUser?.email,
+        sessionPresent: true,
+        isAdmin: true,
+        httpStatus: typeof details.status === "number" ? details.status : null,
+        code: typeof details.code === "string" ? details.code : null,
+        message: error instanceof Error ? error.message : null,
+      });
       const message = formatAdminApiError(error, "No se pudieron cargar los productos administrativos.");
       setAdminProducts([]);
       setAdminProductsError(message);

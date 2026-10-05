@@ -4,6 +4,19 @@ import { describe, expect, it } from 'vitest';
 const appSource = readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
 
 describe('admin products table data source', () => {
+  it('waits for session recovery before applying the admin route guard', () => {
+    expect(appSource).toContain('void syncSession();');
+    expect(appSource).toContain('subscription = onAuthStateChange');
+    expect(appSource).toContain('if (!authReady) return;');
+  });
+
+  it('routes only after profile access has been resolved and clears admin state on logout', () => {
+    expect(appSource).toContain('onNavigate(profileAccess.isAdmin ? "admin" : "home")');
+    expect(appSource).toContain('if (!isAdmin && view === "admin")');
+    expect(appSource).toContain('setAuthUser(null);');
+    expect(appSource).toContain('setIsAdmin(false);');
+  });
+
   it('passes only the protected admin product state to AdminDashboard', () => {
     const dashboard = appSource.match(/<AdminDashboard\b([\s\S]*?)\/>/);
 

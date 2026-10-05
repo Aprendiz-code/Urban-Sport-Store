@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getSupabaseClient, isSupabaseEnabled } from './supabase-client';
+import { logAuthDiagnostic } from './supabase-auth';
 import { getProfileAccess, ProfileAccessVerificationError } from './profile-service';
 import { getAdminPanelMenuLink } from '../app/admin-panel-menu';
 
@@ -10,6 +11,7 @@ vi.mock('./supabase-client', () => ({
 
 vi.mock('./supabase-auth', () => ({
   getAccessToken: vi.fn(),
+  logAuthDiagnostic: vi.fn(),
 }));
 
 function mockProfileQuery(data: unknown, error: unknown = null) {
@@ -45,6 +47,15 @@ describe('getProfileAccess', () => {
       href: '/admin',
     });
     expect(query.select).toHaveBeenCalledWith('id, role, is_active');
+  });
+
+  it('does not query permissions before authentication completes', async () => {
+    await expect(getProfileAccess(null)).resolves.toEqual({
+      status: 'missing',
+      role: null,
+      isAdmin: false,
+    });
+    expect(getSupabaseClient).not.toHaveBeenCalled();
   });
 
   it('returns customer access without admin permissions', async () => {
@@ -83,14 +94,34 @@ describe('getProfileAccess', () => {
     });
   });
 
-  it('surfaces query errors as a safe verification failure, never as customer access', async () => {
-    mockProfileQuery(null, { code: '42703', message: 'sensitive database detail' });
+  it('denies a padded role instead of treating it as an administrator role', async () => {
+    mockProfileQuery({ id: 'user-1', role: ' ADMIN ', is_active: true });
+
+    await expect(getProfileAccess({ id: 'user-1' })).resolves.toEqual({
+      status: 'missing',
+      role: null,
+      isAdmin: false,
+    });
+  });
+
+  it.each([
+    ['401', { status: 401, code: 'PGRST301', message: 'Unauthorized' }],
+    ['403', { status: 403, code: '42501', message: 'Permission denied' }],
+    ['404', { status: 404, code: 'PGRST116', message: 'Profile not found' }],
+    ['network', { code: 'NETWORK_ERROR', message: 'Failed to fetch' }],
+    ['database recursion', { status: 500, code: '42P17', message: 'infinite recursion detected in policy for relation "profiles"' }],
+  ])('surfaces %s as a safe verification failure, never as customer access', async (_case, error) => {
+    mockProfileQuery(null, error);
 
     await expect(getProfileAccess({ id: 'user-1' })).rejects.toMatchObject({
       name: ProfileAccessVerificationError.name,
       message: 'No fue posible verificar los permisos de tu cuenta. Inténtalo de nuevo más tarde.',
     });
-    expect(console.warn).toHaveBeenCalledWith('Profile access verification failed.', { code: '42703' });
-    expect(console.warn).not.toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ message: expect.any(String) }));
+    expect(logAuthDiagnostic).toHaveBeenCalledWith('profile-query.failed', expect.objectContaining({
+      code: error.code,
+      table: 'profiles',
+      rowFound: false,
+      message: error.message,
+    }));
   });
 });

@@ -33,6 +33,7 @@ const createBody = () => ({
   category_id: categoryId,
   main_image: 'https://storage.example/products/main.png',
   images: ['https://storage.example/products/main.png'],
+  description: 'Material resistente\nPara entrenamiento.',
   sizes: ['40 EU', '41 EU'],
   specifications: [{ name: 'Material', value: 'Cuero sintético' }],
 });
@@ -77,6 +78,8 @@ describe('admin product create endpoint', () => {
         category_id: categoryId,
         main_image: 'https://storage.example/products/main.png',
         images: ['https://storage.example/products/main.png'],
+        description: 'Material resistente\nPara entrenamiento.',
+        sizes: ['40 EU', '41 EU'],
         is_active: true,
         slug: 'producto-de-prueba-local-test-local-1',
       },
@@ -104,6 +107,7 @@ describe('admin product create endpoint', () => {
       category_id: categoryId,
       main_image: 'https://storage.example/products/main.png',
       images: ['https://storage.example/products/main.png'],
+      description: 'Material resistente\nPara entrenamiento.',
       sizes: ['40 EU', '41 EU'],
       specifications: [{ name: 'Material', value: 'Cuero sintético' }],
     })]);

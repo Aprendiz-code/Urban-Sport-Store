@@ -35,6 +35,14 @@ describe('storefront product navigation', () => {
     expect(appSource).not.toContain('dangerouslySetInnerHTML');
   });
 
+  it('renders a bounded product-detail layout with labeled gallery and product information', () => {
+    expect(appSource).toContain('lg:grid-cols-[minmax(0,1.08fr)_minmax(20rem,0.92fr)]');
+    expect(appSource).toContain('aria-label={`Galería de ${product.name}`}');
+    expect(appSource).toContain('aria-label={`Información de ${product.name}`}');
+    expect(appSource).toContain('Tallas disponibles');
+    expect(appSource).toContain('Descripción del producto');
+  });
+
   it('requires a selected available size before adding size-configured products', () => {
     expect(productCardSource).toContain('aria-label={`Seleccionar talla de ${product.name}`}');
     expect(productCardSource).toContain('disabled={product.stock <= 0 || (requiresSize && !selectedSize)}');

@@ -17,6 +17,10 @@ export function buildAdminProductPayload(product: Partial<Product>, isCreating =
     ? product.sizes.filter((size): size is string => typeof size === 'string')
     : [];
   const specifications = Array.isArray(product.specifications) ? product.specifications : [];
+  const includeImages = isCreating || product.images !== undefined;
+  const includeSizes = isCreating || product.sizes !== undefined;
+  const includeSpecifications = isCreating || product.specifications !== undefined;
+  const includeDescription = isCreating || product.description !== undefined;
 
   return {
     slug: product.slug?.trim() || generatedSlug || `product-${Date.now()}`,
@@ -27,11 +31,11 @@ export function buildAdminProductPayload(product: Partial<Product>, isCreating =
     stock: Number(product.stock ?? 0),
     sku,
     category_id: product.categoryId ?? undefined,
-    description: product.description ?? undefined,
-    sizes,
-    specifications,
+    ...(includeDescription ? { description: product.description ?? '' } : {}),
+    ...(includeSizes ? { sizes } : {}),
+    ...(includeSpecifications ? { specifications } : {}),
     main_image: product.image ?? '',
-    images,
+    ...(includeImages ? { images } : {}),
     ...(isCreating ? { is_active: true } : {}),
   };
 }

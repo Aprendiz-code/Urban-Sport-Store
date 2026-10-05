@@ -120,7 +120,7 @@ export default function ProductGallery({ main_image, images = [], productName = 
   };
 
   return (
-    <div className="space-y-3">
+    <div className="min-w-0 space-y-4">
       <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
         <button type="button" aria-label="Ampliar imagen del producto" onClick={() => setIsExpanded(true)} className="block aspect-square w-full overflow-hidden focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-600">
           {failedImages.has(currentImage) ? imageFallback(`${productName}, imagen no disponible`) : (
@@ -164,9 +164,15 @@ export default function ProductGallery({ main_image, images = [], productName = 
         >
           <Expand size={16} />
         </button>
+
+        {imagesList.length > 1 && (
+          <span className="absolute bottom-3 left-3 rounded-full bg-slate-950/75 px-2.5 py-1 text-xs font-semibold text-white" aria-live="polite">
+            {selectedIndex + 1} / {imagesList.length}
+          </span>
+        )}
       </div>
 
-      <div className="grid grid-cols-4 gap-2">
+      <div className="-mx-1 flex min-w-0 gap-3 overflow-x-auto px-1 pb-1 sm:grid sm:grid-cols-5 sm:overflow-visible">
         {imagesList.map((src, index) => (
           <button
             key={`${src}-${index}`}
@@ -174,11 +180,11 @@ export default function ProductGallery({ main_image, images = [], productName = 
             aria-label={`Ver imagen ${index + 1}`}
             aria-pressed={selectedIndex === index}
             onClick={() => skipToIndex(index)}
-            className={`overflow-hidden rounded-xl border-2 transition ${selectedIndex === index ? 'border-[#1d4ed8]' : 'border-slate-200 hover:border-slate-300'}`}
+            className={`w-[76px] shrink-0 overflow-hidden rounded-xl border-2 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 sm:w-auto ${selectedIndex === index ? 'border-slate-900' : 'border-slate-200 hover:border-slate-400'}`}
           >
             <div className="aspect-square w-full overflow-hidden">
               {failedImages.has(src) ? imageFallback(`Miniatura ${index + 1} no disponible`, true) : (
-                <img src={src} alt={`Miniatura ${index + 1}`} onError={() => markImageFailed(src)} className="h-full w-full object-cover" loading="lazy" />
+                <img src={src} alt={`Miniatura ${index + 1} de ${productName}`} onError={() => markImageFailed(src)} className="h-full w-full bg-slate-50 object-contain" loading="lazy" />
               )}
             </div>
           </button>
@@ -205,29 +211,31 @@ export default function ProductGallery({ main_image, images = [], productName = 
               </div>
             </div>
 
-            <div className="mt-4 flex items-center justify-between gap-3">
-              <button
-                type="button"
-                aria-label="Imagen anterior"
-                onClick={() => setSelectedIndex((previous) => getAdjacentImageIndex(previous, imagesList.length, 'previous'))}
-                className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-              >
-                <ChevronLeft size={16} /> Anterior
-              </button>
+            {imagesList.length > 1 && (
+              <div className="mt-4 flex items-center justify-between gap-3">
+                <button
+                  type="button"
+                  aria-label="Imagen anterior"
+                  onClick={() => setSelectedIndex((previous) => getAdjacentImageIndex(previous, imagesList.length, 'previous'))}
+                  className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  <ChevronLeft size={16} /> Anterior
+                </button>
 
-              <span className="text-sm font-medium text-slate-600">
-                {selectedIndex + 1} / {imagesList.length}
-              </span>
+                <span className="text-sm font-medium text-slate-600" aria-live="polite">
+                  {selectedIndex + 1} / {imagesList.length}
+                </span>
 
-              <button
-                type="button"
-                aria-label="Imagen siguiente"
-                onClick={() => setSelectedIndex((previous) => getAdjacentImageIndex(previous, imagesList.length, 'next'))}
-                className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-              >
-                Siguiente <ChevronRight size={16} />
-              </button>
-            </div>
+                <button
+                  type="button"
+                  aria-label="Imagen siguiente"
+                  onClick={() => setSelectedIndex((previous) => getAdjacentImageIndex(previous, imagesList.length, 'next'))}
+                  className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  Siguiente <ChevronRight size={16} />
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

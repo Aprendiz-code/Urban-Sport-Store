@@ -12,6 +12,7 @@ const product = {
   categoryId: '11111111-1111-1111-1111-111111111111',
   image: 'https://images.example/main.jpg',
   images: ['https://images.example/main.jpg', 'https://images.example/side.jpg'],
+  description: 'Material resistente\nPara entrenamiento.',
   sizes: ['7.5', '40 EU'],
   specifications: [{ name: 'Material', value: 'Cuero sintético' }],
   slug: 'tenis-rapidos-test-7',
@@ -32,6 +33,7 @@ describe('admin product API payload', () => {
       category_id: '11111111-1111-1111-1111-111111111111',
       main_image: 'https://images.example/main.jpg',
       images: ['https://images.example/main.jpg', 'https://images.example/side.jpg'],
+      description: 'Material resistente\nPara entrenamiento.',
       sizes: ['7.5', '40 EU'],
       specifications: [{ name: 'Material', value: 'Cuero sintético' }],
       is_active: true,
@@ -43,8 +45,27 @@ describe('admin product API payload', () => {
     expect(typeof payload.images).not.toBe('string');
   });
 
+  it('sends multiline description and string sizes on product creation', () => {
+    const payload = buildAdminProductPayload(product, true);
+
+    expect(payload.description).toBe('Material resistente\nPara entrenamiento.');
+    expect(payload.sizes).toEqual(['7.5', '40 EU']);
+    expect(Array.isArray(payload.sizes)).toBe(true);
+  });
+
   it('builds a slug when creating a product whose form has no slug field', () => {
     expect(buildAdminProductPayload({ ...product, slug: undefined }).slug).toBe('tenis-rapidos-test-7');
+  });
+
+  it('omits untouched optional fields from partial updates but keeps explicit clears', () => {
+    const untouched = buildAdminProductPayload({ name: product.name, sku: product.sku });
+    expect(untouched).not.toHaveProperty('description');
+    expect(untouched).not.toHaveProperty('sizes');
+    expect(untouched).not.toHaveProperty('specifications');
+    expect(untouched).not.toHaveProperty('images');
+
+    const clears = buildAdminProductPayload({ description: '', sizes: [], specifications: [], images: [] });
+    expect(clears).toMatchObject({ description: '', sizes: [], specifications: [], images: [] });
   });
 });
 

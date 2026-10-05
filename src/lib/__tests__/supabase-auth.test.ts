@@ -1,9 +1,12 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const authMock = vi.hoisted(() => ({
   getSession: vi.fn(),
   refreshSession: vi.fn(),
   signOut: vi.fn(),
+  getUser: vi.fn(),
+  onAuthStateChange: vi.fn(),
+  signInWithPassword: vi.fn(),
 }));
 
 vi.mock('../supabase-client', () => ({
@@ -11,12 +14,17 @@ vi.mock('../supabase-client', () => ({
   isSupabaseEnabled: () => true,
 }));
 
-import { getAccessToken } from '../supabase-auth';
+import { getAccessToken, getCurrentUser, logAuthDiagnostic, onAuthStateChange, signInWithEmail, signOut } from '../supabase-auth';
 
 describe('Supabase admin access token', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     authMock.signOut.mockResolvedValue({ error: null });
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
   });
 
   it('returns the token from the active Supabase session', async () => {
@@ -59,5 +67,79 @@ describe('Supabase admin access token', () => {
 
     await expect(getAccessToken()).resolves.toBeNull();
     expect(authMock.refreshSession).not.toHaveBeenCalled();
+  });
+
+  it('recovers the authenticated user after a page reload', async () => {
+    const user = { id: 'user-1', email: 'admin@example.test' };
+    authMock.getUser.mockResolvedValue({ data: { user }, error: null });
+
+    await expect(getCurrentUser()).resolves.toEqual(user);
+    expect(authMock.getUser).toHaveBeenCalledOnce();
+  });
+
+  it('records a successful email login without logging the password', async () => {
+    authMock.signInWithPassword.mockResolvedValue({
+      data: { user: { id: 'user-1', email: 'admin@example.test' }, session: { access_token: 'do-not-log' } },
+      error: null,
+    });
+    const info = vi.spyOn(console, 'info').mockImplementation(() => undefined);
+
+    const result = await signInWithEmail('admin@example.test', 'never-log-this-password');
+
+    expect(result.data).toHaveProperty('session');
+    expect(info).toHaveBeenCalledWith('[auth-diagnostic]', expect.objectContaining({
+      event: 'sign-in.result',
+      sessionPresent: true,
+      userIdPrefix: 'user-1',
+      email: 'ad***@example.test',
+      httpStatus: 200,
+    }));
+    expect(JSON.stringify(info.mock.calls)).not.toContain('never-log-this-password');
+    expect(JSON.stringify(info.mock.calls)).not.toContain('do-not-log');
+  });
+
+  it('forwards sign-in and sign-out session events to the auth listener', () => {
+    const subscription = { unsubscribe: vi.fn() };
+    authMock.onAuthStateChange.mockImplementation((callback) => {
+      callback('SIGNED_IN', { user: { id: 'user-1', email: 'admin@example.test' } });
+      return { data: { subscription } };
+    });
+    const callback = vi.fn();
+    const listener = onAuthStateChange(callback);
+
+    expect(callback).toHaveBeenCalledWith('SIGNED_IN', { user: { id: 'user-1', email: 'admin@example.test' } });
+    listener.unsubscribe();
+    expect(subscription.unsubscribe).toHaveBeenCalledOnce();
+  });
+
+  it('signs out through Supabase Auth', async () => {
+    await expect(signOut()).resolves.toEqual({ error: null });
+    expect(authMock.signOut).toHaveBeenCalledOnce();
+  });
+
+  it('masks identity and strips credentials from development diagnostics', () => {
+    vi.stubEnv('DEV', true);
+    const info = vi.spyOn(console, 'info').mockImplementation(() => undefined);
+
+    logAuthDiagnostic('profile-query.failed', {
+      userId: '12345678-1234-1234-1234-123456789012',
+      email: 'admin@example.test',
+      message: 'Bearer hidden-token eyJheader.payload.signature admin@example.test',
+    });
+
+    const [, details] = info.mock.calls[0];
+    expect(details).toMatchObject({ userIdPrefix: '12345678', email: 'ad***@example.test' });
+    expect(details.message).toBe('Bearer [redacted] [redacted] [email]');
+    expect(JSON.stringify(details)).not.toContain('hidden-token');
+    expect(JSON.stringify(details)).not.toContain('admin@example.test');
+  });
+
+  it('does not emit authentication diagnostics in production mode', () => {
+    vi.stubEnv('DEV', false);
+    const info = vi.spyOn(console, 'info').mockImplementation(() => undefined);
+
+    logAuthDiagnostic('sign-in.result', { sessionPresent: true });
+
+    expect(info).not.toHaveBeenCalled();
   });
 });

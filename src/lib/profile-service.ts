@@ -1,7 +1,7 @@
 import type { User } from '@supabase/supabase-js';
 import type { UserProfile, UserRole } from '../types/domain';
 import { getSupabaseClient, isSupabaseEnabled } from './supabase-client';
-import { getAccessToken } from './supabase-auth';
+import { getAccessToken, logAuthDiagnostic } from './supabase-auth';
 import { resolveApiBaseUrl } from './api-config';
 
 export interface PersonalProfileUpdate {
@@ -67,10 +67,10 @@ const KNOWN_ROLES: readonly UserRole[] = [
   'ACCOUNTANT',
 ];
 
-export async function getProfileByUserId(userId: string): Promise<UserProfile | null> {
+export async function getProfileByUserId(userId: string, email?: string | null): Promise<UserProfile | null> {
   if (!userId) return null;
   if (!isSupabaseEnabled()) {
-    console.warn('Profile access verification failed.', { reason: 'supabase_unavailable' });
+    logAuthDiagnostic('profile-query.unavailable', { userId, email, sessionPresent: true, table: 'profiles' });
     throw new ProfileAccessVerificationError();
   }
 
@@ -82,6 +82,15 @@ export async function getProfileByUserId(userId: string): Promise<UserProfile | 
       .maybeSingle();
 
     if (error) throw error;
+    logAuthDiagnostic('profile-query.result', {
+      userId,
+      email,
+      sessionPresent: true,
+      httpStatus: 200,
+      table: 'profiles',
+      rowFound: Boolean(data),
+      role: typeof data?.role === 'string' ? data.role : null,
+    });
     if (!data || typeof data.role !== 'string' || !KNOWN_ROLES.includes(data.role.toUpperCase() as UserRole)) {
       return null;
     }
@@ -95,20 +104,67 @@ export async function getProfileByUserId(userId: string): Promise<UserProfile | 
     const errorCode = error && typeof error === 'object' && 'code' in error && typeof error.code === 'string'
       ? error.code
       : 'PROFILE_QUERY_FAILED';
+    const errorStatus = error && typeof error === 'object' && 'status' in error && typeof error.status === 'number'
+      ? error.status
+      : null;
+    const errorMessage = error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
+      ? error.message
+      : null;
     const safeCode = /^[A-Z0-9_]{1,32}$/.test(errorCode) ? errorCode : 'PROFILE_QUERY_FAILED';
-    console.warn('Profile access verification failed.', { code: safeCode });
+    logAuthDiagnostic('profile-query.failed', {
+      userId,
+      email,
+      sessionPresent: true,
+      httpStatus: errorStatus,
+      code: safeCode,
+      message: errorMessage,
+      table: 'profiles',
+      rowFound: false,
+    });
     throw new ProfileAccessVerificationError();
   }
 }
 
-export async function getProfileAccess(user: Pick<User, 'id'> | null) {
-  if (!user) return { status: 'missing' as const, role: null, isAdmin: false };
+export async function getProfileAccess(user: (Pick<User, 'id'> & Partial<Pick<User, 'email'>>) | null) {
+  if (!user) {
+    logAuthDiagnostic('profile-access.no-session', { sessionPresent: false, isAdmin: false });
+    return { status: 'missing' as const, role: null, isAdmin: false };
+  }
 
-  const profile = await getProfileByUserId(user.id);
-  if (!profile) return { status: 'missing' as const, role: null, isAdmin: false };
-  if (!profile.isActive) return { status: 'inactive' as const, role: null, isAdmin: false };
+  const profile = await getProfileByUserId(user.id, user.email ?? null);
+  if (!profile) {
+    logAuthDiagnostic('profile-access.denied', {
+      userId: user.id,
+      email: user.email,
+      sessionPresent: true,
+      rowFound: false,
+      isAdmin: false,
+    });
+    return { status: 'missing' as const, role: null, isAdmin: false };
+  }
+  if (!profile.isActive) {
+    logAuthDiagnostic('profile-access.inactive', {
+      userId: user.id,
+      email: user.email,
+      sessionPresent: true,
+      rowFound: true,
+      role: profile.role,
+      httpStatus: 403,
+      isAdmin: false,
+    });
+    return { status: 'inactive' as const, role: null, isAdmin: false };
+  }
 
-  return profile.role === 'CUSTOMER'
+  const access = profile.role === 'CUSTOMER'
     ? { status: 'customer' as const, role: profile.role, isAdmin: false }
     : { status: 'admin' as const, role: profile.role, isAdmin: true };
+  logAuthDiagnostic('profile-access.decided', {
+    userId: user.id,
+    email: user.email,
+    sessionPresent: true,
+    rowFound: true,
+    role: profile.role,
+    isAdmin: access.isAdmin,
+  });
+  return access;
 }
