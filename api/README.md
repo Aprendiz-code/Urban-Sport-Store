@@ -7,7 +7,7 @@
 Rutas administrativas existentes:
 
 - `GET/POST /api/admin/products`
-- `GET/PATCH/DELETE /api/admin/products/:productId` (DELETE archiva mediante `is_active=false`)
+- `PATCH/DELETE /api/admin/products/:productId` (PATCH con `{ "is_active": boolean }` cambia solo la disponibilidad; DELETE conserva compatibilidad y archiva sin borrar la fila)
 - `GET/POST /api/admin/categories`
 - `GET/PATCH/DELETE /api/admin/categories/:categoryId` (DELETE desactiva)
 - `GET/PATCH /api/admin/home-content`

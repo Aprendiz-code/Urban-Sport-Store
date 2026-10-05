@@ -70,6 +70,18 @@ describe('authenticated admin API client', () => {
     expect(requests[3].headers.get('Content-Type')).toBe('image/png');
   });
 
+  it('sends availability changes as an authenticated minimal PATCH payload', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(successfulResponse(200, { id: 'product-1', is_active: false }) as Response);
+
+    await expect(adminApi.updateProductAvailabilityApi('product-1', false)).resolves.toEqual({ id: 'product-1', is_active: false });
+
+    const [url, options] = vi.mocked(fetch).mock.calls[0] ?? [];
+    expect(new URL(String(url), 'http://localhost').pathname).toBe('/api/admin/products/product-1');
+    expect(options?.method).toBe('PATCH');
+    expect(JSON.parse(String(options?.body))).toEqual({ is_active: false });
+    expect(new Headers(options?.headers).get('Authorization')).toBe('Bearer current-admin-token');
+  });
+
   it('does not send a request when there is no session', async () => {
     vi.mocked(getAccessToken).mockResolvedValueOnce(null);
 

@@ -26,7 +26,7 @@ import {
 } from "./components/LazyRecharts";
 // promoRibbon moved to src/assets/cinta-10.png
 import type { ProductRecord } from "../lib/supabase-store";
-import { createProductViaAdminApi, deleteProductViaAdminApi, updateProductViaAdminApi } from "../lib/admin-product-fallback";
+import { createProductViaAdminApi, updateProductViaAdminApi } from "../lib/admin-product-fallback";
 import {
   signInWithEmail,
   signUpWithEmail,
@@ -44,9 +44,10 @@ import adminApi, { createSupabaseProductApi, updateSupabaseProductApi, deleteSup
 import { uploadProductImage, getPublicUrl, STORAGE_BUCKET } from "../lib/supabase-store";
 import { recordAction, getAudit } from "../lib/audit";
 import { productSchema } from '../lib/schemas';
-import { normalizeGuestCartEntries } from '../lib/cart-service';
+import { normalizeGuestCartEntries, resolveGuestCartEntries } from '../lib/cart-service';
 import { MAX_PRODUCT_GALLERY_IMAGES, MAX_PRODUCT_TOTAL_IMAGES, normalizeProductSizes, normalizeProductSpecifications, submitAdminProductForm, validateProductForm } from '../lib/admin-product-form';
 import { buildAdminProductPayload } from '../lib/admin-product-payload';
+import { filterAdminProducts, type AdminProductStatusFilter } from '../lib/admin-product-list';
 import { normalizeProductImageList, resolveProductPublicImageUrl, uploadSelectedProductImages } from '../lib/admin-product-images';
 import ProductGallery from './components/ProductGallery';
 import Toaster from './components/LazyToaster';
@@ -233,6 +234,8 @@ const mapProductRecordToAppProduct = (record: ProductRecord, categories: readonl
     colors: record.colors ?? [],
     sizes: record.sizes ?? [],
     specifications: record.specifications ?? [],
+    isActive: record.is_active !== false,
+    createdAt: record.created_at ?? record.updated_at ?? undefined,
     gender: record.gender as Product["gender"],
     isNew: record.is_new ?? false,
     isFeatured: record.is_featured ?? false,
@@ -260,6 +263,7 @@ const mapAppProductToProductRecord = (product: Partial<Product> & { id?: string 
   colors: product.colors ?? [],
   sizes: product.sizes ?? [],
   specifications: product.specifications ?? [],
+  is_active: product.isActive ?? true,
   gender: (product.gender ?? "Unisex") as string,
   is_new: product.isNew ?? false,
   is_featured: product.isFeatured ?? false,
@@ -287,6 +291,12 @@ const ORDERS: OrderSummary[] = [];
 
 const fmt = (n: number) =>
   "$" + n.toLocaleString("es-CO");
+
+const formatAdminProductDate = (value?: string | null) => {
+  if (!value) return "—";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleDateString("es-CO", { year: "numeric", month: "short", day: "numeric" });
+};
 
 const STATUS_STYLE: Record<string, string> = {
   "Enviado":     "bg-blue-50 text-blue-700 border border-blue-200",
@@ -2826,7 +2836,7 @@ function AccountPage({ onNavigate, onLogout, authUser, addresses, onCreateAddres
 
 // ─── ADMIN DASHBOARD ──────────────────────────────────────────────────────────
 
-function AdminDashboard({ onNavigate, products, productsStatus, productsError, onRetryProducts, categories, createProduct, updateProduct, deleteProduct, adjustStock, productRefresh, initialSection, adminRole, homeContent, setHomeContent, homePreviewProducts, setHomePreviewProducts, homeSaleProducts, setHomeSaleProducts, homeNewArrivals, setHomeNewArrivals, saveHomeContent, homeContentSaving, backendAdminAvailable }: {
+function AdminDashboard({ onNavigate, products, productsStatus, productsError, onRetryProducts, categories, createProduct, updateProduct, setProductActive, softDeleteProduct, adjustStock, productRefresh, initialSection, adminRole, homeContent, setHomeContent, homePreviewProducts, setHomePreviewProducts, homeSaleProducts, setHomeSaleProducts, homeNewArrivals, setHomeNewArrivals, saveHomeContent, homeContentSaving, backendAdminAvailable }: {
   onNavigate: (v: View) => void;
   products: Product[];
   productsStatus: ProductsStatus;
@@ -2835,7 +2845,8 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
   categories: CategoryOption[];
   createProduct: (product: Omit<Product, "id">) => Promise<void>;
   updateProduct: (productId: string, updates: Partial<Product>) => Promise<void>;
-  deleteProduct: (productId: string) => Promise<void>;
+  setProductActive: (productId: string, isActive: boolean) => Promise<void>;
+  softDeleteProduct: (productId: string) => Promise<void>;
   adjustStock: (productId: string, delta: number) => void;
   productRefresh: number;
   initialSection?: string;
@@ -2854,6 +2865,9 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
 }) {
   const [adminSection, setAdminSection] = useState(initialSection ?? "dashboard");
   const [searchTerm, setSearchTerm] = useState("");
+  const [productStatusFilter, setProductStatusFilter] = useState<AdminProductStatusFilter>("all");
+  const [availabilityUpdatingId, setAvailabilityUpdatingId] = useState<string | null>(null);
+  const [deletingProductId, setDeletingProductId] = useState<string | null>(null);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [activeProduct, setActiveProduct] = useState<Product | null>(null);
   const [productForm, setProductForm] = useState<Omit<Product, "id">>({
@@ -2879,7 +2893,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
   }, []);
 
   const metrics = [
-    { label: "Productos activos", value: products.length.toString(), icon: <Package size={18} /> },
+    { label: "Productos activos", value: products.filter((product) => product.isActive !== false).length.toString(), icon: <Package size={18} /> },
     { label: "Stock total", value: products.reduce((sum, product) => sum + (product.stock ?? 0), 0).toLocaleString('es-CO'), icon: <TrendingUp size={18} /> },
     { label: "Valor catálogo", value: fmt(products.reduce((sum, product) => sum + (product.price ?? 0) * Math.max(product.stock ?? 0, 0), 0)), icon: <DollarSign size={18} /> },
     { label: "Inventario bajo", value: `${products.filter((product) => (product.stock ?? 0) <= 10).length} productos`, icon: <AlertTriangle size={18} /> },
@@ -3009,21 +3023,21 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       id: "preview" as const,
       title: "Productos destacados",
       selected: homePreviewProducts,
-      options: products.filter((p) => p.isFeatured || p.rating >= 4.5).slice(0, 9),
+      options: products.filter((p) => p.isActive !== false && (p.isFeatured || p.rating >= 4.5)).slice(0, 9),
       description: "Selecciona hasta 9 productos que aparecerán en la sección destacada.",
     },
     {
       id: "newArrivals" as const,
       title: "Novedades",
       selected: homeNewArrivals,
-      options: products.filter((p) => p.isNew).slice(0, 9),
+      options: products.filter((p) => p.isActive !== false && p.isNew).slice(0, 9),
       description: "Selecciona hasta 9 lanzamientos recientes que quieras mostrar.",
     },
     {
       id: "sale" as const,
       title: "En descuento ahora",
       selected: homeSaleProducts,
-      options: products.filter((p) => p.discount).slice(0, 9),
+      options: products.filter((p) => p.isActive !== false && p.discount).slice(0, 9),
       description: "Selecciona hasta 9 productos en descuento para destacar en la home.",
     },
   ];
@@ -3041,17 +3055,50 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     name: product.name, stock: product.stock, sku: product.sku,
   }));
 
-  const filteredProducts = products.filter((product) =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.sku.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredProducts = filterAdminProducts(products, searchTerm, productStatusFilter);
 
   const [page, setPage] = useState(1);
   const perPage = 12;
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / perPage));
   const paginatedProducts = filteredProducts.slice((page - 1) * perPage, page * perPage);
+
+  useEffect(() => {
+    setPage((currentPage) => Math.min(currentPage, totalPages));
+  }, [totalPages]);
+
+  const handleProductAvailabilityChange = async (product: Product) => {
+    const isActive = product.isActive === false;
+    const action = isActive ? "Activar producto" : "Desactivar producto";
+    const consequence = isActive
+      ? "volverá a aparecer en el catálogo público."
+      : "se ocultará del catálogo público y se conservarán pedidos e imágenes.";
+    if (!window.confirm(`${action} "${product.name}"? El producto ${consequence}`)) return;
+
+    setAvailabilityUpdatingId(product.id);
+    try {
+      await setProductActive(product.id, isActive);
+      toast.success(isActive ? "Producto activado correctamente" : "Producto desactivado correctamente");
+    } catch (error) {
+      toast.error(formatAdminApiError(error, "No se pudo actualizar el estado del producto."));
+    } finally {
+      setAvailabilityUpdatingId(null);
+    }
+  };
+
+  const handleSafeProductDelete = async (product: Product) => {
+    const confirmation = `¿Eliminar de forma segura "${product.name}"? El producto se ocultará del catálogo, pero se conservarán la fila, las imágenes, las variantes y las referencias de carritos y pedidos. Un borrado físico podría eliminarlos o romper el historial.`;
+    if (!window.confirm(confirmation)) return;
+
+    setDeletingProductId(product.id);
+    try {
+      await softDeleteProduct(product.id);
+      toast.success("Producto eliminado de forma segura y conservado como inactivo.");
+    } catch (error) {
+      toast.error(formatAdminApiError(error, "No se pudo eliminar el producto de forma segura."));
+    } finally {
+      setDeletingProductId(null);
+    }
+  };
 
   const releaseImagePreview = (url?: string) => {
     if (!url || !objectUrlsRef.current.delete(url)) return;
@@ -3230,15 +3277,6 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     };
 
     void executeSave();
-  };
-
-  const handleDeleteProduct = async (productId: string) => {
-    try {
-      await deleteProduct(productId);
-      if (activeProduct?.id === productId) resetForm();
-    } catch (error) {
-      toast.error(formatAdminApiError(error, "No se pudo archivar el producto."));
-    }
   };
 
   useEffect(() => { refreshAudit(); }, [productRefresh]);
@@ -3582,48 +3620,104 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
         return (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
             <div className="lg:col-span-2 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] p-5">
-              <div className="flex items-center justify-between gap-4 mb-4">
-                <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar productos por nombre, marca o SKU"
-                  className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none" />
+              <div className="flex flex-col justify-between gap-3 mb-4 sm:flex-row sm:items-center sm:gap-4">
+                <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar por nombre, marca o SKU"
+                  className="w-full min-w-0 flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none" />
+                <select aria-label="Filtrar productos por estado" value={productStatusFilter} onChange={(event) => setProductStatusFilter(event.target.value as AdminProductStatusFilter)}
+                  className="min-h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 sm:w-auto">
+                  <option value="all">Todos</option>
+                  <option value="active">Activos</option>
+                  <option value="inactive">Inactivos</option>
+                </select>
                 <button onClick={() => { resetForm(); setFormMode('create'); }}
-                  className="ml-3 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-black text-white font-semibold hover:bg-slate-900">
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-black px-4 py-2 font-semibold text-white hover:bg-slate-900 sm:ml-3 sm:w-auto">
                   <Plus size={14} /> Nuevo producto
                 </button>
               </div>
 
-              <div className="overflow-x-auto">
+              <div className="hidden overflow-x-auto 2xl:block">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-slate-50">
-                      {['Imagen', 'Nombre', 'Marca', 'Precio', 'Stock', 'Acciones'].map((h) => (
+                      {['Imagen', 'Nombre', 'Marca', 'Categoría', 'Precio', 'Stock', 'Estado', 'Creado', 'Acciones'].map((h) => (
                         <th key={h} className="text-left px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wide">{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {productsStatus === "loading" ? (
-                      <tr><td colSpan={6} role="status" className="px-4 py-10 text-center text-sm text-slate-500">Cargando productos administrativos...</td></tr>
+                      <tr><td colSpan={9} role="status" className="px-4 py-10 text-center text-sm text-slate-500">Cargando productos administrativos...</td></tr>
                     ) : productsStatus === "error" ? (
-                      <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-red-700"><div role="alert">{productsError ?? "No se pudieron cargar los productos administrativos."}</div><button type="button" onClick={onRetryProducts} className="mt-2 font-semibold underline">Reintentar</button></td></tr>
+                      <tr><td colSpan={9} className="px-4 py-10 text-center text-sm text-red-700"><div role="alert">{productsError ?? "No se pudieron cargar los productos administrativos."}</div><button type="button" onClick={onRetryProducts} className="mt-2 font-semibold underline">Reintentar</button></td></tr>
                     ) : paginatedProducts.length === 0 ? (
-                      <tr><td colSpan={6} role="status" className="px-4 py-10 text-center text-sm text-slate-500">No hay productos administrativos.</td></tr>
+                      <tr><td colSpan={9} role="status" className="px-4 py-10 text-center text-sm text-slate-500">No hay productos para este filtro.</td></tr>
                     ) : paginatedProducts.map((p) => (
                       <tr key={p.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
                         <td className="px-4 py-3"><img src={p.image} alt={p.name} className="w-12 h-12 object-cover rounded-lg" /></td>
                         <td className="px-4 py-3 text-sm font-semibold text-slate-800">{p.name}</td>
                         <td className="px-4 py-3 text-sm text-slate-600">{p.brand}</td>
+                        <td className="px-4 py-3 text-sm text-slate-600">{p.category || "—"}</td>
                         <td className="price px-4 py-3 text-sm text-slate-900">{fmt(p.price)}</td>
                         <td className="px-4 py-3 text-sm text-slate-700">{p.stock}</td>
+                        <td className="px-4 py-3 text-sm">
+                          <span className={p.isActive === false ? "inline-flex rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700" : "inline-flex rounded-md bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-800"}>
+                            {p.isActive === false ? "Inactivo" : "Activo"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-slate-600">{formatAdminProductDate(p.createdAt)}</td>
                         <td className="px-4 py-3">
-                          <div className="flex gap-2">
+                          <div className="flex flex-wrap gap-2">
                             <button onClick={() => handleEditProduct(p)} className="px-3 py-1.5 rounded-lg bg-black text-white font-semibold">Editar</button>
-                            <button onClick={() => { if (confirm(`Archivar ${p.name}? Dejará de aparecer en la tienda pública.`)) handleDeleteProduct(p.id); }} className="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 font-semibold">Archivar</button>
+                            <button type="button" onClick={() => void handleProductAvailabilityChange(p)} disabled={availabilityUpdatingId !== null || deletingProductId !== null}
+                              aria-busy={availabilityUpdatingId === p.id}
+                              className={p.isActive === false ? "px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-800 font-semibold disabled:cursor-wait disabled:opacity-60" : "px-3 py-1.5 rounded-lg bg-red-50 text-red-700 font-semibold disabled:cursor-wait disabled:opacity-60"}>
+                              {availabilityUpdatingId === p.id ? "Actualizando…" : p.isActive === false ? "Activar producto" : "Desactivar producto"}
+                            </button>
+                            {p.isActive !== false && <button type="button" onClick={() => void handleSafeProductDelete(p)} disabled={availabilityUpdatingId !== null || deletingProductId !== null}
+                              aria-busy={deletingProductId === p.id} className="px-3 py-1.5 rounded-lg bg-rose-50 text-rose-800 font-semibold disabled:cursor-wait disabled:opacity-60">
+                              {deletingProductId === p.id ? "Eliminando…" : "Eliminar"}
+                            </button>}
                           </div>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+              </div>
+              <div className="space-y-3 2xl:hidden">
+                {productsStatus === "loading" ? (
+                  <div role="status" className="rounded-lg border border-slate-200 px-4 py-8 text-center text-sm text-slate-500">Cargando productos administrativos...</div>
+                ) : productsStatus === "error" ? (
+                  <div className="rounded-lg border border-red-200 px-4 py-6 text-center text-sm text-red-700"><div role="alert">{productsError ?? "No se pudieron cargar los productos administrativos."}</div><button type="button" onClick={onRetryProducts} className="mt-2 font-semibold underline">Reintentar</button></div>
+                ) : paginatedProducts.length === 0 ? (
+                  <div role="status" className="rounded-lg border border-slate-200 px-4 py-8 text-center text-sm text-slate-500">No hay productos para este filtro.</div>
+                ) : paginatedProducts.map((p) => (
+                  <article key={p.id} className="min-w-0 rounded-lg border border-slate-200 bg-white p-3">
+                    <div className="flex min-w-0 gap-3">
+                      <img src={p.image} alt={p.name} className="h-16 w-16 shrink-0 rounded-md object-cover" />
+                      <div className="min-w-0 flex-1">
+                        <h3 className="break-words text-sm font-semibold text-slate-900">{p.name}</h3>
+                        <p className="break-words text-xs text-slate-600">{p.brand} · {p.category || "Sin categoría"}</p>
+                        <p className="mt-1 text-xs text-slate-700">{fmt(p.price)} · Stock {p.stock}</p>
+                        <p className="mt-1 text-xs text-slate-500">Creado {formatAdminProductDate(p.createdAt)}</p>
+                        <span className={p.isActive === false ? "mt-2 inline-flex rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700" : "mt-2 inline-flex rounded-md bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-800"}>
+                          {p.isActive === false ? "Inactivo" : "Activo"}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="mt-3 grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
+                      <button type="button" onClick={() => handleEditProduct(p)} className="min-h-10 rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white">Editar</button>
+                      <button type="button" onClick={() => void handleProductAvailabilityChange(p)} disabled={availabilityUpdatingId !== null || deletingProductId !== null}
+                        aria-busy={availabilityUpdatingId === p.id} className="min-h-10 rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-800 disabled:cursor-wait disabled:opacity-60">
+                        {availabilityUpdatingId === p.id ? "Actualizando…" : p.isActive === false ? "Activar producto" : "Desactivar producto"}
+                      </button>
+                      {p.isActive !== false && <button type="button" onClick={() => void handleSafeProductDelete(p)} disabled={availabilityUpdatingId !== null || deletingProductId !== null}
+                        aria-busy={deletingProductId === p.id} className="min-h-10 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-800 disabled:cursor-wait disabled:opacity-60">
+                        {deletingProductId === p.id ? "Eliminando…" : "Eliminar de forma segura"}
+                      </button>}
+                    </div>
+                  </article>
+                ))}
               </div>
               <div className="flex items-center justify-between mt-3">
                 <div className="text-sm text-slate-500">Mostrando {(page - 1) * perPage + 1} - {Math.min(page * perPage, filteredProducts.length)} de {filteredProducts.length}</div>
@@ -4443,30 +4537,9 @@ export default function App() {
   useEffect(() => {
     if (productsStatus !== "ready" || cartRestoreComplete) return;
 
-    const currentProducts = new Map(products.map((product) => [product.id, product]));
-    const restoredItems: StorefrontCartLine[] = [];
-    const unresolvedItems: GuestCartItem[] = [];
-
-    for (const entry of loadStoredCartEntries()) {
-      const product = currentProducts.get(entry.productId);
-      const sizeUnavailable = entry.selectedSize && entry.selectedSize !== "Talla única" && !product?.sizes.includes(entry.selectedSize);
-      const colorUnavailable = entry.selectedColor && !product?.colors.some((color) => color.name === entry.selectedColor);
-
-      if (!product || sizeUnavailable || colorUnavailable) {
-        unresolvedItems.push(entry);
-        continue;
-      }
-
-      restoredItems.push({
-        product,
-        qty: entry.quantity,
-        selectedSize: entry.selectedSize ?? "Talla única",
-        selectedColor: entry.selectedColor ?? "",
-      });
-    }
-
-    setCart(restoredItems);
-    setUnavailableCartItems(unresolvedItems);
+    const resolvedCart = resolveGuestCartEntries(loadStoredCartEntries(), products);
+    setCart(resolvedCart.restoredItems);
+    setUnavailableCartItems(resolvedCart.unavailableItems);
     setCartRestoreComplete(true);
   }, [cartRestoreComplete, products, productsStatus]);
 
@@ -4808,11 +4881,21 @@ export default function App() {
     try { recordAction('update_product', { id: updatedAppProduct.id, name: updatedAppProduct.name }); } catch (e) { }
   };
 
-  const deleteProduct = async (productId: string) => {
-    await deleteProductViaAdminApi(productId);
-    refreshProducts();
-    toast.success("Producto eliminado correctamente.");
-    try { recordAction('delete_product', { id: productId }); } catch (e) { }
+  const setProductActive = async (productId: string, isActive: boolean) => {
+    const updated = await adminApi.updateProductAvailabilityApi(productId, isActive) as ProductRecord;
+    if (updated?.is_active !== isActive) {
+      throw new Error('La API no confirmó el cambio de estado del producto.');
+    }
+
+    const updatedProduct = mapProductRecordToAppProduct(updated, categoryOptions);
+    setAdminProducts((current) => current.map((product) => product.id === productId ? updatedProduct : product));
+    try { recordAction(isActive ? 'activate_product' : 'deactivate_product', { id: productId }); } catch (error) { }
+  };
+
+  const softDeleteProduct = async (productId: string) => {
+    await adminApi.deleteProductApi(productId);
+    setAdminProducts((current) => current.map((product) => product.id === productId ? { ...product, isActive: false } : product));
+    try { recordAction('soft_delete_product', { id: productId }); } catch (error) { }
   };
 
   const adjustStock = async (productId: string, delta: number) => {
@@ -5071,7 +5154,8 @@ export default function App() {
           categories={categoryOptions}
           createProduct={createProduct}
           updateProduct={updateProduct}
-          deleteProduct={deleteProduct}
+          setProductActive={setProductActive}
+          softDeleteProduct={softDeleteProduct}
           adjustStock={adjustStock}
           productRefresh={productRefresh}
           initialSection={initialAdminSection}

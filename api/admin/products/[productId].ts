@@ -51,6 +51,53 @@ export default async function handler(req: any, res: any) {
 
     if (req.method === 'PATCH') {
       const body = await parseJsonBody(req);
+      if (!body || typeof body !== 'object' || Array.isArray(body)) {
+        throw new ApiError(400, 'Request body must be an object.');
+      }
+
+      if (Object.prototype.hasOwnProperty.call(body, 'is_active')) {
+        if (Object.keys(body).length !== 1 || typeof body.is_active !== 'boolean') {
+          throw new ApiError(400, 'Availability updates must contain only a boolean is_active field.');
+        }
+
+        const { data: beforeData, error: beforeError } = await supabaseAdmin
+          .from('products')
+          .select('*')
+          .eq('id', productId)
+          .maybeSingle();
+        if (beforeError) {
+          return jsonSupabaseError(res, '[Admin Products] Product lookup before availability update failed', beforeError, 'Unable to load product before updating availability.');
+        }
+        if (!beforeData) {
+          return jsonError(res, 404, 'Product not found.');
+        }
+
+        const { data, error } = await supabaseAdmin
+          .from('products')
+          .update({ is_active: body.is_active })
+          .eq('id', productId)
+          .select('*')
+          .maybeSingle();
+        if (error) {
+          return jsonSupabaseError(res, '[Admin Products] Product availability update failed', error, 'Unable to update product availability.');
+        }
+        if (!data) {
+          return jsonError(res, 404, 'Product not found.');
+        }
+
+        await supabaseAdmin.from('audit_logs').insert({
+          actor_id: user.id,
+          action: body.is_active ? 'activate_product' : 'deactivate_product',
+          entity: 'product',
+          entity_id: productId,
+          entity_id_uuid: productId,
+          before_data: beforeData,
+          after_data: data,
+        });
+
+        return jsonResponse(res, { data });
+      }
+
       const updates = await normalizeProductUpdates(body);
       if (Object.keys(updates).length === 0) {
         throw new ApiError(400, 'No update fields provided');

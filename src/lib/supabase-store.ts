@@ -27,9 +27,12 @@ export interface ProductRecord {
   gender?: string | null;
   is_new?: boolean | null;
   is_featured?: boolean | null;
+  is_active?: boolean | null;
   specs?: string[] | null;
   specifications?: ProductSpecification[] | null;
   reviews_count?: number | null;
+  created_at?: string | null;
+  updated_at?: string | null;
 }
 
 export function resolveStorageBucket(configuredBucket?: string): string {

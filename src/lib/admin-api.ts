@@ -159,6 +159,10 @@ export async function updateProductApi(productId: string, payload: Partial<Produ
   return callApi(`/products/${productId}`, { method: 'PATCH', body: JSON.stringify(payload) });
 }
 
+export async function updateProductAvailabilityApi(productId: string, isActive: boolean) {
+  return callApi(`/products/${productId}`, { method: 'PATCH', body: JSON.stringify({ is_active: isActive }) });
+}
+
 export async function deleteProductApi(productId: string) {
   return callApi(`/products/${productId}`, { method: 'DELETE' });
 }
@@ -191,4 +195,4 @@ export async function fetchAuditLogs(limit = 200) {
   return callApi(`/audit?limit=${limit}`, { method: 'GET' });
 }
 
-export default { fetchProducts, createProductApi, uploadProductImageApi, fetchSupabaseProducts, createSupabaseProductApi, updateSupabaseProductApi, deleteSupabaseProductApi, updateProductApi, deleteProductApi, updateHomeContentApi, createInventoryMovement, fetchAuditLogs };
+export default { fetchProducts, createProductApi, uploadProductImageApi, fetchSupabaseProducts, createSupabaseProductApi, updateSupabaseProductApi, deleteSupabaseProductApi, updateProductApi, updateProductAvailabilityApi, deleteProductApi, updateHomeContentApi, createInventoryMovement, fetchAuditLogs };

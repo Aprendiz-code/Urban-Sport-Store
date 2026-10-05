@@ -57,6 +57,7 @@ export interface Product {
   isNew?: boolean;
   isFeatured?: boolean;
   isActive?: boolean;
+  createdAt?: string;
   specs?: string[];
   specifications?: ProductSpecification[];
 }

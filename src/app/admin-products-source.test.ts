@@ -39,4 +39,43 @@ describe('admin products table data source', () => {
     expect(appSource).toContain('onRetryProducts');
     expect(appSource).toContain('paginatedProducts.length === 0 ?');
   });
+
+  it('maps availability and exposes status filters and row actions', () => {
+    expect(appSource).toContain('isActive: record.is_active !== false');
+    expect(appSource).toContain('<option value="all">Todos</option>');
+    expect(appSource).toContain('<option value="active">Activos</option>');
+    expect(appSource).toContain('<option value="inactive">Inactivos</option>');
+    expect(appSource).toContain("'Estado'");
+    expect(appSource).toContain('Desactivar producto');
+    expect(appSource).toContain('Activar producto');
+    expect(appSource).toContain('window.confirm(`${action}');
+    expect(appSource).toContain('Producto desactivado correctamente');
+    expect(appSource).toContain('Producto activado correctamente');
+  });
+
+  it('updates the admin row locally through the minimal status API', () => {
+    const statusUpdater = appSource.match(/const setProductActive = async[\s\S]*?\n  };/);
+
+    expect(statusUpdater?.[0]).toContain('updateProductAvailabilityApi(productId, isActive)');
+    expect(statusUpdater?.[0]).toContain('setAdminProducts((current) => current.map');
+    expect(statusUpdater?.[0]).not.toContain('refreshProducts()');
+  });
+
+  it('shows category and creation date while using a no-overflow mobile card layout', () => {
+    expect(appSource).toContain("['Imagen', 'Nombre', 'Marca', 'Categoría', 'Precio', 'Stock', 'Estado', 'Creado', 'Acciones']");
+    expect(appSource).toContain('createdAt: record.created_at ?? record.updated_at ?? undefined');
+    expect(appSource).toContain('2xl:hidden');
+    expect(appSource).toContain('<article key={p.id} className="min-w-0 rounded-lg');
+    expect(appSource).toContain('break-words text-xs text-slate-600">{p.brand} · {p.category');
+  });
+
+  it('offers safe logical deletion with an explicit relationship warning and pending state', () => {
+    expect(appSource).toContain('handleSafeProductDelete');
+    expect(appSource).toContain('softDeleteProduct(product.id)');
+    expect(appSource).toContain('imágenes, las variantes y las referencias de carritos y pedidos');
+    expect(appSource).toContain('Eliminar de forma segura');
+    expect(appSource).toContain('Eliminando…');
+    expect(appSource).toContain('Producto eliminado de forma segura y conservado como inactivo.');
+    expect(appSource).toContain('adminApi.deleteProductApi(productId)');
+  });
 });

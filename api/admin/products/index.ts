@@ -5,6 +5,8 @@ import { requireAuthenticatedUser } from '../../../lib/api-helpers/auth.ts';
 import { normalizeProductPayload } from '../../../lib/api-helpers/product-helpers.ts';
 import { handleProductImageUpload } from '../../../lib/api-helpers/product-image-upload.ts';
 
+const PRODUCT_LIST_PAGE_SIZE = 1000;
+
 function isProductImageUploadRequest(req: any): boolean {
   const requestUrl = new URL(req.url ?? '', 'http://localhost');
   const pathname = requestUrl.pathname.replace(/\/+$/, '');
@@ -40,9 +42,20 @@ export default async function handler(req: any, res: any) {
 
     if (req.method === 'GET') {
       await requirePermission(user, 'products.read');
-      const { data, error } = await supabaseAdmin.from('products').select('*').order('created_at', { ascending: false });
-      if (error) {
-        return jsonSupabaseError(res, '[Admin Products] Product list query failed', error, 'Unable to fetch products.');
+      const data: any[] = [];
+      for (let offset = 0; ; offset += PRODUCT_LIST_PAGE_SIZE) {
+        const { data: page, error } = await supabaseAdmin
+          .from('products')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: true })
+          .range(offset, offset + PRODUCT_LIST_PAGE_SIZE - 1);
+        if (error) {
+          return jsonSupabaseError(res, '[Admin Products] Product list query failed', error, 'Unable to fetch products.');
+        }
+
+        data.push(...(page ?? []));
+        if (!page || page.length < PRODUCT_LIST_PAGE_SIZE) break;
       }
       return jsonResponse(res, { data });
     }

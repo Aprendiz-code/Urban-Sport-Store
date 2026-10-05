@@ -1,4 +1,4 @@
-import type { Address, CartItem, CheckoutItem, ProductVariant } from '../types/domain';
+import type { Address, CartItem, CheckoutItem, GuestCartItem, Product, ProductVariant } from '../types/domain';
 
 export const CART_STORAGE_KEY = 'urbansport_cart_v1';
 
@@ -33,6 +33,32 @@ export const normalizeGuestCartEntries = (value: unknown): Array<{
       ...(typeof record.selectedColor === 'string' ? { selectedColor: record.selectedColor.slice(0, 60) } : {}),
     }];
   });
+};
+
+export const resolveGuestCartEntries = (entries: GuestCartItem[], products: Product[]) => {
+  const productsById = new Map(products.map((product) => [product.id, product]));
+  const restoredItems: Array<{ product: Product; qty: number; selectedSize: string; selectedColor: string }> = [];
+  const unavailableItems: GuestCartItem[] = [];
+
+  for (const entry of entries) {
+    const product = productsById.get(entry.productId);
+    const sizeUnavailable = Boolean(entry.selectedSize && entry.selectedSize !== 'Talla única' && !product?.sizes.includes(entry.selectedSize));
+    const colorUnavailable = Boolean(entry.selectedColor && !product?.colors.some((color) => color.name === entry.selectedColor));
+
+    if (!product || product.isActive === false || sizeUnavailable || colorUnavailable) {
+      unavailableItems.push(entry);
+      continue;
+    }
+
+    restoredItems.push({
+      product,
+      qty: entry.quantity,
+      selectedSize: entry.selectedSize ?? 'Talla única',
+      selectedColor: entry.selectedColor ?? '',
+    });
+  }
+
+  return { restoredItems, unavailableItems };
 };
 
 export type CartMergeIssue = {

@@ -6,7 +6,7 @@ import {
   allowedOrderStatusTransitions,
   profileUpdateSchema,
 } from '../commerce-validation';
-import { normalizeGuestCartEntries } from '../cart-service';
+import { normalizeGuestCartEntries, resolveGuestCartEntries } from '../cart-service';
 
 describe('commerce validation', () => {
   it('accepts a valid address and customer order request', () => {
@@ -76,6 +76,31 @@ describe('commerce validation', () => {
       selectedColor: 'Negro',
     }]);
     expect(normalizeGuestCartEntries([{ productId: 'product-2', quantity: 0 }])).toEqual([]);
+  });
+
+  it('retains cart lines for inactive or missing products as unavailable', () => {
+    const entries = [
+      { productId: 'active', quantity: 1 },
+      { productId: 'inactive', quantity: 2, selectedSize: 'M' },
+      { productId: 'missing', quantity: 3 },
+    ];
+    const products = [
+      {
+        id: 'active', name: 'Activo', brand: 'Marca', price: 100, rating: 0, reviews: 0,
+        image: '', category: '', subcategory: '', stock: 1, sku: 'A', description: '',
+        colors: [], sizes: [], isActive: true,
+      },
+      {
+        id: 'inactive', name: 'Inactivo', brand: 'Marca', price: 100, rating: 0, reviews: 0,
+        image: '', category: '', subcategory: '', stock: 1, sku: 'I', description: '',
+        colors: [], sizes: ['M'], isActive: false,
+      },
+    ];
+
+    const result = resolveGuestCartEntries(entries, products);
+
+    expect(result.restoredItems.map((item) => item.product.id)).toEqual(['active']);
+    expect(result.unavailableItems).toEqual([entries[1], entries[2]]);
   });
 
   it('accepts only personal profile fields', () => {
