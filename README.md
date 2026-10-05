@@ -182,6 +182,7 @@ VITE_SUPABASE_URL=
 VITE_SUPABASE_ANON_KEY=
 VITE_SUPABASE_STORAGE_BUCKET=products
 VITE_API_URL=http://localhost:4000
+# Opcionales: por defecto se usan /terminos-y-condiciones y /politica-de-privacidad
 VITE_TERMS_URL=
 VITE_PRIVACY_POLICY_URL=
 ```
@@ -232,6 +233,7 @@ WHERE id = 'REEMPLAZAR_CON_UUID_DEL_USUARIO';
 VITE_SUPABASE_URL=https://project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
 VITE_SUPABASE_STORAGE_BUCKET=products
+# Optional overrides; defaults are /terminos-y-condiciones and /politica-de-privacidad.
 VITE_TERMS_URL=
 VITE_PRIVACY_POLICY_URL=
 ```

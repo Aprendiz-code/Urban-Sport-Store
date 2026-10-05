@@ -26,8 +26,7 @@
 
 - [ ] `VITE_SUPABASE_URL`: Set to production Supabase project
 - [ ] `VITE_SUPABASE_ANON_KEY`: Set to production anon key (safe to expose)
-- [ ] `VITE_TERMS_URL`: Public URL for the accepted terms
-- [ ] `VITE_PRIVACY_POLICY_URL`: Public URL for the privacy policy
+- Optional overrides: `VITE_TERMS_URL` and `VITE_PRIVACY_POLICY_URL`. By default, registration links to `/terminos-y-condiciones` and `/politica-de-privacidad`.
 
 ## Backend Environment
 

@@ -2251,18 +2251,12 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
   const [recoveryMessage, setRecoveryMessage] = useState<string | null>(null);
   const [recoveryLoading, setRecoveryLoading] = useState(false);
   const recoveryRequestInFlight = useRef(false);
-  const [acceptedPolicies, setAcceptedPolicies] = useState(false);
-  const termsUrl = import.meta.env.VITE_TERMS_URL?.trim() ?? "";
-  const privacyPolicyUrl = import.meta.env.VITE_PRIVACY_POLICY_URL?.trim() ?? "";
-  const policiesAvailable = Boolean(termsUrl && privacyPolicyUrl);
+  const termsUrl = import.meta.env.VITE_TERMS_URL?.trim() || STORE_CONFIG.termsPath;
+  const privacyPolicyUrl = import.meta.env.VITE_PRIVACY_POLICY_URL?.trim() || STORE_CONFIG.privacyPolicyPath;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading || recoveryRequestInFlight.current) return;
-    if (isRegister && (!policiesAvailable || !acceptedPolicies)) {
-      setError("El registro requiere publicar y aceptar los Términos y la Política de privacidad.");
-      return;
-    }
     setLoading(true);
     setError(null);
 
@@ -2438,18 +2432,11 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
               </div>
             )}
 
-            {/* Terms checkbox for register */}
+            {/* Legal links for register */}
             {isRegister && (
-              policiesAvailable ? (
-                <label className="flex items-start gap-3 cursor-pointer group">
-                  <input type="checkbox" required checked={acceptedPolicies} onChange={(event) => setAcceptedPolicies(event.target.checked)} className="mt-1 w-4 h-4 accent-[#1d4ed8] cursor-pointer" />
-                  <span className="text-xs text-slate-700 leading-relaxed">
-                    Acepto los <a href={termsUrl} target="_blank" rel="noreferrer" className="text-[#1d4ed8] font-semibold underline">Términos</a> y la <a href={privacyPolicyUrl} target="_blank" rel="noreferrer" className="text-[#1d4ed8] font-semibold underline">Política de privacidad</a>.
-                  </span>
-                </label>
-              ) : (
-                <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">El registro estará disponible cuando se configuren los enlaces públicos de Términos y Política de privacidad.</p>
-              )
+              <p className="text-xs leading-relaxed text-slate-700">
+                Al crear una cuenta, aceptas nuestros <a href={termsUrl} target="_blank" rel="noreferrer" className="font-semibold text-[#1d4ed8] underline">Términos y Condiciones</a> y la <a href={privacyPolicyUrl} target="_blank" rel="noreferrer" className="font-semibold text-[#1d4ed8] underline">Política de Privacidad</a>.
+              </p>
             )}
 
             {/* Error message */}
@@ -2463,7 +2450,7 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
             {/* Submit button */}
             <button 
               type="submit" 
-              disabled={loading || (isRegister && (!policiesAvailable || !acceptedPolicies))}
+              disabled={loading}
               className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#1d4ed8] to-blue-600 text-white font-extrabold text-base hover:shadow-lg hover:shadow-blue-500/30 disabled:opacity-60 disabled:shadow-none transition-all duration-300 flex items-center justify-center gap-2 transform hover:scale-105"
             >
               {loading ? (

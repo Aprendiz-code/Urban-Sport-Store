@@ -29,6 +29,7 @@ VITE_SUPABASE_URL=https://<project-ref>.supabase.co
 VITE_SUPABASE_ANON_KEY=<anon-key>
 VITE_SUPABASE_STORAGE_BUCKET=products
 VITE_API_URL=/api
+# Opcionales: por defecto se usan /terminos-y-condiciones y /politica-de-privacidad
 VITE_TERMS_URL=
 VITE_PRIVACY_POLICY_URL=
 

@@ -33,7 +33,7 @@ Las migraciones locales contienen contratos de `profiles` y `audit_logs` incompa
 
 ## Variables
 
-Frontend: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_SUPABASE_STORAGE_BUCKET`, `VITE_API_URL`, `VITE_TERMS_URL`, `VITE_PRIVACY_POLICY_URL`.
+Frontend: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_SUPABASE_STORAGE_BUCKET`, `VITE_API_URL`. `VITE_TERMS_URL` y `VITE_PRIVACY_POLICY_URL` son overrides opcionales; el registro usa por defecto `/terminos-y-condiciones` y `/politica-de-privacidad`.
 
 Funciones API: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`. La service-role key nunca debe tener prefijo `VITE_` ni exponerse al navegador. Configura valores únicamente en archivos locales ignorados o en el entorno protegido del hosting; consulta `.env.example` para los placeholders.
 
