@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const appSource = readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
+const gallerySource = readFileSync(new URL('./components/ProductGallery.tsx', import.meta.url), 'utf8');
 const cardStart = appSource.indexOf('function ProductCard(');
 const detailStart = appSource.indexOf('// ─── CATALOG PAGE', cardStart);
 const productCardSource = appSource.slice(cardStart, detailStart);
@@ -56,5 +57,22 @@ describe('storefront product navigation', () => {
     expect(appSource).toContain('aria-label={`Valor de especificación ${index + 1}`}');
     expect(appSource).toContain('product.specifications.map((specification, index)');
     expect(appSource).toContain('<table className="w-full border-collapse text-left text-sm">');
+  });
+
+  it('removes main-image arrows and counter while preserving zoom, thumbnails, modal controls, and swipe', () => {
+    const mainImageArea = gallerySource.slice(
+      gallerySource.indexOf('<div className="relative overflow-hidden rounded-2xl border'),
+      gallerySource.indexOf('<div className="-mx-1 flex min-w-0 gap-3'),
+    );
+
+    expect(mainImageArea).not.toContain('aria-label="Imagen anterior"');
+    expect(mainImageArea).not.toContain('aria-label="Imagen siguiente"');
+    expect(mainImageArea).not.toContain('{selectedIndex + 1} / {imagesList.length}');
+    expect(mainImageArea).toContain('aria-label="Ampliar imagen"');
+    expect(mainImageArea).toContain('onTouchStart={handleMainImageTouchStart}');
+    expect(mainImageArea).toContain('onTouchEnd={handleMainImageTouchEnd}');
+    expect(gallerySource).toContain('aria-label={`Ver imagen ${index + 1}`}');
+    expect(gallerySource).toContain('aria-label="Imagen anterior"');
+    expect(gallerySource).toContain('aria-label="Imagen siguiente"');
   });
 });

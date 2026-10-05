@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   buildImageGalleryState,
   getAdjacentImageIndex,
+  getImageSwipeDirection,
   normalizeProductImageList,
   uploadSelectedProductImages,
   uploadQueuedProductImages,
@@ -143,5 +144,12 @@ describe('queued product image uploads', () => {
     expect(getAdjacentImageIndex(2, 3, 'next')).toBe(2);
     expect(getAdjacentImageIndex(0, 3, 'previous')).toBe(0);
     expect(getAdjacentImageIndex(2, 3, 'previous')).toBe(1);
+  });
+
+  it('detects deliberate horizontal swipes and ignores taps or vertical movement', () => {
+    expect(getImageSwipeDirection(120, 40, 60, 45)).toBe('next');
+    expect(getImageSwipeDirection(60, 40, 120, 45)).toBe('previous');
+    expect(getImageSwipeDirection(100, 40, 80, 42)).toBeNull();
+    expect(getImageSwipeDirection(100, 40, 120, 100)).toBeNull();
   });
 });

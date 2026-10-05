@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Expand, X } from 'lucide-react';
 
-import { buildImageGalleryState, getAdjacentImageIndex } from '../../lib/admin-product-images';
+import { buildImageGalleryState, getAdjacentImageIndex, getImageSwipeDirection } from '../../lib/admin-product-images';
 import { getPublicUrl, STORAGE_BUCKET } from '../../lib/supabase-store';
 
 interface ProductGalleryProps {
@@ -25,6 +25,8 @@ export default function ProductGallery({ main_image, images = [], productName = 
   const [isExpanded, setIsExpanded] = useState(false);
   const [failedImages, setFailedImages] = useState<Set<string>>(() => new Set());
   const dialogRef = useRef<HTMLDivElement | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const suppressClickRef = useRef(false);
   const imagesSignature = imagesList.join('\u0000');
 
   useEffect(() => {
@@ -119,10 +121,41 @@ export default function ProductGallery({ main_image, images = [], productName = 
     setSelectedIndex(Math.min(imagesList.length - 1, Math.max(0, nextIndex)));
   };
 
+  const handleMainImageTouchStart = (event: React.TouchEvent<HTMLButtonElement>) => {
+    if (event.touches.length !== 1) return;
+    touchStartRef.current = { x: event.touches[0].clientX, y: event.touches[0].clientY };
+  };
+
+  const handleMainImageTouchEnd = (event: React.TouchEvent<HTMLButtonElement>) => {
+    const touchStart = touchStartRef.current;
+    touchStartRef.current = null;
+    if (!touchStart || imagesList.length < 2) return;
+
+    const direction = getImageSwipeDirection(
+      touchStart.x,
+      touchStart.y,
+      event.changedTouches[0].clientX,
+      event.changedTouches[0].clientY,
+    );
+    if (!direction) return;
+
+    suppressClickRef.current = true;
+    setSelectedIndex((previous) => getAdjacentImageIndex(previous, imagesList.length, direction));
+    window.setTimeout(() => { suppressClickRef.current = false; }, 0);
+  };
+
+  const handleMainImageClick = () => {
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false;
+      return;
+    }
+    setIsExpanded(true);
+  };
+
   return (
     <div className="min-w-0 space-y-4">
       <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
-        <button type="button" aria-label="Ampliar imagen del producto" onClick={() => setIsExpanded(true)} className="block aspect-square w-full overflow-hidden focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-600">
+        <button type="button" aria-label="Ampliar imagen del producto" onClick={handleMainImageClick} onTouchStart={handleMainImageTouchStart} onTouchEnd={handleMainImageTouchEnd} onTouchCancel={() => { touchStartRef.current = null; }} style={{ touchAction: 'pan-y' }} className="block aspect-square w-full overflow-hidden focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-600">
           {failedImages.has(currentImage) ? imageFallback(`${productName}, imagen no disponible`) : (
             <img
               src={currentImage}
@@ -134,28 +167,6 @@ export default function ProductGallery({ main_image, images = [], productName = 
           )}
         </button>
 
-        {imagesList.length > 1 && (
-          <>
-            <button
-              type="button"
-              aria-label="Imagen anterior"
-              onClick={() => skipToIndex(getAdjacentImageIndex(selectedIndex, imagesList.length, 'previous'))}
-              className="absolute left-3 top-1/2 flex -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white/90 p-2 text-slate-700 shadow-sm transition hover:bg-white"
-            >
-              <ChevronLeft size={18} />
-            </button>
-
-            <button
-              type="button"
-              aria-label="Imagen siguiente"
-              onClick={() => skipToIndex(getAdjacentImageIndex(selectedIndex, imagesList.length, 'next'))}
-              className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white/90 p-2 text-slate-700 shadow-sm transition hover:bg-white"
-            >
-              <ChevronRight size={18} />
-            </button>
-          </>
-        )}
-
         <button
           type="button"
           aria-label="Ampliar imagen"
@@ -165,11 +176,6 @@ export default function ProductGallery({ main_image, images = [], productName = 
           <Expand size={16} />
         </button>
 
-        {imagesList.length > 1 && (
-          <span className="absolute bottom-3 left-3 rounded-full bg-slate-950/75 px-2.5 py-1 text-xs font-semibold text-white" aria-live="polite">
-            {selectedIndex + 1} / {imagesList.length}
-          </span>
-        )}
       </div>
 
       <div className="-mx-1 flex min-w-0 gap-3 overflow-x-auto px-1 pb-1 sm:grid sm:grid-cols-5 sm:overflow-visible">

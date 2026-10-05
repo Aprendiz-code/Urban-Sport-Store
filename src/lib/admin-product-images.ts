@@ -96,6 +96,19 @@ export function getAdjacentImageIndex(currentIndex: number, totalImages: number,
   return Math.max(0, currentIndex - 1);
 }
 
+export function getImageSwipeDirection(
+  startX: number,
+  startY: number,
+  endX: number,
+  endY: number,
+  threshold = 40,
+): 'next' | 'previous' | null {
+  const horizontalDistance = endX - startX;
+  const verticalDistance = endY - startY;
+  if (Math.abs(horizontalDistance) < threshold || Math.abs(horizontalDistance) <= Math.abs(verticalDistance)) return null;
+  return horizontalDistance < 0 ? 'next' : 'previous';
+}
+
 export async function uploadQueuedProductImages<TFile>(
   files: readonly TFile[],
   initialUrls: ProductImageUrls,
