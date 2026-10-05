@@ -191,9 +191,11 @@ const DEFAULT_HERO_TITLE = "VISTE TU ESTILO. MARCA LA DIFERENCIA.";
 const DEFAULT_HERO_SUBTITLE = "Explora calzado, ropa deportiva y accesorios para completar tu estilo.";
 const DEFAULT_HERO_IMAGE = "https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?auto=format&fit=crop&w=1600&h=900&q=85";
 const TOP_BENEFITS_MESSAGES = [
-  "Calzado, ropa y accesorios deportivos",
-  "Explora nuestras colecciones y productos destacados",
-  "Encuentra artículos para entrenar y moverte a tu ritmo",
+  "Envío gratis a toda Colombia por compras superiores a $300.000",
+  "Compra 100% segura: aceptamos todos los medios de pago",
+  "Atención y soporte 24/7 para resolver tus dudas",
+  "Productos 100% originales con garantía de marca",
+  "Nuevas tendencias y estilos para todos los días",
 ] as const;
 
 const loadStoredAddresses = (): Address[] => {

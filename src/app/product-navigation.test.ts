@@ -66,7 +66,7 @@ describe('storefront product navigation', () => {
   it('keeps the top benefits banner rotating through multiple messages', () => {
     const messages = appSource.match(/const TOP_BENEFITS_MESSAGES = \[([\s\S]*?)\] as const;/)?.[1];
 
-    expect(messages?.match(/"[^"]+"/g)).toHaveLength(3);
+    expect(messages?.match(/"[^"]+"/g)).toHaveLength(5);
     expect(appSource).toContain('if (benefits.length < 2 || isPaused || !isPageVisible) return;');
     expect(appSource).toContain('}, 4000);');
   });
