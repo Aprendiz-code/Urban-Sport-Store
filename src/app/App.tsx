@@ -1398,7 +1398,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
               type="button"
               aria-label={`${cat.name}: ${cat.subtitle}`}
               onClick={() => onCategorySelect(cat.filterCategory)}
-              className="group relative aspect-[1.35] min-h-[118px] overflow-hidden rounded-2xl border border-slate-200 bg-slate-800 text-left shadow-[0_12px_30px_-18px_rgba(15,23,42,0.38)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-18px_rgba(15,23,42,0.4)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8] active:scale-[0.99]"
+              className="group relative aspect-[1.35] min-h-[118px] overflow-hidden rounded-[26px] border border-white/30 bg-[#0b1220] text-left shadow-[0_20px_40px_-26px_rgba(15,23,42,0.7)] ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_52px_-30px_rgba(15,23,42,0.72)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8] active:scale-[0.99]"
             >
               <img
                 src={cat.image}
@@ -1406,12 +1406,16 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
                 loading="lazy"
                 decoding="async"
                 onError={(event) => { event.currentTarget.style.display = "none"; }}
-                className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                className="absolute inset-0 h-full w-full object-cover brightness-[0.82] contrast-[1.05] transition-transform duration-500 group-hover:scale-105"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#0b1220]/85 via-[#0b1220]/25 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#050b16]/90 via-[#050b16]/25 to-[#050b16]/10" />
+              <div className="absolute inset-x-0 top-0 h-14 bg-gradient-to-b from-[#0b1220]/30 to-transparent" />
               <div className="relative flex h-full min-h-[118px] flex-col justify-end p-3 sm:min-h-[190px] sm:p-4">
-                <p className="font-display text-xl leading-[1.05] text-white sm:text-2xl">{cat.name}</p>
-                <p className="mt-1 text-[11px] leading-relaxed text-slate-200 sm:text-xs">{cat.subtitle}</p>
+                <span className="mb-2 inline-flex w-fit items-center rounded-full border border-white/25 bg-white/10 px-2 py-1 text-[9px] font-bold uppercase tracking-[0.16em] text-white/90 backdrop-blur-[2px] sm:text-[10px]">
+                  Colección
+                </span>
+                <p className="font-display text-[1.05rem] leading-[1.05] text-white sm:text-[1.7rem]">{cat.name}</p>
+                <p className="mt-1 max-w-[80%] text-[10px] leading-relaxed text-slate-100/90 sm:text-[11px]">{cat.subtitle}</p>
               </div>
             </button>
           ))}
