@@ -13,17 +13,6 @@ import { STORE_CONFIG } from "./store-config";
 
 import { subscribeToNewsletter } from "../lib/newsletter";
 import { fetchPublicCategories, resolveProductCategoryName, type CategoryOption } from "../lib/category-service";
-import {
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-} from "./components/LazyRecharts";
 // promoRibbon moved to src/assets/cinta-10.png
 import type { ProductRecord } from "../lib/supabase-store";
 import { createProductViaAdminApi, updateProductViaAdminApi } from "../lib/admin-product-fallback";
@@ -43,7 +32,7 @@ import { getAdminPanelMenuLink } from "./admin-panel-menu";
 
 import adminApi, { AdminApiError, createSupabaseProductApi, updateSupabaseProductApi, deleteSupabaseProductApi, updateHomeContentApi, formatAdminApiError, isAdminAuthenticationError } from "../lib/admin-api";
 import { uploadProductImage, getPublicUrl, STORAGE_BUCKET } from "../lib/supabase-store";
-import { recordAction, getAudit } from "../lib/audit";
+import { recordAction } from "../lib/audit";
 import { productSchema } from '../lib/schemas';
 import { normalizeGuestCartEntries, resolveGuestCartEntries } from '../lib/cart-service';
 import { MAX_PRODUCT_GALLERY_IMAGES, MAX_PRODUCT_TOTAL_IMAGES, normalizeProductSizes, normalizeProductSpecifications, submitAdminProductForm, validateProductForm } from '../lib/admin-product-form';
@@ -119,11 +108,11 @@ const HOME_NAV_CATEGORIES = [
 ] as const;
 
 const HOME_COLLECTIONS = [
-  { name: "Zapatos", subtitle: "Running · Training · Casual", image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=900&q=85", filterCategory: "Running" },
-  { name: "Ropa Hombre", subtitle: "Camisetas · Buzos · Pantalones", image: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=900&q=85", filterCategory: null },
-  { name: "Ropa Mujer", subtitle: "Leggings · Tops · Conjuntos", image: "https://images.unsplash.com/photo-1571019613454-1cb2f99a2d8b?auto=format&fit=crop&w=900&q=85", filterCategory: null },
+  { name: "Zapatos", subtitle: "Running · Training · Casual", image: "https://images.unsplash.com/photo-1600185365483-26d7a4cc7519?auto=format&fit=crop&w=900&q=85", filterCategory: "Running" },
+  { name: "Ropa Hombre", subtitle: "Camisetas · Buzos · Pantalones", image: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=900&q=85", filterCategory: null },
+  { name: "Ropa Mujer", subtitle: "Leggings · Tops · Conjuntos", image: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=900&q=85", filterCategory: null },
   { name: "Perfumes", subtitle: "Hombre · Mujer · Unisex", image: "https://images.unsplash.com/photo-1541643600914-78b084683601?auto=format&fit=crop&w=900&q=85", filterCategory: null },
-  { name: "Relojes", subtitle: "Smartwatch · Deportivo · Casual", image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=900&q=85", filterCategory: null },
+  { name: "Relojes", subtitle: "Smartwatch · Deportivo · Casual", image: "https://images.unsplash.com/photo-1508057198894-247b23fe5ade?auto=format&fit=crop&w=900&q=85", filterCategory: null },
   { name: "Gafas", subtitle: "Running · Ciclismo · Outdoor", image: "https://images.unsplash.com/photo-1577803645773-f96470509666?auto=format&fit=crop&w=900&q=85", filterCategory: null },
 ];
 
@@ -253,7 +242,8 @@ const mapProductRecordToAppProduct = (record: ProductRecord, categories: readonl
     sizes: record.sizes ?? [],
     specifications: record.specifications ?? [],
     isActive: record.is_active !== false,
-    createdAt: record.created_at ?? record.updated_at ?? undefined,
+    createdAt: record.created_at ?? undefined,
+    updatedAt: record.updated_at ?? undefined,
     gender: record.gender as Product["gender"],
     isNew: record.is_new ?? false,
     isFeatured: record.is_featured ?? false,
@@ -291,19 +281,7 @@ const mapAppProductToProductRecord = (product: Partial<Product> & { id?: string 
 // ─── DATA ────────────────────────────────────────────────────────────────────
 
 
-const SALES_DATA: { day: string; ventas: number; pedidos: number }[] = [];
-const CAT_DATA: { name: string; valor: number }[] = [];
-
-interface OrderSummary {
-  id: string;
-  customer: string;
-  date: string;
-  status: string;
-  total: number;
-  items: number;
-}
-
-const ORDERS: OrderSummary[] = [];
+const LOW_STOCK_THRESHOLD = 10;
 
 // ─── UTILS ───────────────────────────────────────────────────────────────────
 
@@ -317,10 +295,23 @@ const formatAdminProductDate = (value?: string | null) => {
 };
 
 const STATUS_STYLE: Record<string, string> = {
-  "Enviado":     "bg-blue-50 text-blue-700 border border-blue-200",
-  "Procesando":  "bg-amber-50 text-amber-700 border border-amber-200",
-  "Entregado":   "bg-emerald-50 text-emerald-700 border border-emerald-200",
-  "Cancelado":   "bg-red-50 text-red-700 border border-red-200",
+  pending: "bg-amber-50 text-amber-700 border border-amber-200",
+  confirmed: "bg-blue-50 text-blue-700 border border-blue-200",
+  processing: "bg-amber-50 text-amber-700 border border-amber-200",
+  shipped: "bg-blue-50 text-blue-700 border border-blue-200",
+  delivered: "bg-emerald-50 text-emerald-700 border border-emerald-200",
+  cancelled: "bg-red-50 text-red-700 border border-red-200",
+  refunded: "bg-slate-100 text-slate-700 border border-slate-200",
+};
+
+const ORDER_STATUS_LABELS: Record<string, string> = {
+  pending: "Pendiente",
+  confirmed: "Confirmado",
+  processing: "En preparación",
+  shipped: "Enviado",
+  delivered: "Entregado",
+  cancelled: "Cancelado",
+  refunded: "Reembolsado",
 };
 
 // ─── SHARED UI ────────────────────────────────────────────────────────────────
@@ -2930,7 +2921,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
   updateProduct: (productId: string, updates: Partial<Product>) => Promise<void>;
   setProductActive: (productId: string, isActive: boolean) => Promise<void>;
   hardDeleteProduct: (productId: string) => Promise<PermanentDeleteResult>;
-  adjustStock: (productId: string, delta: number) => void;
+  adjustStock: (productId: string, movementType: 'in' | 'out' | 'correction', quantity: number, reason: string) => Promise<void>;
   productRefresh: number;
   initialSection?: string;
   adminRole: string;
@@ -2968,6 +2959,19 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
   const [imageUploadProgress, setImageUploadProgress] = useState<{ completed: number; total: number } | null>(null);
   const objectUrlsRef = useRef(new Set<string>());
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [dashboardData, setDashboardData] = useState<Awaited<ReturnType<typeof adminApi.fetchAdminDashboard>> | null>(null);
+  const [dashboardStatus, setDashboardStatus] = useState<ProductsStatus>("loading");
+  const [dashboardRefresh, setDashboardRefresh] = useState(0);
+  const [inventoryFilter, setInventoryFilter] = useState<"all" | "low" | "out" | "active" | "inactive">("all");
+  const [inventoryPage, setInventoryPage] = useState(1);
+  const [stockAdjustment, setStockAdjustment] = useState<{ productId: string | null; movementType: 'in' | 'out' | 'correction'; quantity: string; reason: string; error: string | null }>({
+    productId: null,
+    movementType: 'in',
+    quantity: '1',
+    reason: '',
+    error: null,
+  });
+  const [stockAdjustmentSubmittingId, setStockAdjustmentSubmittingId] = useState<string | null>(null);
   const availableCategories = [...new Set([...categories.map((category) => category.name), ...getProductCategories(products)])];
 
   useEffect(() => () => {
@@ -2975,11 +2979,74 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     objectUrlsRef.current.clear();
   }, []);
 
+  const activeInventoryProducts = products.filter((product) => product.isActive !== false);
+  const inventoryUnits = products.reduce((sum, product) => sum + Math.max(Number(product.stock ?? 0), 0), 0);
+  const inventoryValue = products.reduce((sum, product) => sum + Math.max(Number(product.price ?? 0), 0) * Math.max(Number(product.stock ?? 0), 0), 0);
+  const outOfStockProducts = activeInventoryProducts.filter((product) => Number(product.stock ?? 0) <= 0);
+  const lowStockProducts = activeInventoryProducts.filter((product) => Number(product.stock ?? 0) > 0 && Number(product.stock ?? 0) <= LOW_STOCK_THRESHOLD);
+  const inactiveProducts = products.filter((product) => product.isActive === false);
+  const inventoryUpdatedAt = products.reduce<number | null>((latest, product) => {
+    const updatedAt = product.updatedAt ? Date.parse(product.updatedAt) : Number.NaN;
+    return Number.isFinite(updatedAt) && (latest === null || updatedAt > latest) ? updatedAt : latest;
+  }, null);
+  const inventoryUpdateLabel = productsStatus === "loading"
+    ? "Cargando…"
+    : productsStatus === "error"
+      ? "No disponible"
+      : products.length === 0
+        ? "Sin productos"
+        : inventoryUpdatedAt === null
+          ? "No disponible"
+          : new Date(inventoryUpdatedAt).toLocaleString("es-CO");
+  const productMetric = (value: number | string) => {
+    if (productsStatus === "loading") return "Cargando…";
+    if (productsStatus === "error") return "No disponible";
+    if (products.length === 0) return "Sin productos";
+    return typeof value === "number" ? value.toLocaleString("es-CO") : value;
+  };
+  const remoteCountMetric = (metric: { status: string; total: number | null } | undefined, emptyLabel: string) => {
+    if (dashboardStatus === "loading") return "Cargando…";
+    if (dashboardStatus === "error" || !metric) return "No disponible";
+    if (metric.status === "forbidden") return "Sin permiso";
+    if (metric.status === "error") return "No disponible";
+    if (metric.status === "empty") return emptyLabel;
+    return metric.status === "ready" && metric.total !== null ? metric.total.toLocaleString("es-CO") : "Pendiente";
+  };
+  const salesMetric = dashboardStatus === "loading"
+    ? "Cargando…"
+    : dashboardStatus === "error" || !dashboardData
+      ? "No disponible"
+      : dashboardData.sales.status === "forbidden"
+        ? "Sin permiso"
+        : dashboardData.sales.status === "error"
+          ? "No disponible"
+          : dashboardData.sales.status === "empty"
+            ? "Sin ventas"
+            : dashboardData.sales.total_7d === null
+              ? "No disponible"
+              : fmt(dashboardData.sales.total_7d);
+  const paidOrdersMetric = dashboardStatus === "loading"
+    ? "Cargando…"
+    : dashboardStatus === "error" || !dashboardData
+      ? "No disponible"
+      : dashboardData.sales.status === "forbidden"
+        ? "Sin permiso"
+        : dashboardData.sales.status === "error" || dashboardData.sales.paid_orders === null
+          ? "No disponible"
+          : dashboardData.sales.paid_orders === 0
+            ? "Sin pedidos pagados"
+            : dashboardData.sales.paid_orders.toLocaleString("es-CO");
   const metrics = [
-    { label: "Productos activos", value: products.filter((product) => product.isActive !== false).length.toString(), icon: <Package size={18} /> },
-    { label: "Stock total", value: products.reduce((sum, product) => sum + (product.stock ?? 0), 0).toLocaleString('es-CO'), icon: <TrendingUp size={18} /> },
-    { label: "Valor catálogo", value: fmt(products.reduce((sum, product) => sum + (product.price ?? 0) * Math.max(product.stock ?? 0, 0), 0)), icon: <DollarSign size={18} /> },
-    { label: "Inventario bajo", value: `${products.filter((product) => (product.stock ?? 0) <= 10).length} productos`, icon: <AlertTriangle size={18} /> },
+    { label: "Productos activos", value: productMetric(activeInventoryProducts.length), icon: <Package size={18} /> },
+    { label: "Unidades en inventario", value: productMetric(inventoryUnits), icon: <Layers size={18} /> },
+    { label: "Productos agotados", value: productMetric(outOfStockProducts.length), icon: <AlertTriangle size={18} /> },
+    { label: `Stock bajo (≤${LOW_STOCK_THRESHOLD})`, value: productMetric(lowStockProducts.length), icon: <TrendingUp size={18} /> },
+    { label: "Productos inactivos", value: productMetric(inactiveProducts.length), icon: <Package size={18} /> },
+    { label: "Valor estimado del inventario", value: productMetric(fmt(inventoryValue)), icon: <DollarSign size={18} /> },
+    { label: "Pedidos registrados", value: remoteCountMetric(dashboardData?.orders, "Sin pedidos"), icon: <Tag size={18} /> },
+    { label: "Clientes registrados", value: remoteCountMetric(dashboardData?.customers, "Sin clientes"), icon: <Users size={18} /> },
+    { label: "Pedidos pagados", value: paidOrdersMetric, icon: <Tag size={18} /> },
+    { label: "Ventas últimos 7 días (COP)", value: salesMetric, icon: <BarChart2 size={18} /> },
   ];
 
   const SIDEBAR_LINKS = [
@@ -3134,9 +3201,28 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     setAdminSection(section);
   };
 
-  const LOW_STOCK = products.filter((product) => product.stock <= 10).map((product) => ({
+  const LOW_STOCK = products.filter((product) => product.isActive !== false && product.stock > 0 && product.stock <= LOW_STOCK_THRESHOLD).map((product) => ({
     name: product.name, stock: product.stock, sku: product.sku,
   }));
+  const inventorySearch = searchTerm.trim().toLowerCase();
+  const inventoryProducts = products.filter((product) => {
+    const matchesSearch = !inventorySearch || [product.name, product.sku, product.brand, product.category]
+      .some((value) => value?.toLowerCase().includes(inventorySearch));
+    const stock = Number(product.stock ?? 0);
+    const matchesFilter = inventoryFilter === "all"
+      || (inventoryFilter === "low" && product.isActive !== false && stock > 0 && stock <= LOW_STOCK_THRESHOLD)
+      || (inventoryFilter === "out" && product.isActive !== false && stock <= 0)
+      || (inventoryFilter === "active" && product.isActive !== false)
+      || (inventoryFilter === "inactive" && product.isActive === false);
+    return matchesSearch && matchesFilter;
+  });
+  const inventoryPageSize = 12;
+  const inventoryTotalPages = Math.max(1, Math.ceil(inventoryProducts.length / inventoryPageSize));
+  const paginatedInventoryProducts = inventoryProducts.slice((inventoryPage - 1) * inventoryPageSize, inventoryPage * inventoryPageSize);
+
+  useEffect(() => {
+    setInventoryPage((currentPage) => Math.min(currentPage, inventoryTotalPages));
+  }, [inventoryTotalPages]);
 
   const filteredProducts = filterAdminProducts(products, searchTerm, productStatusFilter);
 
@@ -3224,22 +3310,77 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
   };
 
   const [auditEntries, setAuditEntries] = useState<{ id: string; ts: number; action: string; meta?: Record<string, any> }[]>([]);
-  const refreshAudit = () => {
-    (async () => {
-      // prefer server logs when available
-      try {
-        const srv = await adminApi.fetchAuditLogs(200);
-        if (srv?.data) { setAuditEntries(srv.data); return; }
-      } catch (e) {
-        // fallback to local
-      }
-      try {
-        setAuditEntries(getAudit(200));
-      } catch (e) {
-        setAuditEntries([]);
-      }
-    })();
+  const [auditStatus, setAuditStatus] = useState<"loading" | "ready" | "empty" | "error" | "forbidden">("loading");
+  const refreshAudit = async () => {
+    if (!allowedSections.includes("activity")) {
+      setAuditEntries([]);
+      setAuditStatus("forbidden");
+      return;
+    }
+    setAuditStatus("loading");
+    try {
+      const rows = await adminApi.fetchAuditLogs(200);
+      if (!Array.isArray(rows)) throw new Error("Invalid audit response");
+      const entries = rows.flatMap((row: Record<string, unknown>) => {
+        const timestamp = typeof row.created_at === "string" ? Date.parse(row.created_at) : Number.NaN;
+        if (typeof row.id !== "string" || typeof row.action !== "string" || !Number.isFinite(timestamp)) return [];
+        return [{
+          id: row.id,
+          ts: timestamp,
+          action: row.action,
+          meta: {
+            entity: typeof row.entity === "string" ? row.entity : undefined,
+            entityId: typeof row.entity_id === "string" ? row.entity_id : undefined,
+          },
+        }];
+      });
+      setAuditEntries(entries);
+      setAuditStatus(entries.length > 0 ? "ready" : "empty");
+    } catch (error) {
+      const details = error && typeof error === "object" ? error as { status?: unknown; code?: unknown } : {};
+      console.error("[Admin Dashboard] Activity query failed", {
+        status: typeof details.status === "number" ? details.status : undefined,
+        code: typeof details.code === "string" ? details.code : undefined,
+      });
+      setAuditEntries([]);
+      setAuditStatus("error");
+    }
   };
+
+  useEffect(() => {
+    if (adminSection !== "dashboard" && adminSection !== "orders" && adminSection !== "reports") return;
+
+    let isActive = true;
+    let requestInFlight = false;
+    const loadDashboard = async () => {
+      if (requestInFlight) return;
+      requestInFlight = true;
+      try {
+        const data = await adminApi.fetchAdminDashboard();
+        if (!isActive) return;
+        setDashboardData(data);
+        setDashboardStatus("ready");
+      } catch (error) {
+        if (!isActive) return;
+        const details = error && typeof error === "object" ? error as { status?: unknown; code?: unknown } : {};
+        console.error("[Admin Dashboard] Summary query failed", {
+          status: typeof details.status === "number" ? details.status : undefined,
+          code: typeof details.code === "string" ? details.code : undefined,
+        });
+        setDashboardStatus("error");
+      } finally {
+        requestInFlight = false;
+      }
+    };
+
+    if (!dashboardData) setDashboardStatus("loading");
+    void loadDashboard();
+    const intervalId = window.setInterval(() => void loadDashboard(), 60_000);
+    return () => {
+      isActive = false;
+      window.clearInterval(intervalId);
+    };
+  }, [adminSection, dashboardRefresh]);
 
   const handleEditProduct = (product: Product) => {
     productImageSelections.forEach((entry) => releaseImagePreview(entry.previewUrl));
@@ -3424,19 +3565,22 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
               </div>
 
               <div className="p-6 rounded-[30px] bg-white/95 border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)]">
-                <p className="text-xs uppercase tracking-[0.24em] text-slate-400 font-semibold mb-4">Resumen rápido</p>
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <p className="text-xs uppercase tracking-[0.24em] text-slate-400 font-semibold">Resumen rápido</p>
+                  <button type="button" onClick={() => { setDashboardRefresh((value) => value + 1); onRetryProducts(); refreshAudit(); }} className="text-xs font-semibold text-[#1d4ed8] hover:underline">Actualizar</button>
+                </div>
                 <div className="space-y-3">
                   <div className="rounded-3xl bg-slate-50 p-4">
-                    <p className="text-sm text-slate-500">Analítica de usuarios</p>
-                    <p className="text-base font-bold text-slate-700">Pendiente de integrar</p>
+                    <p className="text-sm text-slate-500">Clientes registrados</p>
+                    <p className="text-base font-bold text-slate-700">{remoteCountMetric(dashboardData?.customers, "Sin clientes")}</p>
                   </div>
                   <div className="rounded-3xl bg-slate-50 p-4">
                     <p className="text-sm text-slate-500">Pedidos</p>
-                    <p className="text-base font-bold text-slate-700">Sin conexión de datos</p>
+                    <p className="text-base font-bold text-slate-700">{remoteCountMetric(dashboardData?.orders, "Sin pedidos")}</p>
                   </div>
                   <div className="rounded-3xl bg-slate-50 p-4">
                     <p className="text-sm text-slate-500">Productos marcados como nuevos</p>
-                    <p className="text-2xl font-extrabold text-slate-900">{products.filter((product) => product.isNew).length}</p>
+                    <p className="text-2xl font-extrabold text-slate-900">{productMetric(products.filter((product) => product.isNew).length)}</p>
                   </div>
                 </div>
               </div>
@@ -3461,44 +3605,16 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                 <div className="flex items-center justify-between mb-5">
                   <h2 className="text-sm font-extrabold text-slate-800">Ventas últimos 7 días (COP)</h2>
                 </div>
-                {SALES_DATA.length === 0 ? (
-                  <div role="status" className="flex h-[200px] items-center justify-center text-sm text-slate-500">Reporte de ventas pendiente de integración.</div>
-                ) : <ResponsiveContainer width="100%" height={200}>
-                  <AreaChart data={SALES_DATA} margin={{ top: 0, right: 0, left: -10, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colVentas" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#1d4ed8" stopOpacity={0.15} />
-                        <stop offset="95%" stopColor="#1d4ed8" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis dataKey="day" tick={{ fill: "#94a3b8", fontSize: 11 }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fill: "#94a3b8", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `$${(v / 1000000).toFixed(1)}M`} />
-                    <Tooltip
-                      contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: "12px", color: "#0f172a", fontSize: "12px", boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }}
-                      formatter={(v: number) => [`$${v.toLocaleString("es-CO")} COP`, "Ventas"]}
-                    />
-                    <Area type="monotone" dataKey="ventas" stroke="#1d4ed8" strokeWidth={2} fill="url(#colVentas)" dot={false} activeDot={{ r: 5, fill: "#1d4ed8" }} />
-                  </AreaChart>
-                </ResponsiveContainer>}
+                <div role={dashboardStatus === "error" || dashboardData?.sales.status === "error" ? "alert" : "status"} className="flex h-[200px] items-center justify-center px-4 text-center text-sm text-slate-600">
+                  {dashboardStatus === "loading" ? "Cargando ventas…" : dashboardStatus === "error" || dashboardData?.sales.status === "error" ? "No fue posible cargar las ventas." : dashboardData?.sales.status === "forbidden" ? "No tienes permisos para consultar las ventas." : dashboardData?.sales.status === "empty" ? "No hay pedidos con pago confirmado en los últimos 7 días." : !dashboardData || dashboardData.sales.total_7d === null ? "El importe no está disponible." : `${fmt(dashboardData.sales.total_7d)} COP · ${new Date(dashboardData.sales.period_start ?? "").toLocaleDateString("es-CO")}–${new Date(dashboardData.sales.period_end ?? "").toLocaleDateString("es-CO")}`}
+                </div>
               </div>
 
               <div className="p-5 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)]">
                 <h2 className="text-sm font-extrabold text-slate-800 mb-5">Ventas por categoría</h2>
-                {CAT_DATA.length === 0 ? (
-                  <div role="status" className="flex h-[200px] items-center justify-center text-sm text-slate-500">Datos de ventas por categoría no disponibles.</div>
-                ) : <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={CAT_DATA} margin={{ top: 0, right: 0, left: -28, bottom: 0 }} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
-                    <XAxis type="number" tick={{ fill: "#94a3b8", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `${v}%`} />
-                    <YAxis type="category" dataKey="name" tick={{ fill: "#64748b", fontSize: 10 }} axisLine={false} tickLine={false} width={55} />
-                    <Tooltip
-                      contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: "12px", fontSize: "12px", boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }}
-                      formatter={(v: number) => [`${v}%`, "Participación"]}
-                    />
-                    <Bar dataKey="valor" fill="#1d4ed8" radius={[0, 6, 6, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>}
+                <div role={dashboardStatus === "error" || dashboardData?.sales.status === "error" ? "alert" : "status"} className="flex h-[200px] items-center justify-center px-4 text-center text-sm text-slate-600">
+                  {dashboardStatus === "loading" ? "Cargando datos de ventas…" : dashboardStatus === "error" || dashboardData?.category_sales_status === "error" ? "No fue posible cargar las ventas por categoría." : dashboardData?.category_sales_status === "forbidden" ? "No tienes permisos para consultar los reportes." : dashboardData?.category_sales_status === "empty" ? "No hay datos de ventas por categoría para el periodo seleccionado." : "Hay pedidos pagados, pero la categoría histórica del artículo no está guardada en el pedido. Reporte pendiente de migración aprobada."}
+                </div>
               </div>
             </div>
 
@@ -3512,24 +3628,29 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-slate-50">
-                        {['Pedido', 'Cliente', 'Fecha', 'Estado', 'Total'].map((h) => (
+                        {['Pedido', 'Cliente', 'Fecha', 'Estado', 'Artículos', 'Total'].map((h) => (
                           <th key={h} className="text-left px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wide">{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
-                      {ORDERS.map((o) => (
-                        <tr key={o.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                          <td className="px-5 py-3 text-xs font-mono font-bold text-[#1d4ed8]">{o.id}</td>
-                          <td className="px-5 py-3 text-sm text-slate-700">{o.customer}</td>
-                          <td className="px-5 py-3 text-xs text-slate-400">{o.date}</td>
+                      {dashboardData?.orders.recent.map((order) => (
+                        <tr key={order.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                          <td className="px-5 py-3 text-xs font-mono font-bold text-[#1d4ed8]">{order.order_number || order.id.slice(0, 8)}</td>
+                          <td className="px-5 py-3 text-sm text-slate-700">{order.customer_name ?? "—"}</td>
+                          <td className="px-5 py-3 text-xs text-slate-400">{formatAdminProductDate(order.created_at)}</td>
                           <td className="px-5 py-3">
-                            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${STATUS_STYLE[o.status]}`}>{o.status}</span>
+                            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${STATUS_STYLE[order.status] ?? "border border-slate-200 bg-slate-50 text-slate-700"}`}>{ORDER_STATUS_LABELS[order.status] ?? order.status}</span>
                           </td>
-                          <td className="price px-5 py-3 text-sm text-slate-900">{fmt(o.total)}</td>
+                          <td className="px-5 py-3 text-sm text-slate-700">{order.item_count}</td>
+                          <td className="price px-5 py-3 text-sm text-slate-900">{fmt(Number(order.total))}</td>
                         </tr>
                       ))}
-                      {ORDERS.length === 0 && <tr><td colSpan={5} className="px-5 py-8 text-center text-sm text-slate-500">Los pedidos se mostrarán cuando se conecte su fuente de datos.</td></tr>}
+                      {dashboardStatus === "loading" && <tr><td colSpan={6} role="status" className="px-5 py-8 text-center text-sm text-slate-500">Cargando pedidos…</td></tr>}
+                      {dashboardStatus === "error" && <tr><td colSpan={6} role="alert" className="px-5 py-8 text-center text-sm text-red-700">No fue posible cargar los pedidos. <button type="button" onClick={() => setDashboardRefresh((value) => value + 1)} className="font-semibold underline">Intentar de nuevo</button></td></tr>}
+                      {dashboardStatus === "ready" && dashboardData?.orders.status === "forbidden" && <tr><td colSpan={6} role="status" className="px-5 py-8 text-center text-sm text-slate-500">No tienes permisos para consultar los pedidos.</td></tr>}
+                      {dashboardStatus === "ready" && dashboardData?.orders.status === "error" && <tr><td colSpan={6} role="alert" className="px-5 py-8 text-center text-sm text-red-700">No fue posible cargar los pedidos. <button type="button" onClick={() => setDashboardRefresh((value) => value + 1)} className="font-semibold underline">Intentar de nuevo</button></td></tr>}
+                      {dashboardStatus === "ready" && dashboardData?.orders.status === "empty" && <tr><td colSpan={6} role="status" className="px-5 py-8 text-center text-sm text-slate-500">Todavía no hay pedidos registrados.</td></tr>}
                     </tbody>
                   </table>
                 </div>
@@ -3541,18 +3662,18 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                   <h2 className="text-sm font-extrabold text-slate-800">Inventario bajo</h2>
                 </div>
                 <div className="p-4 space-y-3">
-                  {LOW_STOCK.map((item) => (
+                  {productsStatus === "loading" && <p role="status" className="text-sm text-slate-500">Cargando inventario…</p>}
+                  {productsStatus === "error" && <p role="alert" className="text-sm text-red-700">No fue posible cargar el inventario.</p>}
+                  {productsStatus === "ready" && LOW_STOCK.map((item) => (
                     <div key={item.sku} className="p-3 bg-amber-50 border border-amber-100 rounded-xl">
                       <p className="text-xs font-bold text-slate-700 line-clamp-1 mb-0.5">{item.name}</p>
                       <p className="text-[10px] font-mono text-slate-400 mb-2">{item.sku}</p>
                       <div className="flex items-center gap-2">
-                        <div className="flex-1 bg-amber-100 rounded-full h-1.5">
-                          <div className="bg-amber-500 h-1.5 rounded-full" style={{ width: `${(item.stock / 15) * 100}%` }} />
-                        </div>
                         <span className="text-xs font-extrabold text-amber-700">{item.stock}</span>
                       </div>
                     </div>
                   ))}
+                  {productsStatus === "ready" && LOW_STOCK.length === 0 && <p role="status" className="text-sm text-slate-500">No hay productos con stock bajo.</p>}
                   <button onClick={() => handleSidebarClick('inventory')} className="w-full py-2.5 rounded-xl text-xs font-bold text-white bg-black border border-black hover:bg-slate-900 transition-colors">
                     Gestionar inventario
                   </button>
@@ -4113,72 +4234,168 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
 
       case "orders":
         return (
-          <div className="grid grid-cols-1 gap-6 mb-6">
-            <div className="bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] overflow-hidden">
-              <div className="flex items-center justify-between p-5 border-b border-slate-50">
-                <h2 className="text-lg font-extrabold text-slate-900">Pedidos</h2>
-                <span className="text-xs text-slate-500">Fuente de pedidos no conectada</span>
+          <div className="bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] overflow-hidden">
+            <div className="flex items-center justify-between gap-3 p-5 border-b border-slate-50">
+              <div>
+                <h2 className="text-lg font-extrabold text-slate-900">Pedidos recientes</h2>
+                <p className="mt-1 text-xs text-slate-500">{remoteCountMetric(dashboardData?.orders, "Todavía no hay pedidos registrados.")}</p>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-slate-50">
-                      {['Pedido', 'Cliente', 'Fecha', 'Estado', 'Total'].map((h) => (
-                        <th key={h} className="text-left px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wide">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {ORDERS.map((o) => (
-                      <tr key={o.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                        <td className="px-5 py-3 text-xs font-mono font-bold text-[#1d4ed8]">{o.id}</td>
-                        <td className="px-5 py-3 text-sm text-slate-700">{o.customer}</td>
-                        <td className="px-5 py-3 text-xs text-slate-400">{o.date}</td>
-                        <td className="px-5 py-3">
-                          <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${STATUS_STYLE[o.status]}`}>{o.status}</span>
-                        </td>
-                        <td className="price px-5 py-3 text-sm text-slate-900">{fmt(o.total)}</td>
-                      </tr>
-                    ))}
-                    {ORDERS.length === 0 && <tr><td colSpan={5} className="px-5 py-8 text-center text-sm text-slate-500">No hay una fuente de pedidos disponible. No se muestran datos locales o simulados.</td></tr>}
-                  </tbody>
-                </table>
-              </div>
+              <button type="button" onClick={() => setDashboardRefresh((value) => value + 1)} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Actualizar</button>
             </div>
-            <div className="bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] p-5">
-              <h3 className="text-lg font-extrabold text-slate-900 mb-3">Resumen de pedidos</h3>
-              <p role="status" className="text-sm text-slate-600">La fuente de pedidos aún no está conectada. No se pueden actualizar estados ni guías desde este panel.</p>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[720px]">
+                <thead>
+                  <tr className="border-b border-slate-50">
+                    {['Pedido', 'Cliente', 'Fecha', 'Estado', 'Artículos', 'Total'].map((heading) => (
+                      <th key={heading} className="text-left px-5 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wide">{heading}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {dashboardStatus === "loading" && <tr><td colSpan={6} role="status" className="px-5 py-8 text-center text-sm text-slate-500">Cargando pedidos…</td></tr>}
+                  {dashboardStatus === "error" && <tr><td colSpan={6} role="alert" className="px-5 py-8 text-center text-sm text-red-700">No fue posible cargar los pedidos. Intenta nuevamente.</td></tr>}
+                  {dashboardStatus === "ready" && dashboardData?.orders.status === "forbidden" && <tr><td colSpan={6} role="status" className="px-5 py-8 text-center text-sm text-slate-500">No tienes permisos para consultar los pedidos.</td></tr>}
+                  {dashboardStatus === "ready" && dashboardData?.orders.status === "error" && <tr><td colSpan={6} role="alert" className="px-5 py-8 text-center text-sm text-red-700">No fue posible cargar los pedidos. Intenta nuevamente.</td></tr>}
+                  {dashboardStatus === "ready" && dashboardData?.orders.status === "empty" && <tr><td colSpan={6} role="status" className="px-5 py-8 text-center text-sm text-slate-500">Todavía no hay pedidos registrados.</td></tr>}
+                  {dashboardStatus === "ready" && dashboardData?.orders.status === "ready" && dashboardData.orders.recent.map((order) => (
+                    <tr key={order.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                      <td className="px-5 py-3 text-xs font-mono font-bold text-[#1d4ed8]">{order.order_number || order.id.slice(0, 8)}</td>
+                      <td className="px-5 py-3 text-sm text-slate-700">{order.customer_name ?? "—"}</td>
+                      <td className="px-5 py-3 text-xs text-slate-500">{formatAdminProductDate(order.created_at)}</td>
+                      <td className="px-5 py-3"><span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${STATUS_STYLE[order.status] ?? "border border-slate-200 bg-slate-50 text-slate-700"}`}>{ORDER_STATUS_LABELS[order.status] ?? order.status}</span></td>
+                      <td className="px-5 py-3 text-sm text-slate-700">{order.item_count}</td>
+                      <td className="price px-5 py-3 text-sm text-slate-900">{fmt(Number(order.total))}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         );
 
       case "inventory":
         return (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-            <div className="lg:col-span-2 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] p-5">
-              <h2 className="text-lg font-extrabold text-slate-900 mb-4">Inventario</h2>
-              <p className="text-sm text-slate-600 mb-6">Gestiona los niveles de stock y revisa los productos con inventario bajo.</p>
-              {LOW_STOCK.length > 0 ? (
-                <div className="space-y-3">
-                  {LOW_STOCK.map((item) => (
-                    <div key={item.sku} className="rounded-3xl bg-amber-50 p-4 border border-amber-100">
-                      <div className="flex items-center justify-between gap-4">
-                        <div>
-                          <p className="text-sm font-semibold text-slate-800">{item.name}</p>
-                          <p className="text-xs text-slate-500">SKU: {item.sku}</p>
-                        </div>
-                        <span className="text-sm font-bold text-amber-700">{item.stock} en stock</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-slate-500">No hay productos con inventario bajo en este momento.</p>
-              )}
+          <div className="space-y-5 mb-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h2 className="text-lg font-extrabold text-slate-900">Inventario</h2>
+                <p className="mt-1 text-sm text-slate-600">Fuente actual: stock por producto. La gestión de variantes no está activa.</p>
+                <p className="mt-1 text-xs text-slate-500">Última actualización: {inventoryUpdateLabel}</p>
+              </div>
+              <button type="button" onClick={onRetryProducts} disabled={productsStatus === "loading"} className="min-h-10 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60">
+                {productsStatus === "loading" ? "Actualizando…" : "Actualizar inventario"}
+              </button>
             </div>
-            <div className="bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] p-5">
-              <h3 className="text-lg font-extrabold text-slate-900 mb-3">Acciones de inventario</h3>
-              <button onClick={() => handleSidebarClick('products')} className="w-full py-3 rounded-xl bg-black text-white font-semibold hover:bg-slate-900">Editar productos</button>
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              {metrics.slice(1, 6).map((metric) => (
+                <div key={metric.label} className="rounded-xl border border-slate-200 bg-white p-4">
+                  <p className="text-lg font-bold text-slate-900">{metric.value}</p>
+                  <p className="mt-1 text-xs text-slate-500">{metric.label}</p>
+                </div>
+              ))}
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row">
+                <input value={searchTerm} onChange={(event) => { setSearchTerm(event.target.value); setInventoryPage(1); }} placeholder="Buscar por nombre, SKU, marca o categoría" className="min-h-10 min-w-0 flex-1 rounded-lg border border-slate-200 px-3 text-sm text-slate-800" />
+                <select aria-label="Filtrar inventario" value={inventoryFilter} onChange={(event) => { setInventoryFilter(event.target.value as typeof inventoryFilter); setInventoryPage(1); }} className="min-h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700">
+                  <option value="all">Todos</option>
+                  <option value="low">Stock bajo</option>
+                  <option value="out">Agotados</option>
+                  <option value="active">Activos</option>
+                  <option value="inactive">Inactivos</option>
+                </select>
+              </div>
+              {productsStatus === "loading" && <p role="status" className="py-8 text-center text-sm text-slate-500">Cargando inventario…</p>}
+              {productsStatus === "error" && <div role="alert" className="py-8 text-center text-sm text-red-700">No fue posible cargar el inventario. <button type="button" onClick={onRetryProducts} className="font-semibold underline">Intentar de nuevo</button></div>}
+              {productsStatus === "ready" && products.length === 0 && <p role="status" className="py-8 text-center text-sm text-slate-500">No hay productos registrados.</p>}
+              {productsStatus === "ready" && products.length > 0 && inventoryProducts.length === 0 && <p role="status" className="py-8 text-center text-sm text-slate-500">No hay productos para este filtro.</p>}
+              {productsStatus === "ready" && inventoryProducts.length > 0 && (
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {paginatedInventoryProducts.map((product) => {
+                    const stock = Number(product.stock ?? 0);
+                    const stockLabel = stock <= 0 ? "Agotado" : stock <= LOW_STOCK_THRESHOLD ? "Stock bajo" : "Stock normal";
+                    return (
+                      <article key={product.id} className="min-w-0 rounded-xl border border-slate-200 p-4">
+                        <div className="flex gap-3">
+                          <img src={product.image} alt="" className="h-14 w-14 shrink-0 rounded-lg bg-slate-100 object-cover" />
+                          <div className="min-w-0 flex-1">
+                            <h3 className="break-words text-sm font-semibold text-slate-900">{product.name}</h3>
+                            <p className="mt-1 break-words text-xs text-slate-500">{product.sku} · {product.category}</p>
+                          </div>
+                        </div>
+                        <div className="mt-4 flex items-center justify-between gap-2">
+                          <div>
+                            <p className="text-base font-bold text-slate-900">{stock.toLocaleString("es-CO")} unidades</p>
+                            <p className="text-xs text-slate-500">{stockLabel} · {product.isActive === false ? "Inactivo" : "Activo"}</p>
+                          </div>
+                          <div className="flex gap-2">
+                            <button type="button" onClick={() => { handleEditProduct(product); handleSidebarClick("products"); }} className="min-h-9 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-700 hover:bg-slate-50">Editar</button>
+                            <button type="button" onClick={() => setStockAdjustment({ productId: product.id, movementType: "in", quantity: "1", reason: "", error: null })} className="min-h-9 rounded-lg border border-blue-200 bg-blue-50 px-3 text-xs font-semibold text-blue-700 hover:bg-blue-100">Ajustar</button>
+                          </div>
+                        </div>
+                        {stockAdjustment.productId === product.id && (
+                          <form className="mt-4 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3" onSubmit={async (event) => {
+                            event.preventDefault();
+                            if (!stockAdjustment.productId) return;
+                            const quantity = Number(stockAdjustment.quantity);
+                            if (!Number.isFinite(quantity) || quantity <= 0) {
+                              setStockAdjustment((current) => ({ ...current, error: "La cantidad debe ser mayor que cero." }));
+                              return;
+                            }
+                            if (!stockAdjustment.reason.trim()) {
+                              setStockAdjustment((current) => ({ ...current, error: "Debes indicar el motivo del ajuste." }));
+                              return;
+                            }
+                            setStockAdjustmentSubmittingId(stockAdjustment.productId);
+                            setStockAdjustment((current) => ({ ...current, error: null }));
+                            try {
+                              await adjustStock(stockAdjustment.productId, stockAdjustment.movementType, quantity, stockAdjustment.reason);
+                              setStockAdjustment({ productId: null, movementType: 'in', quantity: '1', reason: '', error: null });
+                              toast.success('Stock actualizado correctamente.');
+                            } catch (error) {
+                              setStockAdjustment((current) => ({ ...current, error: formatAdminApiError(error, 'No se pudo ajustar el stock.') }));
+                            } finally {
+                              setStockAdjustmentSubmittingId(null);
+                            }
+                          }}>
+                            <label className="block text-xs font-medium text-slate-700">
+                              Tipo de ajuste
+                              <select aria-label={`Tipo de ajuste para ${product.name}`} value={stockAdjustment.movementType} onChange={(event) => setStockAdjustment((current) => ({ ...current, movementType: event.target.value as 'in' | 'out' | 'correction' }))} className="mt-1 min-h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800">
+                                <option value="in">Entrada</option>
+                                <option value="out">Salida</option>
+                                <option value="correction">Corrección</option>
+                              </select>
+                            </label>
+                            <label className="block text-xs font-medium text-slate-700">
+                              Cantidad
+                              <input aria-label={`Cantidad para ${product.name}`} type="number" min="1" step="1" value={stockAdjustment.quantity} onChange={(event) => setStockAdjustment((current) => ({ ...current, quantity: event.target.value }))} className="mt-1 min-h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800" />
+                            </label>
+                            <label className="block text-xs font-medium text-slate-700">
+                              Motivo
+                              <input aria-label={`Motivo para ${product.name}`} type="text" value={stockAdjustment.reason} onChange={(event) => setStockAdjustment((current) => ({ ...current, reason: event.target.value }))} placeholder="Ej. Ajuste de inventario / devolución / conteo" className="mt-1 min-h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800" />
+                            </label>
+                            {stockAdjustment.error && <p role="alert" className="text-xs text-red-700">{stockAdjustment.error}</p>}
+                            <div className="flex gap-2 pt-1">
+                              <button type="submit" disabled={stockAdjustmentSubmittingId === product.id} className="min-h-9 rounded-lg bg-[#1d4ed8] px-3 text-xs font-semibold text-white disabled:opacity-60">{stockAdjustmentSubmittingId === product.id ? "Guardando…" : "Guardar"}</button>
+                              <button type="button" onClick={() => setStockAdjustment({ productId: null, movementType: 'in', quantity: '1', reason: '', error: null })} className="min-h-9 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-700">Cancelar</button>
+                            </div>
+                          </form>
+                        )}
+                        <p className="mt-3 text-xs text-slate-400">Actualizado: {formatAdminProductDate(product.updatedAt)}</p>
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+              {productsStatus === "ready" && inventoryProducts.length > inventoryPageSize && (
+                <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4">
+                  <p className="text-xs text-slate-500">Página {inventoryPage} de {inventoryTotalPages}</p>
+                  <div className="flex gap-2">
+                    <button type="button" disabled={inventoryPage <= 1} onClick={() => setInventoryPage((currentPage) => Math.max(1, currentPage - 1))} className="min-h-9 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-700 disabled:opacity-50">Anterior</button>
+                    <button type="button" disabled={inventoryPage >= inventoryTotalPages} onClick={() => setInventoryPage((currentPage) => Math.min(inventoryTotalPages, currentPage + 1))} className="min-h-9 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-700 disabled:opacity-50">Siguiente</button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         );
@@ -4195,11 +4412,37 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
 
       case "reports":
         return (
-          <div className="rounded-xl border border-slate-200 bg-white p-6">
-            <h2 className="text-lg font-bold text-slate-900">Reportes</h2>
-            <p role="status" className="mt-2 text-sm text-slate-600">
-              No hay una fuente de pedidos ni pagos conectada. Las ventas, reembolsos y exportaciones estarán disponibles cuando exista esa integración.
-            </p>
+          <div className="space-y-5 rounded-xl border border-slate-200 bg-white p-6">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">Reportes</h2>
+                <p className="mt-1 text-sm text-slate-500">Pedidos con pago confirmado en los últimos 7 días.</p>
+              </div>
+              <button type="button" onClick={() => setDashboardRefresh((value) => value + 1)} className="min-h-10 rounded-lg border border-slate-200 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">Actualizar</button>
+            </div>
+            {dashboardStatus === "loading" && <p role="status" className="text-sm text-slate-600">Cargando reportes…</p>}
+            {(dashboardStatus === "error" || dashboardData?.sales.status === "error") && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">No fue posible cargar los reportes. Intenta nuevamente.</p>}
+            {(dashboardData?.sales.status === "forbidden" || dashboardData?.category_sales_status === "forbidden") && <p role="status" className="text-sm text-slate-600">No tienes permisos para consultar los reportes.</p>}
+            {dashboardStatus === "ready" && dashboardData?.sales.status === "empty" && <p role="status" className="text-sm text-slate-600">No hay pedidos con pago confirmado para el periodo seleccionado.</p>}
+            {dashboardStatus === "ready" && dashboardData?.sales.status === "ready" && (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-xs text-slate-500">Ingresos · últimos 7 días</p>
+                  <p className="mt-1 text-2xl font-bold text-slate-900">{dashboardData.sales.total_7d === null ? "No disponible" : `${fmt(dashboardData.sales.total_7d)} COP`}</p>
+                  <p className="mt-1 text-xs text-slate-500">{dashboardData.sales.period_start ? new Date(dashboardData.sales.period_start).toLocaleDateString("es-CO") : "—"} – {dashboardData.sales.period_end ? new Date(dashboardData.sales.period_end).toLocaleDateString("es-CO") : "—"}</p>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-xs text-slate-500">Pedidos pagados · últimos 7 días</p>
+                  <p className="mt-1 text-2xl font-bold text-slate-900">{dashboardData.sales.paid_orders?.toLocaleString("es-CO") ?? "No disponible"}</p>
+                </div>
+              </div>
+            )}
+            <div className="rounded-lg border border-slate-200 p-4">
+              <h3 className="text-sm font-semibold text-slate-800">Ventas por categoría</h3>
+              <p role="status" className="mt-1 text-sm text-slate-600">
+                {dashboardData?.category_sales_status === "empty" ? "No hay datos de ventas por categoría para el periodo seleccionado." : dashboardData?.category_sales_status === "pending" ? "Pendiente: los artículos del pedido no conservan la categoría histórica del producto." : dashboardData?.category_sales_status === "forbidden" ? "No tienes permisos para consultar este reporte." : dashboardStatus === "error" ? "No fue posible cargar los datos de categoría." : "Cargando o sin datos disponibles."}
+              </p>
+            </div>
           </div>
         );
 
@@ -4211,20 +4454,24 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                 <h2 className="text-lg font-extrabold text-slate-900">Actividad</h2>
                 <p className="text-sm text-slate-600">Registros recientes de auditoría y cambios en el panel.</p>
               </div>
-              <button onClick={refreshAudit} className="px-4 py-2 rounded-xl bg-black text-white font-semibold hover:bg-slate-900">Actualizar</button>
+              <button type="button" onClick={() => void refreshAudit()} disabled={auditStatus === "loading"} className="px-4 py-2 rounded-xl bg-black text-white font-semibold hover:bg-slate-900 disabled:opacity-60">
+                {auditStatus === "loading" ? "Actualizando…" : "Actualizar"}
+              </button>
             </div>
-            {auditEntries.length > 0 ? (
+            {auditStatus === "loading" && <p role="status" className="rounded-xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">Cargando actividad…</p>}
+            {auditStatus === "error" && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-800">No fue posible cargar la actividad. Intenta nuevamente.</div>}
+            {auditStatus === "empty" && <p role="status" className="rounded-xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">No hay actividad registrada.</p>}
+            {auditStatus === "ready" ? (
               <div className="space-y-3">
                 {auditEntries.map((entry) => (
                   <div key={entry.id} className="rounded-3xl bg-slate-50 p-4">
-                    <p className="text-sm font-semibold text-slate-800">{entry.action}</p>
-                    <p className="text-xs text-slate-500">{new Date(entry.ts).toLocaleString('es-CO')}</p>
+                    <p className="text-sm font-semibold text-slate-800">{{ create_product: "Producto creado", update_product: "Producto actualizado", activate_product: "Producto activado", deactivate_product: "Producto desactivado", delete_product: "Producto eliminado", inventory_movement: "Inventario ajustado" }[entry.action] ?? entry.action.replaceAll("_", " ")}</p>
+                    {entry.meta?.entity && <p className="mt-1 text-xs text-slate-500">Tipo: {String(entry.meta.entity)}</p>}
+                    <p className="mt-1 text-xs text-slate-500">{new Date(entry.ts).toLocaleString('es-CO')}</p>
                   </div>
                 ))}
               </div>
-            ) : (
-              <p className="text-sm text-slate-500">No hay actividad registrada aún.</p>
-            )}
+            ) : null}
           </div>
         );
 
@@ -5000,16 +5247,19 @@ export default function App() {
     return result;
   };
 
-  const adjustStock = async (productId: string, delta: number) => {
-    try {
-      await adminApi.createInventoryMovement(productId, delta, 'adjustment');
-      refreshProducts();
-      try { recordAction('inventory_movement', { id: productId, delta }); } catch (e) { }
-      return;
-    } catch (err) {
-      console.error('Backend inventory movement failed:', err);
-      toast.error('Error ajustando inventario. Intenta nuevamente.');
+  const adjustStock = async (productId: string, movementType: 'in' | 'out' | 'correction', quantity: number, reason: string) => {
+    const normalizedReason = reason.trim();
+    if (!normalizedReason) {
+      throw new Error('Debes indicar el motivo del ajuste.');
     }
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      throw new Error('La cantidad debe ser mayor que cero.');
+    }
+    const result = await adminApi.adjustProductStock({ productId, movementType, quantity, reason: normalizedReason });
+    setAdminProducts((current) => current.map((product) => product.id === productId ? { ...product, stock: result.new_stock, updatedAt: new Date().toISOString() } : product));
+    refreshProducts();
+    try { recordAction('inventory_movement', { id: productId, movementType, quantity, newStock: result.new_stock }); } catch (e) { }
+    return;
   };
 
   const navigate = (v: View, product?: Product) => {
