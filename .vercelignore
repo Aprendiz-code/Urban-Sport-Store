@@ -1,18 +1,10 @@
-# Keep only the consolidated API entrypoint in the Vercel deployment.
-# This reduces the serverless function count to one so the project can deploy on
-# the free Hobby tier without hitting Vercel's 12-function cap.
-
-# Exclude all legacy route modules that are intentionally consolidated into
-# api/index.ts for the public deployment.
+# Keep the public storefront API endpoints only. This stays under the Hobby
+# tier's 12 serverless-function limit while preserving catalog/home loading.
 api/account/**
 api/admin/**
 api/test/**
-api/categories.ts
-api/health.ts
-api/home.ts
 api/newsletter.ts
 api/orders.ts
-api/products.ts
 
 # Exclude legacy build outputs and local metadata.
 api/dist/**
