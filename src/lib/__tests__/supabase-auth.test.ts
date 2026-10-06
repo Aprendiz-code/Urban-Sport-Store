@@ -15,7 +15,7 @@ vi.mock('../supabase-client', () => ({
   isSupabaseEnabled: () => true,
 }));
 
-import { getAccessToken, getCurrentUser, logAuthDiagnostic, onAuthStateChange, signInWithEmail, signOut, signUpWithEmail } from '../supabase-auth';
+import { getAccessToken, getCurrentUser, getSignUpErrorMessage, logAuthDiagnostic, onAuthStateChange, signInWithEmail, signOut, signUpWithEmail } from '../supabase-auth';
 
 describe('Supabase admin access token', () => {
   beforeEach(() => {
@@ -159,7 +159,22 @@ describe('Supabase admin access token', () => {
 
     const result = await signUpWithEmail('customer@example.test', 'short', { name: 'Ada Lovelace' });
 
-    expect(result.error?.message).toBe('La contraseña debe tener al menos 8 caracteres.');
+    expect(result.error?.message).toBe('Usa una contraseña de al menos 8 caracteres.');
+  });
+
+  it.each([
+    [{ code: 'email_exists' }, 'Ya existe una cuenta registrada con este correo electrónico. Inicia sesión o usa otro correo.'],
+    [{ code: 'email_address_invalid' }, 'Ingresa un correo electrónico válido.'],
+    [{ code: 'weak_password' }, 'La contraseña no cumple los requisitos de seguridad.'],
+    [{ message: 'Failed to fetch' }, 'No pudimos conectarnos con el servidor. Revisa tu conexión e inténtalo nuevamente.'],
+    [{ status: 500, message: 'Database error saving new user: profiles.email does not exist' }, 'No fue posible crear tu cuenta en este momento. Inténtalo de nuevo más tarde.'],
+    [{ message: 'Internal SQL statement and profile details' }, 'Ocurrió un problema al crear tu cuenta. Inténtalo nuevamente.'],
+  ])('returns safe Spanish signup feedback for %j', (error, expectedMessage) => {
+    const visibleMessage = getSignUpErrorMessage(error);
+
+    expect(visibleMessage).toBe(expectedMessage);
+    expect(visibleMessage).not.toContain('profiles');
+    expect(visibleMessage).not.toContain('SQL');
   });
 
   it('masks identity and strips credentials from development diagnostics', () => {

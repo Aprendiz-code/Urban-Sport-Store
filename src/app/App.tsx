@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import type { User } from '@supabase/supabase-js';
 import {
   ShoppingCart, Search, X, Star, ChevronRight, Package,
-  Users, TrendingUp, AlertTriangle, Check, Eye, EyeOff,
+  Users, UserRound, TrendingUp, AlertTriangle, Check, Eye, EyeOff,
   Bell, LogOut, Plus, Minus, Trash2, MapPin,
   Truck, ChevronLeft, ChevronUp, ChevronDown, Heart, ArrowRight, Filter,
   BarChart2, Home, Settings, Tag, Layers, Edit,
@@ -30,6 +30,7 @@ import { createProductViaAdminApi, updateProductViaAdminApi } from "../lib/admin
 import {
   signInWithEmail,
   signUpWithEmail,
+  getSignUpErrorMessage,
   signOut,
   getCurrentUser,
   onAuthStateChange,
@@ -946,7 +947,9 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, profileRole
                     className="h-10 w-10 rounded-xl flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
                   >
                   {isLoggedIn
-                    ? <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#1d4ed8] to-[#f97316] text-xs font-bold text-white">{isAdmin ? "A" : "V"}</div>
+                    ? isAdmin
+                      ? <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#1d4ed8] to-[#f97316] text-xs font-bold text-white">A</div>
+                      : <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 text-[#1d4ed8]"><UserRound size={17} aria-hidden="true" /></div>
                     : <Users size={19} />}
                 </button>
                 {userOpen && (
@@ -1509,7 +1512,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
           Compra con tranquilidad
         </h2>
         <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2">
-          <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_12px_30px_-18px_rgba(15,23,42,0.3)] sm:p-6">
+          <article id="shipping-policy" className="scroll-mt-[13rem] rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_12px_30px_-18px_rgba(15,23,42,0.3)] sm:scroll-mt-[8rem] sm:p-6">
             <div className="mb-4 flex items-start gap-3">
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-primary">
                 <Truck size={20} aria-hidden="true" />
@@ -1523,7 +1526,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
               Trabajamos con diferentes opciones de transporte para brindar una entrega segura. La información final de envío se confirmará antes de completar tu compra.
             </p>
           </article>
-          <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_12px_30px_-18px_rgba(15,23,42,0.3)] sm:p-6">
+          <article id="returns-policy" className="scroll-mt-[13rem] rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_12px_30px_-18px_rgba(15,23,42,0.3)] sm:scroll-mt-[8rem] sm:p-6">
             <div className="mb-4 flex items-start gap-3">
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-primary">
                 <RefreshCw size={20} aria-hidden="true" />
@@ -1618,8 +1621,8 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
               <div>
                 <p className="mb-3 text-xs font-bold uppercase tracking-widest text-white">Ayuda</p>
                 <ul className="space-y-2">
-                  <li><button type="button" onClick={() => onNavigate("shipping")} className="min-h-10 w-full text-left text-xs text-slate-400 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">Envíos</button></li>
-                  <li><button type="button" onClick={() => onNavigate("returns")} className="min-h-10 w-full text-left text-xs text-slate-400 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">Cambios y devoluciones</button></li>
+                  <li><a href="#shipping-policy" className="flex min-h-10 w-full items-center text-xs text-slate-400 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">Envíos</a></li>
+                  <li><a href="#returns-policy" className="flex min-h-10 w-full items-center text-xs text-slate-400 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">Cambios y devoluciones</a></li>
                   <li><button type="button" onClick={() => onNavigate("privacy")} className="min-h-10 w-full text-left text-xs text-slate-400 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">Política de privacidad</button></li>
                   <li><button type="button" onClick={() => onNavigate("terms")} className="min-h-10 w-full text-left text-xs text-slate-400 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">Términos y condiciones</button></li>
                   <li><button type="button" onClick={() => onNavigate("contact")} className="min-h-10 w-full text-left text-xs text-slate-400 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">Contacto</button></li>
@@ -2269,6 +2272,7 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [legalConsent, setLegalConsent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recoveryMessage, setRecoveryMessage] = useState<string | null>(null);
   const [recoveryLoading, setRecoveryLoading] = useState(false);
@@ -2279,13 +2283,35 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading || recoveryRequestInFlight.current) return;
-    setLoading(true);
     setError(null);
+    if (isRegister) {
+      if (!name.trim()) {
+        setError("Ingresa tu nombre completo.");
+        return;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+        setError("Ingresa un correo electrónico válido.");
+        return;
+      }
+      if (!password) {
+        setError("Ingresa una contraseña.");
+        return;
+      }
+      if (password.length < 8) {
+        setError("Usa una contraseña de al menos 8 caracteres.");
+        return;
+      }
+      if (!legalConsent) {
+        setError("Debes aceptar los Términos y Condiciones y la Política de Privacidad para crear tu cuenta.");
+        return;
+      }
+    }
+    setLoading(true);
 
     try {
       let user = null;
       if (isRegister) {
-        const signUpResult = await signUpWithEmail(email, password, { name });
+        const signUpResult = await signUpWithEmail(email.trim(), password, { name: name.trim() });
         if (signUpResult.error) throw signUpResult.error;
         if (!signUpResult.data.user) throw new Error("No se pudo crear la cuenta.");
 
@@ -2293,10 +2319,11 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
         const signUpNeedsConfirmation = 'needsConfirmation' in signUpResult && Boolean(signUpResult.needsConfirmation);
         if (signUpNeedsConfirmation) {
           logAuthDiagnostic("signup.confirmation_required", { userId: user.id, email: user.email, sessionPresent: false, redirectTo: "email-confirmation" });
-          toast.success("Cuenta creada. Revisa tu bandeja de entrada para confirmar tu cuenta.");
+          toast.success("Tu cuenta fue creada. Revisa tu correo electrónico para confirmar tu cuenta antes de iniciar sesión.");
           setName("");
           setEmail("");
           setPassword("");
+          setLegalConsent(false);
           return;
         }
 
@@ -2311,6 +2338,7 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
         setEmail("");
         setPassword("");
         setName("");
+        setLegalConsent(false);
         onNavigate(profileAccess.isAdmin ? "admin" : "home");
         return;
       }
@@ -2330,7 +2358,13 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
       onNavigate(profileAccess.isAdmin ? "admin" : "home");
     } catch (err) {
       if (err instanceof ProfileAccessVerificationError) {
-        setError(err.message);
+        setError(isRegister
+          ? "Tu cuenta se creó, pero no pudimos completar la verificación. Intenta iniciar sesión más tarde."
+          : err.message);
+        return;
+      }
+      if (isRegister) {
+        setError(getSignUpErrorMessage(err));
         return;
       }
       const message = err instanceof Error ? err.message : "";
@@ -2396,7 +2430,7 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
 
         {/* Main form card */}
         <div className="bg-white/95 backdrop-blur-sm rounded-3xl border border-blue-200 p-8 shadow-xl space-y-6">
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form noValidate={isRegister} onSubmit={handleSubmit} className="space-y-5">
             {/* Name field for register */}
             {isRegister && (
               <div>
@@ -2406,7 +2440,7 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
                   required
                   autoComplete="name"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => { setName(e.target.value); setError(null); }}
                   placeholder="Tu nombre"
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 placeholder-slate-500 focus:outline-none focus:border-[#1d4ed8] focus:bg-white transition-all duration-200"
                 />
@@ -2422,7 +2456,7 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
                 required
                 autoComplete="email"
                 value={email} 
-                  onChange={(e) => { setEmail(e.target.value); setRecoveryMessage(null); }}
+                  onChange={(e) => { setEmail(e.target.value); setRecoveryMessage(null); setError(null); }}
                 placeholder="tu@email.com" 
                 className="w-full px-4 py-3.5 bg-slate-50 border border-slate-300 rounded-xl text-base text-slate-900 placeholder-slate-500 focus:outline-none focus:border-[#1d4ed8] focus:bg-white transition-all duration-200" 
               />
@@ -2439,9 +2473,10 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
                   id="auth-password"
                   type={showPass ? "text" : "password"} 
                   required
+                  minLength={isRegister ? 8 : undefined}
                   autoComplete={isRegister ? "new-password" : "current-password"}
                   value={password} 
-                  onChange={(e) => setPassword(e.target.value)} 
+                  onChange={(e) => { setPassword(e.target.value); setError(null); }}
                   placeholder="••••••••"
                   className="w-full px-4 py-3.5 bg-slate-50 border border-slate-300 rounded-xl text-base text-slate-900 placeholder-slate-500 focus:outline-none focus:border-[#1d4ed8] focus:bg-white transition-all duration-200" 
                 />
@@ -2465,15 +2500,27 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
 
             {/* Legal links for register */}
             {isRegister && (
-              <p className="text-xs leading-relaxed text-slate-700">
-                Al crear una cuenta, aceptas nuestros <a href={termsUrl} target="_blank" rel="noreferrer" className="font-semibold text-[#1d4ed8] underline">Términos y Condiciones</a> y la <a href={privacyPolicyUrl} target="_blank" rel="noreferrer" className="font-semibold text-[#1d4ed8] underline">Política de Privacidad</a>.
-              </p>
+              <label htmlFor="auth-legal-consent" className="flex items-start gap-2 text-sm leading-relaxed text-slate-700">
+                <input
+                  id="auth-legal-consent"
+                  type="checkbox"
+                  required
+                  checked={legalConsent}
+                  disabled={loading}
+                  onChange={(event) => { setLegalConsent(event.target.checked); setError(null); }}
+                  className="mt-1 accent-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                />
+                <span>
+                  He leído y acepto los <a href={termsUrl} target="_blank" rel="noreferrer" className="font-semibold text-[#1d4ed8] underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">Términos y Condiciones</a> y la <a href={privacyPolicyUrl} target="_blank" rel="noreferrer" className="font-semibold text-[#1d4ed8] underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">Política de Privacidad</a>.
+                </span>
+              </label>
             )}
 
             {/* Error message */}
             {error && (
               <div role="alert" aria-live="assertive" className="rounded-xl border border-red-200 bg-red-50 p-3.5">
-                <p className="text-sm font-medium text-red-800">{error}</p>
+                <p className="text-sm font-semibold text-red-800">{isRegister ? "No pudimos crear tu cuenta" : "No pudimos iniciar sesión"}</p>
+                <p className="mt-1 text-sm text-red-800">{error}</p>
               </div>
             )}
             {recoveryMessage && <p role="status" aria-live="polite" className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">{recoveryMessage}</p>}
@@ -3880,8 +3927,8 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                       <option value="" disabled>
                         {categories.length ? 'Selecciona una categoría' : 'Primero crea una categoría antes de agregar productos.'}
                       </option>
-                      {categories.map((option) => (
-                        <option key={option.id} value={option.id}>{option.name}</option>
+                      {categories.filter((option) => option.slug === "urbano" || option.slug === "running").map((option) => (
+                        <option key={option.id} value={option.id}>{option.slug === "running" ? "Running / entrenamiento" : option.name}</option>
                       ))}
                     </select>
                     {categories.length === 0 && (

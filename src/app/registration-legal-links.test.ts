@@ -15,17 +15,21 @@ describe('registration legal links', () => {
     expect(appSource).toContain('if (pathname === "/politica-de-privacidad") return "privacy";');
   });
 
-  it('shows linked terms without blocking signup on environment configuration or consent state', () => {
-    expect(loginPage).toContain('Al crear una cuenta, aceptas nuestros');
+  it('requires legal consent before signup and preserves both policy links', () => {
+    expect(loginPage).toContain('He leído y acepto los');
     expect(loginPage).toContain('href={termsUrl}');
     expect(loginPage).toContain('href={privacyPolicyUrl}');
-    expect(loginPage).not.toContain('acceptedPolicies');
-    expect(loginPage).not.toContain('policiesAvailable');
-    expect(loginPage).not.toContain('El registro estará disponible cuando se configuren');
+    expect(loginPage).toContain('id="auth-legal-consent"');
+    expect(loginPage).toContain('checked={legalConsent}');
+    expect(loginPage).toContain('if (!legalConsent)');
+    expect(loginPage).toContain('noValidate={isRegister}');
+    expect(loginPage).toContain('Debes aceptar los Términos y Condiciones y la Política de Privacidad para crear tu cuenta.');
     expect(loginPage).toContain('disabled={loading}');
     expect(loginPage).toMatch(/id="auth-name"\s+required/);
     expect(loginPage).toMatch(/id="auth-email"[\s\S]{0,100}required/);
     expect(loginPage).toMatch(/id="auth-password"[\s\S]{0,100}required/);
+    expect(loginPage).toContain('role="alert" aria-live="assertive"');
+    expect(loginPage).toContain('getSignUpErrorMessage(err)');
   });
 
   it('shows confirmation instructions before checking a profile when signup has no session', () => {
@@ -34,6 +38,6 @@ describe('registration legal links', () => {
 
     expect(confirmationBranch).toBeGreaterThan(-1);
     expect(profileLookup).toBeGreaterThan(confirmationBranch);
-    expect(loginPage.slice(confirmationBranch, profileLookup)).toContain('Revisa tu bandeja de entrada para confirmar tu cuenta.');
+    expect(loginPage.slice(confirmationBranch, profileLookup)).toContain('Revisa tu correo electrónico para confirmar tu cuenta antes de iniciar sesión.');
   });
 });

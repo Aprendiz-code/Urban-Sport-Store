@@ -103,27 +103,54 @@ export const updatePassword = async (password: string) => {
   if (error) throw error;
 };
 
-function getSignUpErrorMessage(error: { code?: string; message?: string }) {
-  const message = error.message?.trim() ?? '';
+const signUpMessages = {
+  emailExists: 'Ya existe una cuenta registrada con este correo electrónico. Inicia sesión o usa otro correo.',
+  invalidEmail: 'Ingresa un correo electrónico válido.',
+  invalidPassword: 'La contraseña no cumple los requisitos de seguridad.',
+  passwordMismatch: 'Las contraseñas no coinciden.',
+  termsNotAccepted: 'Debes aceptar los Términos y Condiciones y la Política de Privacidad para crear tu cuenta.',
+  network: 'No pudimos conectarnos con el servidor. Revisa tu conexión e inténtalo nuevamente.',
+  server: 'No fue posible crear tu cuenta en este momento. Inténtalo de nuevo más tarde.',
+  unknown: 'Ocurrió un problema al crear tu cuenta. Inténtalo nuevamente.',
+} as const;
+
+export function getSignUpErrorMessage(error: unknown): string {
+  const details = error && typeof error === 'object'
+    ? error as { code?: unknown; status?: unknown; message?: unknown }
+    : {};
+  const code = typeof details.code === 'string' ? details.code.toLowerCase() : '';
+  const status = typeof details.status === 'number' ? details.status : undefined;
+  const message = typeof details.message === 'string' ? details.message.trim() : '';
   const normalizedMessage = message.toLowerCase();
 
-  if (normalizedMessage.includes('already registered') || normalizedMessage.includes('already exists')) {
-    return 'Ya existe una cuenta con este correo. Inicia sesión o usa otro correo.';
+  if (Object.values(signUpMessages).includes(message as typeof signUpMessages[keyof typeof signUpMessages])) {
+    return message;
   }
-  if (error.code === 'weak_password' || (normalizedMessage.includes('password') && normalizedMessage.includes('at least'))) {
+  if (['user_already_exists', 'email_exists', 'email_already_exists'].includes(code)
+    || normalizedMessage.includes('already registered')
+    || normalizedMessage.includes('already exists')) {
+    return signUpMessages.emailExists;
+  }
+  if (['email_address_invalid', 'invalid_email'].includes(code) || normalizedMessage.includes('invalid email')) {
+    return signUpMessages.invalidEmail;
+  }
+  if (['weak_password', 'password_too_short'].includes(code)
+    || (normalizedMessage.includes('password') && normalizedMessage.includes('at least'))) {
     const minimumLength = message.match(/at least\s+(\d+)\s+characters?/i)?.[1];
     return minimumLength
-      ? `La contraseña debe tener al menos ${minimumLength} caracteres.`
-      : 'La contraseña no cumple los requisitos mínimos.';
+      ? `Usa una contraseña de al menos ${minimumLength} caracteres.`
+      : signUpMessages.invalidPassword;
   }
-  if (normalizedMessage.includes('invalid email')) {
-    return 'Ingresa una dirección de correo electrónico válida.';
+  if (code === 'password_mismatch') return signUpMessages.passwordMismatch;
+  if (status === 429 || code.includes('rate_limit') || /rate limit|too many requests/i.test(message)) {
+    return signUpMessages.server;
   }
-  if (normalizedMessage.includes('rate limit') || normalizedMessage.includes('too many requests')) {
-    return 'Demasiados intentos de registro. Espera un momento e inténtalo de nuevo.';
+  if (/failed to fetch|network error|fetch failed/i.test(message)) return signUpMessages.network;
+  if ((status !== undefined && status >= 500) || /database error|internal server error/i.test(message)) {
+    return signUpMessages.server;
   }
 
-  return message || 'No se pudo crear la cuenta. Inténtalo de nuevo.';
+  return signUpMessages.unknown;
 }
 
 export const signUpWithEmail = async (email: string, password: string, options?: { name?: string }) => {
