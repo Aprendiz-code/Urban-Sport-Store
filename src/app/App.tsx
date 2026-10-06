@@ -3,7 +3,7 @@ import type { User } from '@supabase/supabase-js';
 import {
   ShoppingCart, Search, X, Star, ChevronRight, Package,
   Users, TrendingUp, AlertTriangle, Check, Eye, EyeOff,
-  Bell, LogOut, Plus, Minus, Trash2, MapPin, Shield,
+  Bell, LogOut, Plus, Minus, Trash2, MapPin,
   Truck, ChevronLeft, ChevronUp, ChevronDown, Heart, ArrowRight, Filter,
   BarChart2, Home, Settings, Tag, Layers, Edit,
   RefreshCw, Award, Grid3X3, ThumbsUp, DollarSign, LoaderCircle
@@ -1504,19 +1504,39 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
         </section>
       )}
 
-      <section className="py-8 sm:py-12 md:py-16">
-        <div className="mx-auto max-w-7xl px-3 sm:px-4 md:px-6">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {[{title:"Información del catálogo", copy:STORE_CONFIG.trustCopy.productInfo},{title:"Envíos por confirmar", copy:STORE_CONFIG.trustCopy.shipping},{title:"Cambios por confirmar", copy:"Las condiciones comerciales todavía no están configuradas."}].map((item) => (
-              <div key={item.title} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_12px_30px_-18px_rgba(15,23,42,0.3)]">
-                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-[#1d4ed8]">
-                  <Shield size={18} />
-                </div>
-                <h3 className="mb-2 text-lg font-bold text-slate-900">{item.title}</h3>
-                <p className="text-sm leading-relaxed text-slate-600">{item.copy}</p>
-              </div>
-            ))}
-          </div>
+      <section className="mx-auto max-w-7xl px-3 py-8 sm:px-4 sm:py-12 md:px-6 md:py-16" aria-labelledby="home-policies-title">
+        <h2 id="home-policies-title" className="mb-6 font-display text-[1.8rem] leading-[1.05] text-slate-900 sm:mb-8 sm:text-[2.4rem]">
+          Compra con tranquilidad
+        </h2>
+        <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2">
+          <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_12px_30px_-18px_rgba(15,23,42,0.3)] sm:p-6">
+            <div className="mb-4 flex items-start gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-primary">
+                <Truck size={20} aria-hidden="true" />
+              </span>
+              <h3 className="font-display text-xl leading-tight text-slate-900 sm:text-2xl">Políticas de envío</h3>
+            </div>
+            <p className="text-sm leading-relaxed text-slate-700 sm:text-base">
+              Realizamos envíos a toda Colombia. El valor del envío y el tiempo estimado de entrega se calculan de acuerdo con el destino, las características del pedido y la logística disponible para tu ubicación.
+            </p>
+            <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-base">
+              Trabajamos con diferentes opciones de transporte para brindar una entrega segura. La información final de envío se confirmará antes de completar tu compra.
+            </p>
+          </article>
+          <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_12px_30px_-18px_rgba(15,23,42,0.3)] sm:p-6">
+            <div className="mb-4 flex items-start gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-primary">
+                <RefreshCw size={20} aria-hidden="true" />
+              </span>
+              <h3 className="font-display text-xl leading-tight text-slate-900 sm:text-2xl">Políticas de cambios y devoluciones</h3>
+            </div>
+            <p className="text-sm leading-relaxed text-slate-700 sm:text-base">
+              Puedes solicitar cambios o devoluciones dentro de los primeros 30 días calendario posteriores a tu compra, siempre que el producto se encuentre en las mismas condiciones en las que fue entregado.
+            </p>
+            <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-base">
+              El costo del envío de regreso corre por cuenta del cliente. La gestión de la solicitud de cambio o devolución no tiene costo adicional por parte de Urban Sport Store.
+            </p>
+          </article>
         </div>
       </section>
 
