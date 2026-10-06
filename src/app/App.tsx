@@ -1411,9 +1411,6 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
               <div className="absolute inset-0 bg-gradient-to-t from-[#050b16]/90 via-[#050b16]/25 to-[#050b16]/10" />
               <div className="absolute inset-x-0 top-0 h-14 bg-gradient-to-b from-[#0b1220]/30 to-transparent" />
               <div className="relative flex h-full min-h-[118px] flex-col justify-end p-3 sm:min-h-[190px] sm:p-4">
-                <span className="mb-2 inline-flex w-fit items-center rounded-full border border-white/25 bg-white/10 px-2 py-1 text-[9px] font-bold uppercase tracking-[0.16em] text-white/90 backdrop-blur-[2px] sm:text-[10px]">
-                  Colección
-                </span>
                 <p className="font-display text-[1.05rem] leading-[1.05] text-white sm:text-[1.7rem]">{cat.name}</p>
                 <p className="mt-1 max-w-[80%] text-[10px] leading-relaxed text-slate-100/90 sm:text-[11px]">{cat.subtitle}</p>
               </div>
