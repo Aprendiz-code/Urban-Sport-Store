@@ -1,37 +1,27 @@
-[The file is currently empty or contains only whitespace]
-# Exclude legacy API build artifacts and server snapshots from Vercel deployments
-# These folders contain legacy Express app artifacts and compiled bundles that
-# would conflict with the intended Vercel serverless functions in `api/*.ts`.
+# Keep only the consolidated API entrypoint in the Vercel deployment.
+# This reduces the serverless function count to one so the project can deploy on
+# the free Hobby tier without hitting Vercel's 12-function cap.
 
-# Exclude legacy compiled API artifacts
-api/dist/**
+# Exclude all legacy route modules that are intentionally consolidated into
+# api/index.ts for the public deployment.
+api/account/**
+api/admin/**
 api/test/**
-api/index.ts
+api/categories.ts
 api/health.ts
+api/home.ts
+api/newsletter.ts
+api/orders.ts
+api/products.ts
 
-# Exclude legacy Express app source (not used by serverless runtime)
+# Exclude legacy build outputs and local metadata.
+api/dist/**
 api/src/**
-
-# Exclude local env and Vercel local state
 api/.vercel/**
-
-# Exclude non-endpoint config/metadata files under api/ so Vercel does not
-# count them as serverless functions (Hobby plan limit: 12 per deployment).
-# NOTE: api/lib/** is NOT excluded here — those modules are imported by
-# endpoints at runtime and must be uploaded. Instead, vercel.json "functions"
-# explicitly lists only the 11 endpoint files, preventing Vercel from
-# detecting lib files as standalone serverless functions.
 api/vitest.config.ts
 api/eslint.config.mjs
-
 api/README.md
-
-# Exclude example/legacy endpoint not used in production
 api/hello.js
-
-# Archive folder should not be deployed
 archive/**
-
-# Production environment files must never be included in deployment uploads
 .vercel-production.env
 
