@@ -103,6 +103,29 @@ export const updatePassword = async (password: string) => {
   if (error) throw error;
 };
 
+function getSignUpErrorMessage(error: { code?: string; message?: string }) {
+  const message = error.message?.trim() ?? '';
+  const normalizedMessage = message.toLowerCase();
+
+  if (normalizedMessage.includes('already registered') || normalizedMessage.includes('already exists')) {
+    return 'Ya existe una cuenta con este correo. Inicia sesión o usa otro correo.';
+  }
+  if (error.code === 'weak_password' || (normalizedMessage.includes('password') && normalizedMessage.includes('at least'))) {
+    const minimumLength = message.match(/at least\s+(\d+)\s+characters?/i)?.[1];
+    return minimumLength
+      ? `La contraseña debe tener al menos ${minimumLength} caracteres.`
+      : 'La contraseña no cumple los requisitos mínimos.';
+  }
+  if (normalizedMessage.includes('invalid email')) {
+    return 'Ingresa una dirección de correo electrónico válida.';
+  }
+  if (normalizedMessage.includes('rate limit') || normalizedMessage.includes('too many requests')) {
+    return 'Demasiados intentos de registro. Espera un momento e inténtalo de nuevo.';
+  }
+
+  return message || 'No se pudo crear la cuenta. Inténtalo de nuevo.';
+}
+
 export const signUpWithEmail = async (email: string, password: string, options?: { name?: string }) => {
   if (!isSupabaseEnabled()) {
     return {
@@ -114,28 +137,25 @@ export const signUpWithEmail = async (email: string, password: string, options?:
 
   const client = getSupabaseClient();
   const redirectUrl = typeof window !== 'undefined' ? window.location.origin : undefined;
+  const fullName = options?.name?.trim() ?? '';
   const result = await client.auth.signUp({
     email,
     password,
     options: {
-      data: { full_name: options?.name ?? '' },
+      data: { full_name: fullName, display_name: fullName },
       emailRedirectTo: redirectUrl,
     },
   });
 
-  if (!result.error && result.data.user && !result.data.session) {
-    const { error: signInError } = await client.auth.signInWithPassword({ email, password });
-    if (!signInError) {
-      const refreshedUser = await client.auth.getUser();
-      return { ...result, data: { ...result.data, user: refreshedUser.data.user ?? result.data.user }, needsConfirmation: false };
-    }
+  if (result.error) {
+    return { ...result, error: new Error(getSignUpErrorMessage(result.error)) };
   }
 
-  if (!result.error && result.data.user) {
-    return { ...result, data: { ...result.data, user: result.data.user }, needsConfirmation: !result.data.session };
-  }
-
-  return result;
+  return {
+    ...result,
+    data: { ...result.data, user: result.data.user },
+    needsConfirmation: Boolean(result.data.user && !result.data.session),
+  };
 };
 
 export const signOut = async () => {

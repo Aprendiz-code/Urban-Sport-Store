@@ -861,10 +861,10 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, profileRole
 
   return (
     <>
-      <div className="fixed top-0 left-0 right-0 z-50">
+      <header className="fixed top-0 left-0 right-0 z-50">
         <TopBenefitsBar />
 
-        <nav className="border-b border-slate-100 bg-white/95 shadow-sm backdrop-blur-sm">
+        <div className="border-b border-slate-100 bg-white/95 shadow-sm backdrop-blur-sm">
           <div className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-4 sm:px-6 sm:gap-4">
             <button type="button" onClick={() => onNavigate("home")} className="flex shrink-0 items-center" aria-label="Ir a inicio">
               <span className="brand-lockup">
@@ -1043,8 +1043,8 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, profileRole
               </div>
             </div>
           )}
-        </nav>
-      </div>
+        </div>
+      </header>
 
       {(currentView === "home" || currentView === "catalog") && (
         <div className="w-full bg-transparent pt-[9.75rem] sm:pt-[6.75rem]">
@@ -1331,6 +1331,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
   };
 
   return (
+    <>
     <main>
       <section className="relative flex min-h-[380px] items-center justify-center overflow-hidden bg-[#0b1220] sm:min-h-[440px] md:min-h-[520px]">
         <img
@@ -1387,7 +1388,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
 
       <section className="mx-auto max-w-7xl px-3 pb-2 pt-8 sm:px-4 sm:pt-10 md:px-6 md:pt-12">
         <div className="mb-6 sm:mb-8">
-          <p className="mb-1 font-display text-sm uppercase tracking-[0.08em] text-[#2457D6] sm:text-base">{content.categorySectionLabel}</p>
+          <p className="mb-1 font-display text-sm uppercase tracking-[0.08em] text-primary sm:text-base">{content.categorySectionLabel}</p>
           <h2 className="font-display text-[1.8rem] uppercase leading-[1.05] text-[#0b1220] sm:text-[2.4rem] md:text-[2.8rem]">{content.categorySectionTitle}</h2>
         </div>
         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
@@ -1420,7 +1421,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
       <section className="mx-auto max-w-7xl px-3 py-6 sm:px-4 sm:py-12 md:px-6 md:py-16">
         <div className="mb-6 flex items-end justify-between gap-4 sm:mb-8">
           <div>
-            <p className="mb-1 font-display text-sm uppercase tracking-[0.08em] text-[#1d4ed8] sm:text-base">{content.featuredSectionLabel}</p>
+            <p className="mb-1 font-display text-sm uppercase tracking-[0.08em] text-primary sm:text-base">{content.featuredSectionLabel}</p>
             <h2 className="font-display text-[1.8rem] uppercase leading-[1.05] text-slate-900 sm:text-[2.4rem] md:text-[2.8rem]">PRODUCTOS DESTACADOS</h2>
           </div>
           {productsStatus === "ready" && featured.length > 0 && (
@@ -1479,22 +1480,6 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
         </ProductGrid>
       </section>}
 
-      <section className="py-8 sm:py-12 md:py-16">
-        <div className="mx-auto max-w-7xl px-3 sm:px-4 md:px-6">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {[{title:"Información del catálogo", copy:STORE_CONFIG.trustCopy.productInfo},{title:"Envíos por confirmar", copy:STORE_CONFIG.trustCopy.shipping},{title:"Cambios por confirmar", copy:"Las condiciones comerciales todavía no están configuradas."}].map((item) => (
-              <div key={item.title} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_12px_30px_-18px_rgba(15,23,42,0.3)]">
-                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-[#1d4ed8]">
-                  <Shield size={18} />
-                </div>
-                <h3 className="mb-2 text-lg font-bold text-slate-900">{item.title}</h3>
-                <p className="text-sm leading-relaxed text-slate-600">{item.copy}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {newArrivals.length > 0 && (
         <section id="home-new-arrivals" className="mx-auto max-w-7xl px-3 py-2 sm:px-4 md:px-6">
           <div className="mb-6 flex items-end justify-between gap-4 sm:mb-8">
@@ -1519,6 +1504,22 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
         </section>
       )}
 
+      <section className="py-8 sm:py-12 md:py-16">
+        <div className="mx-auto max-w-7xl px-3 sm:px-4 md:px-6">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {[{title:"Información del catálogo", copy:STORE_CONFIG.trustCopy.productInfo},{title:"Envíos por confirmar", copy:STORE_CONFIG.trustCopy.shipping},{title:"Cambios por confirmar", copy:"Las condiciones comerciales todavía no están configuradas."}].map((item) => (
+              <div key={item.title} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_12px_30px_-18px_rgba(15,23,42,0.3)]">
+                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-[#1d4ed8]">
+                  <Shield size={18} />
+                </div>
+                <h3 className="mb-2 text-lg font-bold text-slate-900">{item.title}</h3>
+                <p className="text-sm leading-relaxed text-slate-600">{item.copy}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <section className="bg-[#0b1220] py-5 sm:py-6 md:py-7">
         <div className="mx-auto max-w-xl px-3 text-center sm:px-4">
           <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-blue-200 sm:text-xs">Mantente al día</p>
@@ -1536,12 +1537,12 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
               value={newsletterEmail}
               onChange={(event) => setNewsletterEmail(event.target.value)}
               placeholder="tu@email.com"
-              className="flex-1 rounded-xl bg-white px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 disabled:cursor-not-allowed disabled:bg-slate-200"
+              className="flex-1 rounded-xl bg-white px-4 py-3 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-not-allowed disabled:bg-slate-200"
             />
             <button
               type="submit"
               disabled={newsletterLoading || !newsletterAvailable || !newsletterConsent}
-              className="w-full whitespace-nowrap rounded-xl bg-[#00e676] px-5 py-3 text-sm font-bold text-slate-950 transition-colors hover:bg-[#00c853] disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
+              className="w-full whitespace-nowrap rounded-xl bg-primary px-5 py-3 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary/90 active:bg-primary/80 focus-visible:outline-white focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
             >
               {newsletterLoading ? "Enviando…" : "Suscribirme"}
             </button>
@@ -1551,11 +1552,11 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
               type="checkbox"
               checked={newsletterConsent}
               onChange={(event) => setNewsletterConsent(event.target.checked)}
-              className="mt-0.5 accent-emerald-500"
+              className="mt-0.5 accent-primary focus-visible:outline-white focus-visible:outline-offset-2"
               aria-label="Acepto la Política de Privacidad"
             />
             <span>
-              Al suscribirte aceptas nuestra <a href={privacyPolicyUrl} className="font-bold underline underline-offset-2">Política de Privacidad</a>.
+              Al suscribirte aceptas nuestra <a href={privacyPolicyUrl} className="font-bold underline underline-offset-2 focus-visible:outline-white focus-visible:outline-offset-2">Política de Privacidad</a>.
             </span>
           </label>
           {!newsletterAvailable && (
@@ -1571,6 +1572,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
         </div>
       </section>
 
+    </main>
       <footer className="bg-[#0b1220] pb-6 pt-10 text-slate-300 sm:pb-8 sm:pt-14">
         <div className="mx-auto max-w-7xl px-3 sm:px-4 md:px-6">
           <div className="mb-8 grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-8">
@@ -1610,7 +1612,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
           </div>
         </div>
       </footer>
-    </main>
+    </>
   );
 }
 
@@ -2268,15 +2270,24 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
         if (!signUpResult.data.user) throw new Error("No se pudo crear la cuenta.");
 
         user = signUpResult.data.user;
+        const signUpNeedsConfirmation = 'needsConfirmation' in signUpResult && Boolean(signUpResult.needsConfirmation);
+        if (signUpNeedsConfirmation) {
+          logAuthDiagnostic("signup.confirmation_required", { userId: user.id, email: user.email, sessionPresent: false, redirectTo: "email-confirmation" });
+          toast.success("Cuenta creada. Revisa tu bandeja de entrada para confirmar tu cuenta.");
+          setName("");
+          setEmail("");
+          setPassword("");
+          return;
+        }
+
         const profileAccess = await getProfileAccess(user);
         if (profileAccess.status === "missing" || profileAccess.status === "inactive") {
           setError("No fue posible verificar los permisos de tu cuenta. Inténtalo de nuevo más tarde.");
           return;
         }
         onLogin(user, profileAccess.isAdmin, profileAccess.role);
-        const signUpNeedsConfirmation = 'needsConfirmation' in signUpResult && Boolean(signUpResult.needsConfirmation);
         logAuthDiagnostic("login.redirect", { userId: user.id, email: user.email, sessionPresent: Boolean(signUpResult.data.session), isAdmin: profileAccess.isAdmin, redirectTo: profileAccess.isAdmin ? "admin" : "home" });
-        toast.success(signUpNeedsConfirmation ? "Cuenta creada. Revisa tu correo si tu configuración de Supabase requiere confirmación; ya puedes seguir usando la tienda." : "Registro exitoso. Ya puedes continuar en la tienda.");
+        toast.success("Registro exitoso. Ya puedes continuar en la tienda.");
         setEmail("");
         setPassword("");
         setName("");

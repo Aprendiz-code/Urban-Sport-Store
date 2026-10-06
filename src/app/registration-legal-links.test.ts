@@ -27,4 +27,13 @@ describe('registration legal links', () => {
     expect(loginPage).toMatch(/id="auth-email"[\s\S]{0,100}required/);
     expect(loginPage).toMatch(/id="auth-password"[\s\S]{0,100}required/);
   });
+
+  it('shows confirmation instructions before checking a profile when signup has no session', () => {
+    const confirmationBranch = loginPage.indexOf('if (signUpNeedsConfirmation)');
+    const profileLookup = loginPage.indexOf('getProfileAccess(user)', confirmationBranch);
+
+    expect(confirmationBranch).toBeGreaterThan(-1);
+    expect(profileLookup).toBeGreaterThan(confirmationBranch);
+    expect(loginPage.slice(confirmationBranch, profileLookup)).toContain('Revisa tu bandeja de entrada para confirmar tu cuenta.');
+  });
 });

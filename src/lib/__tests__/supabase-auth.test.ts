@@ -7,6 +7,7 @@ const authMock = vi.hoisted(() => ({
   getUser: vi.fn(),
   onAuthStateChange: vi.fn(),
   signInWithPassword: vi.fn(),
+  signUp: vi.fn(),
 }));
 
 vi.mock('../supabase-client', () => ({
@@ -14,7 +15,7 @@ vi.mock('../supabase-client', () => ({
   isSupabaseEnabled: () => true,
 }));
 
-import { getAccessToken, getCurrentUser, logAuthDiagnostic, onAuthStateChange, signInWithEmail, signOut } from '../supabase-auth';
+import { getAccessToken, getCurrentUser, logAuthDiagnostic, onAuthStateChange, signInWithEmail, signOut, signUpWithEmail } from '../supabase-auth';
 
 describe('Supabase admin access token', () => {
   beforeEach(() => {
@@ -115,6 +116,50 @@ describe('Supabase admin access token', () => {
   it('signs out through Supabase Auth', async () => {
     await expect(signOut()).resolves.toEqual({ error: null });
     expect(authMock.signOut).toHaveBeenCalledOnce();
+  });
+
+  it('sends signup metadata and returns an authenticated session when email confirmation is disabled', async () => {
+    const user = { id: 'user-1', email: 'customer@example.test' };
+    authMock.signUp.mockResolvedValue({
+      data: { user, session: { access_token: 'signup-token' } },
+      error: null,
+    });
+
+    const result = await signUpWithEmail('customer@example.test', 'valid-password', { name: '  Ada Lovelace  ' });
+
+    expect(authMock.signUp).toHaveBeenCalledWith({
+      email: 'customer@example.test',
+      password: 'valid-password',
+      options: {
+        data: { full_name: 'Ada Lovelace', display_name: 'Ada Lovelace' },
+        emailRedirectTo: undefined,
+      },
+    });
+    expect(result.data.user).toEqual(user);
+    expect(result.needsConfirmation).toBe(false);
+    expect(authMock.signInWithPassword).not.toHaveBeenCalled();
+  });
+
+  it('reports required email confirmation without attempting a password sign-in', async () => {
+    const user = { id: 'user-2', email: 'pending@example.test' };
+    authMock.signUp.mockResolvedValue({ data: { user, session: null }, error: null });
+
+    const result = await signUpWithEmail('pending@example.test', 'valid-password', { name: 'Grace Hopper' });
+
+    expect(result.data.user).toEqual(user);
+    expect(result.needsConfirmation).toBe(true);
+    expect(authMock.signInWithPassword).not.toHaveBeenCalled();
+  });
+
+  it('translates common Supabase signup validation errors', async () => {
+    authMock.signUp.mockResolvedValue({
+      data: { user: null, session: null },
+      error: { code: 'weak_password', message: 'Password should be at least 8 characters.' },
+    });
+
+    const result = await signUpWithEmail('customer@example.test', 'short', { name: 'Ada Lovelace' });
+
+    expect(result.error?.message).toBe('La contraseña debe tener al menos 8 caracteres.');
   });
 
   it('masks identity and strips credentials from development diagnostics', () => {
