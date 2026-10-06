@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import type { User } from '@supabase/supabase-js';
+import zapatosCategoryImage from "../../img. categorias/Zapatos.jpg";
+import ropaHombreCategoryImage from "../../img. categorias/Ropa hombre.jpg";
+import ropaMujerCategoryImage from "../../img. categorias/Ropa mujer.jpg";
+import perfumesCategoryImage from "../../img. categorias/Perfumes.jpg";
+import relojesCategoryImage from "../../img. categorias/Relojes.jfif";
+import gafasCategoryImage from "../../img. categorias/Gafas.jpeg";
 import {
   ShoppingCart, Search, X, Star, ChevronRight, Package,
   Users, UserRound, TrendingUp, AlertTriangle, Check, Eye, EyeOff,
@@ -108,12 +114,12 @@ const HOME_NAV_CATEGORIES = [
 ] as const;
 
 const HOME_COLLECTIONS = [
-  { name: "Zapatos", subtitle: "Running · Training · Casual", image: "https://images.unsplash.com/photo-1600185365483-26d7a4cc7519?auto=format&fit=crop&w=900&q=85", filterCategory: "Running" },
-  { name: "Ropa Hombre", subtitle: "Camisetas · Buzos · Pantalones", image: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=900&q=85", filterCategory: null },
-  { name: "Ropa Mujer", subtitle: "Leggings · Tops · Conjuntos", image: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=900&q=85", filterCategory: null },
-  { name: "Perfumes", subtitle: "Hombre · Mujer · Unisex", image: "https://images.unsplash.com/photo-1541643600914-78b084683601?auto=format&fit=crop&w=900&q=85", filterCategory: null },
-  { name: "Relojes", subtitle: "Smartwatch · Deportivo · Casual", image: "https://images.unsplash.com/photo-1508057198894-247b23fe5ade?auto=format&fit=crop&w=900&q=85", filterCategory: null },
-  { name: "Gafas", subtitle: "Running · Ciclismo · Outdoor", image: "https://images.unsplash.com/photo-1577803645773-f96470509666?auto=format&fit=crop&w=900&q=85", filterCategory: null },
+  { name: "Zapatos", subtitle: "Running · Training · Casual", image: zapatosCategoryImage, filterCategory: "Running" },
+  { name: "Ropa Hombre", subtitle: "Camisetas · Buzos · Pantalones", image: ropaHombreCategoryImage, filterCategory: null },
+  { name: "Ropa Mujer", subtitle: "Leggings · Tops · Conjuntos", image: ropaMujerCategoryImage, filterCategory: null },
+  { name: "Perfumes", subtitle: "Hombre · Mujer · Unisex", image: perfumesCategoryImage, filterCategory: null },
+  { name: "Relojes", subtitle: "Smartwatch · Deportivo · Casual", image: relojesCategoryImage, filterCategory: null },
+  { name: "Gafas", subtitle: "Running · Ciclismo · Outdoor", image: gafasCategoryImage, filterCategory: null },
 ];
 
 function getProductCategories(products: Product[]): Category[] {
