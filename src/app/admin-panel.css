@@ -53,14 +53,14 @@
   color: var(--admin-ink);
   font-size: 14px;
   font-weight: 800;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
 }
 
 .admin-sidebar__brand-copy p:last-child {
   margin-top: 3px;
   color: var(--admin-muted);
   font-size: 12px;
-  letter-spacing: 0.12em;
+  letter-spacing: 0;
   text-transform: uppercase;
 }
 
@@ -242,9 +242,9 @@
 .admin-page-header h1 {
   margin: 0;
   color: var(--admin-ink);
-  font-size: clamp(1.7rem, 2vw, 2.2rem);
+  font-size: 28px;
   font-weight: 800;
-  letter-spacing: -0.04em;
+  letter-spacing: 0;
   line-height: 1.12;
 }
 
@@ -324,8 +324,12 @@
   color: #58677a;
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0;
   text-transform: uppercase;
+}
+
+.admin-shell [class*="tracking-"] {
+  letter-spacing: 0;
 }
 
 .admin-shell input:not([type="file"]),
@@ -393,10 +397,10 @@
 
 .admin-dashboard-hero h2 {
   max-width: 640px;
-  font-size: clamp(2rem, 3vw, 3rem);
+  font-size: 28px;
   font-weight: 800;
   line-height: 1.03;
-  letter-spacing: -0.05em;
+  letter-spacing: 0;
 }
 
 .admin-dashboard-hero__shortcuts {
@@ -594,7 +598,7 @@
   color: var(--admin-ink);
   font-size: 1.26rem;
   font-weight: 800;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
 }
 
 .admin-product-dialog__header p {
@@ -682,7 +686,7 @@
     color: var(--admin-muted);
     font-size: 12px;
     font-weight: 700;
-    letter-spacing: 0.06em;
+    letter-spacing: 0;
     text-transform: uppercase;
   }
 
@@ -748,6 +752,13 @@
   .admin-main {
     padding-right: 18px;
     padding-left: 18px;
+  }
+
+  .admin-page-header {
+    min-height: auto;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
   }
 }
 
