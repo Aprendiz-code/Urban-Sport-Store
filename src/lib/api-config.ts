@@ -1,5 +1,5 @@
 export function resolveApiBaseUrl(inputUrl?: string): string {
-  const configured = inputUrl?.trim().replace(/\/+$/, '') ?? import.meta.env.VITE_API_URL?.trim().replace(/\/+$/, '');
+  const configured = (inputUrl ?? import.meta.env.VITE_API_URL ?? '').trim().replace(/\/+$/, '');
 
   if (!configured) {
     if (import.meta.env.DEV) {
@@ -8,9 +8,15 @@ export function resolveApiBaseUrl(inputUrl?: string): string {
     return '/api';
   }
 
-  if (configured.endsWith('/api')) return configured;
-  if (configured.endsWith('/api/v1')) return configured.replace(/\/v1$/, '');
-  return `${configured}/api`;
+  const normalized = configured.replace(/\/index$/i, '');
+
+  if (normalized.includes('/api')) {
+    const apiIndex = normalized.lastIndexOf('/api');
+    const base = normalized.slice(0, apiIndex);
+    return `${base}/api`;
+  }
+
+  return `${normalized}/api`;
 }
 
 export function buildApiUrl(path: string, inputUrl?: string): string {
