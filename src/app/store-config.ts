@@ -5,7 +5,7 @@ export const STORE_CONFIG = {
   shippingPath: "/envios",
   returnsPath: "/cambios-y-devoluciones",
   contactPath: "/contacto",
-  homeTitle: "UrbanSport Store | Calzado, ropa y accesorios deportivos",
-  homeDescription: "Explora calzado, ropa y accesorios deportivos en UrbanSport Store. Encuentra productos para entrenar, moverte y vestir con estilo.",
+  homeTitle: "Urban Sport Store | Zapatillas, ropa deportiva y accesorios en Colombia",
+  homeDescription: "Tienda online de moda deportiva y urbana. Envío rápido a Cali y todo Colombia. Paga contra entrega o con PSE. ¡10% de descuento en tu primera compra!",
   newsletterDisabledMessage: "La suscripción no está disponible temporalmente. Intenta más tarde.",
 } as const;

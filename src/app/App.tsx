@@ -82,6 +82,8 @@ function getInitialView(): View {
   if (pathname === "/admin" || pathname.startsWith("/admin/") || new URLSearchParams(search).get("view") === "admin") return "admin";
   if (pathname === "/login") return "login";
   if (pathname === "/register") return "register";
+  if (pathname === "/privacidad") return "privacy";
+  if (pathname === "/terminos") return "terms";
   if (pathname === "/politica-de-privacidad") return "privacy";
   if (pathname === "/terminos-y-condiciones") return "terms";
   if (pathname === "/envios") return "shipping";
@@ -114,12 +116,12 @@ const HOME_NAV_CATEGORIES = [
 ] as const;
 
 const HOME_COLLECTIONS = [
-  { name: "Zapatos", subtitle: "Running · Training · Casual", image: zapatosCategoryImage, filterCategory: "Running" },
-  { name: "Ropa Hombre", subtitle: "Camisetas · Buzos · Pantalones", image: ropaHombreCategoryImage, filterCategory: null },
-  { name: "Ropa Mujer", subtitle: "Leggings · Tops · Conjuntos", image: ropaMujerCategoryImage, filterCategory: null },
-  { name: "Perfumes", subtitle: "Hombre · Mujer · Unisex", image: perfumesCategoryImage, filterCategory: null },
-  { name: "Relojes", subtitle: "Smartwatch · Deportivo · Casual", image: relojesCategoryImage, filterCategory: null },
-  { name: "Gafas", subtitle: "Running · Ciclismo · Outdoor", image: gafasCategoryImage, filterCategory: null },
+  { name: "Zapatos", image: zapatosCategoryImage, filterCategory: "Running" },
+  { name: "Ropa Hombre", image: ropaHombreCategoryImage, filterCategory: null },
+  { name: "Ropa Mujer", image: ropaMujerCategoryImage, filterCategory: null },
+  { name: "Perfumes", image: perfumesCategoryImage, filterCategory: null },
+  { name: "Relojes", image: relojesCategoryImage, filterCategory: null },
+  { name: "Gafas", image: gafasCategoryImage, filterCategory: null },
 ];
 
 function getProductCategories(products: Product[]): Category[] {
@@ -815,7 +817,6 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, profileRole
   categories: CategoryOption[];
 }) {
   const [userOpen, setUserOpen] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchVal, setSearchVal] = useState("");
   const [suggestions, setSuggestions] = useState<Product[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -847,15 +848,6 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, profileRole
     }, 180);
     return () => { if (suggestTimer.current) window.clearTimeout(suggestTimer.current); };
   }, [searchVal, products]);
-
-  useEffect(() => {
-    if (!mobileMenuOpen) return;
-    const handleMenuKeydown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMobileMenuOpen(false);
-    };
-    window.addEventListener("keydown", handleMenuKeydown);
-    return () => window.removeEventListener("keydown", handleMenuKeydown);
-  }, [mobileMenuOpen]);
 
   return (
     <>
@@ -927,13 +919,12 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, profileRole
 
               <button
                 type="button"
-                aria-label={mobileMenuOpen ? "Cerrar menú móvil" : "Abrir menú móvil"}
-                aria-expanded={mobileMenuOpen}
-                aria-controls="mobile-nav-panel"
-                onClick={() => setMobileMenuOpen((value) => !value)}
+                aria-label={isAdmin ? "Ir al panel de administración" : isLoggedIn ? "Ir a mi cuenta" : "Iniciar sesión o crear cuenta"}
+                title={isAdmin ? "Administración" : isLoggedIn ? "Mi cuenta" : "Iniciar sesión"}
+                onClick={() => onNavigate(isAdmin ? "admin" : isLoggedIn ? "account" : "login")}
                 className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8] sm:hidden"
               >
-                {mobileMenuOpen ? <X size={19} /> : <Grid3X3 size={19} />}
+                {isLoggedIn && isAdmin ? <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#1d4ed8] to-[#f97316] text-xs font-bold text-white">A</div> : isLoggedIn ? <UserRound size={19} /> : <Users size={19} />}
               </button>
 
               <div className="relative hidden sm:block">
@@ -1018,31 +1009,6 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, profileRole
             )}
           </div>
 
-          {mobileMenuOpen && (
-            <div id="mobile-nav-panel" className="border-t border-slate-100 bg-white px-4 py-3 sm:hidden">
-              <div className="grid gap-2">
-                {primaryLinks.map((link) => (
-                  <button
-                    key={link.label}
-                    type="button"
-                    onClick={() => { link.onClick(); setMobileMenuOpen(false); }}
-                    className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 hover:text-[#1d4ed8]"
-                  >
-                    <span>{link.label}</span>
-                    <ChevronRight size={14} />
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  onClick={() => { onNavigate(isLoggedIn ? "account" : "login"); setMobileMenuOpen(false); }}
-                  className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 hover:text-[#1d4ed8]"
-                >
-                  <span>{isLoggedIn ? "Mi cuenta" : "Iniciar sesión"}</span>
-                  <ChevronRight size={14} />
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       </header>
 
@@ -1396,7 +1362,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
             <button
               key={cat.name}
               type="button"
-              aria-label={`${cat.name}: ${cat.subtitle}`}
+              aria-label={cat.name}
               onClick={() => onCategorySelect(cat.filterCategory)}
               className="group relative aspect-[1.35] min-h-[118px] overflow-hidden rounded-[26px] border border-white/30 bg-[#0b1220] text-left shadow-[0_20px_40px_-26px_rgba(15,23,42,0.7)] ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_52px_-30px_rgba(15,23,42,0.72)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8] active:scale-[0.99]"
             >
@@ -1412,7 +1378,6 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
               <div className="absolute inset-x-0 top-0 h-14 bg-gradient-to-b from-[#0b1220]/30 to-transparent" />
               <div className="relative flex h-full min-h-[118px] flex-col justify-end p-3 sm:min-h-[190px] sm:p-4">
                 <p className="font-display text-[1.05rem] leading-[1.05] text-white sm:text-[1.7rem]">{cat.name}</p>
-                <p className="mt-1 max-w-[80%] text-[10px] leading-relaxed text-slate-100/90 sm:text-[11px]">{cat.subtitle}</p>
               </div>
             </button>
           ))}
@@ -1619,12 +1584,17 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
               <div>
                 <p className="mb-3 text-xs font-bold uppercase tracking-widest text-white">Ayuda</p>
                 <ul className="space-y-2">
+                  <li><button type="button" onClick={() => onNavigate("contact")} className="min-h-10 w-full text-left text-xs text-slate-400 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">Contacto</button></li>
                   <li><a href="#shipping-policy" className="flex min-h-10 w-full items-center text-xs text-slate-400 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">Envíos</a></li>
                   <li><a href="#returns-policy" className="flex min-h-10 w-full items-center text-xs text-slate-400 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">Cambios y devoluciones</a></li>
-                  <li><button type="button" onClick={() => onNavigate("privacy")} className="min-h-10 w-full text-left text-xs text-slate-400 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">Política de privacidad</button></li>
                   <li><button type="button" onClick={() => onNavigate("terms")} className="min-h-10 w-full text-left text-xs text-slate-400 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">Términos y condiciones</button></li>
-                  <li><button type="button" onClick={() => onNavigate("contact")} className="min-h-10 w-full text-left text-xs text-slate-400 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">Contacto</button></li>
+                  <li><button type="button" onClick={() => onNavigate("privacy")} className="min-h-10 w-full text-left text-xs text-slate-400 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">Política de privacidad</button></li>
+                  <li><button type="button" onClick={() => onNavigate("shipping")} className="min-h-10 w-full text-left text-xs text-slate-400 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">Envíos</button></li>
                 </ul>
+                <div className="mt-4 rounded-xl border border-slate-800 bg-slate-900/60 p-3">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-200">Métodos de pago</p>
+                  <p className="mt-2 text-xs leading-relaxed text-slate-400">PSE, tarjetas de crédito/débito, pago contra entrega</p>
+                </div>
               </div>
             </div>
           </div>
@@ -1641,23 +1611,23 @@ function LegalPage({ kind, onNavigate }: { kind: View; onNavigate: (v: View) => 
   const maps: Record<Exclude<View, "home" | "catalog" | "product" | "checkout" | "login" | "register" | "account" | "admin-login" | "admin" | "password-reset">, { title: string; paragraph: string } > = {
     privacy: {
       title: "Política de privacidad",
-      paragraph: "Este contenido está pendiente de publicar y completar con la política real del negocio antes de activar la versión final.",
+      paragraph: "Urban Sport Store recolecta la información necesaria para procesar tus pedidos, mejorar tu experiencia de compra y comunicarte con respecto a envíos, cambios, promociones y atención al cliente. Usamos tus datos solo para fines operativos y de servicio, nunca para terceros ajenos a la operación comercial. Tienes derecho a acceder, corregir, actualizar o solicitar la eliminación de tus datos personales de acuerdo con la normativa aplicable.",
     },
     terms: {
       title: "Términos y condiciones",
-      paragraph: "Este contenido está pendiente de revisión legal y validación antes de publicarse en producción.",
+      paragraph: "Al realizar una compra en Urban Sport Store aceptas nuestros términos de venta, la disponibilidad de inventario, los métodos de pago autorizados y las condiciones de entrega y atención al cliente. Nos reservamos el derecho a cancelar pedidos cuando se detecten inconsistencias en la información del cliente o en la forma de pago, con el fin de garantizar una operación segura y transparente.",
     },
     shipping: {
       title: "Envíos",
-      paragraph: "La cobertura, los costos y los plazos de envío aún no están configurados.",
+      paragraph: "Realizamos envíos a Cali y a todo Colombia con tiempos estimados según la ciudad, la zona y la logística disponible. Si tu compra supera $150.000 COP, el envío puede quedar habilitado de forma gratuita según la promoción vigente. El valor final del envío se confirma al momento de confirmar tu pedido.",
     },
     returns: {
       title: "Cambios y devoluciones",
-      paragraph: "Las condiciones de cambios y devoluciones deben definirse con la política comercial vigente antes de publicarse.",
+      paragraph: "Puedes solicitar cambios o devoluciones dentro de los primeros 30 días calendario desde la entrega, siempre que el producto venga en las mismas condiciones en que fue entregado y con su empaque original. En caso de un error de nuestro lado, la devolución o reemplazo se gestionará sin costo adicional para ti. Si el motivo es un cambio de preferencia o talla, el envío de regreso puede ser asumido por el cliente.",
     },
     contact: {
       title: "Contacto",
-      paragraph: "Completa este bloque con los canales reales de atención, correo, teléfono o redes del negocio antes de publicarlo.",
+      paragraph: "Para asesoría, soporte, pedidos y seguimiento, puedes escribirnos al correo Urbansportstore@outlook.com. También puedes comunicarte por el canal oficial de WhatsApp o redes sociales de Urban Sport Store para consultas rápidas y atención personalizada. Nuestro horario de atención es de lunes a sábado, con respuesta en el menor tiempo posible.",
     },
   };
 
@@ -2261,8 +2231,8 @@ function getPasswordUpdateErrorMessage(error: unknown): string {
   return "No se pudo actualizar la contraseña. Inténtalo de nuevo.";
 }
 
-function LoginPage({ isRegister, onNavigate, onLogin }: {
-  isRegister: boolean; onNavigate: (v: View) => void;
+function LoginPage({ isRegister, onNavigate, onLogin, headerOffset }: {
+  isRegister: boolean; onNavigate: (v: View) => void; headerOffset: number;
   onLogin: (user: User | null, isAdmin: boolean, adminRole: string | null) => void;
 }) {
   const [showPass, setShowPass] = useState(false);
@@ -2405,7 +2375,10 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 pt-[60px] px-4">
+    <main
+      style={{ paddingTop: `${headerOffset + 24}px`, minHeight: `calc(100svh + ${headerOffset}px)` }}
+      className="flex min-h-screen items-start justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 px-4 pb-8 sm:items-center"
+    >
       {/* Decorative elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 right-1/4 w-96 h-96 bg-[#1d4ed8]/5 rounded-full blur-3xl" />
@@ -2414,7 +2387,7 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
 
       <div className="w-full max-w-md relative z-10">
         {/* Logo */}
-        <div className="text-center mb-12">
+        <div className="text-center mb-6 sm:mb-12">
           <div className="flex items-center justify-center gap-2 mb-4">
             <span className="font-extrabold text-slate-900 text-2xl">Urban<span className="text-[#1d4ed8]">Sport</span></span>
           </div>
@@ -2427,7 +2400,7 @@ function LoginPage({ isRegister, onNavigate, onLogin }: {
         </div>
 
         {/* Main form card */}
-        <div className="bg-white/95 backdrop-blur-sm rounded-3xl border border-blue-200 p-8 shadow-xl space-y-6">
+        <div className="bg-white/95 backdrop-blur-sm rounded-3xl border border-blue-200 p-5 shadow-xl space-y-5 sm:p-8 sm:space-y-6">
           <form noValidate={isRegister} onSubmit={handleSubmit} className="space-y-5">
             {/* Name field for register */}
             {isRegister && (
@@ -4689,7 +4662,7 @@ export default function App() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const calcHeader = () => {
-      const hdr = document.querySelector('div.fixed.top-0.left-0.right-0.z-50');
+      const hdr = document.querySelector('header.fixed.top-0.left-0.right-0.z-50');
       if (hdr && hdr instanceof HTMLElement) {
         setHeaderOffset(hdr.offsetHeight || 0);
       }
@@ -4871,6 +4844,19 @@ export default function App() {
       const element = document.querySelector<HTMLMetaElement | HTMLLinkElement>(selector);
       if (element) element.setAttribute(attribute, value);
     };
+
+    const homeMetaTitle = STORE_CONFIG.homeTitle;
+    const homeMetaDescription = STORE_CONFIG.homeDescription;
+
+    if (view === "home") {
+      setMeta('meta[name="description"]', homeMetaDescription);
+      setMeta('meta[property="og:title"]', homeMetaTitle);
+      setMeta('meta[property="og:description"]', homeMetaDescription);
+      setMeta('meta[name="twitter:title"]', homeMetaTitle);
+      setMeta('meta[name="twitter:description"]', homeMetaDescription);
+      setMeta('link[rel="canonical"]', canonicalUrl, "href");
+      return;
+    }
 
     setMeta('meta[name="description"]', pageDescription);
     setMeta('meta[property="og:title"]', pageTitle);
@@ -5286,8 +5272,8 @@ export default function App() {
           account: "/",
           "admin-login": "/admin/login",
           admin: "/admin",
-          privacy: "/politica-de-privacidad",
-          terms: "/terminos-y-condiciones",
+          privacy: "/privacidad",
+          terms: "/terminos",
           shipping: "/envios",
           returns: "/cambios-y-devoluciones",
           contact: "/contacto",
@@ -5487,9 +5473,9 @@ export default function App() {
           onCreateAddress={createAddress}
         />
       )}
-      {view === "login" && <LoginPage isRegister={false} onNavigate={navigate} onLogin={handleAuthSuccess} />}
-      {view === "register" && <LoginPage isRegister={true} onNavigate={navigate} onLogin={handleAuthSuccess} />}
-      {view === "admin-login" && <LoginPage isRegister={false} onNavigate={navigate} onLogin={handleAuthSuccess} />}
+      {view === "login" && <LoginPage isRegister={false} onNavigate={navigate} onLogin={handleAuthSuccess} headerOffset={headerOffset} />}
+      {view === "register" && <LoginPage isRegister={true} onNavigate={navigate} onLogin={handleAuthSuccess} headerOffset={headerOffset} />}
+      {view === "admin-login" && <LoginPage isRegister={false} onNavigate={navigate} onLogin={handleAuthSuccess} headerOffset={headerOffset} />}
       {view === "password-reset" && <PasswordRecoveryPage onNavigate={navigate} />}
       {view === "account" && (
         <AccountPage
