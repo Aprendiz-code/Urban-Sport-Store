@@ -15,6 +15,7 @@ import {
   RefreshCw, Award, Grid3X3, ThumbsUp, DollarSign, LoaderCircle
 } from "lucide-react";
 import HorizontalProductCarousel from "./components/ProductCarousel";
+import HomePromoCarousel from "./components/HomePromoCarousel";
 import { STORE_CONFIG } from "./store-config";
 
 import { subscribeToNewsletter } from "../lib/newsletter";
@@ -1228,9 +1229,6 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
   const hasRealDiscounts = onSale.some((product) => typeof product.originalPrice === "number" && product.originalPrice > product.price);
   const privacyPolicyUrl = import.meta.env.VITE_PRIVACY_POLICY_URL?.trim() || STORE_CONFIG.privacyPolicyPath;
   const newsletterAvailable = content.newsletterEnabled === true && (!import.meta.env.DEV || Boolean(import.meta.env.VITE_API_URL?.trim()));
-  const heroImage = content.heroImage?.trim() || DEFAULT_HERO_IMAGE;
-  const heroTitle = content.heroTitle?.trim() || DEFAULT_HERO_TITLE;
-  const heroSubtitle = content.heroSubtitle?.trim() || DEFAULT_HERO_SUBTITLE;
   const [newsletterEmail, setNewsletterEmail] = useState("");
   const [newsletterLoading, setNewsletterLoading] = useState(false);
   const [newsletterMessage, setNewsletterMessage] = useState("");
@@ -1279,58 +1277,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
   return (
     <>
     <main>
-      <section className="relative flex min-h-[380px] items-center justify-center overflow-hidden bg-[#0b1220] sm:min-h-[440px] md:min-h-[520px]">
-        <img
-          src={heroImage}
-          alt=""
-          aria-hidden="true"
-          loading="eager"
-          fetchPriority="high"
-          decoding="async"
-          width={1600}
-          height={900}
-          className="absolute inset-0 h-full w-full object-cover object-center"
-        />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#0b1220]/80 via-[#0b1220]/50 to-[#0b1220]/20 md:from-[#0b1220]/80 md:via-[#0b1220]/50 md:to-[#0b1220]/20" />
-
-        <div className="relative z-10 mx-auto w-full max-w-7xl px-3 py-6 sm:px-4 sm:py-8 md:px-6 md:py-10">
-          <div className="max-w-2xl">
-            <span className="mb-4 inline-flex items-center rounded-md border border-amber-300/40 bg-amber-400/15 px-2.5 py-1 text-[10px] font-bold uppercase text-amber-300 sm:text-xs">
-              COLECCIÓN 2026
-            </span>
-            <h1 className="mb-3 max-w-xl font-display text-[2.6rem] leading-[0.98] text-white sm:text-[3.4rem] md:text-[4.1rem] lg:text-[4.6rem]">
-              {heroTitle}
-            </h1>
-            <p className="mb-6 max-w-lg text-base leading-relaxed text-slate-200 sm:text-lg md:text-xl">
-              {heroSubtitle}
-            </p>
-            <div className="flex w-full flex-col gap-3 min-[480px]:w-auto min-[480px]:flex-row">
-              <Btn
-                type="button"
-                variant="primary"
-                size="lg"
-                onClick={() => onNavigate("catalog")}
-                className="w-full justify-center !bg-[#2457D6] !text-white hover:!bg-[#1d48b9] min-[480px]:w-auto"
-              >
-                Comprar ahora <ArrowRight size={16} />
-              </Btn>
-              <Btn
-                type="button"
-                variant="secondary"
-                size="lg"
-                onClick={() => {
-                  const newArrivalsSection = document.getElementById("home-new-arrivals");
-                  if (newArrivalsSection) newArrivalsSection.scrollIntoView({ behavior: "smooth" });
-                  else onNavigate("catalog");
-                }}
-                className="w-full justify-center !border-white/35 !bg-slate-950/35 !text-white hover:!bg-slate-900/70 min-[480px]:w-auto"
-              >
-                Ver novedades
-              </Btn>
-            </div>
-          </div>
-        </div>
-      </section>
+      <HomePromoCarousel />
 
       <section className="mx-auto max-w-7xl px-3 pb-2 pt-8 sm:px-4 sm:pt-10 md:px-6 md:pt-12">
         <div className="mb-6 sm:mb-8">
