@@ -3803,9 +3803,9 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
             <div className="lg:col-span-2 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] p-5">
               <div className="flex flex-col justify-between gap-3 mb-4 sm:flex-row sm:items-center sm:gap-4">
-                <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar por nombre, marca o SKU"
+                <input value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }} placeholder="Buscar por nombre, marca o SKU"
                   className="w-full min-w-0 flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none" />
-                <select aria-label="Filtrar productos por estado" value={productStatusFilter} onChange={(event) => setProductStatusFilter(event.target.value as AdminProductStatusFilter)}
+                <select aria-label="Filtrar productos por estado" value={productStatusFilter} onChange={(event) => { setProductStatusFilter(event.target.value as AdminProductStatusFilter); setPage(1); }}
                   className="min-h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 sm:w-auto">
                   <option value="all">Todos</option>
                   <option value="active">Activos</option>
@@ -3828,11 +3828,11 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                   </thead>
                   <tbody>
                     {productsStatus === "loading" ? (
-                      <tr><td colSpan={9} role="status" className="px-4 py-10 text-center text-sm text-slate-500">Cargando productos administrativos...</td></tr>
+                      <tr><td colSpan={9} role="status" className="px-4 py-10 text-center text-sm text-slate-500">Cargando productos…</td></tr>
                     ) : productsStatus === "error" ? (
-                      <tr><td colSpan={9} className="px-4 py-10 text-center text-sm text-red-700"><div role="alert">{productsError ?? "No se pudieron cargar los productos administrativos."}</div><button type="button" onClick={onRetryProducts} className="mt-2 font-semibold underline">Reintentar</button></td></tr>
+                      <tr><td colSpan={9} className="px-4 py-10 text-center text-sm text-red-700"><div role="alert">{productsError ?? "No fue posible cargar los productos. Intenta nuevamente."}</div><button type="button" onClick={onRetryProducts} className="mt-2 font-semibold underline">Reintentar</button></td></tr>
                     ) : paginatedProducts.length === 0 ? (
-                      <tr><td colSpan={9} role="status" className="px-4 py-10 text-center text-sm text-slate-500">No hay productos para este filtro.</td></tr>
+                      <tr><td colSpan={9} role="status" className="px-4 py-10 text-center text-sm text-slate-500">{products.length === 0 ? "No hay productos registrados." : "No encontramos productos con esos criterios."}</td></tr>
                     ) : paginatedProducts.map((p) => (
                       <tr key={p.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
                         <td className="px-4 py-3"><img src={p.image} alt={p.name} className="w-12 h-12 object-cover rounded-lg" /></td>
@@ -3868,11 +3868,11 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
               </div>
               <div className="space-y-3 2xl:hidden">
                 {productsStatus === "loading" ? (
-                  <div role="status" className="rounded-lg border border-slate-200 px-4 py-8 text-center text-sm text-slate-500">Cargando productos administrativos...</div>
+                  <div role="status" className="rounded-lg border border-slate-200 px-4 py-8 text-center text-sm text-slate-500">Cargando productos…</div>
                 ) : productsStatus === "error" ? (
-                  <div className="rounded-lg border border-red-200 px-4 py-6 text-center text-sm text-red-700"><div role="alert">{productsError ?? "No se pudieron cargar los productos administrativos."}</div><button type="button" onClick={onRetryProducts} className="mt-2 font-semibold underline">Reintentar</button></div>
+                  <div className="rounded-lg border border-red-200 px-4 py-6 text-center text-sm text-red-700"><div role="alert">{productsError ?? "No fue posible cargar los productos. Intenta nuevamente."}</div><button type="button" onClick={onRetryProducts} className="mt-2 font-semibold underline">Reintentar</button></div>
                 ) : paginatedProducts.length === 0 ? (
-                  <div role="status" className="rounded-lg border border-slate-200 px-4 py-8 text-center text-sm text-slate-500">No hay productos para este filtro.</div>
+                  <div role="status" className="rounded-lg border border-slate-200 px-4 py-8 text-center text-sm text-slate-500">{products.length === 0 ? "No hay productos registrados." : "No encontramos productos con esos criterios."}</div>
                 ) : paginatedProducts.map((p) => (
                   <article key={p.id} className="min-w-0 rounded-lg border border-slate-200 bg-white p-3">
                     <div className="flex min-w-0 gap-3">
@@ -3901,14 +3901,14 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                   </article>
                 ))}
               </div>
-              <div className="flex items-center justify-between mt-3">
+              {productsStatus === "ready" && filteredProducts.length > 0 && <div className="flex items-center justify-between mt-3">
                 <div className="text-sm text-slate-500">Mostrando {(page - 1) * perPage + 1} - {Math.min(page * perPage, filteredProducts.length)} de {filteredProducts.length}</div>
                 <div className="flex items-center gap-2">
                   <button disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} className="px-3 py-1 rounded-md bg-slate-100">Anterior</button>
                   <div className="text-sm text-slate-600">{page} / {totalPages}</div>
                   <button disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))} className="px-3 py-1 rounded-md bg-slate-100">Siguiente</button>
                 </div>
-              </div>
+              </div>}
             </div>
 
             <div className="bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] p-5">
@@ -5101,11 +5101,15 @@ export default function App() {
         code: typeof details.code === "string" ? details.code : null,
         message: error instanceof Error ? error.message : null,
       });
-      const message = formatAdminApiError(error, "No se pudieron cargar los productos administrativos.");
+      const message = isAdminAuthenticationError(error)
+        ? "Sesión administrativa requerida"
+        : error instanceof AdminApiError && error.status === 403
+          ? "No tienes permisos para consultar los productos."
+          : "No fue posible cargar los productos. Intenta nuevamente.";
       setAdminProducts([]);
       setAdminProductsError(message);
       setAdminProductsStatus("error");
-      toast.error(isAdminAuthenticationError(error) ? "Sesión administrativa requerida" : message);
+      toast.error(message);
     });
 
     return () => {

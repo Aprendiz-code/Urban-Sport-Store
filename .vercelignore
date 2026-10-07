@@ -1,7 +1,6 @@
-# Keep the public storefront API endpoints only. This stays under the Hobby
-# tier's 12 serverless-function limit while preserving catalog/home loading.
+# Keep required storefront and protected admin API routes under the Hobby
+# tier's 12 serverless-function limit; exclude unused and development routes.
 api/account/**
-api/admin/**
 api/test/**
 api/newsletter.ts
 api/orders.ts
