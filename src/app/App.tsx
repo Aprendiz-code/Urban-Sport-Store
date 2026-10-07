@@ -1352,7 +1352,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
                 loading="lazy"
                 decoding="async"
                 onError={(event) => { event.currentTarget.style.display = "none"; }}
-                className="absolute inset-0 h-full w-full object-cover brightness-[1.12] contrast-[1.03] saturate-[1.08] transition-transform duration-500 group-hover:scale-105"
+                className="absolute inset-0 h-full w-full bg-slate-100 object-contain brightness-[1.12] contrast-[1.03] saturate-[1.08]"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-[#050b16]/50 via-[#050b16]/5 to-transparent" />
               <div className="absolute inset-x-0 top-0 h-14 bg-gradient-to-b from-[#0b1220]/10 to-transparent" />
