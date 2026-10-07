@@ -107,7 +107,7 @@ type Product = DomainProduct;
 type AdminProductImageSelection = { id: string; src: string; permanentUrl?: string; file?: File; previewUrl?: string };
 
 const HOME_NAV_CATEGORIES = [
-  { name: "Zapatos", filterCategory: "Running" },
+  { name: "TENIS", filterCategory: "Running" },
   { name: "Ropa Hombre", filterCategory: null },
   { name: "Ropa Mujer", filterCategory: null },
   { name: "Perfumes", filterCategory: null },
@@ -116,7 +116,7 @@ const HOME_NAV_CATEGORIES = [
 ] as const;
 
 const HOME_COLLECTIONS = [
-  { name: "Zapatos", image: zapatosCategoryImage, filterCategory: "Running" },
+  { name: "TENIS", image: zapatosCategoryImage, filterCategory: "Running" },
   { name: "Ropa Hombre", image: ropaHombreCategoryImage, filterCategory: null },
   { name: "Ropa Mujer", image: ropaMujerCategoryImage, filterCategory: null },
   { name: "Perfumes", image: perfumesCategoryImage, filterCategory: null },
