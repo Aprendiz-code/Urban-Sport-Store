@@ -825,13 +825,6 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, profileRole
   const cartCount = cart.reduce((s, i) => s + i.qty, 0);
   const availableCategories = HOME_NAV_CATEGORIES;
   const showCustomerOrders = !isAdmin;
-  const primaryLinks = [
-    { label: "Inicio", onClick: () => onNavigate("home") },
-    { label: "Catálogo", onClick: () => onNavigate("catalog") },
-    { label: "Envíos", onClick: () => onNavigate("shipping") },
-    { label: "Contacto", onClick: () => onNavigate("contact") },
-  ];
-
   // suggestions effect
   useEffect(() => {
     if (suggestTimer.current) window.clearTimeout(suggestTimer.current);
@@ -864,19 +857,6 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, profileRole
                 <span className="brand-sub">Store</span>
               </span>
             </button>
-
-            <nav aria-label="Navegación principal" className="hidden items-center gap-1 rounded-full bg-slate-100 p-1 lg:flex">
-              {primaryLinks.map((link) => (
-                <button
-                  key={link.label}
-                  type="button"
-                  onClick={link.onClick}
-                  className="rounded-full px-3 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-white hover:text-[#1d4ed8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8]"
-                >
-                  {link.label}
-                </button>
-              ))}
-            </nav>
 
             <div className="hidden flex-1 max-w-xl sm:flex relative">
               <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
