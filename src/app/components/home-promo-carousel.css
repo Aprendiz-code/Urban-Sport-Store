@@ -6,8 +6,7 @@
 .home-promo-carousel__viewport {
   position: relative;
   width: 100%;
-  aspect-ratio: 16 / 9;
-  max-height: 640px;
+  aspect-ratio: 3 / 2;
   overflow: hidden;
   background: #e9e7e7;
 }

@@ -1,38 +1,38 @@
 import { useEffect, useState } from "react";
-import discountBanner from "../../../img. baner promocional/freepik-modern-cosplay-night-rectangle-banner-202607201936012o54.png";
-import nikeP6000Banner from "../../../img. baner promocional/Gemini_Generated_Image_niw358niw358niw3 (1).jfif";
-import nikeVomeroBanner from "../../../img. baner promocional/Gemini_Generated_Image_niw358niw358niw3.jfif";
-import supernovaRiseBanner from "../../../img. baner promocional/Gemini_Generated_Image_7blvy7blvy7blvy7_sin-descubrir.jpg";
+import trendsBanner from "../../../img. baner promocional/Gemini_Generated_Image_niw358niw358niw3.jfif";
+import promotionBanner from "../../../img. baner promocional/Designer (3).png";
+import sportsOfferBanner from "../../../img. baner promocional/Designer (4).png";
+import collectionBanner from "../../../img. baner promocional/Designer (5).png";
 import "./home-promo-carousel.css";
 
 const slides = [
   {
-    image: discountBanner,
-    alt: "Oferta especial: 10% de descuento en la primera compra",
-    label: "Descuento 10%",
-    width: 600,
-    height: 300,
-  },
-  {
-    image: nikeP6000Banner,
-    alt: "Tenis Nike P-6000",
-    label: "Nike P-6000",
+    image: trendsBanner,
+    alt: "Nuevas tendencias UrbanSport Store",
+    label: "Nuevas tendencias UrbanSport Store",
     width: 1376,
     height: 768,
   },
   {
-    image: nikeVomeroBanner,
-    alt: "Nuevas tendencias Nike Vomero",
-    label: "Nike Vomero",
-    width: 1376,
-    height: 768,
+    image: promotionBanner,
+    alt: "Promoción UrbanSport Store",
+    label: "Promoción UrbanSport Store",
+    width: 1536,
+    height: 1024,
   },
   {
-    image: supernovaRiseBanner,
-    alt: "Tenis Adidas Supernova Rise 3",
-    label: "Supernova Rise 3",
-    width: 1376,
-    height: 768,
+    image: sportsOfferBanner,
+    alt: "Oferta deportiva UrbanSport Store",
+    label: "Oferta deportiva UrbanSport Store",
+    width: 1536,
+    height: 1024,
+  },
+  {
+    image: collectionBanner,
+    alt: "Colección deportiva UrbanSport Store",
+    label: "Colección deportiva UrbanSport Store",
+    width: 1536,
+    height: 1024,
   },
 ] as const;
 
