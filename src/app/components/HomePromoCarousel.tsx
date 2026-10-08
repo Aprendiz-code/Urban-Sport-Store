@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import trendsBanner from "../../../img. baner promocional/Gemini_Generated_Image_niw358niw358niw3.jfif";
-import promotionBanner from "../../../img. baner promocional/Designer (3).png";
-import sportsOfferBanner from "../../../img. baner promocional/Designer (4).png";
-import collectionBanner from "../../../img. baner promocional/Designer (5).png";
+import trendsBanner from "../../../img. baner promocional/Designer (3).png";
+import promotionBanner from "../../../img. baner promocional/Designer (4).png";
+import sportsOfferBanner from "../../../img. baner promocional/Designer (5).png";
+import collectionBanner from "../../../img. baner promocional/Designer (6).png";
 import "./home-promo-carousel.css";
 
 const slides = [
