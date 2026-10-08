@@ -263,22 +263,22 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  border: 1px solid var(--admin-accent);
+  border: 1px solid #bfdbfe;
   border-radius: 12px;
   padding: 0 16px;
-  color: #fff;
-  background: linear-gradient(180deg, var(--admin-accent) 0%, var(--admin-accent-strong) 100%);
+  color: #0b1220;
+  background: #bfdbfe;
   font-size: 14px;
   font-weight: 700;
-  box-shadow: 0 12px 26px rgba(31, 94, 255, 0.18);
+  box-shadow: 0 12px 26px rgba(147, 184, 255, 0.28);
   transition: transform 140ms ease, background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
 }
 
 .admin-page-action:hover {
-  border-color: var(--admin-accent-strong);
-  background: linear-gradient(180deg, #1a58ef 0%, var(--admin-accent-strong) 100%);
+  border-color: #93c5fd;
+  background: #93c5fd;
   transform: translateY(-1px);
-  box-shadow: 0 10px 18px rgba(31, 94, 255, 0.2);
+  box-shadow: 0 10px 18px rgba(147, 184, 255, 0.34);
 }
 
 .admin-page-action:disabled {
