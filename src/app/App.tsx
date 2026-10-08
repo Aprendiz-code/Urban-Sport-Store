@@ -720,7 +720,7 @@ function TopBenefitsBar() {
           max-width: min(100%, 60rem);
           margin-inline: auto;
           box-sizing: border-box;
-          font-family: 'Roboto', sans-serif;
+          font-family: var(--font-body);
           font-size: 0.76rem;
           font-weight: 600;
           line-height: 1.25;
