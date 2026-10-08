@@ -1,7 +1,7 @@
 .admin-shell {
-  --admin-accent: #1f5eff;
-  --admin-accent-strong: #104ae8;
-  --admin-accent-soft: rgba(31, 94, 255, 0.1);
+  --admin-accent: #1d5dff;
+  --admin-accent-strong: #1045d8;
+  --admin-accent-soft: rgba(29, 93, 255, 0.1);
   --admin-ink: #111827;
   --admin-muted: #64748b;
   --admin-line: #e2e8f0;
@@ -815,31 +815,31 @@
 }
 
 .admin-dashboard-hero {
-  border: 1px solid var(--admin-line);
-  color: var(--admin-ink) !important;
-  background: #fff !important;
-  box-shadow: 0 1px 3px rgb(24 34 48 / 5%);
+  border: 1px solid rgba(29, 93, 255, 0.24);
+  color: #fff !important;
+  background: linear-gradient(135deg, #0b1220 0%, #102653 100%) !important;
+  box-shadow: 0 18px 36px rgba(11, 18, 32, 0.16);
 }
 
 .admin-dashboard-hero h2,
 .admin-dashboard-hero .text-white {
-  color: var(--admin-ink) !important;
+  color: #fff !important;
 }
 
 .admin-dashboard-hero .text-slate-300,
 .admin-dashboard-hero .text-slate-400 {
-  color: var(--admin-muted) !important;
+  color: rgba(219, 231, 255, 0.78) !important;
 }
 
 .admin-dashboard-hero .bg-white\/10,
 .admin-dashboard-hero .bg-white\/15 {
-  border: 1px solid var(--admin-line);
-  color: #425064;
-  background: #f7f9fb;
+  border: 1px solid rgba(147, 184, 255, 0.2);
+  color: #e6efff;
+  background: rgba(29, 93, 255, 0.12);
 }
 
 .admin-dashboard-hero [class*="border-white\/10"] {
-  border-color: var(--admin-line);
+  border-color: rgba(147, 184, 255, 0.2);
 }
 
 .admin-dashboard-hero h2 {
