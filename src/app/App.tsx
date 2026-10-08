@@ -1,20 +1,17 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import type { User } from '@supabase/supabase-js';
-import zapatosCategoryImage from "../../img. categorias/Zapatos.jpg";
-import ropaHombreCategoryImage from "../../img. categorias/Ropa hombre.jpg";
-import ropaMujerCategoryImage from "../../img. categorias/Ropa mujer.jpg";
-import perfumesCategoryImage from "../../img. categorias/Perfumes.jpg";
-import relojesCategoryImage from "../../img. categorias/Relojes.jfif";
-import gafasCategoryImage from "../../img. categorias/Gafas.jpeg";
 import {
   ShoppingCart, Search, X, Star, ChevronRight, Package,
   Users, UserRound, TrendingUp, AlertTriangle, Check, Eye, EyeOff,
   Bell, LogOut, Plus, Minus, Trash2, MapPin,
   Truck, ChevronLeft, ChevronUp, ChevronDown, Heart, ArrowRight, Filter,
   BarChart2, Home, Settings, Tag, Layers, Edit,
-  RefreshCw, Award, Grid3X3, ThumbsUp, DollarSign, LoaderCircle
+  RefreshCw, Award, Grid3X3, ThumbsUp, DollarSign, LoaderCircle,
+  Menu, PanelLeftClose, PanelLeftOpen, MoreHorizontal
 } from "lucide-react";
+import "./admin-panel.css";
 import HorizontalProductCarousel from "./components/ProductCarousel";
+import CategoryBar from "./components/CategoryBar";
 import HomePromoCarousel from "./components/HomePromoCarousel";
 import { STORE_CONFIG } from "./store-config";
 
@@ -36,6 +33,7 @@ import {
 } from "../lib/supabase-auth";
 import { getMyProfile, getProfileAccess, ProfileAccessVerificationError, updateMyProfile } from "../lib/profile-service";
 import { getAdminPanelMenuLink } from "./admin-panel-menu";
+import { resolveApiBaseUrl } from "../lib/api-config";
 
 import adminApi, { AdminApiError, createSupabaseProductApi, updateSupabaseProductApi, deleteSupabaseProductApi, updateHomeContentApi, formatAdminApiError, isAdminAuthenticationError } from "../lib/admin-api";
 import { uploadProductImage, getPublicUrl, STORAGE_BUCKET } from "../lib/supabase-store";
@@ -117,12 +115,12 @@ const HOME_NAV_CATEGORIES = [
 ] as const;
 
 const HOME_COLLECTIONS = [
-  { name: "Tenis", image: zapatosCategoryImage, filterCategory: "Running" },
-  { name: "Ropa Hombre", image: ropaHombreCategoryImage, filterCategory: null },
-  { name: "Ropa Mujer", image: ropaMujerCategoryImage, filterCategory: null },
-  { name: "Perfumes", image: perfumesCategoryImage, filterCategory: null },
-  { name: "Relojes", image: relojesCategoryImage, filterCategory: null },
-  { name: "Gafas", image: gafasCategoryImage, filterCategory: null },
+  { name: "Zapatos", filterCategory: "Running" },
+  { name: "Ropa Hombre", filterCategory: null },
+  { name: "Ropa Mujer", filterCategory: null },
+  { name: "Perfumes", filterCategory: null },
+  { name: "Relojes", filterCategory: null },
+  { name: "Gafas", filterCategory: null },
 ];
 
 function getProductCategories(products: Product[]): Category[] {
@@ -373,7 +371,7 @@ function Btn({
     lg: "px-6 py-3.5 text-base rounded-xl",
   };
   const variants = {
-    primary: "bg-[#2457D6] text-white hover:bg-[#1d48b9] active:scale-[0.98] shadow-sm shadow-blue-300/40",
+    primary: "bg-[#bfdbfe] text-[#0b1220] hover:bg-[#a8caff] active:scale-[0.98] shadow-sm shadow-blue-300/40",
     secondary: "bg-[#eef3ff] text-[#0b1220] hover:bg-[#e2ebff]",
     outline: "border-2 border-[#0b1220] text-[#0b1220] hover:bg-slate-100",
     ghost: "text-slate-600 hover:text-[#0b1220] hover:bg-slate-100",
@@ -401,7 +399,7 @@ function ColorSelector({ colors, selected, onSelect }: {
         <button
           key={color.name} onClick={() => onSelect(color.name)} title={color.name}
           className={`w-7 h-7 rounded-full border-2 transition-transform ${
-            selected === color.name ? "border-[#1d4ed8] scale-110" : "border-transparent hover:scale-105"
+            selected === color.name ? "border-[#bfdbfe] scale-110" : "border-transparent hover:scale-105"
           }`}
           style={{ backgroundColor: color.hex, boxShadow: "0 0 0 1px rgba(0,0,0,0.12)" }}
         />
@@ -424,8 +422,8 @@ function SizeSelector({ sizes, selected, onSelect }: {
           key={size} onClick={() => onSelect(size)}
           className={`min-w-[44px] px-3 py-1.5 rounded-lg text-sm font-semibold border-2 transition-all ${
             selected === size
-              ? "border-[#1d4ed8] bg-[#1d4ed8] text-white"
-              : "border-slate-200 text-slate-600 hover:border-[#1d4ed8] hover:text-[#1d4ed8]"
+              ? "border-[#bfdbfe] bg-[#bfdbfe] text-[#0b1220]"
+              : "border-slate-200 text-slate-600 hover:border-[#bfdbfe] hover:text-[#1e3a8a]"
           }`}
         >
           {size}
@@ -590,7 +588,7 @@ function ProductCard({ product, onSelect, onAddToCart }: {
           aria-label={wished ? `Quitar ${product.name} de favoritos` : `Agregar ${product.name} a favoritos`}
           aria-pressed={wished}
           onClick={() => setWished((value) => !value)}
-          className="absolute right-1.5 top-1.5 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/95 shadow-md backdrop-blur transition-colors hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8] sm:right-3 sm:top-3 sm:h-11 sm:w-11"
+          className="absolute right-1.5 top-1.5 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/95 shadow-md backdrop-blur transition-colors hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1e3a8a] sm:right-3 sm:top-3 sm:h-11 sm:w-11"
         >
           <Heart size={14} className={wished ? "fill-red-500 text-red-500 sm:h-[15px] sm:w-[15px]" : "text-slate-400 sm:h-[15px] sm:w-[15px]"} />
         </button>
@@ -599,9 +597,9 @@ function ProductCard({ product, onSelect, onAddToCart }: {
       {/* Info */}
       <div className="flex min-w-0 flex-1 flex-col space-y-2 p-2.5 sm:space-y-3 sm:p-4 lg:space-y-4 lg:p-5">
         <div>
-          <p className="mb-1.5 inline-flex max-w-full items-center gap-1 overflow-hidden rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-semibold uppercase text-[#1d4ed8] sm:mb-2 sm:gap-2 sm:px-3 sm:py-1 sm:text-xs sm:tracking-[0.12em]">{product.brand}</p>
+          <p className="mb-1.5 inline-flex max-w-full items-center gap-1 overflow-hidden rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-semibold uppercase text-[#1e3a8a] sm:mb-2 sm:gap-2 sm:px-3 sm:py-1 sm:text-xs sm:tracking-[0.12em]">{product.brand}</p>
           <h3 className="line-clamp-2 break-words font-display text-sm leading-tight text-slate-900 sm:text-xl lg:text-2xl">
-            <a href={`/?product=${encodeURIComponent(product.slug ?? product.id)}`} onClick={(event) => { event.preventDefault(); onSelect(product); }} className="text-left font-display hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8]">{product.name}</a>
+            <a href={`/?product=${encodeURIComponent(product.slug ?? product.id)}`} onClick={(event) => { event.preventDefault(); onSelect(product); }} className="text-left font-display hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1e3a8a]">{product.name}</a>
           </h3>
           <p className="mt-1 hidden truncate text-xs text-slate-500 sm:block sm:text-sm">{product.subcategory}{product.gender ? ` · ${product.gender}` : ""}</p>
         </div>
@@ -865,7 +863,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, profileRole
                 value={searchVal} onChange={(e) => setSearchVal(e.target.value)}
                 placeholder="Buscar zapatillas, ropa, relojes..."
                 aria-label="Buscar productos"
-                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:border-[#1d4ed8]/50 focus:bg-white transition-all"
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:border-[#1e3a8a]/50 focus:bg-white transition-all"
                 onFocus={() => setShowSuggestions(true)}
                 onBlur={() => setTimeout(() => setShowSuggestions(false), 180)}
               />
@@ -903,9 +901,9 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, profileRole
                 aria-label={isAdmin ? "Ir al panel de administración" : isLoggedIn ? "Ir a mi cuenta" : "Iniciar sesión o crear cuenta"}
                 title={isAdmin ? "Administración" : isLoggedIn ? "Mi cuenta" : "Iniciar sesión"}
                 onClick={() => onNavigate(isAdmin ? "admin" : isLoggedIn ? "account" : "login")}
-                className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8] sm:hidden"
+                className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1e3a8a] sm:hidden"
               >
-                {isLoggedIn && isAdmin ? <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#1d4ed8] to-[#f97316] text-xs font-bold text-white">A</div> : isLoggedIn ? <UserRound size={19} /> : <Users size={19} />}
+                {isLoggedIn && isAdmin ? <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#1e3a8a] to-[#f97316] text-xs font-bold text-white">A</div> : isLoggedIn ? <UserRound size={19} /> : <Users size={19} />}
               </button>
 
               <div className="relative hidden sm:block">
@@ -917,8 +915,8 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, profileRole
                   >
                   {isLoggedIn
                     ? isAdmin
-                      ? <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#1d4ed8] to-[#f97316] text-xs font-bold text-white">A</div>
-                      : <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 text-[#1d4ed8]"><UserRound size={17} aria-hidden="true" /></div>
+                      ? <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#1e3a8a] to-[#f97316] text-xs font-bold text-white">A</div>
+                      : <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 text-[#1e3a8a]"><UserRound size={17} aria-hidden="true" /></div>
                     : <Users size={19} />}
                 </button>
                 {userOpen && (
@@ -974,7 +972,7 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, profileRole
               value={searchVal}
               onChange={(event) => setSearchVal(event.target.value)}
               placeholder="Buscar zapatillas, ropa, relojes..."
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-10 pr-4 text-sm text-slate-700 placeholder-slate-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1d4ed8]"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-10 pr-4 text-sm text-slate-700 placeholder-slate-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1e3a8a]"
               onFocus={() => setShowSuggestions(true)}
               onBlur={() => setTimeout(() => setShowSuggestions(false), 180)}
             />
@@ -993,19 +991,6 @@ function Navbar({ cart, onNavigate, onCartOpen, isLoggedIn, isAdmin, profileRole
         </div>
       </header>
 
-      {(currentView === "home" || currentView === "catalog") && (
-        <div className="w-full bg-transparent pt-[9.75rem] sm:pt-[6.75rem]">
-          <div className="category-navigation-scroll overflow-x-auto border-b border-slate-100 bg-white overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <nav aria-label="Categorías de productos" className="mx-auto flex min-h-11 max-w-7xl items-center justify-start gap-1 px-4 sm:min-h-14 sm:px-6 md:justify-center">
-              {availableCategories.map((category) => (
-                <button key={category.name} type="button" onClick={() => onCategorySelect(category.filterCategory)} className="min-h-10 flex shrink-0 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold text-slate-600 transition-colors hover:bg-blue-50 hover:text-[#1d4ed8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8] sm:px-4 whitespace-nowrap">
-                  {category.name}
-                </button>
-              ))}
-            </nav>
-          </div>
-        </div>
-      )}
     </>
   );
 }
@@ -1067,7 +1052,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
       <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="cart-drawer-title" tabIndex={-1} className="fixed right-0 top-0 bottom-0 w-full max-w-md bg-white z-50 flex flex-col shadow-2xl">
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
           <div className="flex items-center gap-2">
-            <ShoppingCart size={18} className="text-[#1d4ed8]" />
+            <ShoppingCart size={18} className="text-[#1e3a8a]" />
             <h2 id="cart-drawer-title" className="text-base font-bold text-slate-900">Mi carrito</h2>
             <span className="text-sm text-slate-400">({cart.reduce((s, i) => s + i.qty, 0)} artículos)</span>
           </div>
@@ -1110,7 +1095,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
                 <img src={item.product.image} alt={item.product.name} onError={(event) => { event.currentTarget.style.display = "none"; }}
                   className="w-16 h-16 object-cover rounded-lg bg-white shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-[11px] font-bold text-[#1d4ed8] uppercase">{item.product.brand}</p>
+                  <p className="text-[11px] font-bold text-[#1e3a8a] uppercase">{item.product.brand}</p>
                   <p className="text-sm font-bold text-slate-800 line-clamp-1">{item.product.name}</p>
                   <div className="flex items-center gap-2 mt-0.5">
                     {item.selectedSize && item.selectedSize !== "Talla única" && (
@@ -1209,13 +1194,14 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
     return null;
   }
 
-  function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, content, products, categories, featuredProducts, newArrivalsProducts, saleProducts, productsStatus, onRetryProducts }: {
+  function HomePage({ onNavigate, onSelectProduct, onAddToCart, onCategorySelect, content, products, categories, selectedCategory, featuredProducts, newArrivalsProducts, saleProducts, productsStatus, onRetryProducts }: {
   onNavigate: (v: View) => void; onSelectProduct: (p: Product) => void;
   onAddToCart: (p: Product, size: string, color: string) => void;
   onCategorySelect: (c: Category | null) => void;
   content: HomePageContent;
   products: Product[];
   categories: CategoryOption[];
+  selectedCategory: Category | null;
   featuredProducts: Product[];
   newArrivalsProducts: Product[];
   saleProducts: Product[];
@@ -1279,42 +1265,16 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
     <main>
       <HomePromoCarousel />
 
-      <section className="mx-auto max-w-7xl px-3 pb-2 pt-8 sm:px-4 sm:pt-10 md:px-6 md:pt-12">
-        <div className="mb-6 sm:mb-8">
-          <p className="mb-1 font-display text-sm uppercase tracking-[0.08em] text-primary sm:text-base">{content.categorySectionLabel}</p>
-          <h2 className="font-display text-[1.8rem] uppercase leading-[1.05] text-[#0b1220] sm:text-[2.4rem] md:text-[2.8rem]">{content.categorySectionTitle}</h2>
-        </div>
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
-          {homeCategories.map((cat) => (
-            <button
-              key={cat.name}
-              type="button"
-              aria-label={cat.name}
-              onClick={() => onCategorySelect(cat.filterCategory)}
-              className="group relative aspect-[1.35] min-h-[118px] overflow-hidden rounded-[26px] border border-white/30 bg-[#0b1220] text-left shadow-[0_20px_40px_-26px_rgba(15,23,42,0.7)] ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_52px_-30px_rgba(15,23,42,0.72)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8] active:scale-[0.99]"
-            >
-              <img
-                src={cat.image}
-                alt={cat.name}
-                loading="lazy"
-                decoding="async"
-                onError={(event) => { event.currentTarget.style.display = "none"; }}
-                className="absolute inset-0 h-full w-full bg-slate-100 object-contain brightness-[1.12] contrast-[1.03] saturate-[1.08]"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#050b16]/50 via-[#050b16]/5 to-transparent" />
-              <div className="absolute inset-x-0 top-0 h-14 bg-gradient-to-b from-[#0b1220]/10 to-transparent" />
-              <div className="relative flex h-full min-h-[118px] flex-col justify-end p-3 sm:min-h-[190px] sm:p-4">
-                <p className="font-display text-[1.05rem] leading-[1.05] text-white sm:text-[1.7rem]">{cat.name}</p>
-              </div>
-            </button>
-          ))}
-        </div>
-      </section>
+      <CategoryBar
+        categories={[...new Set([...categories.map((category) => category.name), ...getProductCategories(products)])]}
+        activeCategory={selectedCategory}
+        onSelect={onCategorySelect}
+      />
 
       <section className="mx-auto max-w-7xl px-3 py-6 sm:px-4 sm:py-12 md:px-6 md:py-16">
         <div className="mb-6 flex items-end justify-between gap-4 sm:mb-8">
           <div>
-            <p className="mb-1 font-display text-sm uppercase tracking-[0.08em] text-primary sm:text-base">{content.featuredSectionLabel}</p>
+            <p className="mb-1 font-display text-sm uppercase tracking-[0.08em] text-[#1e3a8a] sm:text-base">{content.featuredSectionLabel}</p>
             <h2 className="font-display text-[1.8rem] uppercase leading-[1.05] text-slate-900 sm:text-[2.4rem] md:text-[2.8rem]">PRODUCTOS DESTACADOS</h2>
           </div>
           {productsStatus === "ready" && featured.length > 0 && (
@@ -1331,7 +1291,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
             <p className="mb-4">Explora nuestras categorías mientras actualizamos el catálogo.</p>
             <div className="flex flex-wrap gap-3">
               {homeCategories.slice(0, 3).map((category) => (
-                <button key={category.name} type="button" onClick={() => onCategorySelect(category.filterCategory)} className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 font-semibold text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1d4ed8]">
+                <button key={category.name} type="button" onClick={() => onCategorySelect(category.filterCategory)} className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 font-semibold text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1e3a8a]">
                   {category.name}
                 </button>
               ))}
@@ -1404,7 +1364,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
         <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2">
           <article id="shipping-policy" className="scroll-mt-[13rem] rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_12px_30px_-18px_rgba(15,23,42,0.3)] sm:scroll-mt-[8rem] sm:p-6">
             <div className="mb-4 flex items-start gap-3">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-primary">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-[#1e3a8a]">
                 <Truck size={20} aria-hidden="true" />
               </span>
               <h3 className="font-display text-xl leading-tight text-slate-900 sm:text-2xl">Políticas de envío</h3>
@@ -1418,7 +1378,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
           </article>
           <article id="returns-policy" className="scroll-mt-[13rem] rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_12px_30px_-18px_rgba(15,23,42,0.3)] sm:scroll-mt-[8rem] sm:p-6">
             <div className="mb-4 flex items-start gap-3">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-primary">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-[#1e3a8a]">
                 <RefreshCw size={20} aria-hidden="true" />
               </span>
               <h3 className="font-display text-xl leading-tight text-slate-900 sm:text-2xl">Políticas de cambios y devoluciones</h3>
@@ -1455,7 +1415,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
             <button
               type="submit"
               disabled={newsletterLoading || !newsletterAvailable || !newsletterConsent}
-              className="w-full whitespace-nowrap rounded-xl bg-primary px-5 py-3 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary/90 active:bg-primary/80 focus-visible:outline-white focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
+              className="w-full whitespace-nowrap rounded-xl bg-primary px-5 py-3 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary/90 active:bg-primary/80 focus-visible:outline-[#1e3a8a] focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
             >
               {newsletterLoading ? "Enviando…" : "Suscribirme"}
             </button>
@@ -1564,11 +1524,11 @@ function LegalPage({ kind, onNavigate }: { kind: View; onNavigate: (v: View) => 
   return (
     <main className="mx-auto max-w-3xl px-4 pb-16 pt-28 sm:px-6">
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_18px_45px_-30px_rgba(15,23,42,0.35)] sm:p-8">
-        <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-[#2457D6]">Configuración pendiente</p>
+        <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-[#1e3a8a]">Configuración pendiente</p>
         <h1 className="font-display text-3xl text-slate-900 sm:text-4xl">{item.title}</h1>
         <p className="mt-4 text-base leading-relaxed text-slate-600">{item.paragraph}</p>
         <div className="mt-6 flex flex-wrap gap-3">
-          <button type="button" onClick={() => onNavigate("home")} className="min-h-11 rounded-xl bg-[#2457D6] px-5 py-3 text-sm font-bold text-white hover:bg-[#1d48b9]">Volver a la home</button>
+          <button type="button" onClick={() => onNavigate("home")} className="min-h-11 rounded-xl bg-[#bfdbfe] px-5 py-3 text-sm font-bold text-[#0b1220] hover:bg-[#a8caff]">Volver a la home</button>
           <button type="button" onClick={() => onNavigate("catalog")} className="min-h-11 rounded-xl border border-slate-200 bg-slate-50 px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-100">Explorar catálogo</button>
         </div>
       </div>
@@ -1623,13 +1583,13 @@ function CatalogPage({ filterCategory, selectedBrand, setSelectedBrand, sortBy, 
             <div>
               <p className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-3">Categoría</p>
               <div className="space-y-0.5">
-                <button onClick={() => onCategorySelect(null)} className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-colors ${!selectedCat ? "bg-[#1d4ed8] text-white font-bold" : "text-slate-600 hover:bg-slate-100"}`}>
+                <button onClick={() => onCategorySelect(null)} className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-colors ${!selectedCat ? "bg-[#bfdbfe] text-[#0b1220] font-bold" : "text-slate-600 hover:bg-slate-100"}`}>
                   Todos ({products.length})
                 </button>
                 {availableCategories.map((category) => {
                   const count = products.filter((product) => product.category === category).length;
                   return (
-                    <button key={category} onClick={() => onCategorySelect(category)} className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-colors flex justify-between items-center ${selectedCat === category ? "bg-[#1d4ed8] text-white font-bold" : "text-slate-600 hover:bg-slate-100"}`}>
+                    <button key={category} onClick={() => onCategorySelect(category)} className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-colors flex justify-between items-center ${selectedCat === category ? "bg-[#bfdbfe] text-[#0b1220] font-bold" : "text-slate-600 hover:bg-slate-100"}`}>
                       <span>{category}</span><span className="text-xs opacity-60">{count}</span>
                     </button>
                   );
@@ -1653,7 +1613,7 @@ function CatalogPage({ filterCategory, selectedBrand, setSelectedBrand, sortBy, 
               <Filter size={14} /> Filtros
             </button>
             <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}
-              className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-[#1d4ed8]/50 cursor-pointer shadow-sm">
+              className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-[#1e3a8a]/50 cursor-pointer shadow-sm">
               <option value="relevancia">Más relevantes</option>
               <option value="novedades">Novedades</option>
               <option value="precio-asc">Precio: menor a mayor</option>
@@ -1662,11 +1622,11 @@ function CatalogPage({ filterCategory, selectedBrand, setSelectedBrand, sortBy, 
             </select>
             <div className="hidden sm:flex border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
               <button onClick={() => setViewMode("grid")}
-                className={`p-2 transition-colors ${viewMode === "grid" ? "bg-[#1d4ed8] text-white" : "text-slate-500 hover:bg-slate-50"}`}>
+                className={`p-2 transition-colors ${viewMode === "grid" ? "bg-[#bfdbfe] text-[#0b1220]" : "text-slate-500 hover:bg-slate-50"}`}>
                 <Grid3X3 size={15} />
               </button>
               <button onClick={() => setViewMode("list")}
-                className={`p-2 transition-colors ${viewMode === "list" ? "bg-[#1d4ed8] text-white" : "text-slate-500 hover:bg-slate-50"}`}>
+                className={`p-2 transition-colors ${viewMode === "list" ? "bg-[#bfdbfe] text-[#0b1220]" : "text-slate-500 hover:bg-slate-50"}`}>
                 <Layers size={15} />
               </button>
             </div>
@@ -1675,13 +1635,13 @@ function CatalogPage({ filterCategory, selectedBrand, setSelectedBrand, sortBy, 
           {mobileFiltersOpen && (
             <div className="mb-5 space-y-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm lg:hidden">
               <div className="grid gap-3">
-                <button onClick={() => onCategorySelect(null)} className="px-4 py-3 rounded-2xl bg-[#1d4ed8] text-white text-sm font-semibold">Mostrar todos ({products.length})</button>
+                <button onClick={() => onCategorySelect(null)} className="px-4 py-3 rounded-2xl bg-[#bfdbfe] text-[#0b1220] text-sm font-semibold">Mostrar todos ({products.length})</button>
                 <div>
                   <p className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-2">Marca</p>
                   <div className="grid grid-cols-2 gap-2">
                     {allBrands.map((brand) => (
                       <button key={brand} onClick={() => { setSelectedBrand(brand === selectedBrand ? null : brand); }}
-                        className={`rounded-2xl px-3 py-2 text-sm text-left ${selectedBrand === brand ? "bg-[#1d4ed8] text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}>
+                        className={`rounded-2xl px-3 py-2 text-sm text-left ${selectedBrand === brand ? "bg-[#bfdbfe] text-[#0b1220]" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}>
                         {brand}
                       </button>
                     ))}
@@ -1692,7 +1652,7 @@ function CatalogPage({ filterCategory, selectedBrand, setSelectedBrand, sortBy, 
                   <div className="grid grid-cols-2 gap-2">
                     {availableCategories.map((category) => (
                       <button key={category} onClick={() => onCategorySelect(category)}
-                        className={`rounded-2xl px-3 py-2 text-sm text-left ${selectedCat === category ? "bg-[#1d4ed8] text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}>
+                        className={`rounded-2xl px-3 py-2 text-sm text-left ${selectedCat === category ? "bg-[#bfdbfe] text-[#0b1220]" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}>
                         {category}
                       </button>
                     ))}
@@ -1710,13 +1670,13 @@ function CatalogPage({ filterCategory, selectedBrand, setSelectedBrand, sortBy, 
               <span className="text-xs text-slate-500">Filtros:</span>
               {selectedCat && (
                 <button onClick={() => onCategorySelect(null)}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#1d4ed8]/10 text-[#1d4ed8] text-xs border border-[#1d4ed8]/20 hover:bg-[#1d4ed8]/20 transition-colors font-semibold">
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#bfdbfe]/10 text-[#1e3a8a] text-xs border border-[#bfdbfe]/20 hover:bg-[#bfdbfe]/20 transition-colors font-semibold">
                   {selectedCat} <X size={11} />
                 </button>
               )}
               {selectedBrand && (
                 <button onClick={() => setSelectedBrand(null)}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#1d4ed8]/10 text-[#1d4ed8] text-xs border border-[#1d4ed8]/20 hover:bg-[#1d4ed8]/20 transition-colors font-semibold">
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#bfdbfe]/10 text-[#1e3a8a] text-xs border border-[#bfdbfe]/20 hover:bg-[#bfdbfe]/20 transition-colors font-semibold">
                   {selectedBrand} <X size={11} />
                 </button>
               )}
@@ -1797,7 +1757,7 @@ function ProductDetailPage({ product, products, onBack, onAddToCart, onNavigate,
         <section aria-label={`Información de ${product.name}`} className="min-w-0 space-y-6 py-1 sm:py-2">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-sm font-extrabold text-[#1d4ed8]">{product.brand}</span>
+              <span className="text-sm font-extrabold text-[#1e3a8a]">{product.brand}</span>
               <span className="text-slate-300">|</span>
               <span className="text-xs text-slate-400 font-mono">{product.sku}</span>
               {product.gender && <Badge>{product.gender}</Badge>}
@@ -1896,7 +1856,7 @@ function ProductDetailPage({ product, products, onBack, onAddToCart, onNavigate,
         {(["specs", "reviews"] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)}
             className={`px-5 py-3 text-sm font-bold border-b-2 transition-all ${
-              tab === t ? "border-[#1d4ed8] text-[#1d4ed8]" : "border-transparent text-slate-400 hover:text-slate-700"
+              tab === t ? "border-[#bfdbfe] text-[#1e3a8a]" : "border-transparent text-slate-400 hover:text-slate-700"
             }`}>
             {{ specs: "Especificaciones", reviews: "Reseñas" }[t]}
           </button>
@@ -1921,7 +1881,7 @@ function ProductDetailPage({ product, products, onBack, onAddToCart, onNavigate,
         <ul className="max-w-3xl space-y-2">
           {product.specs.map((specification, index) => (
             <li key={index} className="flex items-start gap-3 border-b border-slate-200 py-3 text-sm text-slate-600">
-              <Check size={14} className="mt-0.5 shrink-0 text-[#1d4ed8]" />
+              <Check size={14} className="mt-0.5 shrink-0 text-[#1e3a8a]" />
               <span>{specification}</span>
             </li>
           ))}
@@ -1989,17 +1949,17 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
       <div className="flex items-center gap-2 mb-10 overflow-x-auto pb-1">
         {STEPS.map((s, i) => (
           <div key={s} className="flex items-center gap-2 shrink-0">
-            <div className={`flex items-center gap-2 ${i <= step ? "text-[#1d4ed8]" : "text-slate-400"}`}>
+            <div className={`flex items-center gap-2 ${i <= step ? "text-[#1e3a8a]" : "text-slate-400"}`}>
               <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all ${
-                i < step ? "bg-[#1d4ed8] border-[#1d4ed8] text-white" :
-                i === step ? "border-[#1d4ed8] text-[#1d4ed8] bg-blue-50" :
+                i < step ? "bg-[#bfdbfe] border-[#bfdbfe] text-[#0b1220]" :
+                i === step ? "border-[#bfdbfe] text-[#1e3a8a] bg-blue-50" :
                 "border-slate-200 text-slate-400"
               }`}>
                 {i < step ? <Check size={13} /> : i + 1}
               </div>
               <span className="text-sm font-bold hidden sm:block">{s}</span>
             </div>
-            {i < STEPS.length - 1 && <div className={`h-0.5 w-8 sm:w-14 rounded ${i < step ? "bg-[#1d4ed8]" : "bg-slate-200"}`} />}
+            {i < STEPS.length - 1 && <div className={`h-0.5 w-8 sm:w-14 rounded ${i < step ? "bg-[#bfdbfe]" : "bg-slate-200"}`} />}
           </div>
         ))}
       </div>
@@ -2013,11 +1973,11 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
                 <p className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950">Las direcciones actuales se guardan solo en este dispositivo y no se pueden usar para crear pedidos.</p>
               )}
               {addresses.map((a) => (
-                <label key={a.id} className={"flex gap-2 sm:gap-3 p-3 sm:p-4 rounded-lg sm:rounded-2xl border-2 cursor-pointer transition-all " + (selectedAddressId === a.id ? "border-[#1d4ed8] bg-blue-50/50" : "border-slate-200 hover:border-slate-300")}>
-                  <input type="radio" name="addr" checked={selectedAddressId === a.id} onChange={() => onSelectAddress(a.id)} className="mt-1 accent-[#1d4ed8] shrink-0" />
+                <label key={a.id} className={"flex gap-2 sm:gap-3 p-3 sm:p-4 rounded-lg sm:rounded-2xl border-2 cursor-pointer transition-all " + (selectedAddressId === a.id ? "border-[#bfdbfe] bg-blue-50/50" : "border-slate-200 hover:border-slate-300")}>
+                  <input type="radio" name="addr" checked={selectedAddressId === a.id} onChange={() => onSelectAddress(a.id)} className="mt-1 accent-[#1e3a8a] shrink-0" />
                   <div>
                     <p className="text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-2 flex-wrap">
-                      <MapPin size={13} className="text-[#1d4ed8] shrink-0" /> {a.label}
+                      <MapPin size={13} className="text-[#1e3a8a] shrink-0" /> {a.label}
                       {a.isDefault && <Badge variant="new">Predeterminada</Badge>}
                     </p>
                     <p className="text-xs sm:text-sm text-slate-500 mt-0.5">{a.line1}{a.line2 ? ", " + a.line2 : ""}</p>
@@ -2027,7 +1987,7 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
                 </label>
               ))}
               <button type="button" onClick={() => setShowNewAddress((prev) => !prev)}
-                className="w-full p-3 sm:p-4 rounded-lg sm:rounded-2xl border-2 border-dashed border-slate-200 text-slate-500 hover:border-[#1d4ed8]/50 hover:text-[#1d4ed8] transition-all flex items-center justify-center gap-2 text-xs sm:text-sm font-semibold">
+                className="w-full p-3 sm:p-4 rounded-lg sm:rounded-2xl border-2 border-dashed border-slate-200 text-slate-500 hover:border-[#bfdbfe]/50 hover:text-[#1e3a8a] transition-all flex items-center justify-center gap-2 text-xs sm:text-sm font-semibold">
                 <Plus size={14} /> {showNewAddress ? "Cancelar" : "Agregar nueva dirección"}
               </button>
               {showNewAddress && (
@@ -2054,12 +2014,12 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
                         value={(addressForm as any)[field.name] ?? ""}
                         onChange={(e) => setAddressForm((prev) => ({ ...prev, [field.name]: e.target.value }))}
                         placeholder={field.placeholder}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#1d4ed8]/50"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#1e3a8a]/50"
                       />
                     </div>
                   ))}
                   <label className="flex items-center gap-2 text-sm text-slate-600">
-                    <input type="checkbox" checked={addressForm.isDefault} onChange={(e) => setAddressForm((prev) => ({ ...prev, isDefault: e.target.checked }))} className="accent-[#1d4ed8]" />
+                    <input type="checkbox" checked={addressForm.isDefault} onChange={(e) => setAddressForm((prev) => ({ ...prev, isDefault: e.target.checked }))} className="accent-[#1e3a8a]" />
                     Establecer como dirección predeterminada
                   </label>
                   <Btn type="submit" variant="primary" className="w-full">Guardar dirección</Btn>
@@ -2104,7 +2064,7 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
                     <div key={`${item.product.id}-${item.selectedSize}-${item.selectedColor}`} className="flex gap-2 sm:gap-3">
                   <div className="relative shrink-0">
                     <img src={item.product.image} alt="" onError={(event) => { event.currentTarget.style.display = "none"; }} className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-cover bg-slate-100" />
-                    <span className="absolute -top-1.5 -right-1.5 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-[#1d4ed8] text-white text-[8px] sm:text-[9px] font-bold flex items-center justify-center">{item.qty}</span>
+                    <span className="absolute -top-1.5 -right-1.5 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-[#bfdbfe] text-[#0b1220] text-[8px] sm:text-[9px] font-bold flex items-center justify-center">{item.qty}</span>
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[11px] sm:text-xs font-semibold text-slate-700 line-clamp-2 leading-tight">{item.product.name}</p>
@@ -2308,7 +2268,7 @@ function LoginPage({ isRegister, onNavigate, onLogin, headerOffset }: {
     >
       {/* Decorative elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 right-1/4 w-96 h-96 bg-[#1d4ed8]/5 rounded-full blur-3xl" />
+        <div className="absolute top-0 right-1/4 w-96 h-96 bg-[#bfdbfe]/5 rounded-full blur-3xl" />
         <div className="absolute -bottom-32 left-1/3 w-96 h-96 bg-blue-400/5 rounded-full blur-3xl" />
       </div>
 
@@ -2316,7 +2276,7 @@ function LoginPage({ isRegister, onNavigate, onLogin, headerOffset }: {
         {/* Logo */}
         <div className="text-center mb-6 sm:mb-12">
           <div className="flex items-center justify-center gap-2 mb-4">
-            <span className="font-extrabold text-slate-900 text-2xl">Urban<span className="text-[#1d4ed8]">Sport</span></span>
+            <span className="font-extrabold text-slate-900 text-2xl">Urban<span className="text-[#1e3a8a]">Sport</span></span>
           </div>
           <h1 className="font-display text-[40px] sm:text-[48px] text-slate-900 leading-[1.02] mb-2">
             {isRegister ? "Crear cuenta" : "Bienvenido"}
@@ -2340,7 +2300,7 @@ function LoginPage({ isRegister, onNavigate, onLogin, headerOffset }: {
                   value={name}
                   onChange={(e) => { setName(e.target.value); setError(null); }}
                   placeholder="Tu nombre"
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 placeholder-slate-500 focus:outline-none focus:border-[#1d4ed8] focus:bg-white transition-all duration-200"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-sm text-slate-900 placeholder-slate-500 focus:outline-none focus:border-[#1e3a8a] focus:bg-white transition-all duration-200"
                 />
               </div>
             )}
@@ -2356,7 +2316,7 @@ function LoginPage({ isRegister, onNavigate, onLogin, headerOffset }: {
                 value={email} 
                   onChange={(e) => { setEmail(e.target.value); setRecoveryMessage(null); setError(null); }}
                 placeholder="tu@email.com" 
-                className="w-full px-4 py-3.5 bg-slate-50 border border-slate-300 rounded-xl text-base text-slate-900 placeholder-slate-500 focus:outline-none focus:border-[#1d4ed8] focus:bg-white transition-all duration-200" 
+                className="w-full px-4 py-3.5 bg-slate-50 border border-slate-300 rounded-xl text-base text-slate-900 placeholder-slate-500 focus:outline-none focus:border-[#1e3a8a] focus:bg-white transition-all duration-200"
               />
             </div>
 
@@ -2376,7 +2336,7 @@ function LoginPage({ isRegister, onNavigate, onLogin, headerOffset }: {
                   value={password} 
                   onChange={(e) => { setPassword(e.target.value); setError(null); }}
                   placeholder="••••••••"
-                  className="w-full px-4 py-3.5 bg-slate-50 border border-slate-300 rounded-xl text-base text-slate-900 placeholder-slate-500 focus:outline-none focus:border-[#1d4ed8] focus:bg-white transition-all duration-200" 
+                  className="w-full px-4 py-3.5 bg-slate-50 border border-slate-300 rounded-xl text-base text-slate-900 placeholder-slate-500 focus:outline-none focus:border-[#1e3a8a] focus:bg-white transition-all duration-200"
                 />
                 <button 
                   type="button" 
@@ -2390,7 +2350,7 @@ function LoginPage({ isRegister, onNavigate, onLogin, headerOffset }: {
 
             {!isRegister && (
               <div className="text-right">
-                <button type="button" disabled={loading} onClick={() => void handlePasswordRecovery()} className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#1d4ed8] hover:text-blue-700 disabled:opacity-60">
+                <button type="button" disabled={loading} onClick={() => void handlePasswordRecovery()} className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#1e3a8a] hover:text-blue-700 disabled:opacity-60">
                   {recoveryLoading ? <><RefreshCw size={14} className="animate-spin" /> Enviando enlace…</> : "¿Olvidaste tu contraseña?"}
                 </button>
               </div>
@@ -2409,7 +2369,7 @@ function LoginPage({ isRegister, onNavigate, onLogin, headerOffset }: {
                   className="mt-1 accent-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 />
                 <span>
-                  He leído y acepto los <a href={termsUrl} target="_blank" rel="noreferrer" className="font-semibold text-[#1d4ed8] underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">Términos y Condiciones</a> y la <a href={privacyPolicyUrl} target="_blank" rel="noreferrer" className="font-semibold text-[#1d4ed8] underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">Política de Privacidad</a>.
+                  He leído y acepto los <a href={termsUrl} target="_blank" rel="noreferrer" className="font-semibold text-[#1e3a8a] underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">Términos y Condiciones</a> y la <a href={privacyPolicyUrl} target="_blank" rel="noreferrer" className="font-semibold text-[#1e3a8a] underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">Política de Privacidad</a>.
                 </span>
               </label>
             )}
@@ -2427,7 +2387,7 @@ function LoginPage({ isRegister, onNavigate, onLogin, headerOffset }: {
             <button 
               type="submit" 
               disabled={loading}
-              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#1d4ed8] to-blue-600 text-white font-extrabold text-base hover:shadow-lg hover:shadow-blue-500/30 disabled:opacity-60 disabled:shadow-none transition-all duration-300 flex items-center justify-center gap-2 transform hover:scale-105"
+              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#bfdbfe] to-[#93c5fd] text-[#0b1220] font-extrabold text-base hover:shadow-lg hover:shadow-blue-500/30 disabled:opacity-60 disabled:shadow-none transition-all duration-300 flex items-center justify-center gap-2 transform hover:scale-105"
             >
               {loading ? (
                 <><RefreshCw size={18} className="animate-spin" /> Procesando…</>
@@ -2444,7 +2404,7 @@ function LoginPage({ isRegister, onNavigate, onLogin, headerOffset }: {
           {isRegister ? "¿Ya tienes cuenta? " : "¿No tienes cuenta? "}
           <button 
             onClick={() => onNavigate(isRegister ? "login" : "register")} 
-            className="text-[#1d4ed8] font-bold hover:text-blue-600 transition-colors"
+            className="text-[#1e3a8a] font-bold hover:text-blue-600 transition-colors"
           >
             {isRegister ? "Inicia sesión" : "Regístrate"}
           </button>
@@ -2488,12 +2448,12 @@ function PasswordRecoveryPage({ onNavigate }: { onNavigate: (view: View) => void
   return (
     <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 px-4 py-12">
       <section className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-7 shadow-xl sm:p-9">
-        <p className="text-sm font-bold text-[#1d4ed8]">UrbanSport Store</p>
+        <p className="text-sm font-bold text-[#1e3a8a]">UrbanSport Store</p>
         <h1 className="mt-3 text-3xl font-extrabold text-slate-900">{complete ? "Contraseña actualizada" : "Crea una contraseña nueva"}</h1>
         {complete ? (
           <div className="mt-6 space-y-5">
             <p role="status" className="text-sm text-slate-600">Ya puedes iniciar sesión con tu contraseña nueva.</p>
-            <button type="button" onClick={() => onNavigate("login")} className="w-full rounded-xl bg-[#1d4ed8] px-4 py-3 font-bold text-white hover:bg-blue-700">Ir al inicio de sesión</button>
+            <button type="button" onClick={() => onNavigate("login")} className="w-full rounded-xl bg-[#bfdbfe] px-4 py-3 font-bold text-[#0b1220] hover:bg-[#a8caff]">Ir al inicio de sesión</button>
           </div>
         ) : (
           <form onSubmit={(event) => void handleSubmit(event)} className="mt-6 space-y-4">
@@ -2506,7 +2466,7 @@ function PasswordRecoveryPage({ onNavigate }: { onNavigate: (view: View) => void
               <input id="recovery-password-confirm" type="password" autoComplete="new-password" minLength={12} required value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} className="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 focus:border-blue-600 focus:outline-none" />
             </div>
             {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</p>}
-            <button type="submit" disabled={loading} className="w-full rounded-xl bg-[#1d4ed8] px-4 py-3 font-bold text-white hover:bg-blue-700 disabled:opacity-60">{loading ? "Actualizando…" : "Actualizar contraseña"}</button>
+            <button type="submit" disabled={loading} className="w-full rounded-xl bg-[#bfdbfe] px-4 py-3 font-bold text-[#0b1220] hover:bg-[#a8caff] disabled:opacity-60">{loading ? "Actualizando…" : "Actualizar contraseña"}</button>
           </form>
         )}
       </section>
@@ -2630,7 +2590,7 @@ function AccountPage({ onNavigate, onLogout, authUser, addresses, onCreateAddres
           { key: "addresses", label: "Direcciones" },
           { key: "activity", label: "Actividad" },
         ] as const).map((item) => (
-          <button key={item.key} type="button" aria-pressed={section === item.key} onClick={() => setSection(item.key)} className={`min-h-11 rounded-lg px-3 text-sm font-semibold ${section === item.key ? "bg-[#1d4ed8] text-white" : "bg-white text-slate-700 border border-slate-200"}`}>
+          <button key={item.key} type="button" aria-pressed={section === item.key} onClick={() => setSection(item.key)} className={`min-h-11 rounded-lg px-3 text-sm font-semibold ${section === item.key ? "bg-[#bfdbfe] text-[#0b1220]" : "bg-white text-slate-700 border border-slate-200"}`}>
             {item.label}
           </button>
         ))}
@@ -2638,7 +2598,7 @@ function AccountPage({ onNavigate, onLogout, authUser, addresses, onCreateAddres
       <div className="flex gap-8">
         <aside className="hidden sm:block w-56 shrink-0">
           <div className="bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.18)] overflow-hidden">
-            <div className="p-4 border-b border-slate-100 bg-gradient-to-br from-[#1d4ed8] to-[#1e40af]">
+            <div className="p-4 border-b border-slate-100 bg-gradient-to-br from-[#1e3a8a] to-[#0b1220]">
               <div className="w-12 h-12 rounded-full bg-white/20 border-2 border-white/30 flex items-center justify-center text-xl font-extrabold text-white mb-2">{profileName.charAt(0).toUpperCase()}</div>
               <p className="text-sm font-extrabold text-white">{profileName}</p>
               <p className="text-xs text-blue-200">{profileEmail}</p>
@@ -2651,7 +2611,7 @@ function AccountPage({ onNavigate, onLogout, authUser, addresses, onCreateAddres
                 { key: "activity", label: "Actividad", icon: <Grid3X3 size={15} /> },
               ] as const).map((item) => (
                 <button key={item.key} onClick={() => setSection(item.key)}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm transition-colors ${section === item.key ? "bg-blue-50 text-[#1d4ed8] font-bold" : "text-slate-600 hover:bg-slate-50"}`}>
+                  className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm transition-colors ${section === item.key ? "bg-blue-50 text-[#1e3a8a] font-bold" : "text-slate-600 hover:bg-slate-50"}`}>
                   {item.icon} {item.label}
                 </button>
               ))}
@@ -2733,7 +2693,7 @@ function AccountPage({ onNavigate, onLogout, authUser, addresses, onCreateAddres
                           value={(addressForm as any)[field.name] ?? ''}
                           onChange={(e) => setAddressForm((prev) => ({ ...prev, [field.name]: e.target.value }))}
                           placeholder={field.placeholder}
-                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#1d4ed8]/50"
+                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#1e3a8a]/50"
                         />
                       </div>
                     ))}
@@ -2746,7 +2706,7 @@ function AccountPage({ onNavigate, onLogout, authUser, addresses, onCreateAddres
                         required
                         value={addressForm.country}
                         onChange={(e) => setAddressForm((prev) => ({ ...prev, country: e.target.value }))}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#1d4ed8]/50"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#1e3a8a]/50"
                       />
                     </div>
                     <div>
@@ -2757,12 +2717,12 @@ function AccountPage({ onNavigate, onLogout, authUser, addresses, onCreateAddres
                         value={addressForm.phone}
                         onChange={(e) => setAddressForm((prev) => ({ ...prev, phone: e.target.value }))}
                         placeholder="+57 311 234 5678"
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#1d4ed8]/50"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:border-[#1e3a8a]/50"
                       />
                     </div>
                   </div>
                   <label className="flex items-center gap-2 text-sm text-slate-600">
-                    <input type="checkbox" checked={addressForm.isDefault} onChange={(e) => setAddressForm((prev) => ({ ...prev, isDefault: e.target.checked }))} className="accent-[#1d4ed8]" />
+                    <input type="checkbox" checked={addressForm.isDefault} onChange={(e) => setAddressForm((prev) => ({ ...prev, isDefault: e.target.checked }))} className="accent-[#1e3a8a]" />
                     Establecer como dirección predeterminada
                   </label>
                   <div className="flex gap-3 flex-wrap">
@@ -2776,7 +2736,7 @@ function AccountPage({ onNavigate, onLogout, authUser, addresses, onCreateAddres
                   <div key={a.id} className="p-4 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_18px_48px_-40px_rgba(15,23,42,0.16)] flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                     <div>
                       <div className="flex flex-wrap items-center gap-2 mb-2">
-                        <MapPin size={14} className="text-[#1d4ed8]" />
+                        <MapPin size={14} className="text-[#1e3a8a]" />
                         <span className="text-sm font-bold text-slate-800">{a.label}</span>
                         {a.isDefault && <Badge variant="new">Predeterminada</Badge>}
                       </div>
@@ -2785,7 +2745,7 @@ function AccountPage({ onNavigate, onLogout, authUser, addresses, onCreateAddres
                       <p className="text-sm text-slate-500">{a.country} · {a.phone}</p>
                     </div>
                     <div className="flex gap-2">
-                      <button type="button" onClick={() => startEdit(a)} className="w-10 h-10 rounded-lg bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-[#1d4ed8] transition-colors"><Edit size={16} /></button>
+                      <button type="button" onClick={() => startEdit(a)} className="w-10 h-10 rounded-lg bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-[#1e3a8a] transition-colors"><Edit size={16} /></button>
                       <button type="button" onClick={() => onDeleteAddress(a.id)} className="w-10 h-10 rounded-lg bg-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
                     </div>
                   </div>
@@ -2845,6 +2805,12 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
   backendAdminAvailable?: boolean;
 }) {
   const [adminSection, setAdminSection] = useState(initialSection ?? "dashboard");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
+  const productDialogRef = useRef<HTMLDialogElement>(null);
+  const [isProductFormOpen, setIsProductFormOpen] = useState(false);
+  const [isProductFormDirty, setIsProductFormDirty] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [productStatusFilter, setProductStatusFilter] = useState<AdminProductStatusFilter>("all");
   const [availabilityUpdatingId, setAvailabilityUpdatingId] = useState<string | null>(null);
@@ -2885,6 +2851,47 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
     objectUrlsRef.current.clear();
   }, []);
+
+  useEffect(() => {
+    if (!mobileSidebarOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const focusFrame = window.requestAnimationFrame(() => {
+      document.querySelector<HTMLButtonElement>(".admin-mobile-drawer__nav button")?.focus();
+    });
+    const handleMobileNavigationKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setMobileSidebarOpen(false);
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = Array.from(document.querySelectorAll<HTMLButtonElement>("#admin-mobile-navigation button:not([disabled])"));
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener("keydown", handleMobileNavigationKeyDown);
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      window.removeEventListener("keydown", handleMobileNavigationKeyDown);
+      document.body.style.overflow = previousOverflow;
+      mobileMenuButtonRef.current?.focus();
+    };
+  }, [mobileSidebarOpen]);
+
+  useEffect(() => {
+    const dialog = productDialogRef.current;
+    if (!dialog) return;
+    if (isProductFormOpen && !dialog.open) dialog.showModal();
+    if (!isProductFormOpen && dialog.open) dialog.close();
+  }, [isProductFormOpen]);
 
   const activeInventoryProducts = products.filter((product) => product.isActive !== false);
   const inventoryUnits = products.reduce((sum, product) => sum + Math.max(Number(product.stock ?? 0), 0), 0);
@@ -2991,6 +2998,17 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
   };
 
   const pageTitle = SECTION_TITLES[adminSection] ?? "Panel de administración";
+  const SECTION_DESCRIPTIONS: Record<string, string> = {
+    dashboard: "Resumen operativo y estado actual de la tienda.",
+    homepage: "Edita el contenido que se muestra en la página principal.",
+    products: "Consulta y administra el catálogo de productos.",
+    orders: "Consulta los pedidos recientes y su estado.",
+    inventory: "Revisa existencias y movimientos de inventario.",
+    coupons: "Estado de la gestión de promociones y cupones.",
+    reports: "Revisa los datos de ventas disponibles.",
+    activity: "Historial de cambios registrados en el panel.",
+    settings: "Preferencias disponibles para esta cuenta.",
+  };
 
   const updateAdminSectionUrl = (section: string) => {
     if (typeof window === "undefined") return;
@@ -3104,8 +3122,10 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       toast.error("No tienes permisos para acceder a esta sección.");
       return;
     }
+    if (isProductFormOpen && !requestCloseProductForm()) return;
     updateAdminSectionUrl(section);
     setAdminSection(section);
+    setMobileSidebarOpen(false);
   };
 
   const LOW_STOCK = products.filter((product) => product.isActive !== false && product.stock > 0 && product.stock <= LOW_STOCK_THRESHOLD).map((product) => ({
@@ -3194,6 +3214,29 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     }
   };
 
+  const closeRowActions = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.currentTarget.closest("details")?.removeAttribute("open");
+  };
+
+  const renderProductActions = (product: Product) => (
+    <details className="admin-row-actions">
+      <summary className="admin-icon-button" aria-label={`Acciones para ${product.name}`} title="Acciones">
+        <MoreHorizontal size={18} aria-hidden="true" />
+      </summary>
+      <div className="admin-row-actions__menu" aria-label={`Acciones para ${product.name}`}>
+        <button type="button" onClick={(event) => { closeRowActions(event); handleEditProduct(product); }}>
+          <Edit size={15} aria-hidden="true" /> Editar
+        </button>
+        <button type="button" disabled={availabilityUpdatingId !== null || deletingProductId !== null} aria-busy={availabilityUpdatingId === product.id} onClick={(event) => { closeRowActions(event); void handleProductAvailabilityChange(product); }}>
+          <Check size={15} aria-hidden="true" /> {availabilityUpdatingId === product.id ? "Actualizando…" : product.isActive === false ? "Activar" : "Desactivar"}
+        </button>
+        <button type="button" className="is-danger" disabled={availabilityUpdatingId !== null || deletingProductId !== null} aria-busy={deletingProductId === product.id} onClick={(event) => { closeRowActions(event); void handleSafeProductDelete(product); }}>
+          <Trash2 size={15} aria-hidden="true" /> {deletingProductId === product.id ? "Eliminando…" : "Eliminar permanentemente"}
+        </button>
+      </div>
+    </details>
+  );
+
   const releaseImagePreview = (url?: string) => {
     if (!url || !objectUrlsRef.current.delete(url)) return;
     URL.revokeObjectURL(url);
@@ -3206,6 +3249,8 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     setPrimaryImageSelectionId(null);
     setImageUploadProgress(null);
     setFormErrors({});
+    setIsProductFormDirty(false);
+    setIsProductFormOpen(false);
     setFormMode("create");
     setActiveProduct(null);
     setProductForm({
@@ -3214,6 +3259,24 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       stock: 0, sku: "", description: "", colors: [], sizes: [], gender: "Unisex",
       isNew: false, isFeatured: false, specs: [], specifications: [],
     });
+  };
+
+  const openNewProductForm = () => {
+    resetForm();
+    setFormMode("create");
+    setIsProductFormOpen(true);
+  };
+
+  const requestCloseProductForm = () => {
+    if (isSubmitting) return false;
+    if (isProductFormDirty && !window.confirm("Hay cambios sin guardar. ¿Quieres descartarlos?")) return false;
+    resetForm();
+    return true;
+  };
+
+  const navigateToStore = () => {
+    if (isProductFormOpen && !requestCloseProductForm()) return;
+    onNavigate("home");
   };
 
   const [auditEntries, setAuditEntries] = useState<{ id: string; ts: number; action: string; meta?: Record<string, any> }[]>([]);
@@ -3304,6 +3367,8 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     setPrimaryImageSelectionId(existingImages[0]?.id ?? null);
     setActiveProduct(product);
     setFormMode("edit");
+    setIsProductFormDirty(false);
+    setIsProductFormOpen(true);
     setProductForm({
       name: product.name,
       brand: product.brand,
@@ -3444,7 +3509,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
         return (
           <>
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 mb-8">
-              <div className="xl:col-span-2 p-8 rounded-[30px] bg-slate-950 text-white shadow-[0_20px_60px_-40px_rgba(15,23,42,0.36)]">
+              <div className="admin-dashboard-hero xl:col-span-2 p-8 rounded-[30px] bg-slate-950 text-white shadow-[0_20px_60px_-40px_rgba(15,23,42,0.36)]">
                 <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                   <div>
                     <p className="uppercase text-xs tracking-[0.26em] text-slate-400 font-semibold mb-3">Administrador</p>
@@ -3453,7 +3518,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                   </div>
                   <div className="rounded-full border border-white/10 bg-white/10 px-4 py-3 text-xs uppercase tracking-[0.22em] font-semibold text-slate-100">Acceso rápido</div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8">
+                <div className="admin-dashboard-hero__shortcuts grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8">
                   {[
                     { title: 'Pedidos', subtitle: 'Revisa todos los pedidos recientes.', action: () => handleSidebarClick('orders'), icon: <Tag size={18} /> },
                     { title: 'Productos', subtitle: 'Gestiona el catálogo y precios.', action: () => { resetForm(); handleSidebarClick('products'); }, icon: <Package size={18} /> },
@@ -3472,9 +3537,8 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
               </div>
 
               <div className="p-6 rounded-[30px] bg-white/95 border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)]">
-                <div className="mb-4 flex items-center justify-between gap-3">
+                <div className="mb-4">
                   <p className="text-xs uppercase tracking-[0.24em] text-slate-400 font-semibold">Resumen rápido</p>
-                  <button type="button" onClick={() => { setDashboardRefresh((value) => value + 1); onRetryProducts(); refreshAudit(); }} className="text-xs font-semibold text-[#1d4ed8] hover:underline">Actualizar</button>
                 </div>
                 <div className="space-y-3">
                   <div className="rounded-3xl bg-slate-50 p-4">
@@ -3529,7 +3593,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
               <div className="lg:col-span-2 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] overflow-hidden">
                 <div className="flex items-center justify-between p-5 border-b border-slate-50">
                   <h2 className="text-sm font-extrabold text-slate-800">Pedidos recientes</h2>
-                  <button onClick={() => handleSidebarClick('orders')} className="text-xs text-[#1d4ed8] hover:underline flex items-center gap-1">Ver todos <ChevronRight size={11} /></button>
+                  <button onClick={() => handleSidebarClick('orders')} className="text-xs text-[#1e3a8a] hover:underline flex items-center gap-1">Ver todos <ChevronRight size={11} /></button>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full">
@@ -3543,7 +3607,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                     <tbody>
                       {dashboardData?.orders.recent.map((order) => (
                         <tr key={order.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                          <td className="px-5 py-3 text-xs font-mono font-bold text-[#1d4ed8]">{order.order_number || order.id.slice(0, 8)}</td>
+                          <td className="px-5 py-3 text-xs font-mono font-bold text-[#1e3a8a]">{order.order_number || order.id.slice(0, 8)}</td>
                           <td className="px-5 py-3 text-sm text-slate-700">{order.customer_name ?? "—"}</td>
                           <td className="px-5 py-3 text-xs text-slate-400">{formatAdminProductDate(order.created_at)}</td>
                           <td className="px-5 py-3">
@@ -3602,10 +3666,6 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                     <p className="text-sm text-slate-500 mt-1">Actualiza el texto y las colecciones que se muestran en la tienda.</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
-                    <button type="button" onClick={saveHomeContent} disabled={homeContentSaving}
-                      className="rounded-3xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-emerald-400">
-                      {homeContentSaving ? 'Guardando...' : 'Guardar contenido'}
-                    </button>
                     <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-xs font-semibold text-slate-600">Vista previa en vivo</span>
                   </div>
                 </div>
@@ -3732,7 +3792,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                                 <p className="text-sm font-semibold text-slate-900">{product.name}</p>
                                 <p className="text-xs text-slate-500">{product.brand}</p>
                               </div>
-                              <button type="button" onClick={() => toggleHomeProductSelection(section.id, product)} className="text-xs font-semibold text-[#1d4ed8]">Quitar</button>
+                              <button type="button" onClick={() => toggleHomeProductSelection(section.id, product)} className="text-xs font-semibold text-[#1e3a8a]">Quitar</button>
                             </li>
                           ))}
                         </ul>
@@ -3747,29 +3807,27 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
 
       case "products":
         return (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-            <div className="lg:col-span-2 bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] p-5">
-              <div className="flex flex-col justify-between gap-3 mb-4 sm:flex-row sm:items-center sm:gap-4">
-                <input value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }} placeholder="Buscar por nombre, marca o SKU"
-                  className="w-full min-w-0 flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-700 placeholder-slate-400 focus:outline-none" />
+          <div className="admin-products-page space-y-4">
+            <div className="admin-product-list-panel">
+              <div className="admin-product-toolbar">
+                <div className="admin-product-search">
+                  <Search size={16} aria-hidden="true" />
+                  <input value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }} placeholder="Buscar por nombre, marca o SKU" aria-label="Buscar productos por nombre, marca o SKU" className="bg-white pr-3" />
+                </div>
                 <select aria-label="Filtrar productos por estado" value={productStatusFilter} onChange={(event) => { setProductStatusFilter(event.target.value as AdminProductStatusFilter); setPage(1); }}
-                  className="min-h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 sm:w-auto">
+                  className="min-h-10 w-full bg-white px-3 sm:w-auto">
                   <option value="all">Todos</option>
                   <option value="active">Activos</option>
                   <option value="inactive">Inactivos</option>
                 </select>
-                <button onClick={() => { resetForm(); setFormMode('create'); }}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-black px-4 py-2 font-semibold text-white hover:bg-slate-900 sm:ml-3 sm:w-auto">
-                  <Plus size={14} /> Nuevo producto
-                </button>
               </div>
 
-              <div className="hidden overflow-x-auto 2xl:block">
-                <table className="w-full">
+              <div className="admin-table-scroll hidden lg:block">
+                <table className="w-full min-w-[940px] admin-product-table">
                   <thead>
                     <tr className="border-b border-slate-50">
                       {['Imagen', 'Nombre', 'Marca', 'Categoría', 'Precio', 'Stock', 'Estado', 'Creado', 'Acciones'].map((h) => (
-                        <th key={h} className="text-left px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-wide">{h}</th>
+                        <th key={h} className={h === "Precio" || h === "Stock" ? "is-numeric" : ""}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -3794,26 +3852,13 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                           </span>
                         </td>
                         <td className="px-4 py-3 text-sm text-slate-600">{formatAdminProductDate(p.createdAt)}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-wrap gap-2">
-                            <button onClick={() => handleEditProduct(p)} className="px-3 py-1.5 rounded-lg bg-black text-white font-semibold">Editar</button>
-                            <button type="button" onClick={() => void handleProductAvailabilityChange(p)} disabled={availabilityUpdatingId !== null || deletingProductId !== null}
-                              aria-busy={availabilityUpdatingId === p.id}
-                              className={p.isActive === false ? "px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-800 font-semibold disabled:cursor-wait disabled:opacity-60" : "px-3 py-1.5 rounded-lg bg-red-50 text-red-700 font-semibold disabled:cursor-wait disabled:opacity-60"}>
-                              {availabilityUpdatingId === p.id ? "Actualizando…" : p.isActive === false ? "Activar producto" : "Desactivar producto"}
-                            </button>
-                            <button type="button" onClick={() => void handleSafeProductDelete(p)} disabled={availabilityUpdatingId !== null || deletingProductId !== null}
-                              aria-busy={deletingProductId === p.id} className="px-3 py-1.5 rounded-lg bg-rose-50 text-rose-800 font-semibold disabled:cursor-wait disabled:opacity-60">
-                              {deletingProductId === p.id ? <><LoaderCircle size={14} className="inline animate-spin" /> Eliminando…</> : "Eliminar permanentemente"}
-                            </button>
-                          </div>
-                        </td>
+                        <td>{renderProductActions(p)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-              <div className="space-y-3 2xl:hidden">
+              <div className="space-y-3 lg:hidden">
                 {productsStatus === "loading" ? (
                   <div role="status" className="rounded-lg border border-slate-200 px-4 py-8 text-center text-sm text-slate-500">Cargando productos…</div>
                 ) : productsStatus === "error" ? (
@@ -3827,6 +3872,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                       <div className="min-w-0 flex-1">
                         <h3 className="break-words text-sm font-semibold text-slate-900">{p.name}</h3>
                         <p className="break-words text-xs text-slate-600">{p.brand} · {p.category || "Sin categoría"}</p>
+                        <p className="mt-1 break-words text-xs text-slate-500">SKU {p.sku || "—"}</p>
                         <p className="mt-1 text-xs text-slate-700">{fmt(p.price)} · Stock {p.stock}</p>
                         <p className="mt-1 text-xs text-slate-500">Creado {formatAdminProductDate(p.createdAt)}</p>
                         <span className={p.isActive === false ? "mt-2 inline-flex rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700" : "mt-2 inline-flex rounded-md bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-800"}>
@@ -3834,17 +3880,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                         </span>
                       </div>
                     </div>
-                    <div className="mt-3 grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
-                      <button type="button" onClick={() => handleEditProduct(p)} className="min-h-10 rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white">Editar</button>
-                      <button type="button" onClick={() => void handleProductAvailabilityChange(p)} disabled={availabilityUpdatingId !== null || deletingProductId !== null}
-                        aria-busy={availabilityUpdatingId === p.id} className="min-h-10 rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-800 disabled:cursor-wait disabled:opacity-60">
-                        {availabilityUpdatingId === p.id ? "Actualizando…" : p.isActive === false ? "Activar producto" : "Desactivar producto"}
-                      </button>
-                      <button type="button" onClick={() => void handleSafeProductDelete(p)} disabled={availabilityUpdatingId !== null || deletingProductId !== null}
-                        aria-busy={deletingProductId === p.id} className="min-h-10 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-800 disabled:cursor-wait disabled:opacity-60">
-                        {deletingProductId === p.id ? <><LoaderCircle size={14} className="inline animate-spin" /> Eliminando…</> : "Eliminar permanentemente"}
-                      </button>
-                    </div>
+                    <div className="mt-3 flex justify-end">{renderProductActions(p)}</div>
                   </article>
                 ))}
               </div>
@@ -3858,25 +3894,48 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
               </div>}
             </div>
 
-            <div className="bg-white/95 rounded-[30px] border border-slate-200/80 shadow-[0_20px_60px_-40px_rgba(15,23,42,0.16)] p-5">
-              <h3 className="text-lg font-extrabold text-slate-900 mb-4">{formMode === 'edit' ? '✏️ Editar producto' : '➕ Crear nuevo producto'}</h3>
+            <dialog
+              ref={productDialogRef}
+              className="admin-product-dialog"
+              aria-labelledby="admin-product-dialog-title"
+              onCancel={(event) => { event.preventDefault(); requestCloseProductForm(); }}
+              onClick={(event) => { if (event.target === productDialogRef.current) requestCloseProductForm(); }}
+            >
+              <div className="admin-product-dialog__panel">
+                <header className="admin-product-dialog__header">
+                  <div>
+                    <h2 id="admin-product-dialog-title">{formMode === 'edit' ? 'Editar producto' : 'Crear producto'}</h2>
+                    <p>{formMode === 'edit' ? `ID ${activeProduct?.id ?? ""}` : "Completa los datos del producto."}</p>
+                  </div>
+                  <button type="button" className="admin-icon-button" aria-label="Cerrar formulario de producto" onClick={() => requestCloseProductForm()} disabled={isSubmitting}>
+                    <X size={18} aria-hidden="true" />
+                  </button>
+                </header>
+                <div className="admin-product-dialog__body">
               <form onSubmit={handleFormSubmit} className="space-y-4">
                 {/* Nombre y Marca */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-xs font-bold text-slate-600 uppercase block mb-2">Nombre *</label>
+                    <label htmlFor="admin-product-name" className="text-xs font-bold text-slate-600 uppercase block mb-2">Nombre *</label>
                     <input 
+                      id="admin-product-name"
+                      autoFocus
                       value={productForm.name} 
+                      aria-invalid={Boolean(formErrors.name)}
+                      aria-describedby={formErrors.name ? "product-name-error" : undefined}
                       onChange={(e) => { updateField('name', e.target.value); setFormErrors({...formErrors, name: ''}) }}
                       placeholder="Ej: Nike Air Force 1" 
                       className={`w-full px-4 py-3 rounded-xl border-2 transition-colors ${formErrors.name ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-white hover:border-slate-300 focus:border-slate-500'} focus:outline-none`} 
                     />
-                    {formErrors.name && <p className="text-xs text-red-600 mt-1">{formErrors.name}</p>}
+                    {formErrors.name && <p id="product-name-error" role="alert" className="text-xs text-red-600 mt-1">{formErrors.name}</p>}
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-slate-600 uppercase block mb-2">Marca</label>
+                    <label htmlFor="admin-product-brand" className="text-xs font-bold text-slate-600 uppercase block mb-2">Marca</label>
                     <input 
+                      id="admin-product-brand"
                       value={productForm.brand} 
+                      aria-invalid={Boolean(formErrors.brand)}
+                      aria-describedby={formErrors.brand ? "admin-product-brand-error" : undefined}
                       onChange={(e) => {
                         updateField('brand', e.target.value);
                         setFormErrors((prev) => ({ ...prev, brand: '' }));
@@ -3884,54 +3943,64 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                       placeholder="Ej: Nike" 
                       className={`w-full px-4 py-3 rounded-xl border-2 transition-colors ${formErrors.brand ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-white hover:border-slate-300 focus:border-slate-500'} focus:outline-none`}
                     />
-                    {formErrors.brand && <p className="text-xs text-red-600 mt-1">{formErrors.brand}</p>}
+                    {formErrors.brand && <p id="admin-product-brand-error" role="alert" className="text-xs text-red-600 mt-1">{formErrors.brand}</p>}
                   </div>
                 </div>
 
                 {/* Precio y Stock */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-xs font-bold text-slate-600 uppercase block mb-2">Precio *</label>
+                    <label htmlFor="admin-product-price" className="text-xs font-bold text-slate-600 uppercase block mb-2">Precio *</label>
                     <div className="relative">
                       <span className="absolute left-4 top-3 text-slate-600 font-semibold">$</span>
                       <input 
+                        id="admin-product-price"
                         type="number" 
                         value={productForm.price as any} 
+                        aria-invalid={Boolean(formErrors.price)}
+                        aria-describedby={formErrors.price ? "admin-product-price-error" : undefined}
                         onChange={(e) => { updateField('price', Number(e.target.value)); setFormErrors({...formErrors, price: ''}) }}
                         placeholder="0" 
                         className={`w-full pl-8 pr-4 py-3 rounded-xl border-2 transition-colors ${formErrors.price ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-white hover:border-slate-300 focus:border-slate-500'} focus:outline-none`}
                       />
                     </div>
-                    {formErrors.price && <p className="text-xs text-red-600 mt-1">{formErrors.price}</p>}
+                    {formErrors.price && <p id="admin-product-price-error" role="alert" className="text-xs text-red-600 mt-1">{formErrors.price}</p>}
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-slate-600 uppercase block mb-2">Stock *</label>
+                    <label htmlFor="admin-product-stock" className="text-xs font-bold text-slate-600 uppercase block mb-2">Stock *</label>
                     <input 
+                      id="admin-product-stock"
                       type="number" 
                       value={productForm.stock as any} 
+                      aria-invalid={Boolean(formErrors.stock)}
+                      aria-describedby={formErrors.stock ? "admin-product-stock-error" : undefined}
                       onChange={(e) => { updateField('stock', Number(e.target.value)); setFormErrors({...formErrors, stock: ''}) }}
                       placeholder="0" 
                       className={`w-full px-4 py-3 rounded-xl border-2 transition-colors ${formErrors.stock ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-white hover:border-slate-300 focus:border-slate-500'} focus:outline-none`}
                     />
-                    {formErrors.stock && <p className="text-xs text-red-600 mt-1">{formErrors.stock}</p>}
+                    {formErrors.stock && <p id="admin-product-stock-error" role="alert" className="text-xs text-red-600 mt-1">{formErrors.stock}</p>}
                   </div>
                 </div>
 
                 {/* SKU y Categoría */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-xs font-bold text-slate-600 uppercase block mb-2">SKU *</label>
+                    <label htmlFor="admin-product-sku" className="text-xs font-bold text-slate-600 uppercase block mb-2">SKU *</label>
                     <input 
+                      id="admin-product-sku"
                       value={productForm.sku} 
+                      aria-invalid={Boolean(formErrors.sku)}
+                      aria-describedby={formErrors.sku ? "admin-product-sku-error" : undefined}
                       onChange={(e) => { updateField('sku', e.target.value); setFormErrors({...formErrors, sku: ''}) }}
                       placeholder="Ej: NKE-AF1-001" 
                       className={`w-full px-4 py-3 rounded-xl border-2 transition-colors ${formErrors.sku ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-white hover:border-slate-300 focus:border-slate-500'} focus:outline-none`}
                     />
-                    {formErrors.sku && <p className="text-xs text-red-600 mt-1">{formErrors.sku}</p>}
+                    {formErrors.sku && <p id="admin-product-sku-error" role="alert" className="text-xs text-red-600 mt-1">{formErrors.sku}</p>}
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-slate-600 uppercase block mb-2">Categoría *</label>
+                    <label htmlFor="admin-product-category" className="text-xs font-bold text-slate-600 uppercase block mb-2">Categoría *</label>
                     <select 
+                      id="admin-product-category"
                       value={productForm.categoryId ?? ""}
                       onChange={(e) => {
                         const nextCategoryId = e.target.value;
@@ -3979,7 +4048,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                       <input
                         aria-label="Nueva talla"
                         value={newProductSize}
-                        onChange={(event) => setNewProductSize(event.target.value)}
+                        onChange={(event) => { setNewProductSize(event.target.value); setIsProductFormDirty(true); }}
                         onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addProductSize(); } }}
                         placeholder="Ej: 40 EU, 7.5, M"
                         className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20"
@@ -4092,7 +4161,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                             </div>
                             <div className="min-h-12 p-2">
                               {!isPrimary ? (
-                                <button type="button" onClick={() => setPrimaryImageSelectionId(entry.id)} disabled={isSubmitting} className="text-left text-xs font-semibold text-blue-700 hover:underline disabled:opacity-50">Usar como principal</button>
+                                <button type="button" onClick={() => { setPrimaryImageSelectionId(entry.id); setIsProductFormDirty(true); }} disabled={isSubmitting} className="text-left text-xs font-semibold text-blue-700 hover:underline disabled:opacity-50">Usar como principal</button>
                               ) : (
                                 <span className="text-xs font-medium text-slate-600">Imagen principal</span>
                               )}
@@ -4113,29 +4182,33 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                   <button 
                     type="submit" 
                     disabled={isSubmitting}
-                    className={`flex-1 px-6 py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 ${isSubmitting ? 'bg-slate-300 text-slate-600 cursor-not-allowed' : 'bg-black text-white hover:bg-slate-900 active:scale-95'}`}
+                      className="admin-page-action w-full disabled:cursor-not-allowed"
                   >
                     {isSubmitting ? (
                       <>
-                        <span className="animate-spin">⏳</span>
+                        <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />
                         {formMode === 'edit' ? 'Guardando cambios...' : 'Creando producto...'}
                       </>
                     ) : (
                       <>
-                        {formMode === 'edit' ? '💾 Guardar cambios' : '✅ Crear producto'}
+                        {formMode === 'edit' ? <Check size={16} aria-hidden="true" /> : <Plus size={16} aria-hidden="true" />}
+                        {formMode === 'edit' ? 'Guardar cambios' : 'Crear producto'}
                       </>
                     )}
                   </button>
                   <button 
                     type="button" 
-                    onClick={() => resetForm()}
-                    className="flex-1 px-6 py-3 rounded-xl bg-slate-100 text-slate-700 font-semibold hover:bg-slate-200 transition-colors active:scale-95"
+                    onClick={() => requestCloseProductForm()}
+                    disabled={isSubmitting}
+                    className="flex-1 rounded-lg border border-slate-200 bg-white px-5 py-3 font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    ✕ Cancelar
+                    Cancelar
                   </button>
                 </div>
               </form>
+              </div>
             </div>
+            </dialog>
           </div>
         );
 
@@ -4147,7 +4220,6 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                 <h2 className="text-lg font-extrabold text-slate-900">Pedidos recientes</h2>
                 <p className="mt-1 text-xs text-slate-500">{remoteCountMetric(dashboardData?.orders, "Todavía no hay pedidos registrados.")}</p>
               </div>
-              <button type="button" onClick={() => setDashboardRefresh((value) => value + 1)} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Actualizar</button>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full min-w-[720px]">
@@ -4166,7 +4238,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                   {dashboardStatus === "ready" && dashboardData?.orders.status === "empty" && <tr><td colSpan={6} role="status" className="px-5 py-8 text-center text-sm text-slate-500">Todavía no hay pedidos registrados.</td></tr>}
                   {dashboardStatus === "ready" && dashboardData?.orders.status === "ready" && dashboardData.orders.recent.map((order) => (
                     <tr key={order.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                      <td className="px-5 py-3 text-xs font-mono font-bold text-[#1d4ed8]">{order.order_number || order.id.slice(0, 8)}</td>
+                      <td className="px-5 py-3 text-xs font-mono font-bold text-[#1e3a8a]">{order.order_number || order.id.slice(0, 8)}</td>
                       <td className="px-5 py-3 text-sm text-slate-700">{order.customer_name ?? "—"}</td>
                       <td className="px-5 py-3 text-xs text-slate-500">{formatAdminProductDate(order.created_at)}</td>
                       <td className="px-5 py-3"><span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${STATUS_STYLE[order.status] ?? "border border-slate-200 bg-slate-50 text-slate-700"}`}>{ORDER_STATUS_LABELS[order.status] ?? order.status}</span></td>
@@ -4189,9 +4261,6 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                 <p className="mt-1 text-sm text-slate-600">Fuente actual: stock por producto. La gestión de variantes no está activa.</p>
                 <p className="mt-1 text-xs text-slate-500">Última actualización: {inventoryUpdateLabel}</p>
               </div>
-              <button type="button" onClick={onRetryProducts} disabled={productsStatus === "loading"} className="min-h-10 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60">
-                {productsStatus === "loading" ? "Actualizando…" : "Actualizar inventario"}
-              </button>
             </div>
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               {metrics.slice(1, 6).map((metric) => (
@@ -4283,7 +4352,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                             </label>
                             {stockAdjustment.error && <p role="alert" className="text-xs text-red-700">{stockAdjustment.error}</p>}
                             <div className="flex gap-2 pt-1">
-                              <button type="submit" disabled={stockAdjustmentSubmittingId === product.id} className="min-h-9 rounded-lg bg-[#1d4ed8] px-3 text-xs font-semibold text-white disabled:opacity-60">{stockAdjustmentSubmittingId === product.id ? "Guardando…" : "Guardar"}</button>
+                              <button type="submit" disabled={stockAdjustmentSubmittingId === product.id} className="min-h-9 rounded-lg bg-[#bfdbfe] px-3 text-xs font-semibold text-[#0b1220] disabled:opacity-60">{stockAdjustmentSubmittingId === product.id ? "Guardando…" : "Guardar"}</button>
                               <button type="button" onClick={() => setStockAdjustment({ productId: null, movementType: 'in', quantity: '1', reason: '', error: null })} className="min-h-9 rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-700">Cancelar</button>
                             </div>
                           </form>
@@ -4325,7 +4394,6 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                 <h2 className="text-lg font-bold text-slate-900">Reportes</h2>
                 <p className="mt-1 text-sm text-slate-500">Pedidos con pago confirmado en los últimos 7 días.</p>
               </div>
-              <button type="button" onClick={() => setDashboardRefresh((value) => value + 1)} className="min-h-10 rounded-lg border border-slate-200 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">Actualizar</button>
             </div>
             {dashboardStatus === "loading" && <p role="status" className="text-sm text-slate-600">Cargando reportes…</p>}
             {(dashboardStatus === "error" || dashboardData?.sales.status === "error") && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">No fue posible cargar los reportes. Intenta nuevamente.</p>}
@@ -4361,9 +4429,6 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                 <h2 className="text-lg font-extrabold text-slate-900">Actividad</h2>
                 <p className="text-sm text-slate-600">Registros recientes de auditoría y cambios en el panel.</p>
               </div>
-              <button type="button" onClick={() => void refreshAudit()} disabled={auditStatus === "loading"} className="px-4 py-2 rounded-xl bg-black text-white font-semibold hover:bg-slate-900 disabled:opacity-60">
-                {auditStatus === "loading" ? "Actualizando…" : "Actualizar"}
-              </button>
             </div>
             {auditStatus === "loading" && <p role="status" className="rounded-xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">Cargando actividad…</p>}
             {auditStatus === "error" && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-800">No fue posible cargar la actividad. Intenta nuevamente.</div>}
@@ -4408,6 +4473,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
   type UpdateFieldFn = <K extends keyof Omit<Product, "id">>(field: K, value: Omit<Product, "id">[K]) => void;
   const updateField: UpdateFieldFn = (field, value) => {
     setProductForm((prev) => ({ ...prev, [field]: value }));
+    setIsProductFormDirty(true);
   };
 
   const addProductSize = () => {
@@ -4499,6 +4565,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     setProductImageSelections((previous) => [...previous, ...additions]);
     setPrimaryImageSelectionId((previous) => previous ?? additions[0].id);
     setFormErrors((previous) => ({ ...previous, image: '', gallery: '' }));
+    setIsProductFormDirty(true);
   };
 
   const removeProductImage = (imageId: string) => {
@@ -4507,51 +4574,92 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     const remaining = productImageSelections.filter((entry) => entry.id !== imageId);
     setProductImageSelections(remaining);
     if (primaryImageSelectionId === imageId) setPrimaryImageSelectionId(remaining[0]?.id ?? null);
+    setIsProductFormDirty(true);
   };
 
+  const pageAction = (() => {
+    if (adminSection === "products") return { label: "Nuevo producto", icon: <Plus size={16} />, onClick: () => openNewProductForm() };
+    if (adminSection === "homepage") return { label: homeContentSaving ? "Guardando…" : "Guardar contenido", icon: <Check size={16} />, onClick: () => void saveHomeContent(), disabled: homeContentSaving };
+    if (adminSection === "inventory") return { label: productsStatus === "loading" ? "Actualizando…" : "Actualizar inventario", icon: <RefreshCw size={15} />, onClick: onRetryProducts, disabled: productsStatus === "loading" };
+    if (adminSection === "activity") return { label: auditStatus === "loading" ? "Actualizando…" : "Actualizar actividad", icon: <RefreshCw size={15} />, onClick: () => void refreshAudit(), disabled: auditStatus === "loading" };
+    if (adminSection === "dashboard") return { label: "Actualizar resumen", icon: <RefreshCw size={15} />, onClick: () => { setDashboardRefresh((value) => value + 1); onRetryProducts(); void refreshAudit(); } };
+    if (adminSection === "orders" || adminSection === "reports") return { label: "Actualizar datos", icon: <RefreshCw size={15} />, onClick: () => setDashboardRefresh((value) => value + 1) };
+    return null;
+  })();
+
   return (
-    <div className="flex pt-[88px] min-h-screen bg-slate-50">
-      {/* Admin Sidebar — colored blue */}
-      <aside className="w-56 shrink-0 bg-[#1e3a8a] fixed top-[88px] bottom-0 left-0 flex flex-col hidden md:flex z-40">
-        <div className="p-4 border-b border-white/10">
-          <p className="text-[10px] font-bold text-blue-200 uppercase tracking-widest">Panel de administración</p>
+    <div className={`admin-shell${sidebarCollapsed ? " is-sidebar-collapsed" : ""}`}>
+      <aside className="admin-sidebar" aria-label="Navegación administrativa">
+        <div className="admin-sidebar__brand">
+          <div className="admin-sidebar__brand-copy">
+            <p>UrbanSport Store</p>
+            <p>Administración</p>
+          </div>
+          <button type="button" className="admin-sidebar__collapse" onClick={() => setSidebarCollapsed((collapsed) => !collapsed)} aria-label={sidebarCollapsed ? "Expandir navegación" : "Contraer navegación"} title={sidebarCollapsed ? "Expandir navegación" : "Contraer navegación"}>
+            {sidebarCollapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
+          </button>
         </div>
-        <nav className="p-2 flex-1 overflow-y-auto space-y-0.5">
-          {visibleSidebarLinks.map((l) => (
-            <button type="button" key={l.id} onClick={() => handleSidebarClick(l.id)}
-              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors ${adminSection === l.id ? "bg-white/15 text-white" : "text-blue-200 hover:text-white hover:bg-white/10"}`}>
-              {l.icon} {l.label}
+        <nav className="admin-sidebar__nav">
+          {visibleSidebarLinks.map((link) => (
+            <button type="button" key={link.id} onClick={() => handleSidebarClick(link.id)} className="admin-sidebar__link" aria-current={adminSection === link.id ? "page" : undefined} aria-label={sidebarCollapsed ? link.label : undefined} title={sidebarCollapsed ? link.label : undefined}>
+              {link.icon}<span className="admin-sidebar__label">{link.label}</span>
             </button>
           ))}
         </nav>
-        <div className="p-4 border-t border-white/10">
-          <button onClick={() => onNavigate("home")}
-            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm text-blue-200 hover:text-white hover:bg-white/10 transition-colors">
-            Ir a la tienda
+        <div className="admin-sidebar__footer">
+          <button type="button" onClick={navigateToStore}>
+            <ArrowRight size={16} /><span className="admin-sidebar__label">Ir a la tienda</span>
           </button>
         </div>
       </aside>
 
-      <main className="flex-1 min-w-0 md:ml-56 px-6 sm:px-8 lg:px-10 py-8 overflow-x-hidden">
-        <div className="md:hidden mb-6">
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-3">
-              <select value={adminSection} onChange={(e) => handleSidebarClick(e.target.value)} className="flex-1 rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
-                {visibleSidebarLinks.map((link) => (
-                  <option key={link.id} value={link.id}>{link.label}</option>
-                ))}
-              </select>
-              <button type="button" onClick={() => onNavigate("home")} className="whitespace-nowrap rounded-3xl bg-black px-4 py-3 text-sm font-semibold text-white hover:bg-slate-900">Tienda</button>
+      <main className="admin-main">
+        <div className="admin-toolbar">
+          <button type="button" className="admin-menu-button" onClick={() => setSidebarCollapsed((collapsed) => !collapsed)} aria-label={sidebarCollapsed ? "Expandir navegación" : "Contraer navegación"} title={sidebarCollapsed ? "Expandir navegación" : "Contraer navegación"}>
+            {sidebarCollapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
+          </button>
+          <button type="button" className="admin-toolbar__store" onClick={navigateToStore}><ArrowRight size={15} />Ir a la tienda</button>
+        </div>
+
+        <div className="admin-mobile-bar">
+          <button ref={mobileMenuButtonRef} type="button" className="admin-menu-button" onClick={() => setMobileSidebarOpen(true)} aria-label="Abrir navegación" aria-controls="admin-mobile-navigation" aria-expanded={mobileSidebarOpen}>
+            <Menu size={19} />
+          </button>
+          <span className="admin-mobile-bar__identity">UrbanSport · {pageTitle}</span>
+          <button type="button" className="admin-menu-button" onClick={navigateToStore} aria-label="Ir a la tienda" title="Ir a la tienda"><ArrowRight size={17} /></button>
+        </div>
+
+        {mobileSidebarOpen && <>
+          <button type="button" className="admin-mobile-backdrop" aria-label="Cerrar navegación" onClick={() => setMobileSidebarOpen(false)} />
+          <aside id="admin-mobile-navigation" className="admin-mobile-drawer" role="dialog" aria-modal="true" aria-label="Navegación administrativa">
+            <div className="admin-mobile-drawer__header">
+              <span>Secciones</span>
+              <button type="button" className="admin-icon-button" onClick={() => setMobileSidebarOpen(false)} aria-label="Cerrar menú"><X size={17} /></button>
             </div>
-            <div className="flex items-center gap-2 overflow-x-auto pb-1">
+            <nav className="admin-mobile-drawer__nav">
               {visibleSidebarLinks.map((link) => (
-                <button type="button" key={link.id} onClick={() => handleSidebarClick(link.id)} className={`rounded-full px-4 py-2 text-sm font-semibold ${adminSection === link.id ? 'bg-black text-white' : 'bg-slate-100 text-slate-700'}`}>
-                  {link.label}
+                <button type="button" key={link.id} onClick={() => handleSidebarClick(link.id)} className="admin-sidebar__link" aria-current={adminSection === link.id ? "page" : undefined}>
+                  {link.icon}<span>{link.label}</span>
                 </button>
               ))}
+            </nav>
+            <div className="admin-sidebar__footer">
+              <button type="button" onClick={navigateToStore}><ArrowRight size={16} /><span>Ir a la tienda</span></button>
             </div>
+          </aside>
+        </>}
+
+        <header className="admin-page-header">
+          <div>
+            <h1>{pageTitle}</h1>
+            <p>{SECTION_DESCRIPTIONS[adminSection] ?? "Administración de UrbanSport Store."}</p>
           </div>
-        </div>
+          {pageAction && <button type="button" className="admin-page-action" onClick={pageAction.onClick} disabled={"disabled" in pageAction ? pageAction.disabled : false}>
+            {pageAction.icon}{pageAction.label}
+          </button>}
+        </header>
+
+        <div className="admin-content">
         {(() => {
           try {
             return renderAdminSection();
@@ -4566,6 +4674,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
             );
           }
         })()}
+        </div>
       </main>
     </div>
   );
@@ -4608,13 +4717,7 @@ export default function App() {
   useEffect(() => {
     let isActive = true;
 
-    const normalizeApiRoot = (url?: string) => {
-      const trimmed = url?.trim().replace(/\/$/, '');
-      if (!trimmed) return '/api';
-      if (trimmed.endsWith('/api')) return trimmed;
-      if (trimmed.endsWith('/api/v1')) return trimmed.replace(/\/v1$/, '');
-      return `${trimmed}/api`;
-    };
+    const normalizeApiRoot = (url?: string) => resolveApiBaseUrl(url);
 
     const normalizeHomeContentResponse = (data: Record<string, unknown>): Partial<HomePageContent> => {
       const normalized: Partial<HomePageContent> = {
@@ -4707,7 +4810,10 @@ export default function App() {
     };
   }, [productRefresh]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [filterCategory, setFilterCategory] = useState<Category | null>(null);
+  const [filterCategory, setFilterCategory] = useState<Category | null>(() => {
+    if (typeof window === "undefined") return null;
+    return new URLSearchParams(window.location.search).get("category") || null;
+  });
   const [catalogBrand, setCatalogBrand] = useState<string | null>(null);
   const [catalogSort, setCatalogSort] = useState("relevancia");
 
@@ -5052,6 +5158,8 @@ export default function App() {
         ? "Sesión administrativa requerida"
         : error instanceof AdminApiError && error.status === 403
           ? "No tienes permisos para consultar los productos."
+          : error instanceof AdminApiError && error.status === 404
+            ? "No se encontró el endpoint de productos. Verifica la URL base de la API."
           : "No fue posible cargar los productos. Intenta nuevamente.";
       setAdminProducts([]);
       setAdminProductsError(message);
@@ -5252,6 +5360,12 @@ export default function App() {
 
   const handleCategorySelect = (cat: Category | null) => {
     setFilterCategory(cat);
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      if (cat) url.searchParams.set("category", cat);
+      else url.searchParams.delete("category");
+      window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    }
     navigate("catalog");
   };
 
@@ -5352,18 +5466,21 @@ export default function App() {
         </>
       )}
       {view === "home" && (
-        <HomePage
-          onNavigate={navigate} onSelectProduct={handleSelectProduct}
-          onAddToCart={handleAddToCart} onCategorySelect={handleCategorySelect}
-          content={homeContent}
-          products={products}
-          categories={categoryOptions}
-          featuredProducts={homePreviewProducts}
-          newArrivalsProducts={homeNewArrivals}
-          saleProducts={homeSaleProducts}
-          productsStatus={productsStatus}
-          onRetryProducts={refreshProducts}
-        />
+        <div style={bannerMarginStyle}>
+          <HomePage
+            onNavigate={navigate} onSelectProduct={handleSelectProduct}
+            onAddToCart={handleAddToCart} onCategorySelect={handleCategorySelect}
+            content={homeContent}
+            products={products}
+            categories={categoryOptions}
+            selectedCategory={filterCategory}
+            featuredProducts={homePreviewProducts}
+            newArrivalsProducts={homeNewArrivals}
+            saleProducts={homeSaleProducts}
+            productsStatus={productsStatus}
+            onRetryProducts={refreshProducts}
+          />
+        </div>
       )}
       {view === "catalog" && (
         <CatalogPage

@@ -8,7 +8,7 @@
 }
 
 :focus-visible {
-  outline: 2px solid #2457d6;
+  outline: 2px solid var(--brand-primary-ink);
   outline-offset: 2px;
 }
 

@@ -14,12 +14,13 @@ export default async function handler(req: any, res: any) {
 
     const { data, error } = await supabaseAdmin
       .from('audit_logs')
-      .select('*')
+      .select('id, actor_id, action, entity, entity_id, created_at')
       .order('created_at', { ascending: false })
       .limit(200);
 
     if (error) {
-      return jsonError(res, 500, error.message || 'Unable to fetch audit logs.');
+      console.error('[Admin Audit] Query failed', { code: error.code });
+      return jsonError(res, 500, 'No fue posible cargar la actividad administrativa.');
     }
 
     return jsonResponse(res, { data });
@@ -27,6 +28,7 @@ export default async function handler(req: any, res: any) {
     if (error instanceof ApiError) {
       return jsonError(res, error.status, error.message);
     }
-    return jsonError(res, 500, error?.message ?? 'Unable to handle request.');
+    console.error('[Admin Audit] Request failed');
+    return jsonError(res, 500, 'No fue posible cargar la actividad administrativa.');
   }
 }

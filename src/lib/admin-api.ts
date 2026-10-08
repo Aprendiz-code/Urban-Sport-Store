@@ -1,8 +1,52 @@
 import { clearLocalAuthSession, getAccessToken } from './supabase-auth';
 import { resolveApiBaseUrl } from './api-config';
 import { mapHomeContentPayload } from './admin-home-content';
+import { getSupabaseClient } from './supabase-client';
 
 type Product = Record<string, unknown> & { id?: string };
+
+export type StockMovementType = 'in' | 'out' | 'correction';
+
+export interface AdjustStockInput {
+  productId: string;
+  movementType: StockMovementType;
+  quantity: number;
+  reason: string;
+}
+
+export interface AdjustStockResult {
+  product_id: string;
+  previous_stock: number;
+  new_stock: number;
+}
+
+export type DashboardMetricStatus = 'forbidden' | 'error' | 'empty' | 'ready' | 'pending';
+
+export interface AdminDashboardData {
+  orders: {
+    status: DashboardMetricStatus;
+    total: number | null;
+    recent: Array<{
+      id: string;
+      order_number: string;
+      status: string;
+      payment_status: string;
+      total: number;
+      created_at: string;
+      item_count: number;
+      customer_name?: string;
+    }>;
+  };
+  customers: { status: DashboardMetricStatus; total: number | null };
+  sales: {
+    status: 'forbidden' | 'error' | 'empty' | 'ready';
+    paid_orders: number | null;
+    total_7d: number | null;
+    period_start: string | null;
+    period_end: string | null;
+  };
+  category_sales_status: 'forbidden' | 'error' | 'empty' | 'pending';
+}
 
 export function parseAdminApiError(status: number, text: string): Error {
   const fallbackMessage = `${status} ${status === 400 ? 'Bad Request' : status === 401 ? 'Unauthorized' : status === 403 ? 'Forbidden' : status === 409 ? 'Conflict' : 'Request failed'}`;
@@ -142,6 +186,10 @@ export async function fetchProducts() {
   return callApi('/products', { method: 'GET' });
 }
 
+export async function fetchAdminDashboard(): Promise<AdminDashboardData> {
+  return callApi('/dashboard', { method: 'GET' }) as Promise<AdminDashboardData>;
+}
+
 export async function createProductApi(payload: Partial<Product>) {
   return callApi('/products', { method: 'POST', body: JSON.stringify(payload) });
 }
@@ -187,12 +235,54 @@ export async function updateHomeContentApi(payload: Record<string, unknown>) {
   return callApi('/home-content', { method: 'PATCH', body: JSON.stringify(mapHomeContentPayload(payload)) });
 }
 
-export async function createInventoryMovement(productId: string, delta: number, reason?: string) {
-  return callApi('/inventory/movements', { method: 'POST', body: JSON.stringify({ productId, delta, reason }) });
+export async function adjustProductStock(input: AdjustStockInput): Promise<AdjustStockResult> {
+  const normalizedReason = input.reason.trim();
+  if (!normalizedReason) {
+    throw new AdminApiError(400, 'INVALID_STOCK_REASON', 'Debes indicar un motivo para el ajuste de inventario.');
+  }
+  if (!Number.isFinite(input.quantity) || input.quantity <= 0) {
+    throw new AdminApiError(400, 'INVALID_STOCK_QUANTITY', 'La cantidad debe ser un número mayor que cero.');
+  }
+  if (!['in', 'out', 'correction'].includes(input.movementType)) {
+    throw new AdminApiError(400, 'INVALID_STOCK_MOVEMENT_TYPE', 'El tipo de movimiento es inválido.');
+  }
+
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase.rpc('adjust_product_stock', {
+    p_product_id: input.productId,
+    p_movement_type: input.movementType,
+    p_quantity: input.quantity,
+    p_reason: normalizedReason,
+  });
+
+  if (error) {
+    const message = error.message || 'No se pudo ajustar el inventario.';
+    const code = error.code || 'STOCK_ADJUSTMENT_FAILED';
+    throw new AdminApiError(400, code, message);
+  }
+
+  if (!data || typeof data !== 'object') {
+    throw new AdminApiError(500, 'STOCK_ADJUSTMENT_EMPTY', 'La RPC no devolvió el resultado esperado.');
+  }
+
+  const result = data as AdjustStockResult;
+  if (typeof result.product_id !== 'string' || Number.isNaN(result.previous_stock) || Number.isNaN(result.new_stock)) {
+    throw new AdminApiError(500, 'STOCK_ADJUSTMENT_INVALID', 'La respuesta del ajuste de inventario no es válida.');
+  }
+
+  return result;
+}
+
+export async function createInventoryMovement(productId: string, delta: number, reason = 'Ajuste de inventario') {
+  if (!Number.isFinite(delta) || delta === 0) {
+    throw new AdminApiError(400, 'INVALID_STOCK_DELTA', 'La cantidad del ajuste debe ser distinta de cero.');
+  }
+  const movementType: StockMovementType = delta > 0 ? 'in' : 'out';
+  return adjustProductStock({ productId, movementType, quantity: Math.abs(delta), reason });
 }
 
 export async function fetchAuditLogs(limit = 200) {
   return callApi(`/audit?limit=${limit}`, { method: 'GET' });
 }
 
-export default { fetchProducts, createProductApi, uploadProductImageApi, fetchSupabaseProducts, createSupabaseProductApi, updateSupabaseProductApi, deleteSupabaseProductApi, updateProductApi, updateProductAvailabilityApi, deleteProductApi, updateHomeContentApi, createInventoryMovement, fetchAuditLogs };
+export default { fetchProducts, fetchAdminDashboard, createProductApi, uploadProductImageApi, fetchSupabaseProducts, createSupabaseProductApi, updateSupabaseProductApi, deleteSupabaseProductApi, updateProductApi, updateProductAvailabilityApi, deleteProductApi, updateHomeContentApi, createInventoryMovement, adjustProductStock, fetchAuditLogs };

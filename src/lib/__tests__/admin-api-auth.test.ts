@@ -3,6 +3,11 @@ import { createProductViaAdminApi, deleteProductViaAdminApi, updateProductViaAdm
 import adminApi from '../admin-api';
 import { uploadProductImage } from '../supabase-store';
 import { clearLocalAuthSession, getAccessToken } from '../supabase-auth';
+import { getSupabaseClient } from '../supabase-client';
+
+vi.mock('../supabase-client', () => ({
+  getSupabaseClient: vi.fn(() => ({ rpc: vi.fn() })),
+}));
 
 vi.mock('../supabase-auth', () => ({
   clearLocalAuthSession: vi.fn(),
@@ -148,6 +153,45 @@ describe('authenticated admin API client', () => {
       message: expect.stringContaining('No tienes permisos'),
     });
     expect(fetch).toHaveBeenCalledOnce();
+  });
+
+  it('adjusts stock through the secure RPC and returns the new stock values', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: { product_id: 'product-1', previous_stock: 10, new_stock: 15 },
+      error: null,
+    });
+    vi.mocked(getSupabaseClient).mockReturnValue({ rpc } as never);
+
+    await expect(adminApi.adjustProductStock({
+      productId: 'product-1',
+      movementType: 'in',
+      quantity: 5,
+      reason: 'Reposición de inventario',
+    })).resolves.toEqual({ product_id: 'product-1', previous_stock: 10, new_stock: 15 });
+
+    expect(rpc).toHaveBeenCalledWith('adjust_product_stock', {
+      p_product_id: 'product-1',
+      p_movement_type: 'in',
+      p_quantity: 5,
+      p_reason: 'Reposición de inventario',
+    });
+  });
+
+  it('rejects empty stock reasons before calling the RPC', async () => {
+    const rpc = vi.fn();
+    vi.mocked(getSupabaseClient).mockReturnValue({ rpc } as never);
+
+    await expect(adminApi.adjustProductStock({
+      productId: 'product-1',
+      movementType: 'out',
+      quantity: 2,
+      reason: '  ',
+    })).rejects.toMatchObject({
+      code: 'INVALID_STOCK_REASON',
+      apiMessage: expect.stringContaining('motivo'),
+    });
+
+    expect(rpc).not.toHaveBeenCalled();
   });
 
   it('does not print the access token to logs', async () => {

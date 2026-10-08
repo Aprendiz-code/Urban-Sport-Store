@@ -63,8 +63,9 @@ describe('admin products table data source', () => {
 
   it('shows category and creation date while using a no-overflow mobile card layout', () => {
     expect(appSource).toContain("['Imagen', 'Nombre', 'Marca', 'Categoría', 'Precio', 'Stock', 'Estado', 'Creado', 'Acciones']");
-    expect(appSource).toContain('createdAt: record.created_at ?? record.updated_at ?? undefined');
-    expect(appSource).toContain('2xl:hidden');
+    expect(appSource).toContain('createdAt: record.created_at ?? undefined');
+    expect(appSource).toContain('updatedAt: record.updated_at ?? undefined');
+    expect(appSource).toContain('admin-table-scroll hidden lg:block');
     expect(appSource).toContain('<article key={p.id} className="min-w-0 rounded-lg');
     expect(appSource).toContain('break-words text-xs text-slate-600">{p.brand} · {p.category');
   });
@@ -89,7 +90,9 @@ describe('admin products table data source', () => {
     expect(appSource).not.toContain('toast.success("Producto eliminado permanentemente");\n    } catch (error)');
   });
 
-  it('marks an authenticated admin avatar with A while preserving the regular user initial', () => {
-    expect(appSource).toContain('{isAdmin ? "A" : "V"}');
+  it('keeps the admin avatar distinct from the regular user icon', () => {
+    expect(appSource).toContain('to-[#f97316] text-xs font-bold text-white">A</div>');
+    expect(appSource).toContain('<UserRound size={17} aria-hidden="true" />');
+    expect(appSource).not.toContain('{isAdmin ? "A" : "V"}');
   });
 });
