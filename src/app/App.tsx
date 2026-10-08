@@ -1539,7 +1539,7 @@ function LegalPage({ kind, onNavigate }: { kind: View; onNavigate: (v: View) => 
 
 // ─── CATALOG PAGE ─────────────────────────────────────────────────────────────
 
-function CatalogPage({ filterCategory, selectedBrand, setSelectedBrand, sortBy, setSortBy, onSelectProduct, onAddToCart, onNavigate, onCategorySelect, products, categories, productsStatus, onRetryProducts }: {
+function CatalogPage({ filterCategory, selectedBrand, setSelectedBrand, sortBy, setSortBy, onSelectProduct, onAddToCart, onNavigate, onCategorySelect, products, categories, productsStatus, onRetryProducts, headerOffset }: {
   filterCategory: Category | null; onSelectProduct: (p: Product) => void;
   selectedBrand: string | null; setSelectedBrand: React.Dispatch<React.SetStateAction<string | null>>;
   sortBy: string; setSortBy: React.Dispatch<React.SetStateAction<string>>;
@@ -1550,6 +1550,7 @@ function CatalogPage({ filterCategory, selectedBrand, setSelectedBrand, sortBy, 
   categories: CategoryOption[];
   productsStatus: ProductsStatus;
   onRetryProducts: () => void;
+  headerOffset: number;
 }) {
   const selectedCat = filterCategory;
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -1569,7 +1570,7 @@ function CatalogPage({ filterCategory, selectedBrand, setSelectedBrand, sortBy, 
   }, [products, selectedCat, selectedBrand, sortBy]);
 
   return (
-    <main className="pt-8 sm:pt-10 md:pt-12 pb-6 sm:pb-8 min-h-screen max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
+    <main style={{ paddingTop: `${headerOffset + 16}px` }} className="pb-6 sm:pb-8 min-h-screen max-w-7xl mx-auto px-3 sm:px-4 md:px-6">
       {/* Breadcrumbs */}
       <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-6 overflow-x-auto pb-2">
           <button onClick={() => onNavigate("home")} className="hover:text-slate-600 cursor-pointer whitespace-nowrap">Inicio</button>
@@ -5497,6 +5498,7 @@ export default function App() {
           onCategorySelect={handleCategorySelect}
           productsStatus={productsStatus}
           onRetryProducts={refreshProducts}
+          headerOffset={headerOffset}
         />
       )}
       {view === "product" && selectedProduct && (
