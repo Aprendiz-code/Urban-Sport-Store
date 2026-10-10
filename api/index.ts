@@ -18,7 +18,7 @@ function applyCors(req: http.IncomingMessage, res: http.ServerResponse) {
   }
 
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, Idempotency-Key');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
 }
 
@@ -39,6 +39,7 @@ async function resolveRoute(req: http.IncomingMessage, res: http.ServerResponse)
     '/api/home': () => import('./home.ts'),
     '/api/newsletter': () => import('./newsletter.ts'),
     '/api/orders': () => import('./orders.ts'),
+    '/api/webhooks/wompi': () => import('./webhooks/wompi.ts'),
     '/api/admin/categories': () => import('./admin/categories/index.ts'),
     '/api/admin/home-content': () => import('./admin/home-content.ts'),
     '/api/admin/audit': () => import('./admin/audit.ts'),
@@ -49,6 +50,31 @@ async function resolveRoute(req: http.IncomingMessage, res: http.ServerResponse)
   const directHandler = handlers[pathname];
   if (directHandler) {
     const module = await directHandler();
+    return module.default(req, res);
+  }
+
+  const orderCancelMatch = pathname.match(/^\/api\/orders\/([^/]+)\/cancel$/);
+  if (orderCancelMatch) {
+    const module = await import('./orders/[id]/cancel.ts');
+    req.query = { ...(req.query ?? {}), id: orderCancelMatch[1] };
+    return module.default(req, res);
+  }
+
+  const paymentSessionMatch = pathname.match(/^\/api\/orders\/([^/]+)\/payment-session$/);
+  if (paymentSessionMatch) {
+    if (req.method !== 'POST') {
+      return jsonError(res, 405, 'Método no permitido.');
+    }
+
+    const module = await import('./orders/[id]/payment-session.ts');
+    req.query = { ...(req.query ?? {}), id: paymentSessionMatch[1] };
+    return module.default(req, res);
+  }
+
+  const orderMatch = pathname.match(/^\/api\/orders\/([^/]+)$/);
+  if (orderMatch) {
+    const module = await import('./orders/[id].ts');
+    req.query = { ...(req.query ?? {}), id: orderMatch[1] };
     return module.default(req, res);
   }
 

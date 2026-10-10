@@ -55,9 +55,14 @@ export async function createPendingOrder(input: CheckoutRequest): Promise<Order>
     throw new OrderServiceError(400, validated.error.issues[0]?.message ?? 'Solicitud de pedido inválida.');
   }
 
+  if (typeof globalThis.crypto?.randomUUID !== 'function') {
+    throw new OrderServiceError(0, 'Este navegador no puede generar una clave segura para el pedido.');
+  }
+
   const result = await request<unknown>('/orders', {
     method: 'POST',
     body: JSON.stringify(validated.data),
+    headers: { 'Idempotency-Key': globalThis.crypto.randomUUID() },
   });
   const order = result && typeof result === 'object' && 'order' in result
     ? (result as { order: unknown }).order
@@ -67,6 +72,41 @@ export async function createPendingOrder(input: CheckoutRequest): Promise<Order>
     throw new OrderServiceError(503, 'No se confirmó la persistencia del pedido.');
   }
   return order;
+}
+
+export async function createWompiPaymentSession(orderId: string): Promise<{ checkoutUrl: string; expiresAt: string }> {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(orderId)) {
+    throw new OrderServiceError(400, 'El identificador del pedido no es válido.');
+  }
+
+  const result = await request<unknown>(`/orders/${encodeURIComponent(orderId)}/payment-session`, {
+    method: 'POST',
+  });
+  const session = result && typeof result === 'object'
+    ? result as { checkoutUrl?: unknown; expiresAt?: unknown }
+    : null;
+  let checkoutUrl: URL | null = null;
+  if (typeof session?.checkoutUrl === 'string') {
+    try {
+      checkoutUrl = new URL(session.checkoutUrl);
+    } catch {
+      checkoutUrl = null;
+    }
+  }
+  const expiresAt = typeof session?.expiresAt === 'string' ? Date.parse(session.expiresAt) : NaN;
+  if (
+    !checkoutUrl
+    || checkoutUrl.protocol !== 'https:'
+    || checkoutUrl.hostname !== 'checkout.wompi.co'
+    || !checkoutUrl.pathname.startsWith('/l/')
+    || checkoutUrl.username
+    || checkoutUrl.password
+    || !Number.isFinite(expiresAt)
+    || expiresAt <= Date.now()
+  ) {
+    throw new OrderServiceError(503, 'No se recibió un enlace de pago válido de Wompi.');
+  }
+  return { checkoutUrl: checkoutUrl.toString(), expiresAt: new Date(expiresAt).toISOString() };
 }
 
 export async function listMyOrders(): Promise<Order[]> {
@@ -79,4 +119,20 @@ export async function listMyOrders(): Promise<Order[]> {
     throw new OrderServiceError(503, 'El historial de pedidos no está disponible.');
   }
   return orders;
+}
+
+export async function getMyOrder(orderId: string): Promise<Order> {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(orderId)) {
+    throw new OrderServiceError(400, 'El identificador del pedido no es válido.');
+  }
+
+  const result = await request<unknown>(`/orders/${encodeURIComponent(orderId)}`);
+  const order = result && typeof result === 'object' && 'order' in result
+    ? (result as { order: unknown }).order
+    : result;
+
+  if (!isPersistedOrder(order)) {
+    throw new OrderServiceError(503, 'El detalle del pedido no está disponible.');
+  }
+  return order;
 }

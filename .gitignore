@@ -9,12 +9,10 @@ api/dist/
 # Environment files
 .env
 .env.*
-!.env.example
 .vercel-backend-prod.env
 .vercel-backend-prod-pulled.env
 api/.env
 api/.env.*
-!api/.env.example
 
 # Vite cache
 .vite/
@@ -51,6 +49,12 @@ api/pgdata/
 supabase/.temp/
 supabase/.branches/
 supabase/.snapshots/
+supabase-staging/.temp/
+supabase-staging/.branches/
+supabase-staging/.snapshots/
+supabase-staging/supabase/.temp/
+supabase-staging/supabase/.branches/
+supabase-staging/supabase/.snapshots/
 !supabase/migrations/
 !supabase/migrations/*.sql
 !supabase/**/*.sql
@@ -65,4 +69,11 @@ supabase/.snapshots/
 *.log
 .env*.local
 .env*
+*token*.json
+*credential*.json
+*.pem
+*.key
+*.p12
+*.pfx
+*.ppk
 scripts/dev-api-runner.js

@@ -1,5 +1,5 @@
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded' | 'cancelled';
-export type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded';
+export type OrderStatus = 'pending_payment' | 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded';
 export type ShipmentStatus = 'pending' | 'preparing' | 'shipped' | 'delivered' | 'returned' | 'cancelled';
 export type UserRole = 'CUSTOMER' | 'OWNER' | 'ADMIN' | 'CATALOG_MANAGER' | 'LOGISTICS' | 'ACCOUNTANT';
 
@@ -140,10 +140,25 @@ export interface Cart {
 }
 
 export interface CheckoutRequest {
-  addressId: string;
-  items: CheckoutItem[];
-  couponCode?: string;
+  address: OrderAddressSnapshot;
+  items: OrderRequestItem[];
   note?: string;
+}
+
+export interface OrderRequestItem {
+  productId: string;
+  quantity: number;
+}
+
+export interface OrderAddressSnapshot {
+  recipientName: string;
+  addressLine1: string;
+  addressLine2?: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+  phone: string;
 }
 
 export interface OrderItem {
@@ -179,8 +194,10 @@ export interface Order {
   paymentReference?: string | null;
   shippingMethod?: string | null;
   trackingNumber?: string | null;
-  shippingAddress: Address;
+  shippingAddress: OrderAddressSnapshot;
   notes?: string | null;
+  expiresAt?: string;
+  reservationExpiresAt?: string;
   items: OrderItem[];
   createdAt: string;
   updatedAt: string;

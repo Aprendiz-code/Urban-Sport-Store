@@ -42,25 +42,37 @@ export const checkoutItemSchema = z.object({
   quantity: z.number().int().positive('La cantidad debe ser mayor que cero.'),
 }).strict();
 
+export const pendingOrderItemSchema = z.object({
+  productId: z.string().uuid(),
+  quantity: z.number().int().min(1).max(20, 'La cantidad máxima por producto es 20.'),
+}).strict();
+
+export const inlineOrderAddressSchema = z.object({
+  recipientName: z.string().trim().min(2).max(120),
+  addressLine1: z.string().trim().min(5).max(180),
+  addressLine2: z.string().trim().max(120).optional(),
+  city: z.string().trim().min(2).max(100),
+  state: z.string().trim().min(2).max(100),
+  postalCode: z.string().trim().min(3).max(20),
+  country: z.string().trim().regex(/^[A-Za-z]{2}$/).transform((value) => value.toUpperCase()),
+  phone: z.string().trim().regex(/^\+?[0-9 ()-]{7,20}$/, 'Teléfono inválido. Usa un formato válido para Colombia o internacional.'),
+}).strict();
+
 export const createOrderRequestSchema = z.object({
-  addressId: z.string().min(1).optional(),
-  address: addressSchema.optional(),
-  items: z.array(checkoutItemSchema).min(1, 'Debe incluir al menos un producto.'),
-  couponCode: z.string().trim().min(3).max(50).optional(),
+  address: inlineOrderAddressSchema,
+  items: z.array(pendingOrderItemSchema).min(1, 'Debe incluir al menos un producto.').max(20, 'El pedido admite hasta 20 productos distintos.')
+    .refine((items) => new Set(items.map((item) => item.productId)).size === items.length, {
+      message: 'No repitas productos en el pedido.',
+    }),
   note: z.string().trim().max(500).optional(),
-}).strict().refine((payload) => Boolean(payload.addressId || payload.address), {
-  message: 'Debe indicar una dirección válida del usuario.',
-  path: ['address'],
-}).refine((payload) => !('total' in payload || 'subtotal' in payload || 'discount' in payload || 'shippingAmount' in payload || 'price' in payload || 'stock' in payload), {
-  message: 'No se aceptan campos de pago o precio enviados desde el frontend.',
-  path: ['items'],
-});
+}).strict();
 
 export const allowedOrderStatusTransitions: Record<string, string[]> = {
-  pending: ['confirmed', 'cancelled'],
-  confirmed: ['processing', 'cancelled'],
-  processing: ['shipped', 'cancelled'],
-  shipped: ['delivered', 'cancelled'],
+  pending_payment: ['cancelled'],
+  pending: ['confirmed'],
+  confirmed: ['processing'],
+  processing: ['shipped'],
+  shipped: ['delivered'],
   delivered: [],
   cancelled: [],
   refunded: [],

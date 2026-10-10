@@ -1,5 +1,13 @@
 # Keep required storefront and protected admin API routes under the Hobby
 # tier's 12 serverless-function limit; exclude unused and development routes.
+**/.env*
+*token*.json
+*credential*.json
+*.pem
+*.key
+*.p12
+*.pfx
+*.ppk
 api/account/**
 api/test/**
 api/newsletter.ts
@@ -16,3 +24,13 @@ api/hello.js
 archive/**
 .vercel-production.env
 
+
+secrets
+secrets/
+*.env
+.env
+.env.*
+.vercel-backend-prod.env
+.vercel-backend-prod-pulled.env
+.vercel-backend-prod.env.example
+.vercel-backend-prod-pulled.env.example

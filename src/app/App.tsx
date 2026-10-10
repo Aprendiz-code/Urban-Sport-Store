@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import type { User } from '@supabase/supabase-js';
 import {
-  ShoppingCart, Search, X, Star, ChevronRight, Package,
+  ShoppingCart, Search, X, Star, ChevronRight, Package, Archive,
   Users, UserRound, TrendingUp, AlertTriangle, Check, Eye, EyeOff,
   Bell, LogOut, Plus, Minus, Trash2, MapPin,
   Truck, ChevronLeft, ChevronUp, ChevronDown, Heart, ArrowRight, Filter,
@@ -35,11 +35,13 @@ import { getMyProfile, getProfileAccess, ProfileAccessVerificationError, updateM
 import { getAdminPanelMenuLink } from "./admin-panel-menu";
 import { resolveApiBaseUrl } from "../lib/api-config";
 
-import adminApi, { AdminApiError, createSupabaseProductApi, updateSupabaseProductApi, deleteSupabaseProductApi, updateHomeContentApi, formatAdminApiError, isAdminAuthenticationError } from "../lib/admin-api";
+import adminApi, { AdminApiError, createSupabaseProductApi, updateSupabaseProductApi, deleteSupabaseProductApi, updateHomeContentApi, formatAdminApiError, isAdminAuthenticationError, type ProductArchiveResult } from "../lib/admin-api";
 import { uploadProductImage, getPublicUrl, STORAGE_BUCKET } from "../lib/supabase-store";
 import { recordAction } from "../lib/audit";
 import { productSchema } from '../lib/schemas';
 import { normalizeGuestCartEntries, resolveGuestCartEntries } from '../lib/cart-service';
+import { getMyOrder, listMyOrders } from '../lib/order-service';
+import { createPendingOrder, createWompiPaymentSession } from '../lib/order-service';
 import { MAX_PRODUCT_GALLERY_IMAGES, MAX_PRODUCT_TOTAL_IMAGES, normalizeProductSizes, normalizeProductSpecifications, submitAdminProductForm, validateProductForm } from '../lib/admin-product-form';
 import { buildAdminProductPayload } from '../lib/admin-product-payload';
 import { filterAdminProducts, type AdminProductStatusFilter } from '../lib/admin-product-list';
@@ -47,7 +49,7 @@ import { normalizeProductImageList, resolveProductPublicImageUrl, uploadSelected
 import ProductGallery from './components/ProductGallery';
 import Toaster from './components/LazyToaster';
 import { toast } from '../lib/lazyToast';
-import type { Address as DomainAddress, GuestCartItem, Product as DomainProduct } from '../types/domain';
+import type { Address as DomainAddress, GuestCartItem, Order, Product as DomainProduct } from '../types/domain';
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 
@@ -57,18 +59,6 @@ type View =
   | "admin-login" | "admin" | "password-reset"
   | "privacy" | "terms" | "shipping" | "returns" | "contact";
 type ProductsStatus = "loading" | "ready" | "error";
-type PermanentDeleteResult = {
-  deleted?: boolean;
-  audit_recorded?: boolean;
-  storage_cleanup?: {
-    status?: "completed" | "failed";
-    attempted_paths?: string[];
-    removed_paths?: string[];
-    shared_paths?: string[];
-    error?: string;
-  };
-} | null;
-
 function getInitialView(): View {
   if (typeof window === "undefined") return "home";
   const { pathname, search } = window.location;
@@ -1912,9 +1902,13 @@ function ProductDetailPage({ product, products, onBack, onAddToCart, onNavigate,
 
 // ─── CHECKOUT ────────────────────────────────────────────────────────────────
 
-function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelectAddress, onCreateAddress }: { cart: StorefrontCartLine[]; onNavigate: (v: View) => void; addresses: Address[]; selectedAddressId: string; onSelectAddress: (id: string) => void; onCreateAddress: (address: Omit<Address, 'id'>) => void; }) {
+function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelectAddress, onCreateAddress, onPaymentStarted }: { cart: StorefrontCartLine[]; onNavigate: (v: View) => void; addresses: Address[]; selectedAddressId: string; onSelectAddress: (id: string) => void; onCreateAddress: (address: Omit<Address, 'id'>) => void; onPaymentStarted: () => void; }) {
   const [step, setStep] = useState(0);
   const [showNewAddress, setShowNewAddress] = useState(false);
+  const [recipientName, setRecipientName] = useState('');
+  const [paymentError, setPaymentError] = useState('');
+  const [paymentStarting, setPaymentStarting] = useState(false);
+  const [orderAwaitingPayment, setOrderAwaitingPayment] = useState<Order | null>(null);
   const [addressForm, setAddressForm] = useState<Omit<Address, 'id'>>({
     label: "",
     line1: "",
@@ -1928,6 +1922,52 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
   });
   const subtotal = cart.reduce((s, i) => s + i.product.price * i.qty, 0);
   const STEPS = ["Dirección", "Envío", "Pago"];
+  const selectedAddress = addresses.find((address) => address.id === selectedAddressId);
+
+  useEffect(() => {
+    setRecipientName(selectedAddress?.recipientName ?? '');
+  }, [selectedAddressId, addresses]);
+
+  const startPayment = async () => {
+    if (paymentStarting) return;
+    if (!selectedAddress || !recipientName.trim()) {
+      setPaymentError('Selecciona una dirección e indica el nombre de quien recibe.');
+      return;
+    }
+
+    const normalizedCountry = selectedAddress.country.trim().toUpperCase();
+    const country = normalizedCountry === 'COLOMBIA' ? 'CO' : normalizedCountry;
+    if (!/^[A-Z]{2}$/.test(country)) {
+      setPaymentError('El país de la dirección debe usar su código de dos letras.');
+      return;
+    }
+
+    setPaymentStarting(true);
+    setPaymentError('');
+    try {
+      const order = orderAwaitingPayment ?? await createPendingOrder({
+        address: {
+          recipientName: recipientName.trim(),
+          addressLine1: selectedAddress.line1,
+          ...(selectedAddress.line2 ? { addressLine2: selectedAddress.line2 } : {}),
+          city: selectedAddress.city,
+          state: selectedAddress.state,
+          postalCode: selectedAddress.postalCode,
+          country,
+          phone: selectedAddress.phone,
+        },
+        items: cart.map((item) => ({ productId: item.product.id, quantity: item.qty })),
+      });
+      setOrderAwaitingPayment(order);
+      const session = await createWompiPaymentSession(order.id);
+      onPaymentStarted();
+      window.location.assign(session.checkoutUrl);
+    } catch (error) {
+      setPaymentError(error instanceof Error ? error.message : 'No fue posible iniciar el pago.');
+    } finally {
+      setPaymentStarting(false);
+    }
+  };
 
   return (
     <main className="pt-8 sm:pt-10 md:pt-12 pb-10 min-h-screen max-w-5xl mx-auto px-4 sm:px-6">
@@ -1939,11 +1979,6 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
         <div className="flex items-center gap-2 ml-2">
           <span className="font-bold text-slate-800">Checkout</span>
         </div>
-      </div>
-
-      <div role="status" className="mb-8 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
-        <p className="font-semibold">Checkout temporalmente no disponible.</p>
-        <p className="mt-1">El backend y el esquema remoto de pedidos no están habilitados. No se creará un pedido ni se iniciará un pago desde esta pantalla.</p>
       </div>
 
       {/* Stepper */}
@@ -1971,7 +2006,20 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
             <div className="space-y-3 sm:space-y-4">
               <h3 className="text-base sm:text-lg font-extrabold text-slate-900 mb-3 sm:mb-4">Dirección de entrega</h3>
               {addresses.length === 0 && (
-                <p className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950">Las direcciones actuales se guardan solo en este dispositivo y no se pueden usar para crear pedidos.</p>
+                <p className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950">Agrega una dirección de entrega para continuar con tu pedido.</p>
+              )}
+              {addresses.length > 0 && (
+                <div>
+                  <label htmlFor="checkout-recipient" className="mb-1.5 block text-xs font-bold uppercase tracking-widest text-slate-500">Nombre de quien recibe</label>
+                  <input
+                    id="checkout-recipient"
+                    required
+                    value={recipientName}
+                    onChange={(event) => setRecipientName(event.target.value)}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800"
+                    autoComplete="name"
+                  />
+                </div>
               )}
               {addresses.map((a) => (
                 <label key={a.id} className={"flex gap-2 sm:gap-3 p-3 sm:p-4 rounded-lg sm:rounded-2xl border-2 cursor-pointer transition-all " + (selectedAddressId === a.id ? "border-[#bfdbfe] bg-blue-50/50" : "border-slate-200 hover:border-slate-300")}>
@@ -2040,18 +2088,19 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
 
           {step === 2 && (
             <div className="space-y-5">
-              <h3 className="text-lg font-extrabold text-slate-900 mb-4">Pago en línea no disponible</h3>
-              <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
-                <p className="font-semibold">La pasarela de pagos todavía no está conectada.</p>
-                <p className="mt-1">No ingreses datos de tarjeta: no se registrará ni cobrará ningún pedido desde esta pantalla.</p>
+              <h3 className="text-lg font-extrabold text-slate-900 mb-4">Pago con Wompi Sandbox</h3>
+              <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-700">
+                <p>El pedido se registrará como pendiente y continuarás en el checkout alojado de Wompi.</p>
+                <p className="mt-1">El estado solo cambiará cuando el servidor verifique la notificación de pago.</p>
               </div>
+              {paymentError && <p role="alert" className="text-sm font-medium text-red-700">{paymentError}</p>}
             </div>
           )}
 
           <div className="flex flex-col sm:flex-row gap-3 mt-6 sm:mt-8">
             {step > 0 && <Btn variant="secondary" onClick={() => setStep(step - 1)} className="flex-1 sm:flex-none justify-center"><ChevronLeft size={14} /> Atrás</Btn>}
-            <Btn variant="primary" className="flex-1" size="lg" disabled={step === 2 || (step === 0 && (!selectedAddressId || !addresses.some((address) => address.id === selectedAddressId)))} onClick={() => setStep(step + 1)}>
-              {step === 2 ? "Pago no disponible" : <>Continuar <ChevronRight size={15} /></>}
+            <Btn variant="primary" className="flex-1" size="lg" disabled={paymentStarting || (step === 0 && (!selectedAddressId || !selectedAddress || !recipientName.trim()))} onClick={() => step === 2 ? void startPayment() : setStep(step + 1)}>
+              {step === 2 ? (paymentStarting ? "Conectando con Wompi…" : <>Pagar con Wompi <ArrowRight size={15} /></>) : <>Continuar <ChevronRight size={15} /></>}
             </Btn>
           </div>
         </div>
@@ -2498,6 +2547,15 @@ function AccountPage({ onNavigate, onLogout, authUser, addresses, onCreateAddres
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileMessage, setProfileMessage] = useState("");
   const [profileForm, setProfileForm] = useState({ firstName: "", lastName: "", phone: "" });
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [ordersStatus, setOrdersStatus] = useState<"loading" | "ready" | "unavailable">("loading");
+  const [ordersError, setOrdersError] = useState<string | null>(null);
+  const [ordersRefresh, setOrdersRefresh] = useState(0);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [orderDetailTargetId, setOrderDetailTargetId] = useState<string | null>(null);
+  const [orderDetailLoading, setOrderDetailLoading] = useState(false);
+  const [orderDetailError, setOrderDetailError] = useState<string | null>(null);
+  const orderDetailRequestId = useRef(0);
   const profileName = accountProfile?.fullName
     || [accountProfile?.firstName, accountProfile?.lastName].filter(Boolean).join(" ")
     || authUser?.email
@@ -2524,6 +2582,55 @@ function AccountPage({ onNavigate, onLogout, authUser, addresses, onCreateAddres
       });
     return () => { active = false; };
   }, [authUser?.id]);
+
+  useEffect(() => {
+    let active = true;
+    setOrdersStatus("loading");
+    setOrdersError(null);
+    setSelectedOrder(null);
+    setOrderDetailTargetId(null);
+    setOrderDetailLoading(false);
+    setOrderDetailError(null);
+    void listMyOrders()
+      .then((result) => {
+        if (!active) return;
+        setOrders(result);
+        setOrdersStatus("ready");
+      })
+      .catch((error) => {
+        if (!active) return;
+        setOrdersError(error instanceof Error ? error.message : "No se pudo cargar el historial de pedidos.");
+        setOrdersStatus("unavailable");
+      });
+    return () => {
+      active = false;
+      orderDetailRequestId.current += 1;
+    };
+  }, [authUser?.id, ordersRefresh]);
+
+  const handleViewOrder = async (orderId: string) => {
+    if (selectedOrder?.id === orderId) {
+      setSelectedOrder(null);
+      setOrderDetailTargetId(null);
+      setOrderDetailError(null);
+      return;
+    }
+    const requestId = ++orderDetailRequestId.current;
+    setOrderDetailLoading(true);
+    setOrderDetailTargetId(orderId);
+    setOrderDetailError(null);
+    setSelectedOrder(null);
+    try {
+      const order = await getMyOrder(orderId);
+      if (requestId === orderDetailRequestId.current) setSelectedOrder(order);
+    } catch (error) {
+      if (requestId === orderDetailRequestId.current) {
+        setOrderDetailError(error instanceof Error ? error.message : "No se pudo cargar el detalle del pedido.");
+      }
+    } finally {
+      if (requestId === orderDetailRequestId.current) setOrderDetailLoading(false);
+    }
+  };
 
   const handleProfileSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -2628,9 +2735,84 @@ function AccountPage({ onNavigate, onLogout, authUser, addresses, onCreateAddres
           {section === "orders" && (
             <div className="space-y-4">
               <h2 className="font-display text-[28px] sm:text-[32px] text-slate-900 leading-[1.05] mb-6">Mis pedidos</h2>
-              <p role="status" className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600">
-                El historial de pedidos no está conectado. No se muestran pedidos locales o simulados.
-              </p>
+              {ordersStatus === "loading" && (
+                <p role="status" className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600">
+                  <LoaderCircle size={16} className="animate-spin" /> Cargando pedidos…
+                </p>
+              )}
+              {ordersStatus === "unavailable" && (
+                <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-800">
+                  <p>{ordersError ?? "No se pudo cargar el historial de pedidos."}</p>
+                  <button type="button" onClick={() => setOrdersRefresh((value) => value + 1)} className="mt-2 font-semibold underline">Intentar de nuevo</button>
+                </div>
+              )}
+              {ordersStatus === "ready" && orders.length === 0 && (
+                <p role="status" className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-600">
+                  Todavía no tienes pedidos pendientes.
+                </p>
+              )}
+              {ordersStatus === "ready" && orders.map((order) => (
+                <article key={order.id} className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="font-bold text-slate-900">{order.orderNumber}</p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {new Date(order.createdAt).toLocaleString("es-CO")}
+                      </p>
+                    </div>
+                    <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-900">
+                      {order.status === "pending_payment" ? "Pendiente de pago" : order.status}
+                    </span>
+                  </div>
+                  <p className="mt-3 text-sm text-slate-600">
+                    Pedido registrado; no se ha iniciado ni cobrado ningún pago.
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-slate-800">
+                    Subtotal provisional: {fmt(order.subtotal)} · envío por confirmar
+                  </p>
+                  {order.reservationExpiresAt && (
+                    <p className="mt-1 text-xs text-slate-500">
+                      Reserva de inventario hasta {new Date(order.reservationExpiresAt).toLocaleString("es-CO")}.
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => void handleViewOrder(order.id)}
+                    disabled={orderDetailLoading}
+                    className="mt-4 min-h-10 rounded-lg border border-slate-200 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                  >
+                    {orderDetailLoading && orderDetailTargetId === order.id ? "Cargando…" : selectedOrder?.id === order.id ? "Ocultar detalle" : "Ver detalle"}
+                  </button>
+                  {orderDetailError && orderDetailTargetId === order.id && selectedOrder === null && (
+                    <p role="alert" className="mt-3 text-sm text-red-700">{orderDetailError}</p>
+                  )}
+                  {selectedOrder?.id === order.id && (
+                    <div className="mt-4 space-y-3 border-t border-slate-100 pt-4">
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-800">Dirección registrada</h3>
+                        <p className="mt-1 text-sm text-slate-600">
+                          {selectedOrder.shippingAddress.recipientName} · {selectedOrder.shippingAddress.addressLine1}
+                          {selectedOrder.shippingAddress.addressLine2 ? `, ${selectedOrder.shippingAddress.addressLine2}` : ""}
+                        </p>
+                        <p className="text-sm text-slate-600">
+                          {selectedOrder.shippingAddress.city}, {selectedOrder.shippingAddress.state} · {selectedOrder.shippingAddress.postalCode}
+                        </p>
+                      </div>
+                      <ul className="space-y-2">
+                        {selectedOrder.items.map((item) => (
+                          <li key={item.id ?? item.productId} className="flex justify-between gap-3 text-sm text-slate-600">
+                            <span>{item.quantity} × {item.productName}</span>
+                            <span className="shrink-0">{fmt(item.totalPrice)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="text-xs text-slate-500">
+                        El pedido no incluye pago ni checkout. El valor de envío y el total final se confirmarán posteriormente.
+                      </p>
+                    </div>
+                  )}
+                </article>
+              ))}
             </div>
           )}
 
@@ -2778,7 +2960,7 @@ function AccountPage({ onNavigate, onLogout, authUser, addresses, onCreateAddres
 
 // ─── ADMIN DASHBOARD ──────────────────────────────────────────────────────────
 
-function AdminDashboard({ onNavigate, products, productsStatus, productsError, onRetryProducts, categories, createProduct, updateProduct, setProductActive, hardDeleteProduct, adjustStock, productRefresh, initialSection, adminRole, homeContent, setHomeContent, homePreviewProducts, setHomePreviewProducts, homeSaleProducts, setHomeSaleProducts, homeNewArrivals, setHomeNewArrivals, saveHomeContent, homeContentSaving, backendAdminAvailable }: {
+function AdminDashboard({ onNavigate, products, productsStatus, productsError, onRetryProducts, categories, createProduct, updateProduct, setProductActive, archiveProduct, adjustStock, productRefresh, initialSection, adminRole, homeContent, setHomeContent, homePreviewProducts, setHomePreviewProducts, homeSaleProducts, setHomeSaleProducts, homeNewArrivals, setHomeNewArrivals, saveHomeContent, homeContentSaving, backendAdminAvailable }: {
   onNavigate: (v: View) => void;
   products: Product[];
   productsStatus: ProductsStatus;
@@ -2788,7 +2970,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
   createProduct: (product: Omit<Product, "id">) => Promise<void>;
   updateProduct: (productId: string, updates: Partial<Product>) => Promise<void>;
   setProductActive: (productId: string, isActive: boolean) => Promise<void>;
-  hardDeleteProduct: (productId: string) => Promise<PermanentDeleteResult>;
+  archiveProduct: (productId: string) => Promise<ProductArchiveResult>;
   adjustStock: (productId: string, movementType: 'in' | 'out' | 'correction', quantity: number, reason: string) => Promise<void>;
   productRefresh: number;
   initialSection?: string;
@@ -3182,34 +3364,20 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     }
   };
 
-  const handleSafeProductDelete = async (product: Product) => {
-    const confirmation = `¿Eliminar permanentemente "${product.name}"?\n\nEsta acción no se puede deshacer y eliminará el registro por completo. Las filas de imágenes y variantes pueden eliminarse en cascada; también se intentará limpiar sus archivos de Storage. Las líneas de pedido conservan su snapshot y los carritos asociados pueden bloquear el borrado.`;
+  const handleProductArchive = async (product: Product) => {
+    const confirmation = `¿Archivar "${product.name}"?\n\nEl producto dejará de aparecer en la tienda y permanecerá en administración como inactivo. Sus imágenes y datos históricos se conservarán.`;
     if (!window.confirm(confirmation)) return;
 
     setDeletingProductId(product.id);
     try {
-      const result = await hardDeleteProduct(product.id);
-      if (result?.storage_cleanup?.status === "failed") {
-        const attemptedCount = result.storage_cleanup.attempted_paths?.length ?? 0;
-        const errorMessage = result.storage_cleanup.error ?? "Error de Storage no especificado.";
-        const auditMessage = result.audit_recorded === false
-          ? " Tampoco se pudo registrar el resultado en auditoría."
-          : " El fallo y las rutas intentadas quedaron registrados en auditoría.";
-        toast.error(`El producto sí se eliminó de la base de datos, pero falló la limpieza de Storage (${attemptedCount} archivo(s)): ${errorMessage}.${auditMessage}`);
-      } else if (result?.audit_recorded === false) {
-        toast.error("El producto se eliminó de la base de datos y Storage, pero no se pudo registrar la auditoría.");
-      } else if ((result?.storage_cleanup?.shared_paths?.length ?? 0) > 0) {
-        const sharedCount = result?.storage_cleanup?.shared_paths?.length ?? 0;
-        toast.success(`Producto eliminado; se conservaron ${sharedCount} archivo(s) de Storage compartidos con otros productos, categorías o pedidos.`);
+      const result = await archiveProduct(product.id);
+      if (result.audit_status === "pending") {
+        toast.error("Producto archivado; auditoría pendiente.");
       } else {
-        toast.success("Producto eliminado permanentemente");
+        toast.success("Producto archivado correctamente.");
       }
     } catch (error) {
-      if (error instanceof AdminApiError && error.status === 409) {
-        toast.error('No se puede eliminar permanentemente porque tiene pedidos u registros asociados. Utiliza "Desactivar producto" en su lugar.');
-      } else {
-        toast.error(formatAdminApiError(error, "No se pudo eliminar el producto permanentemente."));
-      }
+      toast.error(formatAdminApiError(error, "No se pudo archivar el producto."));
     } finally {
       setDeletingProductId(null);
     }
@@ -3231,8 +3399,8 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
         <button type="button" disabled={availabilityUpdatingId !== null || deletingProductId !== null} aria-busy={availabilityUpdatingId === product.id} onClick={(event) => { closeRowActions(event); void handleProductAvailabilityChange(product); }}>
           <Check size={15} aria-hidden="true" /> {availabilityUpdatingId === product.id ? "Actualizando…" : product.isActive === false ? "Activar" : "Desactivar"}
         </button>
-        <button type="button" className="is-danger" disabled={availabilityUpdatingId !== null || deletingProductId !== null} aria-busy={deletingProductId === product.id} onClick={(event) => { closeRowActions(event); void handleSafeProductDelete(product); }}>
-          <Trash2 size={15} aria-hidden="true" /> {deletingProductId === product.id ? "Eliminando…" : "Eliminar permanentemente"}
+        <button type="button" className="is-danger" disabled={availabilityUpdatingId !== null || deletingProductId !== null || product.isActive === false} aria-busy={deletingProductId === product.id} onClick={(event) => { closeRowActions(event); void handleProductArchive(product); }}>
+          <Archive size={15} aria-hidden="true" /> {deletingProductId === product.id ? "Archivando…" : "Archivar"}
         </button>
       </div>
     </details>
@@ -4438,7 +4606,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
               <div className="space-y-3">
                 {auditEntries.map((entry) => (
                   <div key={entry.id} className="rounded-3xl bg-slate-50 p-4">
-                    <p className="text-sm font-semibold text-slate-800">{{ create_product: "Producto creado", update_product: "Producto actualizado", activate_product: "Producto activado", deactivate_product: "Producto desactivado", delete_product: "Producto eliminado", inventory_movement: "Inventario ajustado" }[entry.action] ?? entry.action.replaceAll("_", " ")}</p>
+                    <p className="text-sm font-semibold text-slate-800">{{ create_product: "Producto creado", update_product: "Producto actualizado", activate_product: "Producto activado", deactivate_product: "Producto desactivado", archive_product: "Producto archivado", delete_product: "Producto eliminado", inventory_movement: "Inventario ajustado" }[entry.action] ?? entry.action.replaceAll("_", " ")}</p>
                     {entry.meta?.entity && <p className="mt-1 text-xs text-slate-500">Tipo: {String(entry.meta.entity)}</p>}
                     <p className="mt-1 text-xs text-slate-500">{new Date(entry.ts).toLocaleString('es-CO')}</p>
                   </div>
@@ -5273,10 +5441,13 @@ export default function App() {
     try { recordAction(isActive ? 'activate_product' : 'deactivate_product', { id: productId }); } catch (error) { }
   };
 
-  const hardDeleteProduct = async (productId: string): Promise<PermanentDeleteResult> => {
-    const result = await adminApi.deleteProductApi(productId) as PermanentDeleteResult;
-    setAdminProducts((current) => current.filter((product) => product.id !== productId));
-    try { recordAction('delete_product', { id: productId }); } catch (error) { }
+  const archiveProduct = async (productId: string): Promise<ProductArchiveResult> => {
+    const result = await adminApi.archiveProductApi(productId);
+    if (!result.archived || result.is_active !== false) {
+      throw new Error('La API no confirmó el archivado del producto.');
+    }
+    setAdminProducts((current) => current.map((product) => product.id === productId ? { ...product, isActive: false } : product));
+    try { recordAction('archive_product', { id: productId }); } catch (error) { }
     return result;
   };
 
@@ -5521,6 +5692,7 @@ export default function App() {
           selectedAddressId={selectedAddressId}
           onSelectAddress={setSelectedAddressId}
           onCreateAddress={createAddress}
+          onPaymentStarted={() => setCart([])}
         />
       )}
       {view === "login" && <LoginPage isRegister={false} onNavigate={navigate} onLogin={handleAuthSuccess} headerOffset={headerOffset} />}
@@ -5550,7 +5722,7 @@ export default function App() {
           createProduct={createProduct}
           updateProduct={updateProduct}
           setProductActive={setProductActive}
-          hardDeleteProduct={hardDeleteProduct}
+          archiveProduct={archiveProduct}
           adjustStock={adjustStock}
           productRefresh={productRefresh}
           initialSection={initialAdminSection}
@@ -5584,4 +5756,3 @@ export default function App() {
     </div>
   );
 }
-
