@@ -49,6 +49,17 @@ describe('admin product fallback helpers', () => {
     expect(payload.category_id).toBe('11111111-1111-1111-1111-111111111111');
   });
 
+  it('builds an admin payload with a category name by using fallback category_id when needed', () => {
+    const payload = buildAdminProductPayload({ name: 'Zapatilla', price: '180000', category: 'Zapatos' }, {} as any);
+
+    expect(payload.slug).toBe('zapatilla');
+    expect(payload.name).toBe('Zapatilla');
+    expect(payload.price).toBe(180000);
+    expect(payload.category_id).toBe('11111111-1111-1111-1111-111111111111');
+    expect(payload.category).toBeUndefined();
+    expect(payload.category_name).toBeUndefined();
+  });
+
   it('does not fall back when admin create fails with 401', async () => {
     vi.mocked(adminApi.createProductApi).mockRejectedValueOnce(new Error('401 Unauthorized'));
 
