@@ -4313,7 +4313,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                       <option value="" disabled>
                         {categories.length ? 'Selecciona una categoría' : 'Primero crea una categoría antes de agregar productos.'}
                       </option>
-                      {categories.filter((option) => option.slug === "urbano" || option.slug === "running").map((option) => (
+                      {categories.map((option) => (
                         <option key={option.id} value={option.id}>{option.slug === "running" ? "Running / entrenamiento" : option.name}</option>
                       ))}
                     </select>
