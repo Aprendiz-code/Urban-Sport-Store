@@ -9,9 +9,9 @@
 *.pfx
 *.ppk
 api/account/**
+api/admin/**
 api/test/**
-api/newsletter.ts
-api/orders.ts
+api/index.ts
 
 # Exclude legacy build outputs and local metadata.
 api/dist/**

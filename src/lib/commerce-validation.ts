@@ -58,12 +58,16 @@ export const inlineOrderAddressSchema = z.object({
   phone: z.string().trim().regex(/^\+?[0-9 ()-]{7,20}$/, 'Teléfono inválido. Usa un formato válido para Colombia o internacional.'),
 }).strict();
 
-export const createOrderRequestSchema = z.object({
+export const shippingQuoteRequestSchema = z.object({
   address: inlineOrderAddressSchema,
   items: z.array(pendingOrderItemSchema).min(1, 'Debe incluir al menos un producto.').max(20, 'El pedido admite hasta 20 productos distintos.')
     .refine((items) => new Set(items.map((item) => item.productId)).size === items.length, {
       message: 'No repitas productos en el pedido.',
     }),
+}).strict();
+
+export const createOrderRequestSchema = shippingQuoteRequestSchema.extend({
+  shippingQuoteId: z.string().uuid('La cotización de envío no es válida.'),
   note: z.string().trim().max(500).optional(),
 }).strict();
 

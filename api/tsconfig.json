@@ -14,6 +14,6 @@
     "resolveJsonModule": true,
     "types": ["node"]
   },
-  "include": ["*.ts", "admin/**/*.ts", "../lib/api-helpers/**/*.ts"],
+  "include": ["*.ts", "admin/**/*.ts", "shipping/**/*.ts", "../lib/api-helpers/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }
