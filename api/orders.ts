@@ -60,17 +60,26 @@ export function serializeOrder(row: any) {
   };
 }
 
-export function isOrderReadModelValid(row: any) {
-  const createdAt = typeof row?.created_at === 'string' ? new Date(row.created_at) : null;
+type OrderReadModel = {
+  [key: string]: unknown;
+  id: string;
+  created_at: string;
+  expires_at: string;
+  order_items: unknown[];
+};
+
+export function isOrderReadModelValid(row: unknown): row is OrderReadModel {
+  if (!row || typeof row !== 'object') return false;
+  const record = row as Record<string, unknown>;
+  const createdAt = typeof record.created_at === 'string' ? new Date(record.created_at) : null;
   return Boolean(
-    row
-    && typeof row.id === 'string'
-    && orderUuidPattern.test(row.id)
-    && typeof row.expires_at === 'string'
+    typeof record.id === 'string'
+    && orderUuidPattern.test(record.id)
+    && typeof record.expires_at === 'string'
     && createdAt
     && !Number.isNaN(createdAt.getTime())
-    && Array.isArray(row.order_items)
-    && row.order_items.length > 0
+    && Array.isArray(record.order_items)
+    && record.order_items.length > 0
   );
 }
 
@@ -162,6 +171,7 @@ function serializeCreatedOrder(order: Record<string, any>) {
     shippingAmount: order.shippingAmount,
     total: order.total,
     paymentProvider: order.paymentProvider,
+    shippingQuoteId: order.shippingQuoteId ?? null,
     shippingAddress: order.shippingAddress,
     notes: order.notes,
     reservationExpiresAt: order.reservationExpiresAt,
@@ -272,11 +282,15 @@ export default async function handler(req: any, res: any) {
     const rows = data ?? [];
     const hasMore = rows.length > limit;
     const page = rows.slice(0, limit);
+    const cursorRow = page[page.length - 1];
+    const nextCursor = hasMore && cursorRow && isOrderReadModelValid(cursorRow)
+      ? encodeCursor(cursorRow)
+      : null;
     return jsonResponse(res, {
       ok: true,
       data: {
         orders: page.map(serializeOrder),
-        nextCursor: hasMore && page.length ? encodeCursor(page[page.length - 1]) : null,
+        nextCursor,
       },
     });
   }
@@ -307,10 +321,15 @@ export default async function handler(req: any, res: any) {
     return jsonError(res, 400, issueMessage);
   }
 
+  const normalizedRequest = {
+    ...validated.data,
+    items: [...validated.data.items].sort((left, right) => left.productId.localeCompare(right.productId)),
+  };
+
   const { data, error } = await supabaseAdmin.rpc('create_pending_order', {
     p_user_id: user.id,
     p_idempotency_key: idempotencyKey,
-    p_request: validated.data,
+    p_request: normalizedRequest,
   });
 
   if (error) {

@@ -5,11 +5,12 @@ vi.mock('../supabase-auth', () => ({
 }));
 
 import { getAccessToken } from '../supabase-auth';
-import { createPendingOrder, OrderServiceError } from '../order-service';
+import { createPendingOrder, createShippingQuote, OrderServiceError } from '../order-service';
 import { getMyOrder, listMyOrders } from '../order-service';
 import { createWompiPaymentSession } from '../order-service';
 
 const validRequest = {
+  shippingQuoteId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
   address: {
     recipientName: 'Ana Gómez',
     addressLine1: 'Cra 15 #84-25',
@@ -43,6 +44,34 @@ beforeEach(() => {
 });
 
 describe('order service', () => {
+  it('uses the quote amount and delivery data returned by the backend', async () => {
+    vi.mocked(getAccessToken).mockResolvedValue('session-token');
+    const quoteRequest = { address: validRequest.address, items: validRequest.items };
+    const backendQuote = {
+      id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+      provider: 'coordinadora',
+      currency: 'COP',
+      amountCop: 9010,
+      subtotalCop: 1000,
+      coverage: { covered: true, originCode: '11001000', destinationCode: '11001000' },
+      estimatedDelivery: { minBusinessDays: 2, maxBusinessDays: 4 },
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    };
+    const fetchMock = vi.fn().mockResolvedValue(new Response(
+      JSON.stringify({ ok: true, data: { quote: backendQuote } }),
+      { status: 201, headers: { 'Content-Type': 'application/json' } },
+    ));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(createShippingQuote(quoteRequest)).resolves.toMatchObject({
+      id: backendQuote.id,
+      amountCop: 9010,
+      estimatedDelivery: { minBusinessDays: 2, maxBusinessDays: 4 },
+    });
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/shipping/quotes');
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual(quoteRequest);
+  });
+
   it('does not treat the blocked API response as a persisted order', async () => {
     vi.mocked(getAccessToken).mockResolvedValue('session-token');
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(
@@ -89,6 +118,9 @@ describe('order service', () => {
       id: persistedOrder.id,
       status: 'pending_payment',
       paymentStatus: 'pending',
+    });
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toMatchObject({
+      shippingQuoteId: validRequest.shippingQuoteId,
     });
     await expect(createPendingOrder(validRequest)).resolves.toMatchObject({ id: persistedOrder.id });
     const sentKeys = fetchMock.mock.calls.map((call) => new Headers(call[1]?.headers).get('Idempotency-Key'));

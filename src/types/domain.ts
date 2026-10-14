@@ -140,6 +140,7 @@ export interface Cart {
 }
 
 export interface CheckoutRequest {
+  shippingQuoteId: string;
   address: OrderAddressSnapshot;
   items: OrderRequestItem[];
   note?: string;
@@ -191,6 +192,7 @@ export interface Order {
   shippingAmount: number;
   total: number;
   paymentProvider?: string | null;
+  shippingQuoteId?: string | null;
   paymentReference?: string | null;
   shippingMethod?: string | null;
   trackingNumber?: string | null;

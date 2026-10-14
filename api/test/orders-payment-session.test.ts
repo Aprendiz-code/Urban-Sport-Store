@@ -477,7 +477,10 @@ describe('POST /api/orders/:id/payment-session', () => {
       error: {
         code: 'INVALID_AMOUNT',
         message: 'BODY_SENTINEL',
-        messages: { amount_in_cents: ['VALUE_SENTINEL'] },
+        messages: {
+          amount_in_cents: ['VALUE_SENTINEL'],
+          'unsafe[0]': ['BRACKET_SENTINEL'],
+        },
       },
     };
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
@@ -508,6 +511,7 @@ describe('POST /api/orders/:id/payment-session', () => {
     }]);
     expect(JSON.stringify(diagnosticCall)).not.toContain('BODY_SENTINEL');
     expect(JSON.stringify(diagnosticCall)).not.toContain('VALUE_SENTINEL');
+    expect(JSON.stringify(diagnosticCall)).not.toContain('BRACKET_SENTINEL');
   });
 
   it('omits a provider error code that does not match the strict format', async () => {

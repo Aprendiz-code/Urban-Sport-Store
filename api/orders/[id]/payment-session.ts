@@ -160,7 +160,7 @@ function getSafeWompiProviderErrorDetails(payload: unknown) {
     if (
       typeof value !== 'string'
       || value.length > 96
-      || /[\s:"'{}\[\]]/.test(value)
+      || /[\s:"'{}[\]]/.test(value)
       || /https?:\/\/|@|\d{8,}/i.test(value)
       || (value.length >= 24 && /^[A-Za-z0-9_-]+$/.test(value))
     ) return undefined;

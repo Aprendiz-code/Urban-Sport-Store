@@ -1,4 +1,7 @@
 import http from 'node:http';
+import { mergeRouteIdQuery, type RequestQuery } from '../lib/api-helpers/route-query.ts';
+
+type RoutedRequest = http.IncomingMessage & { query?: RequestQuery };
 
 const CORS_ORIGINS = new Set([
   'http://localhost:3000',
@@ -28,7 +31,7 @@ function jsonError(res: http.ServerResponse, status: number, message: string) {
   res.end(JSON.stringify({ ok: false, error: { code: status, message } }));
 }
 
-async function resolveRoute(req: http.IncomingMessage, res: http.ServerResponse) {
+async function resolveRoute(req: RoutedRequest, res: http.ServerResponse) {
   const url = new URL(req.url ?? '/', 'http://127.0.0.1:3000');
   const pathname = url.pathname.replace(/\/+$/, '') || '/';
 
@@ -56,7 +59,7 @@ async function resolveRoute(req: http.IncomingMessage, res: http.ServerResponse)
   const orderCancelMatch = pathname.match(/^\/api\/orders\/([^/]+)\/cancel$/);
   if (orderCancelMatch) {
     const module = await import('./orders/[id]/cancel.ts');
-    req.query = { ...(req.query ?? {}), id: orderCancelMatch[1] };
+    req.query = mergeRouteIdQuery(req.query, orderCancelMatch[1]);
     return module.default(req, res);
   }
 
@@ -67,14 +70,14 @@ async function resolveRoute(req: http.IncomingMessage, res: http.ServerResponse)
     }
 
     const module = await import('./orders/[id]/payment-session.ts');
-    req.query = { ...(req.query ?? {}), id: paymentSessionMatch[1] };
+    req.query = mergeRouteIdQuery(req.query, paymentSessionMatch[1]);
     return module.default(req, res);
   }
 
   const orderMatch = pathname.match(/^\/api\/orders\/([^/]+)$/);
   if (orderMatch) {
     const module = await import('./orders/[id].ts');
-    req.query = { ...(req.query ?? {}), id: orderMatch[1] };
+    req.query = mergeRouteIdQuery(req.query, orderMatch[1]);
     return module.default(req, res);
   }
 

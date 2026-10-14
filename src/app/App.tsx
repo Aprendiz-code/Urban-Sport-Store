@@ -35,13 +35,20 @@ import { getMyProfile, getProfileAccess, ProfileAccessVerificationError, updateM
 import { getAdminPanelMenuLink } from "./admin-panel-menu";
 import { resolveApiBaseUrl } from "../lib/api-config";
 
-import adminApi, { AdminApiError, createSupabaseProductApi, updateSupabaseProductApi, deleteSupabaseProductApi, updateHomeContentApi, formatAdminApiError, isAdminAuthenticationError, type ProductArchiveResult } from "../lib/admin-api";
+import adminApi, { AdminApiError, createSupabaseProductApi, updateSupabaseProductApi, deleteSupabaseProductApi, updateHomeContentApi, formatAdminApiError, isAdminAuthenticationError } from "../lib/admin-api";
 import { uploadProductImage, getPublicUrl, STORAGE_BUCKET } from "../lib/supabase-store";
 import { recordAction } from "../lib/audit";
 import { productSchema } from '../lib/schemas';
 import { normalizeGuestCartEntries, resolveGuestCartEntries } from '../lib/cart-service';
 import { getMyOrder, listMyOrders } from '../lib/order-service';
-import { createPendingOrder, createWompiPaymentSession } from '../lib/order-service';
+import { createPendingOrder, createShippingQuote, createWompiPaymentSession, type ShippingQuote } from '../lib/order-service';
+import {
+  createLatestQuoteRequestTracker,
+  getCheckoutQuoteSummary,
+  getShippingQuoteRequestKey,
+  runSingleFlight,
+  submitCheckoutPayment,
+} from '../lib/checkout-quote-flow';
 import { MAX_PRODUCT_GALLERY_IMAGES, MAX_PRODUCT_TOTAL_IMAGES, normalizeProductSizes, normalizeProductSpecifications, submitAdminProductForm, validateProductForm } from '../lib/admin-product-form';
 import { buildAdminProductPayload } from '../lib/admin-product-payload';
 import { filterAdminProducts, type AdminProductStatusFilter } from '../lib/admin-product-list';
@@ -1906,9 +1913,20 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
   const [step, setStep] = useState(0);
   const [showNewAddress, setShowNewAddress] = useState(false);
   const [recipientName, setRecipientName] = useState('');
+  const [recipientAddressId, setRecipientAddressId] = useState(selectedAddressId);
   const [paymentError, setPaymentError] = useState('');
+  const [shippingQuoteState, setShippingQuoteState] = useState<{
+    requestKey: string | null;
+    status: 'idle' | 'loading' | 'ready' | 'error';
+    quote: ShippingQuote | null;
+    error: string;
+  }>({ requestKey: null, status: 'idle', quote: null, error: '' });
+  const [shippingQuoteRefresh, setShippingQuoteRefresh] = useState(0);
+  const [quoteClock, setQuoteClock] = useState(Date.now());
   const [paymentStarting, setPaymentStarting] = useState(false);
   const [orderAwaitingPayment, setOrderAwaitingPayment] = useState<Order | null>(null);
+  const quoteRequestTracker = useRef(createLatestQuoteRequestTracker());
+  const paymentRequestLock = useRef<Promise<void> | null>(null);
   const [addressForm, setAddressForm] = useState<Omit<Address, 'id'>>({
     label: "",
     line1: "",
@@ -1923,13 +1941,101 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
   const subtotal = cart.reduce((s, i) => s + i.product.price * i.qty, 0);
   const STEPS = ["Dirección", "Envío", "Pago"];
   const selectedAddress = addresses.find((address) => address.id === selectedAddressId);
-
+  const cartFingerprint = cart.map((item) => `${item.product.id}:${item.qty}`).sort().join('|');
+  const addressFingerprint = selectedAddress ? JSON.stringify({
+    line1: selectedAddress.line1,
+    line2: selectedAddress.line2 ?? '',
+    city: selectedAddress.city,
+    state: selectedAddress.state,
+    postalCode: selectedAddress.postalCode,
+    country: selectedAddress.country,
+    phone: selectedAddress.phone,
+    recipientName,
+  }) : '';
   useEffect(() => {
     setRecipientName(selectedAddress?.recipientName ?? '');
-  }, [selectedAddressId, addresses]);
+    setRecipientAddressId(selectedAddressId);
+  }, [selectedAddressId]);
+  const quoteRequestInput = selectedAddress
+    && recipientAddressId === selectedAddressId
+    && recipientName.trim()
+    && cart.length > 0 ? {
+    address: {
+      recipientName: recipientName.trim(),
+      addressLine1: selectedAddress.line1,
+      ...(selectedAddress.line2 ? { addressLine2: selectedAddress.line2 } : {}),
+      city: selectedAddress.city,
+      state: selectedAddress.state,
+      postalCode: selectedAddress.postalCode,
+      country: selectedAddress.country.trim().toUpperCase() === 'COLOMBIA'
+        ? 'CO'
+        : selectedAddress.country.trim().toUpperCase(),
+      phone: selectedAddress.phone,
+    },
+    items: cart.map((item) => ({ productId: item.product.id, quantity: item.qty })),
+  } : null;
+  const currentQuoteKey = quoteRequestInput
+    ? getShippingQuoteRequestKey(quoteRequestInput, selectedAddressId)
+    : null;
+  const quoteRequestInputRef = useRef(quoteRequestInput);
+  quoteRequestInputRef.current = quoteRequestInput;
+  const currentQuoteKeyRef = useRef(currentQuoteKey);
+  currentQuoteKeyRef.current = currentQuoteKey;
+  const quoteStateMatchesCurrent = Boolean(
+    currentQuoteKey && shippingQuoteState.requestKey === currentQuoteKey,
+  );
+  const shippingQuote = quoteStateMatchesCurrent ? shippingQuoteState.quote : null;
+  const shippingQuoteStatus = quoteStateMatchesCurrent
+    ? shippingQuoteState.status
+    : currentQuoteKey ? 'loading' : 'idle';
+  const shippingQuoteError = quoteStateMatchesCurrent ? shippingQuoteState.error : '';
+  const quoteSummary = getCheckoutQuoteSummary(
+    shippingQuote,
+    quoteStateMatchesCurrent ? shippingQuoteState.requestKey : null,
+    currentQuoteKey,
+    subtotal,
+    quoteClock,
+  );
+  const quoteCanProceed = quoteSummary.canContinue;
+  const checkoutSubtotal = quoteSummary.subtotalCop;
+  useEffect(() => {
+    const requestKey = currentQuoteKey;
+    const requestInput = quoteRequestInputRef.current;
+    const requestTracker = quoteRequestTracker.current;
+    const requestId = requestTracker.begin();
+    if (!requestKey || !requestInput) {
+      setShippingQuoteState({ requestKey: null, status: 'idle', quote: null, error: '' });
+      return () => requestTracker.invalidate(requestId);
+    }
 
-  const startPayment = async () => {
-    if (paymentStarting) return;
+    setShippingQuoteState({ requestKey, status: 'loading', quote: null, error: '' });
+    void createShippingQuote(requestInput).then((quote) => {
+      if (!requestTracker.isCurrent(requestId) || currentQuoteKeyRef.current !== requestKey) return;
+      setShippingQuoteState({ requestKey, status: 'ready', quote, error: '' });
+      setQuoteClock(Date.now());
+    }).catch((error) => {
+      if (!requestTracker.isCurrent(requestId) || currentQuoteKeyRef.current !== requestKey) return;
+      setShippingQuoteState({
+        requestKey,
+        status: 'error',
+        quote: null,
+        error: error instanceof Error ? error.message : 'No fue posible cotizar el envío.',
+      });
+    });
+    return () => requestTracker.invalidate(requestId);
+  }, [currentQuoteKey, selectedAddressId, addressFingerprint, cartFingerprint, recipientName, shippingQuoteRefresh]);
+
+  useEffect(() => {
+    if (!shippingQuote || !quoteCanProceed) return;
+    const expiresAt = Date.parse(shippingQuote.expiresAt);
+    const timer = window.setTimeout(
+      () => setQuoteClock(Date.now()),
+      Math.max(0, expiresAt - Date.now() + 1),
+    );
+    return () => window.clearTimeout(timer);
+  }, [shippingQuote, quoteCanProceed]);
+
+  const startPayment = () => runSingleFlight(paymentRequestLock, async () => {
     if (!selectedAddress || !recipientName.trim()) {
       setPaymentError('Selecciona una dirección e indica el nombre de quien recibe.');
       return;
@@ -1945,8 +2051,11 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
     setPaymentStarting(true);
     setPaymentError('');
     try {
-      const order = orderAwaitingPayment ?? await createPendingOrder({
-        address: {
+      const result = await submitCheckoutPayment({
+        quote: shippingQuote,
+        quoteKey: quoteStateMatchesCurrent ? shippingQuoteState.requestKey : null,
+        currentQuoteKey,
+        address: quoteRequestInput?.address ?? {
           recipientName: recipientName.trim(),
           addressLine1: selectedAddress.line1,
           ...(selectedAddress.line2 ? { addressLine2: selectedAddress.line2 } : {}),
@@ -1957,21 +2066,23 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
           phone: selectedAddress.phone,
         },
         items: cart.map((item) => ({ productId: item.product.id, quantity: item.qty })),
+        existingOrder: orderAwaitingPayment,
+        now: Date.now(),
+      }, {
+        createOrder: createPendingOrder,
+        createPaymentSession: createWompiPaymentSession,
       });
-      setOrderAwaitingPayment(order);
-      const session = await createWompiPaymentSession(order.id);
+      setOrderAwaitingPayment(result.order);
       onPaymentStarted();
-      window.location.assign(session.checkoutUrl);
+      window.location.assign(result.session.checkoutUrl);
     } catch (error) {
       setPaymentError(error instanceof Error ? error.message : 'No fue posible iniciar el pago.');
     } finally {
       setPaymentStarting(false);
     }
-  };
-
+  });
   return (
     <main className="pt-8 sm:pt-10 md:pt-12 pb-10 min-h-screen max-w-5xl mx-auto px-4 sm:px-6">
-      {/* Header */}
       <div className="flex items-center gap-3 mb-8">
         <button onClick={() => onNavigate("home")} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors text-sm">
           <ChevronLeft size={15} /> Volver
@@ -2021,9 +2132,22 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
                   />
                 </div>
               )}
+              {shippingQuoteStatus === 'loading' && <p role="status" className="rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-600">Cotizando envío Coordinadora…</p>}
+              {shippingQuoteStatus === 'error' && <p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{shippingQuoteError || 'No hay una tarifa válida para esta dirección y estos artículos.'}</p>}
+              {quoteSummary.isExpired && (
+                <p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                  La cotización venció. Solicita una nueva para continuar.
+                  <button type="button" onClick={() => setShippingQuoteRefresh((value) => value + 1)} className="ml-2 font-semibold underline">Volver a cotizar</button>
+                </p>
+              )}
+              {quoteCanProceed && shippingQuote && <p role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">Envío Coordinadora cotizado: {fmt(shippingQuote.amountCop)} COP · entrega estimada en {shippingQuote.estimatedDelivery.minBusinessDays} día(s) hábil(es).</p>}
               {addresses.map((a) => (
                 <label key={a.id} className={"flex gap-2 sm:gap-3 p-3 sm:p-4 rounded-lg sm:rounded-2xl border-2 cursor-pointer transition-all " + (selectedAddressId === a.id ? "border-[#bfdbfe] bg-blue-50/50" : "border-slate-200 hover:border-slate-300")}>
-                  <input type="radio" name="addr" checked={selectedAddressId === a.id} onChange={() => onSelectAddress(a.id)} className="mt-1 accent-[#1e3a8a] shrink-0" />
+                  <input type="radio" name="addr" checked={selectedAddressId === a.id} onChange={() => {
+                    setRecipientName(a.recipientName ?? '');
+                    setRecipientAddressId(a.id);
+                    onSelectAddress(a.id);
+                  }} className="mt-1 accent-[#1e3a8a] shrink-0" />
                   <div>
                     <p className="text-xs sm:text-sm font-bold text-slate-800 flex items-center gap-2 flex-wrap">
                       <MapPin size={13} className="text-[#1e3a8a] shrink-0" /> {a.label}
@@ -2079,10 +2203,25 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
 
           {step === 1 && (
             <div className="space-y-3 sm:space-y-4">
-              <h3 className="text-base sm:text-lg font-extrabold text-slate-900 mb-3 sm:mb-4">Envío por confirmar</h3>
-              <p role="status" className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
-                No hay transportadora, cobertura, costo ni plazo configurados. No se puede cotizar ni prometer una entrega.
-              </p>
+              <h3 className="text-base sm:text-lg font-extrabold text-slate-900 mb-3 sm:mb-4">Envío Coordinadora</h3>
+              {shippingQuoteStatus === 'loading' && <p role="status" className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-700">Calculando una cotización vigente…</p>}
+              {shippingQuoteStatus === 'error' && <p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">{shippingQuoteError || 'No hay una cotización válida para esta dirección y estos artículos.'}</p>}
+              {quoteCanProceed && shippingQuote && (
+                <div className="space-y-2 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
+                  <p className="font-bold">Cobertura confirmada · Coordinadora · ruta {shippingQuote.coverage.originCode} → {shippingQuote.coverage.destinationCode}</p>
+                  <p>Envío: <strong>{fmt(shippingQuote.amountCop)} COP</strong></p>
+                  <p>Entrega estimada: <strong>{shippingQuote.estimatedDelivery.minBusinessDays === shippingQuote.estimatedDelivery.maxBusinessDays
+                    ? `${shippingQuote.estimatedDelivery.minBusinessDays} día${shippingQuote.estimatedDelivery.minBusinessDays === 1 ? '' : 's'} hábil${shippingQuote.estimatedDelivery.minBusinessDays === 1 ? '' : 'es'}`
+                    : `${shippingQuote.estimatedDelivery.minBusinessDays}–${shippingQuote.estimatedDelivery.maxBusinessDays} días hábiles`}</strong></p>
+                  <p className="text-xs">Vigente hasta {new Date(shippingQuote.expiresAt).toLocaleTimeString('es-CO')}.</p>
+                </div>
+              )}
+              {quoteSummary.isExpired && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                  Cotización vencida. Solicita otra para continuar.
+                  <button type="button" onClick={() => setShippingQuoteRefresh((value) => value + 1)} className="ml-2 font-semibold underline">Volver a cotizar</button>
+                </div>
+              )}
             </div>
           )}
 
@@ -2098,8 +2237,8 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
           )}
 
           <div className="flex flex-col sm:flex-row gap-3 mt-6 sm:mt-8">
-            {step > 0 && <Btn variant="secondary" onClick={() => setStep(step - 1)} className="flex-1 sm:flex-none justify-center"><ChevronLeft size={14} /> Atrás</Btn>}
-            <Btn variant="primary" className="flex-1" size="lg" disabled={paymentStarting || (step === 0 && (!selectedAddressId || !selectedAddress || !recipientName.trim()))} onClick={() => step === 2 ? void startPayment() : setStep(step + 1)}>
+            {step > 0 && !orderAwaitingPayment && <Btn variant="secondary" onClick={() => setStep(step - 1)} className="flex-1 sm:flex-none justify-center"><ChevronLeft size={14} /> Atrás</Btn>}
+            <Btn variant="primary" className="flex-1" size="lg" disabled={paymentStarting || !quoteCanProceed || (step === 0 && (!selectedAddressId || !selectedAddress || !recipientName.trim()))} onClick={() => step === 2 ? void startPayment() : setStep(step + 1)}>
               {step === 2 ? (paymentStarting ? "Conectando con Wompi…" : <>Pagar con Wompi <ArrowRight size={15} /></>) : <>Continuar <ChevronRight size={15} /></>}
             </Btn>
           </div>
@@ -2125,11 +2264,12 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
               ))}
             </div>
             <div className="space-y-1 sm:space-y-1.5 text-xs sm:text-sm border-t border-slate-100 pt-3">
-              <div className="flex justify-between text-slate-500"><span>Subtotal referencial</span><span className="price text-slate-800">{fmt(subtotal)}</span></div>
-              <div className="flex justify-between text-slate-500"><span>Envío</span><span>Por confirmar</span></div>
+              <div className="flex justify-between text-slate-500"><span>Subtotal</span><span className="price text-slate-800">{fmt(checkoutSubtotal)} COP</span></div>
+              <div className="flex justify-between text-slate-500"><span>Envío Coordinadora</span><span className="price text-slate-800">{quoteSummary.shippingCop !== null ? `${fmt(quoteSummary.shippingCop)} COP` : shippingQuoteStatus === 'loading' ? 'Cotizando…' : 'No disponible'}</span></div>
               <div className="flex justify-between font-extrabold text-slate-900 text-sm sm:text-base border-t border-slate-100 pt-1.5">
-                <span>Total</span><span>Por confirmar</span>
+                <span>Total</span><span>{quoteSummary.totalCop !== null ? `${fmt(quoteSummary.totalCop)} COP` : 'Cotización pendiente'}</span>
               </div>
+              {quoteCanProceed && shippingQuote && <p className="text-[11px] text-slate-500">Entrega estimada: {shippingQuote.estimatedDelivery.minBusinessDays} día(s) hábil(es).</p>}
             </div>
           </div>
         </div>
@@ -2960,7 +3100,7 @@ function AccountPage({ onNavigate, onLogout, authUser, addresses, onCreateAddres
 
 // ─── ADMIN DASHBOARD ──────────────────────────────────────────────────────────
 
-function AdminDashboard({ onNavigate, products, productsStatus, productsError, onRetryProducts, categories, createProduct, updateProduct, setProductActive, archiveProduct, adjustStock, productRefresh, initialSection, adminRole, homeContent, setHomeContent, homePreviewProducts, setHomePreviewProducts, homeSaleProducts, setHomeSaleProducts, homeNewArrivals, setHomeNewArrivals, saveHomeContent, homeContentSaving, backendAdminAvailable }: {
+function AdminDashboard({ onNavigate, products, productsStatus, productsError, onRetryProducts, categories, createProduct, updateProduct, setProductActive, adjustStock, productRefresh, initialSection, adminRole, homeContent, setHomeContent, homePreviewProducts, setHomePreviewProducts, homeSaleProducts, setHomeSaleProducts, homeNewArrivals, setHomeNewArrivals, saveHomeContent, homeContentSaving, backendAdminAvailable }: {
   onNavigate: (v: View) => void;
   products: Product[];
   productsStatus: ProductsStatus;
@@ -2970,7 +3110,6 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
   createProduct: (product: Omit<Product, "id">) => Promise<void>;
   updateProduct: (productId: string, updates: Partial<Product>) => Promise<void>;
   setProductActive: (productId: string, isActive: boolean) => Promise<void>;
-  archiveProduct: (productId: string) => Promise<ProductArchiveResult>;
   adjustStock: (productId: string, movementType: 'in' | 'out' | 'correction', quantity: number, reason: string) => Promise<void>;
   productRefresh: number;
   initialSection?: string;
@@ -3364,25 +3503,6 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     }
   };
 
-  const handleProductArchive = async (product: Product) => {
-    const confirmation = `¿Archivar "${product.name}"?\n\nEl producto dejará de aparecer en la tienda y permanecerá en administración como inactivo. Sus imágenes y datos históricos se conservarán.`;
-    if (!window.confirm(confirmation)) return;
-
-    setDeletingProductId(product.id);
-    try {
-      const result = await archiveProduct(product.id);
-      if (result.audit_status === "pending") {
-        toast.error("Producto archivado; auditoría pendiente.");
-      } else {
-        toast.success("Producto archivado correctamente.");
-      }
-    } catch (error) {
-      toast.error(formatAdminApiError(error, "No se pudo archivar el producto."));
-    } finally {
-      setDeletingProductId(null);
-    }
-  };
-
   const closeRowActions = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.currentTarget.closest("details")?.removeAttribute("open");
   };
@@ -3399,8 +3519,8 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
         <button type="button" disabled={availabilityUpdatingId !== null || deletingProductId !== null} aria-busy={availabilityUpdatingId === product.id} onClick={(event) => { closeRowActions(event); void handleProductAvailabilityChange(product); }}>
           <Check size={15} aria-hidden="true" /> {availabilityUpdatingId === product.id ? "Actualizando…" : product.isActive === false ? "Activar" : "Desactivar"}
         </button>
-        <button type="button" className="is-danger" disabled={availabilityUpdatingId !== null || deletingProductId !== null || product.isActive === false} aria-busy={deletingProductId === product.id} onClick={(event) => { closeRowActions(event); void handleProductArchive(product); }}>
-          <Archive size={15} aria-hidden="true" /> {deletingProductId === product.id ? "Archivando…" : "Archivar"}
+        <button type="button" className="is-danger" disabled title="Acción de archivo no disponible en Preview">
+          <Archive size={15} aria-hidden="true" /> Archivar no disponible en Preview
         </button>
       </div>
     </details>
@@ -5441,16 +5561,6 @@ export default function App() {
     try { recordAction(isActive ? 'activate_product' : 'deactivate_product', { id: productId }); } catch (error) { }
   };
 
-  const archiveProduct = async (productId: string): Promise<ProductArchiveResult> => {
-    const result = await adminApi.archiveProductApi(productId);
-    if (!result.archived || result.is_active !== false) {
-      throw new Error('La API no confirmó el archivado del producto.');
-    }
-    setAdminProducts((current) => current.map((product) => product.id === productId ? { ...product, isActive: false } : product));
-    try { recordAction('archive_product', { id: productId }); } catch (error) { }
-    return result;
-  };
-
   const adjustStock = async (productId: string, movementType: 'in' | 'out' | 'correction', quantity: number, reason: string) => {
     const normalizedReason = reason.trim();
     if (!normalizedReason) {
@@ -5722,7 +5832,6 @@ export default function App() {
           createProduct={createProduct}
           updateProduct={updateProduct}
           setProductActive={setProductActive}
-          archiveProduct={archiveProduct}
           adjustStock={adjustStock}
           productRefresh={productRefresh}
           initialSection={initialAdminSection}

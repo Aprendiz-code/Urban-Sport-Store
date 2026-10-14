@@ -67,7 +67,8 @@ export const shippingQuoteRequestSchema = z.object({
 }).strict();
 
 export const createOrderRequestSchema = shippingQuoteRequestSchema.extend({
-  shippingQuoteId: z.string().uuid('La cotización de envío no es válida.'),
+  shippingQuoteId: z.string({ required_error: 'Confirma una cotización de envío vigente antes de pagar.' })
+    .uuid('La cotización de envío no es válida.'),
   note: z.string().trim().max(500).optional(),
 }).strict();
 

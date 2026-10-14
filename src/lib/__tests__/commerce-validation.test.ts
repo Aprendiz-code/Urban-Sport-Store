@@ -22,9 +22,12 @@ describe('commerce validation', () => {
     expect(address.country).toBe('CO');
 
     const order = createOrderRequestSchema.parse({
+      shippingQuoteId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
       address: {
         recipientName: 'Ana Gómez',
         city: 'Bogotá',
+        state: 'Cundinamarca',
+        postalCode: '110221',
         addressLine1: 'Cra 15 #84-25',
         phone: '+57 311 234 5678',
         country: 'CO',
@@ -42,9 +45,12 @@ describe('commerce validation', () => {
     expect(() => cartItemSchema.parse({ productId: 'x', quantity: 0 })).toThrow();
 
     expect(() => createOrderRequestSchema.parse({
+      shippingQuoteId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
       address: {
         recipientName: 'Ana Gómez',
         city: 'Bogotá',
+        state: 'Cundinamarca',
+        postalCode: '110221',
         addressLine1: 'Cra 15 #84-25',
         phone: '+57 311 234 5678',
         country: 'CO',
@@ -52,6 +58,26 @@ describe('commerce validation', () => {
       items: [{ productId: '11111111-1111-4111-8111-111111111111', quantity: 1 }],
       total: 30000,
     })).toThrow();
+  });
+
+  it('requires a shipping quote with a clear Spanish validation message', () => {
+    const result = createOrderRequestSchema.safeParse({
+      address: {
+        recipientName: 'Ana Gómez',
+        addressLine1: 'Cra 15 #84-25',
+        city: 'Bogotá',
+        state: 'Cundinamarca',
+        postalCode: '110221',
+        phone: '+57 311 234 5678',
+        country: 'CO',
+      },
+      items: [{ productId: '11111111-1111-4111-8111-111111111111', quantity: 1 }],
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toBe('Confirma una cotización de envío vigente antes de pagar.');
+    }
   });
 
   it('documents the valid order status transitions', () => {

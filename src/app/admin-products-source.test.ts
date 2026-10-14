@@ -70,24 +70,13 @@ describe('admin products table data source', () => {
     expect(appSource).toContain('break-words text-xs text-slate-600">{p.brand} · {p.category');
   });
 
-  it('offers permanent deletion with confirmation, loading state, and a safe FK fallback', () => {
-    expect(appSource).toContain('handleSafeProductDelete');
-    expect(appSource).toContain('hardDeleteProduct(product.id)');
-    expect(appSource).toContain('¿Eliminar permanentemente "${product.name}"?');
-    expect(appSource).toContain('se intentará limpiar sus archivos de Storage');
-    expect(appSource).toContain('los carritos asociados pueden bloquear el borrado');
-    expect(appSource).toContain('No se puede eliminar permanentemente porque tiene pedidos u registros asociados.');
-    expect(appSource).toContain('Eliminar permanentemente');
-    expect(appSource).not.toContain('{p.isActive !== false && <button type="button" onClick={() => void handleSafeProductDelete(p)}');
-    expect(appSource).toContain('Eliminando…');
-    expect(appSource).toContain('Producto eliminado permanentemente');
-    expect(appSource).toContain('adminApi.deleteProductApi(productId)');
-    const deleteAction = appSource.match(/const hardDeleteProduct = async[\s\S]*?\n  };/)?.[0] ?? '';
-    expect(deleteAction.indexOf('await adminApi.deleteProductApi(productId)')).toBeGreaterThanOrEqual(0);
-    expect(deleteAction.indexOf('await adminApi.deleteProductApi(productId)')).toBeLessThan(deleteAction.indexOf('setAdminProducts((current) => current.filter((product) => product.id !== productId))'));
-    expect(appSource).toContain('El producto sí se eliminó de la base de datos, pero falló la limpieza de Storage');
-    expect(appSource).toContain('se conservaron ${sharedCount} archivo(s) de Storage compartidos');
-    expect(appSource).not.toContain('toast.success("Producto eliminado permanentemente");\n    } catch (error)');
+  it('keeps archive explicitly disabled while the Preview admin endpoint is excluded', () => {
+    const archiveAction = appSource.match(/<button type="button" className="is-danger" disabled title="Acción de archivo no disponible en Preview">([\s\S]*?)<\/button>/)?.[0] ?? '';
+
+    expect(archiveAction).toContain('Archivar no disponible en Preview');
+    expect(appSource).not.toContain('ProductArchiveResult');
+    expect(appSource).not.toContain('archiveProductApi');
+    expect(appSource).not.toContain('handleProductArchive');
   });
 
   it('keeps the admin avatar distinct from the regular user icon', () => {

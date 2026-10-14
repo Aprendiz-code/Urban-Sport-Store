@@ -22,6 +22,7 @@ import cancelHandler from '../orders/[id]/cancel.js';
 const idempotencyKey = '123e4567-e89b-42d3-a456-426614174000';
 const orderId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const productId = '11111111-1111-4111-8111-111111111111';
+const shippingQuoteId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
 const address = {
   recipientName: 'Ana Gómez',
   addressLine1: 'Cra 15 #84-25',
@@ -110,7 +111,7 @@ describe('secure orders endpoints', () => {
       from: vi.fn(() => ordersQuery),
     });
     (supabaseAdmin as any).rpc = vi.fn().mockResolvedValue({
-      data: { order: { id: orderId, status: 'pending_payment', items: [] } },
+      data: { order: { id: orderId, status: 'pending_payment', shippingQuoteId, items: [] } },
       error: null,
     });
     (supabaseAdmin!.auth.getUser as ReturnType<typeof vi.fn>).mockResolvedValue({
@@ -137,6 +138,7 @@ describe('secure orders endpoints', () => {
       method: 'POST',
       headers: { authorization: 'Bearer test-access-token', 'idempotency-key': idempotencyKey },
       body: {
+        shippingQuoteId,
         address,
         items: [{ productId, quantity: 1 }],
         total: 30000,
@@ -150,13 +152,27 @@ describe('secure orders endpoints', () => {
     expect(supabaseAdmin!.rpc).not.toHaveBeenCalled();
   });
 
+  it('rejects an order without a shipping quote using a clear Spanish message', async () => {
+    const res = makeResponse();
+
+    await handler({
+      method: 'POST',
+      headers: { authorization: 'Bearer test-access-token', 'idempotency-key': idempotencyKey },
+      body: { address, items: [{ productId, quantity: 1 }] },
+    }, res);
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body).toContain('Confirma una cotización de envío vigente antes de pagar.');
+    expect(supabaseAdmin!.rpc).not.toHaveBeenCalled();
+  });
+
   it('requires a UUID v4 idempotency key before accessing the creation RPC', async () => {
     const res = makeResponse();
 
     await handler({
       method: 'POST',
       headers: { authorization: 'Bearer test-access-token', 'idempotency-key': 'not-a-uuid' },
-      body: { address, items: [{ productId, quantity: 1 }] },
+      body: { shippingQuoteId, address, items: [{ productId, quantity: 1 }] },
     }, res);
 
     expect(res.statusCode).toBe(400);
@@ -167,7 +183,7 @@ describe('secure orders endpoints', () => {
     const req = {
       method: 'POST',
       headers: { authorization: 'Bearer test-access-token', 'idempotency-key': idempotencyKey },
-      body: { address, items: [{ productId, quantity: 1 }] },
+      body: { shippingQuoteId, address, items: [{ productId, quantity: 1 }] },
     };
     const res = makeResponse();
 
@@ -180,10 +196,11 @@ describe('secure orders endpoints', () => {
       p_request: req.body,
     });
     expect(JSON.parse(res.body).data.order.status).toBe('pending_payment');
+    expect(JSON.parse(res.body).data.order.shippingQuoteId).toBe(shippingQuoteId);
   });
 
   it('parses a Node request stream when creating an order', async () => {
-    const req = Readable.from([JSON.stringify({ address, items: [{ productId, quantity: 1 }] })]) as any;
+    const req = Readable.from([JSON.stringify({ shippingQuoteId, address, items: [{ productId, quantity: 1 }] })]) as any;
     req.method = 'POST';
     req.headers = { authorization: 'Bearer test-access-token', 'idempotency-key': idempotencyKey };
     const res = makeResponse();
@@ -194,7 +211,7 @@ describe('secure orders endpoints', () => {
     expect(supabaseAdmin!.rpc).toHaveBeenCalledWith('create_pending_order', {
       p_user_id: 'user-1',
       p_idempotency_key: idempotencyKey,
-      p_request: { address, items: [{ productId, quantity: 1 }] },
+      p_request: { shippingQuoteId, address, items: [{ productId, quantity: 1 }] },
     });
   });
 
@@ -208,7 +225,7 @@ describe('secure orders endpoints', () => {
     await handler({
       method: 'POST',
       headers: { authorization: 'Bearer test-access-token', 'idempotency-key': idempotencyKey },
-      body: { address, items: [{ productId, quantity: 1 }] },
+      body: { shippingQuoteId, address, items: [{ productId, quantity: 1 }] },
     }, res);
 
     expect(res.statusCode).toBe(409);
@@ -306,7 +323,12 @@ describe('secure orders endpoints', () => {
     expect(ordersQuery.order).toHaveBeenNthCalledWith(2, 'id', { ascending: false });
     expect(ordersQuery.limit).toHaveBeenCalledWith(2);
     expect(JSON.parse(res.body).data.orders).toHaveLength(1);
-    expect(typeof JSON.parse(res.body).data.nextCursor).toBe('string');
+    const nextCursor = JSON.parse(res.body).data.nextCursor;
+    expect(typeof nextCursor).toBe('string');
+    expect(JSON.parse(Buffer.from(nextCursor, 'base64url').toString('utf8'))).toEqual({
+      createdAt: '2026-10-10T12:00:00.000Z',
+      id: orderId,
+    });
   });
 
   it('rejects an out-of-range page size', async () => {

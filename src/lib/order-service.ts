@@ -1,5 +1,6 @@
 import type { Order, CheckoutRequest } from '../types/domain';
 import { createOrderRequestSchema } from './commerce-validation';
+import { shippingQuoteRequestSchema } from './commerce-validation';
 import { getAccessToken } from './supabase-auth';
 import { resolveApiBaseUrl } from './api-config';
 
@@ -10,6 +11,51 @@ export class OrderServiceError extends Error {
     super(message);
     this.name = 'OrderServiceError';
   }
+}
+
+export interface ShippingQuote {
+  id: string;
+  provider: 'coordinadora';
+  currency: 'COP';
+  amountCop: number;
+  subtotalCop: number;
+  coverage: { covered: true; originCode: string; destinationCode: string };
+  estimatedDelivery: { minBusinessDays: number; maxBusinessDays: number };
+  expiresAt: string;
+}
+
+export async function createShippingQuote(input: {
+  address: CheckoutRequest['address'];
+  items: CheckoutRequest['items'];
+}): Promise<ShippingQuote> {
+  const validated = shippingQuoteRequestSchema.safeParse(input);
+  if (!validated.success) throw new OrderServiceError(400, validated.error.issues[0]?.message ?? 'Solicitud de cotización inválida.');
+  const result = await request<unknown>('/shipping/quotes', {
+    method: 'POST',
+    body: JSON.stringify(validated.data),
+  });
+  const quote = result && typeof result === 'object' && 'quote' in result
+    ? (result as { quote: unknown }).quote
+    : null;
+  if (!quote || typeof quote !== 'object') throw new OrderServiceError(503, 'No se recibió una cotización de envío válida.');
+  const value = quote as Partial<ShippingQuote>;
+  const expiresAt = typeof value.expiresAt === 'string' ? Date.parse(value.expiresAt) : Number.NaN;
+  if (typeof value.id !== 'string'
+    || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value.id)
+    || value.provider !== 'coordinadora'
+    || value.currency !== 'COP'
+    || !Number.isFinite(value.amountCop)
+    || (value.amountCop ?? 0) <= 0
+    || !Number.isFinite(value.subtotalCop)
+    || (value.subtotalCop ?? -1) < 0
+    || value.coverage?.covered !== true
+    || !Number.isInteger(value.estimatedDelivery?.minBusinessDays)
+    || !Number.isInteger(value.estimatedDelivery?.maxBusinessDays)
+    || !Number.isFinite(expiresAt)
+    || expiresAt <= Date.now()) {
+    throw new OrderServiceError(503, 'No se recibió una cotización vigente de Coordinadora.');
+  }
+  return value as ShippingQuote;
 }
 
 function isPersistedOrder(value: unknown): value is Order {
