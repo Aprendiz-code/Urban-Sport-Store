@@ -17,6 +17,47 @@ interface WompiSandboxConfig {
   privateKey: string;
 }
 
+function getSandboxReturnUrl(): string | undefined {
+  if (process.env.WOMPI_ENVIRONMENT !== 'sandbox') return undefined;
+
+  const configuredUrl = process.env.WOMPI_SANDBOX_RETURN_URL;
+  const allowedOrigins = new Set(
+    (process.env.WOMPI_SANDBOX_RETURN_ORIGINS ?? '')
+      .split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean),
+  );
+  if (!configuredUrl || allowedOrigins.size === 0) return undefined;
+
+  try {
+    const url = new URL(configuredUrl);
+    if (
+      url.protocol !== 'https:'
+      || url.username
+      || url.password
+      || url.port
+      || url.search
+      || url.hash
+      || url.pathname !== '/checkout/return'
+    ) return undefined;
+
+    const originAllowed = [...allowedOrigins].some((origin) => {
+      try {
+        const allowlistedUrl = new URL(origin);
+        return allowlistedUrl.protocol === 'https:'
+          && allowlistedUrl.origin === origin
+          && url.origin === allowlistedUrl.origin;
+      } catch {
+        return false;
+      }
+    });
+
+    return originAllowed ? url.toString() : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function getWompiSandboxConfig(): WompiSandboxConfig | null {
   const environment = process.env.WOMPI_ENVIRONMENT;
   const apiBaseUrl = process.env.WOMPI_API_BASE_URL;
@@ -56,19 +97,20 @@ function getWompiSandboxConfig(): WompiSandboxConfig | null {
   }
 }
 
-function checkoutUrlIsAllowed(value: unknown): value is string {
+function checkoutUrlIsAllowed(value: unknown, expectedSessionId?: string): value is string {
   if (typeof value !== 'string' || value.length > 2048) return false;
 
   try {
     const url = new URL(value);
-    return url.protocol === 'https:'
-      && url.hostname === 'checkout.wompi.co'
+    const sessionId = url.pathname.match(/^\/l\/([A-Za-z0-9_-]{1,128})$/)?.[1];
+    return url.origin === 'https://checkout.wompi.co'
       && !url.username
       && !url.password
       && !url.port
       && !url.search
       && !url.hash
-      && url.pathname.startsWith('/l/');
+      && sessionId !== undefined
+      && (!expectedSessionId || sessionId === expectedSessionId);
   } catch {
     return false;
   }
@@ -86,6 +128,105 @@ function getSafeProviderErrorCode(error: unknown): string {
   return typeof code === 'string' && /^[A-Z0-9_]{1,32}$/.test(code)
     ? code
     : 'SUPABASE_ERROR';
+}
+
+type WompiProviderErrorCategory =
+  | 'credentials'
+  | 'validation'
+  | 'rate_limit'
+  | 'provider_unavailable'
+  | 'unknown';
+
+function getSafeWompiProviderErrorCode(payload: unknown): string | undefined {
+  if (!payload || typeof payload !== 'object') return undefined;
+  const error = (payload as { error?: unknown }).error;
+  if (!error || typeof error !== 'object') return undefined;
+  const code = (error as { code?: unknown }).code;
+  return typeof code === 'string' && /^[A-Z0-9_]{1,32}$/.test(code)
+    ? code
+    : undefined;
+}
+
+function getSafeWompiProviderErrorDetails(payload: unknown) {
+  const details = {
+    provider_error_classes: [] as string[],
+    provider_error_codes: [] as string[],
+    provider_error_fields: [] as string[],
+    provider_error_paths: [] as string[],
+    provider_validation_types: [] as string[],
+  };
+
+  const sanitize = (value: unknown, isPath = false): string | undefined => {
+    if (
+      typeof value !== 'string'
+      || value.length > 96
+      || /[\s:"'{}\[\]]/.test(value)
+      || /https?:\/\/|@|\d{8,}/i.test(value)
+      || (value.length >= 24 && /^[A-Za-z0-9_-]+$/.test(value))
+    ) return undefined;
+
+    const normalized = isPath
+      ? value.replace(/\[\d+\]/g, '').replace(/[\\/]/g, '.').replace(/^\.+/, '')
+      : value;
+    return /^[A-Za-z][A-Za-z0-9_.-]{0,95}$/.test(normalized)
+      ? normalized
+      : undefined;
+  };
+
+  const add = (target: string[], value: unknown, isPath = false) => {
+    const safeValue = sanitize(value, isPath);
+    if (safeValue && !target.includes(safeValue) && target.length < 10) {
+      target.push(safeValue);
+    }
+  };
+
+  const visit = (value: unknown, depth = 0) => {
+    if (!value || typeof value !== 'object' || depth > 6) return;
+    const entries = Array.isArray(value)
+      ? value.slice(0, 20).map((item) => ['', item] as const)
+      : Object.entries(value);
+
+    for (const [key, child] of entries) {
+      const normalizedKey = key.toLowerCase();
+
+      if (
+        normalizedKey === 'messages'
+        && child
+        && typeof child === 'object'
+        && !Array.isArray(child)
+      ) {
+        for (const fieldName of Object.keys(child).slice(0, 10)) {
+          add(details.provider_error_fields, fieldName);
+        }
+      }
+
+      if (typeof child === 'string') {
+        if (['code', 'error_code'].includes(normalizedKey)) {
+          add(details.provider_error_codes, child);
+        } else if (['type', 'kind', 'class', 'category', 'error_type'].includes(normalizedKey)) {
+          add(details.provider_error_classes, child);
+        } else if (['field', 'field_name', 'param', 'parameter'].includes(normalizedKey)) {
+          add(details.provider_error_fields, child);
+        } else if (['path', 'pointer', 'json_path'].includes(normalizedKey)) {
+          add(details.provider_error_paths, child, true);
+        } else if (['validation_type', 'constraint', 'rule'].includes(normalizedKey)) {
+          add(details.provider_validation_types, child);
+        }
+      }
+      if (child && typeof child === 'object') visit(child, depth + 1);
+    }
+  };
+
+  visit(payload);
+  return details;
+}
+
+function categorizeWompiProviderError(status: number): WompiProviderErrorCategory {
+  if (status === 401 || status === 403) return 'credentials';
+  if (status === 429) return 'rate_limit';
+  if (status === 408 || status >= 500) return 'provider_unavailable';
+  if (status >= 400 && status < 500) return 'validation';
+  return 'unknown';
 }
 
 function createUserOrderClient(token: string) {
@@ -248,6 +389,19 @@ export default async function handler(req: any, res: any) {
     return respondWithTemporaryPaymentError(res);
   }
 
+  const attemptReference = claim.reference;
+  if (typeof attemptReference !== 'string'
+    || !/^[A-Za-z0-9_-]{1,120}$/.test(attemptReference)) {
+    console.error('Claimed payment session has an invalid attempt reference.');
+    const { error } = await completeClaim(attemptId, rpcClaimToken, 'retryable');
+    if (error) {
+      console.error('Release payment-session claim with invalid reference failed', {
+        code: getSafeProviderErrorCode(error),
+      });
+    }
+    return respondWithTemporaryPaymentError(res);
+  }
+
   const amount = Number(claim.expected_amount);
   const currency = claim.currency;
   if (
@@ -306,6 +460,7 @@ export default async function handler(req: any, res: any) {
   const providerExpiresAt = new Date(
     Math.min(orderExpiry.milliseconds, earliestReservationExpiry),
   ).toISOString();
+  const redirectUrl = getSandboxReturnUrl();
 
   const wompiConfig = getWompiSandboxConfig();
   if (!wompiConfig) {
@@ -331,11 +486,13 @@ export default async function handler(req: any, res: any) {
       body: JSON.stringify({
         name: 'Pago de pedido',
         description: 'Pago de pedido Urban Sport Store',
+        reference: attemptReference,
         single_use: true,
         collect_shipping: false,
         amount_in_cents: Math.round(amount * 100),
         currency,
         expires_at: providerExpiresAt,
+        ...(redirectUrl ? { redirect_url: redirectUrl } : {}),
       }),
       signal: controller.signal,
     });
@@ -353,6 +510,25 @@ export default async function handler(req: any, res: any) {
   }
 
   if (!providerResponse.ok) {
+    let providerErrorCode: string | undefined;
+    let providerErrorDetails:
+      | ReturnType<typeof getSafeWompiProviderErrorDetails>
+      | undefined;
+    try {
+      const providerErrorPayload = await providerResponse.json();
+      providerErrorCode = getSafeWompiProviderErrorCode(providerErrorPayload);
+      providerErrorDetails = getSafeWompiProviderErrorDetails(providerErrorPayload);
+    } catch {
+      providerErrorCode = undefined;
+      providerErrorDetails = undefined;
+    }
+    console.error('Wompi payment-link rejected', {
+      provider_http_status: providerResponse.status,
+      ...(providerErrorCode ? { provider_error_code: providerErrorCode } : {}),
+      provider_error_category: categorizeWompiProviderError(providerResponse.status),
+      ...(providerErrorDetails ?? {}),
+    });
+
     const isDefinitiveRejection = providerResponse.status >= 400
       && providerResponse.status < 500
       && providerResponse.status !== 408
@@ -394,10 +570,15 @@ export default async function handler(req: any, res: any) {
     && providerExpiry.milliseconds <= Date.parse(providerExpiresAt)
     ? providerExpiry
     : null;
+  const checkoutUrl = validProviderSessionId
+    ? checkoutUrlIsAllowed(providerUrl, validProviderSessionId)
+      ? new URL(providerUrl).toString()
+      : `https://checkout.wompi.co/l/${validProviderSessionId}`
+    : null;
 
   if (
     !validProviderSessionId
-    || !checkoutUrlIsAllowed(providerUrl)
+    || !checkoutUrlIsAllowed(checkoutUrl, validProviderSessionId)
     || !safeProviderExpiry
   ) {
     const { error } = await completeClaim(
@@ -421,7 +602,7 @@ export default async function handler(req: any, res: any) {
     attemptId,
     rpcClaimToken,
     'ready',
-    providerUrl,
+    checkoutUrl,
     safeProviderExpiry.iso,
     validProviderSessionId,
     safeProviderExpiry.iso,

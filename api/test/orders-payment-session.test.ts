@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const scopedClientMocks = vi.hoisted(() => ({ createClient: vi.fn() }));
 
@@ -20,6 +20,13 @@ import handler from '../orders/[id]/payment-session.js';
 const orderId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const userId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const attemptId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+let claimedAmount = '120000';
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
+});
 
 function createQuery(result: { data: unknown; error: unknown }) {
   const query: any = {
@@ -66,8 +73,8 @@ function claimResult(rpcClaimToken: string, status = 'claimed') {
     data: {
       status,
       attempt_id: attemptId,
-      reference: 'internal-reference-not-for-provider',
-      expected_amount: '120000',
+      reference: 'sess_00000000000000000000000000000000',
+      expected_amount: claimedAmount,
       currency: 'COP',
       claim_token: rpcClaimToken,
     },
@@ -108,6 +115,7 @@ describe('POST /api/orders/:id/payment-session', () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
+    claimedAmount = '120000';
     vi.stubEnv('SUPABASE_URL', 'https://example.supabase.co');
     vi.stubEnv('SUPABASE_ANON_KEY', 'anon-test-key');
     vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'service-role-test-key');
@@ -115,6 +123,8 @@ describe('POST /api/orders/:id/payment-session', () => {
     vi.stubEnv('WOMPI_API_BASE_URL', 'https://sandbox.wompi.co/v1');
     vi.stubEnv('WOMPI_PUBLIC_KEY', 'pub_test_unit_test');
     vi.stubEnv('WOMPI_PRIVATE_KEY', 'prv_test_unit_test');
+    vi.stubEnv('WOMPI_SANDBOX_RETURN_URL', '');
+    vi.stubEnv('WOMPI_SANDBOX_RETURN_ORIGINS', '');
     linkExpiresAt = futureDate(10);
 
     ownedOrderQuery = createQuery({ data: { id: orderId }, error: null });
@@ -190,10 +200,10 @@ describe('POST /api/orders/:id/payment-session', () => {
     expect(providerRequest).toMatchObject({
       amount_in_cents: 12_000_000,
       currency: 'COP',
+      reference: 'sess_00000000000000000000000000000000',
       single_use: true,
       collect_shipping: false,
     });
-    expect(providerRequest).not.toHaveProperty('reference');
     expect(providerRequest).not.toHaveProperty('sku');
     expect(supabaseAdmin!.rpc).toHaveBeenNthCalledWith(
       2,
@@ -216,6 +226,139 @@ describe('POST /api/orders/:id/payment-session', () => {
         p_expected_order_id: orderId,
       },
     );
+  });
+
+  it('builds the canonical checkout URL when Wompi omits data.url', async () => {
+    providerFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 201,
+      json: vi.fn().mockResolvedValue({
+        data: { id: 'link-test-1', expires_at: linkExpiresAt },
+      }),
+    });
+    const res = makeResponse();
+
+    await handler({
+      method: 'POST',
+      headers: { authorization: 'Bearer user-access-token' },
+      query: { id: orderId },
+    }, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body).data).toEqual({
+      checkoutUrl: 'https://checkout.wompi.co/l/link-test-1',
+      expiresAt: expect.any(String),
+    });
+  });
+
+  it.each([
+    { label: 'an unsafe session ID', id: 'invalid/id', expiryMinutes: 10 },
+    { label: 'an expired session', id: 'link-test-1', expiryMinutes: -1 },
+  ])('rejects Wompi responses with $label', async ({ id, expiryMinutes }) => {
+    providerFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 201,
+      json: vi.fn().mockResolvedValue({
+        data: { id, expires_at: futureDate(expiryMinutes) },
+      }),
+    });
+    const res = makeResponse();
+
+    await handler({
+      method: 'POST',
+      headers: { authorization: 'Bearer user-access-token' },
+      query: { id: orderId },
+    }, res);
+
+    expect(res.statusCode).toBe(502);
+    expect(JSON.parse(res.body).data).toBeUndefined();
+  });
+
+  it('sends the persisted final total including Coordinadora shipping to the provider', async () => {
+    claimedAmount = '10010';
+    serviceOrderQuery = createQuery({
+      data: orderRow({ subtotal: '1000', shipping_amount: '9010', total: '10010' }),
+      error: null,
+    });
+    const res = makeResponse();
+
+    await handler({
+      method: 'POST',
+      headers: { authorization: 'Bearer user-access-token' },
+      query: { id: orderId },
+    }, res);
+
+    const providerRequest = JSON.parse(providerFetch.mock.calls[0][1].body);
+    expect(res.statusCode).toBe(200);
+    expect(providerRequest.amount_in_cents).toBe(1_001_000);
+    expect(providerRequest.currency).toBe('COP');
+  });
+
+  it('includes the generic redirect only for an allowlisted HTTPS origin', async () => {
+    vi.stubEnv('WOMPI_SANDBOX_RETURN_URL', 'https://store.example/checkout/return');
+    vi.stubEnv('WOMPI_SANDBOX_RETURN_ORIGINS', 'https://store.example');
+    const res = makeResponse();
+
+    await handler({
+      method: 'POST',
+      headers: { authorization: 'Bearer user-access-token' },
+      query: { id: orderId },
+    }, res);
+
+    const providerRequest = JSON.parse(providerFetch.mock.calls[0][1].body);
+    expect(res.statusCode).toBe(200);
+    expect(providerRequest.redirect_url).toBe('https://store.example/checkout/return');
+  });
+
+  it.each([
+    ['', 'https://store.example'],
+    ['http://store.example/checkout/return', 'https://store.example'],
+    ['https://store.example:8443/checkout/return', 'https://store.example'],
+    ['https://user:pass@store.example/checkout/return', 'https://store.example'],
+    ['https://store.example/checkout/return#success', 'https://store.example'],
+    ['https://other.example/checkout/return', 'https://store.example'],
+  ])('omits an absent or invalid redirect and still creates the link', async (returnUrl, origins) => {
+    vi.stubEnv('WOMPI_SANDBOX_RETURN_URL', returnUrl);
+    vi.stubEnv('WOMPI_SANDBOX_RETURN_ORIGINS', origins);
+    const res = makeResponse();
+
+    await handler({
+      method: 'POST',
+      headers: { authorization: 'Bearer user-access-token' },
+      query: { id: orderId },
+    }, res);
+
+    const providerRequest = JSON.parse(providerFetch.mock.calls[0][1].body);
+    expect(res.statusCode).toBe(200);
+    expect(providerFetch).toHaveBeenCalledTimes(1);
+    expect(providerRequest).not.toHaveProperty('redirect_url');
+    expect(providerRequest.expires_at).toBeDefined();
+  });
+
+  it.each([
+    'http://store.example',
+    'https://store.example/',
+    'https://store.example/path',
+    'https://store.example?query=1',
+    'https://store.example#fragment',
+    'https://store.example:8443',
+    'https://user:pass@store.example',
+  ])('ignores a non-canonical allowlist entry', async (origin) => {
+    vi.stubEnv('WOMPI_SANDBOX_RETURN_URL', 'https://store.example/checkout/return');
+    vi.stubEnv('WOMPI_SANDBOX_RETURN_ORIGINS', origin);
+    const res = makeResponse();
+
+    await handler({
+      method: 'POST',
+      headers: { authorization: 'Bearer user-access-token' },
+      query: { id: orderId },
+    }, res);
+
+    const providerRequest = JSON.parse(providerFetch.mock.calls[0][1].body);
+    expect(res.statusCode).toBe(200);
+    expect(providerFetch).toHaveBeenCalledTimes(1);
+    expect(providerRequest).not.toHaveProperty('redirect_url');
+    expect(providerRequest.expires_at).toBeDefined();
   });
 
   it('uses a uniform 404 for an order that is not visible to the Bearer user', async () => {
@@ -320,6 +463,84 @@ describe('POST /api/orders/:id/payment-session', () => {
     expect(providerFetch).not.toHaveBeenCalled();
   });
 
+  it.each([
+    [401, 'credentials'],
+    [403, 'credentials'],
+    [400, 'validation'],
+    [422, 'validation'],
+    [429, 'rate_limit'],
+    [408, 'provider_unavailable'],
+    [503, 'provider_unavailable'],
+    [302, 'unknown'],
+  ] as const)('logs only safe provider metadata for HTTP %s', async (status, category) => {
+    const responseBody = {
+      error: {
+        code: 'INVALID_AMOUNT',
+        message: 'BODY_SENTINEL',
+        messages: { amount_in_cents: ['VALUE_SENTINEL'] },
+      },
+    };
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    providerFetch.mockResolvedValueOnce({
+      ok: false,
+      status,
+      json: vi.fn().mockResolvedValue(responseBody),
+    });
+    const res = makeResponse();
+
+    await handler({
+      method: 'POST',
+      headers: { authorization: 'Bearer user-access-token' },
+      query: { id: orderId },
+    }, res);
+
+    expect(res.statusCode).toBe(502);
+    const diagnosticCall = errorSpy.mock.calls.find(([message]) => message === 'Wompi payment-link rejected');
+    expect(diagnosticCall).toEqual(['Wompi payment-link rejected', {
+      provider_http_status: status,
+      provider_error_code: 'INVALID_AMOUNT',
+      provider_error_category: category,
+      provider_error_classes: [],
+      provider_error_codes: ['INVALID_AMOUNT'],
+      provider_error_fields: ['amount_in_cents'],
+      provider_error_paths: [],
+      provider_validation_types: [],
+    }]);
+    expect(JSON.stringify(diagnosticCall)).not.toContain('BODY_SENTINEL');
+    expect(JSON.stringify(diagnosticCall)).not.toContain('VALUE_SENTINEL');
+  });
+
+  it('omits a provider error code that does not match the strict format', async () => {
+    const responseBody = {
+      error: { code: 'INVALID AMOUNT', message: 'BODY_SENTINEL' },
+    };
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    providerFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 422,
+      json: vi.fn().mockResolvedValue(responseBody),
+    });
+    const res = makeResponse();
+
+    await handler({
+      method: 'POST',
+      headers: { authorization: 'Bearer user-access-token' },
+      query: { id: orderId },
+    }, res);
+
+    const diagnosticCall = errorSpy.mock.calls.find(([message]) => message === 'Wompi payment-link rejected');
+    expect(diagnosticCall).toEqual(['Wompi payment-link rejected', {
+      provider_http_status: 422,
+      provider_error_category: 'validation',
+      provider_error_classes: [],
+      provider_error_codes: [],
+      provider_error_fields: [],
+      provider_error_paths: [],
+      provider_validation_types: [],
+    }]);
+    expect(JSON.stringify(diagnosticCall)).not.toContain('BODY_SENTINEL');
+  });
+
   it('persists an invalid successful provider response as ambiguous', async () => {
     providerFetch.mockResolvedValueOnce({
       ok: true,
@@ -347,7 +568,7 @@ describe('POST /api/orders/:id/payment-session', () => {
     expect(JSON.parse(res.body).data).toBeUndefined();
   });
 
-  it('never returns a payment link outside the official checkout domain', async () => {
+  it('uses the canonical URL when Wompi returns a URL outside its checkout domain', async () => {
     providerFetch.mockResolvedValueOnce({
       ok: true,
       status: 201,
@@ -367,17 +588,19 @@ describe('POST /api/orders/:id/payment-session', () => {
       query: { id: orderId },
     }, res);
 
-    expect(res.statusCode).toBe(502);
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body).data.checkoutUrl).toBe(
+      'https://checkout.wompi.co/l/link-test-1',
+    );
     expect(supabaseAdmin!.rpc).toHaveBeenNthCalledWith(
       2,
       'complete_payment_session_with_provider_session',
       expect.objectContaining({
-        p_outcome: 'outcome_unknown',
-        p_checkout_url: null,
+        p_outcome: 'ready',
+        p_checkout_url: 'https://checkout.wompi.co/l/link-test-1',
         p_provider_session_id: 'link-test-1',
         p_provider_session_type: 'payment_link',
       }),
     );
-    expect(JSON.parse(res.body).data).toBeUndefined();
   });
 });
