@@ -3100,7 +3100,7 @@ function AccountPage({ onNavigate, onLogout, authUser, addresses, onCreateAddres
 
 // ─── ADMIN DASHBOARD ──────────────────────────────────────────────────────────
 
-function AdminDashboard({ onNavigate, products, productsStatus, productsError, onRetryProducts, categories, createProduct, updateProduct, setProductActive, adjustStock, productRefresh, initialSection, adminRole, homeContent, setHomeContent, homePreviewProducts, setHomePreviewProducts, homeSaleProducts, setHomeSaleProducts, homeNewArrivals, setHomeNewArrivals, saveHomeContent, homeContentSaving, backendAdminAvailable }: {
+function AdminDashboard({ onNavigate, products, productsStatus, productsError, onRetryProducts, categories, createProduct, updateProduct, changeProductCategory, setProductActive, adjustStock, productRefresh, initialSection, adminRole, homeContent, setHomeContent, homePreviewProducts, setHomePreviewProducts, homeSaleProducts, setHomeSaleProducts, homeNewArrivals, setHomeNewArrivals, saveHomeContent, homeContentSaving, backendAdminAvailable }: {
   onNavigate: (v: View) => void;
   products: Product[];
   productsStatus: ProductsStatus;
@@ -3109,6 +3109,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
   categories: CategoryOption[];
   createProduct: (product: Omit<Product, "id">) => Promise<void>;
   updateProduct: (productId: string, updates: Partial<Product>) => Promise<void>;
+  changeProductCategory: (productId: string, categoryId: string) => Promise<void>;
   setProductActive: (productId: string, isActive: boolean) => Promise<void>;
   adjustStock: (productId: string, movementType: 'in' | 'out' | 'correction', quantity: number, reason: string) => Promise<void>;
   productRefresh: number;
@@ -3137,6 +3138,12 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
   const [productStatusFilter, setProductStatusFilter] = useState<AdminProductStatusFilter>("all");
   const [availabilityUpdatingId, setAvailabilityUpdatingId] = useState<string | null>(null);
   const [deletingProductId, setDeletingProductId] = useState<string | null>(null);
+  const categoryChangeDialogRef = useRef<HTMLDialogElement>(null);
+  const categoryChangeSubmittingRef = useRef(false);
+  const [categoryChangeProduct, setCategoryChangeProduct] = useState<Product | null>(null);
+  const [categoryChangeSelection, setCategoryChangeSelection] = useState("");
+  const [categoryChangeError, setCategoryChangeError] = useState<string | null>(null);
+  const [categoryChangeSaving, setCategoryChangeSaving] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [activeProduct, setActiveProduct] = useState<Product | null>(null);
   const [productForm, setProductForm] = useState<Omit<Product, "id">>({
@@ -3168,6 +3175,13 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
   });
   const [stockAdjustmentSubmittingId, setStockAdjustmentSubmittingId] = useState<string | null>(null);
   const availableCategories = [...new Set([...categories.map((category) => category.name), ...getProductCategories(products)])];
+
+  useEffect(() => {
+    const dialog = categoryChangeDialogRef.current;
+    if (!dialog) return;
+    if (categoryChangeProduct && !dialog.open) dialog.showModal();
+    if (!categoryChangeProduct && dialog.open) dialog.close();
+  }, [categoryChangeProduct]);
 
   useEffect(() => () => {
     objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
@@ -3503,6 +3517,36 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     }
   };
 
+  const openCategoryChange = (product: Product, trigger: HTMLButtonElement) => {
+    const summary = trigger.closest("details")?.querySelector("summary");
+    if (summary instanceof HTMLElement) summary.focus();
+    setCategoryChangeProduct(product);
+    setCategoryChangeSelection(product.categoryId ?? "");
+    setCategoryChangeError(null);
+  };
+
+  const closeCategoryChange = () => {
+    if (categoryChangeSubmittingRef.current) return;
+    setCategoryChangeProduct(null);
+    setCategoryChangeError(null);
+  };
+
+  const saveCategoryChange = async () => {
+    if (!categoryChangeProduct || !categoryChangeSelection || categoryChangeSubmittingRef.current) return;
+    categoryChangeSubmittingRef.current = true;
+    setCategoryChangeSaving(true);
+    setCategoryChangeError(null);
+    try {
+      await changeProductCategory(categoryChangeProduct.id, categoryChangeSelection);
+      setCategoryChangeProduct(null);
+    } catch (error) {
+      setCategoryChangeError(formatAdminApiError(error, "No se pudo cambiar la categoría."));
+    } finally {
+      categoryChangeSubmittingRef.current = false;
+      setCategoryChangeSaving(false);
+    }
+  };
+
   const closeRowActions = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.currentTarget.closest("details")?.removeAttribute("open");
   };
@@ -3515,6 +3559,9 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       <div className="admin-row-actions__menu" aria-label={`Acciones para ${product.name}`}>
         <button type="button" onClick={(event) => { closeRowActions(event); handleEditProduct(product); }}>
           <Edit size={15} aria-hidden="true" /> Editar
+        </button>
+        <button type="button" onClick={(event) => { closeRowActions(event); openCategoryChange(product, event.currentTarget); }}>
+          <Tag size={15} aria-hidden="true" /> Cambiar categoría
         </button>
         <button type="button" disabled={availabilityUpdatingId !== null || deletingProductId !== null} aria-busy={availabilityUpdatingId === product.id} onClick={(event) => { closeRowActions(event); void handleProductAvailabilityChange(product); }}>
           <Check size={15} aria-hidden="true" /> {availabilityUpdatingId === product.id ? "Actualizando…" : product.isActive === false ? "Activar" : "Desactivar"}
@@ -4497,6 +4544,46 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
               </form>
               </div>
             </div>
+            </dialog>
+            <dialog
+              ref={categoryChangeDialogRef}
+              className="admin-product-dialog"
+              aria-labelledby="admin-category-dialog-title"
+              onCancel={(event) => { event.preventDefault(); closeCategoryChange(); }}
+            >
+              <div className="admin-product-dialog__panel">
+                <header className="admin-product-dialog__header">
+                  <div>
+                    <h2 id="admin-category-dialog-title">Cambiar categoría</h2>
+                    <p>{categoryChangeProduct?.name}</p>
+                  </div>
+                  <button type="button" className="admin-icon-button" aria-label="Cerrar cambio de categoría" onClick={closeCategoryChange} disabled={categoryChangeSaving}>
+                    <X size={18} aria-hidden="true" />
+                  </button>
+                </header>
+                <form onSubmit={(event) => { event.preventDefault(); void saveCategoryChange(); }}>
+                  <label htmlFor="admin-category-change-select">Nueva categoría</label>
+                  <select
+                    id="admin-category-change-select"
+                    value={categoryChangeSelection}
+                    onChange={(event) => setCategoryChangeSelection(event.target.value)}
+                    disabled={categoryChangeSaving || categories.length === 0}
+                  >
+                    <option value="" disabled>Selecciona una categoría</option>
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>{category.name}</option>
+                    ))}
+                  </select>
+                  {categoryChangeError && <p role="alert">{categoryChangeError}</p>}
+                  <button type="button" onClick={closeCategoryChange} disabled={categoryChangeSaving}>Cancelar</button>
+                  <button
+                    type="submit"
+                    disabled={categoryChangeSaving || !categoryChangeSelection || categoryChangeSelection === categoryChangeProduct?.categoryId}
+                  >
+                    {categoryChangeSaving ? "Guardando…" : "Guardar categoría"}
+                  </button>
+                </form>
+              </div>
             </dialog>
           </div>
         );
@@ -5561,6 +5648,17 @@ export default function App() {
     try { recordAction(isActive ? 'activate_product' : 'deactivate_product', { id: productId }); } catch (error) { }
   };
 
+  const changeProductCategory = async (productId: string, categoryId: string) => {
+    const updated = await adminApi.changeProductCategoryApi(productId, categoryId) as ProductRecord;
+    if (updated?.category_id !== categoryId) {
+      throw new Error('La API no confirmó el cambio de categoría.');
+    }
+    const category = categoryOptions.find((option) => option.id === categoryId);
+    setAdminProducts((current) => current.map((product) => product.id === productId
+      ? { ...product, categoryId, category: category?.name ?? product.category }
+      : product));
+  };
+
   const adjustStock = async (productId: string, movementType: 'in' | 'out' | 'correction', quantity: number, reason: string) => {
     const normalizedReason = reason.trim();
     if (!normalizedReason) {
@@ -5831,6 +5929,7 @@ export default function App() {
           categories={categoryOptions}
           createProduct={createProduct}
           updateProduct={updateProduct}
+          changeProductCategory={changeProductCategory}
           setProductActive={setProductActive}
           adjustStock={adjustStock}
           productRefresh={productRefresh}
