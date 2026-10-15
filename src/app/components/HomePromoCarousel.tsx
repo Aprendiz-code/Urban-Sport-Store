@@ -7,18 +7,18 @@ import "./home-promo-carousel.css";
 
 const slides = [
   {
-    image: trendsBanner,
-    alt: "Nuevas tendencias UrbanSport Store",
-    label: "Nuevas tendencias UrbanSport Store",
-    width: 1376,
-    height: 768,
-  },
-  {
     image: promotionBanner,
     alt: "Promoción UrbanSport Store",
     label: "Promoción UrbanSport Store",
     width: 1536,
     height: 1024,
+  },
+  {
+    image: trendsBanner,
+    alt: "Nuevas tendencias UrbanSport Store",
+    label: "Nuevas tendencias UrbanSport Store",
+    width: 1376,
+    height: 768,
   },
   {
     image: sportsOfferBanner,
