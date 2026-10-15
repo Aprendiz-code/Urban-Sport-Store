@@ -31,7 +31,7 @@ vi.mock('../../lib/api-helpers/admin.js', () => ({
   requirePermission: apiMocks.requirePermission,
 }));
 
-import handler from '../admin/products/[productId].js';
+import handler from '../../lib/api-handlers/admin/products/[productId].js';
 import { ApiError } from '../../lib/api-helpers/response.js';
 
 const productId = '123e4567-e89b-12d3-a456-426614174000';
@@ -141,228 +141,28 @@ describe('admin product delete endpoint', () => {
     });
   });
 
-  it('physically deletes only the requested product and records the deletion', async () => {
+  it('blocks DELETE before querying the database or Storage', async () => {
     const response = createResponse();
 
     await handler({ method: 'DELETE', url: `/api/admin/products/${productId}` }, response);
 
-    expect(apiMocks.requirePermission).toHaveBeenCalledWith({ id: 'admin-user' }, 'products.archive');
-    expect(apiMocks.from).toHaveBeenCalledWith('products');
-    expect(apiMocks.from.mock.calls.map(([table]) => table)).toEqual(['products', 'product_images', 'order_items', 'categories', 'products', 'audit_logs']);
-    expect(apiMocks.delete).toHaveBeenCalledOnce();
-    expect(apiMocks.update).not.toHaveBeenCalled();
-    expect(apiMocks.insert).toHaveBeenCalledWith(expect.objectContaining({
-      action: 'delete_product',
-      entity_id: productId,
-      after_data: expect.objectContaining({
-        id: productId,
-        deleted: true,
-        storage_cleanup: expect.objectContaining({ status: 'completed', attempted_paths: [], removed_paths: [] }),
-      }),
-    }));
-    expect(response.statusCode).toBe(204);
-    expect(response.body).toBe('');
-  });
-
-  it('rejects an invalid UUID and missing product on DELETE', async () => {
-    const invalidResponse = createResponse();
-    await handler({ method: 'DELETE', url: '/api/admin/products/not-a-uuid' }, invalidResponse);
-    expect(invalidResponse.statusCode).toBe(400);
+    expect(response.statusCode).toBe(405);
+    expect(JSON.parse(response.body).error.message).toBe('Product deletion is disabled.');
+    expect(apiMocks.requirePermission).not.toHaveBeenCalled();
     expect(apiMocks.from).not.toHaveBeenCalled();
-
-    apiMocks.maybeSingle.mockReset().mockResolvedValueOnce({ data: null, error: null });
-    const missingResponse = createResponse();
-    await handler({ method: 'DELETE', url: `/api/admin/products/${productId}` }, missingResponse);
-    expect(missingResponse.statusCode).toBe(404);
-    expect(apiMocks.update).not.toHaveBeenCalled();
-    expect(apiMocks.insert).not.toHaveBeenCalled();
-  });
-
-  it('does not directly mutate Storage or historical order/cart tables during product deletion', async () => {
-    const beforeData = {
-      id: productId,
-      sku: 'SKU-HISTORY',
-      is_active: true,
-      main_image: 'https://storage.example/main.png',
-      images: ['https://storage.example/side.png'],
-      created_at: '2026-01-01T00:00:00.000Z',
-    };
-    apiMocks.maybeSingle.mockReset()
-      .mockResolvedValueOnce({ data: beforeData, error: null })
-      .mockResolvedValueOnce({ data: { id: productId }, error: null });
-    const response = createResponse();
-
-    await handler({ method: 'DELETE', url: `/api/admin/products/${productId}` }, response);
-
-    expect(apiMocks.delete).toHaveBeenCalledOnce();
-    expect(apiMocks.update).not.toHaveBeenCalled();
-    expect(apiMocks.from.mock.calls.map(([table]) => table)).toEqual(['products', 'product_images', 'order_items', 'categories', 'products', 'audit_logs']);
-    expect(apiMocks.insert.mock.calls[0][0].before_data).toEqual({
-      ...beforeData,
-      product_image_paths: [],
-      order_image_paths: [],
-      category_image_paths: [],
-    });
-    expect(response.statusCode).toBe(204);
-  });
-
-  it('removes only product-bucket objects referenced by the product and records the attempt', async () => {
-    const beforeData = {
-      id: productId,
-      main_image: 'https://project.supabase.co/storage/v1/object/public/products/products/main.png',
-      images: ['products/gallery.png', 'https://cdn.example/external.png'],
-    };
-    apiMocks.productImageRows = [{ path: 'products/related.png' }];
-    apiMocks.maybeSingle.mockReset()
-      .mockResolvedValueOnce({ data: beforeData, error: null })
-      .mockResolvedValueOnce({ data: { id: productId }, error: null });
-    apiMocks.storageRemove.mockResolvedValueOnce({
-      data: [{ name: 'products/main.png' }, { name: 'products/gallery.png' }, { name: 'products/related.png' }],
-      error: null,
-    });
-    const response = createResponse();
-
-    await handler({ method: 'DELETE', url: `/api/admin/products/${productId}` }, response);
-
-    expect(apiMocks.storageFrom).toHaveBeenCalledWith('products');
-    expect(apiMocks.storageRemove).toHaveBeenCalledWith(['products/main.png', 'products/gallery.png', 'products/related.png']);
-    expect(apiMocks.insert).toHaveBeenCalledWith(expect.objectContaining({
-      action: 'delete_product',
-      after_data: expect.objectContaining({ storage_cleanup: expect.objectContaining({ status: 'completed' }) }),
-    }));
-    expect(response.statusCode).toBe(204);
-  });
-
-  it('keeps Storage objects referenced by another product', async () => {
-    const sharedPath = 'products/shared.png';
-    const beforeData = { id: productId, main_image: sharedPath };
-    apiMocks.maybeSingle.mockReset()
-      .mockResolvedValueOnce({ data: beforeData, error: null })
-      .mockResolvedValueOnce({ data: { id: productId }, error: null });
-    apiMocks.sharedProductImageRows = [{ path: sharedPath, product_id: 'another-product' }];
-    const response = createResponse();
-
-    await handler({ method: 'DELETE', url: `/api/admin/products/${productId}` }, response);
-
-    expect(apiMocks.storageRemove).not.toHaveBeenCalled();
-    expect(response.statusCode).toBe(207);
-    expect(JSON.parse(response.body).data.storage_cleanup.shared_paths).toEqual([sharedPath]);
-  });
-
-  it('keeps a Storage object referenced by another product record', async () => {
-    const sharedPath = 'products/shared-main.png';
-    apiMocks.maybeSingle.mockReset()
-      .mockResolvedValueOnce({ data: { id: productId, main_image: sharedPath }, error: null })
-      .mockResolvedValueOnce({ data: { id: productId }, error: null });
-    apiMocks.otherProductRows = [{ main_image: null, images: [sharedPath] }];
-    const response = createResponse();
-
-    await handler({ method: 'DELETE', url: `/api/admin/products/${productId}` }, response);
-
-    expect(apiMocks.storageRemove).not.toHaveBeenCalled();
-    expect(response.statusCode).toBe(207);
-    expect(JSON.parse(response.body).data.storage_cleanup.shared_paths).toEqual([sharedPath]);
-  });
-
-  it('preserves a product image still referenced by a historical order item', async () => {
-    const historicalImagePath = 'products/order-snapshot.png';
-    apiMocks.maybeSingle.mockReset()
-      .mockResolvedValueOnce({ data: { id: productId, main_image: historicalImagePath }, error: null })
-      .mockResolvedValueOnce({ data: { id: productId }, error: null });
-    apiMocks.orderImageRows = [{ image_path: historicalImagePath }];
-    const response = createResponse();
-
-    await handler({ method: 'DELETE', url: `/api/admin/products/${productId}` }, response);
-
-    expect(apiMocks.storageRemove).not.toHaveBeenCalled();
-    expect(response.statusCode).toBe(207);
-    expect(JSON.parse(response.body).data.storage_cleanup.shared_paths).toContain(historicalImagePath);
-    expect(apiMocks.insert.mock.calls[0][0].before_data.order_image_paths).toContain(historicalImagePath);
-  });
-
-  it('preserves a product image still used by a category', async () => {
-    const categoryImagePath = 'products/category-collection.png';
-    apiMocks.maybeSingle.mockReset()
-      .mockResolvedValueOnce({ data: { id: productId, main_image: categoryImagePath }, error: null })
-      .mockResolvedValueOnce({ data: { id: productId }, error: null });
-    apiMocks.categoryRows = [{ image_url: `https://project.supabase.co/storage/v1/object/public/products/${categoryImagePath}` }];
-    const response = createResponse();
-
-    await handler({ method: 'DELETE', url: `/api/admin/products/${productId}` }, response);
-
-    expect(apiMocks.storageRemove).not.toHaveBeenCalled();
-    expect(response.statusCode).toBe(207);
-    expect(JSON.parse(response.body).data.storage_cleanup.shared_paths).toContain(categoryImagePath);
-    expect(apiMocks.insert.mock.calls[0][0].before_data.category_image_paths).toContain(categoryImagePath);
-  });
-
-  it('checks later pages of orders and categories before removing a Storage path', async () => {
-    const sharedPath = 'products/shared-late-page.png';
-    apiMocks.maybeSingle.mockReset()
-      .mockResolvedValueOnce({ data: { id: productId, main_image: sharedPath }, error: null })
-      .mockResolvedValueOnce({ data: { id: productId }, error: null });
-    apiMocks.orderImageRows = Array.from({ length: 1001 }, (_, index) => ({ image_path: index === 1000 ? sharedPath : null }));
-    apiMocks.categoryRows = Array.from({ length: 1001 }, (_, index) => index === 1000 ? { image: sharedPath } : {});
-    const response = createResponse();
-
-    await handler({ method: 'DELETE', url: `/api/admin/products/${productId}` }, response);
-
-    expect(apiMocks.orderImageRanges).toEqual([[0, 999], [1000, 1999]]);
-    expect(apiMocks.categoryRanges).toEqual([[0, 999], [1000, 1999]]);
-    expect(apiMocks.storageRemove).not.toHaveBeenCalled();
-    expect(response.statusCode).toBe(207);
-    expect(JSON.parse(response.body).data.storage_cleanup.shared_paths).toEqual([sharedPath]);
-  });
-
-  it('does not delete the product if image paths cannot be inventoried', async () => {
-    apiMocks.maybeSingle.mockReset().mockResolvedValueOnce({ data: { id: productId }, error: null });
-    apiMocks.productImageError = { code: 'XX000', message: 'image lookup failed' };
-    const response = createResponse();
-
-    await handler({ method: 'DELETE', url: `/api/admin/products/${productId}` }, response);
-
-    expect(response.statusCode).toBe(500);
-    expect(apiMocks.delete).not.toHaveBeenCalled();
+    expect(apiMocks.storageFrom).not.toHaveBeenCalled();
     expect(apiMocks.storageRemove).not.toHaveBeenCalled();
   });
 
-  it('reports a partial result with audit data when Storage cleanup fails after row deletion', async () => {
-    const beforeData = {
-      id: productId,
-      main_image: 'https://project.supabase.co/storage/v1/object/public/products/products/main.png',
-    };
-    apiMocks.maybeSingle.mockReset()
-      .mockResolvedValueOnce({ data: beforeData, error: null })
-      .mockResolvedValueOnce({ data: { id: productId }, error: null });
-    apiMocks.storageRemove.mockResolvedValueOnce({ data: null, error: { message: 'Storage unavailable' } });
+  it('rejects invalid product IDs before querying the database or Storage', async () => {
     const response = createResponse();
 
-    await handler({ method: 'DELETE', url: `/api/admin/products/${productId}` }, response);
+    await handler({ method: 'DELETE', url: '/api/admin/products/not-a-uuid' }, response);
 
-    const result = JSON.parse(response.body).data;
-    expect(response.statusCode).toBe(207);
-    expect(result.deleted).toBe(true);
-    expect(result.storage_cleanup).toMatchObject({
-      status: 'failed',
-      attempted_paths: ['products/main.png'],
-      removed_paths: [],
-      error: 'Storage unavailable',
-    });
-    expect(result.audit_recorded).toBe(true);
-    expect(apiMocks.insert).toHaveBeenCalledOnce();
-  });
-
-  it('returns 409 with the safe fallback when cart or another foreign key blocks deletion', async () => {
-    apiMocks.maybeSingle.mockReset()
-      .mockResolvedValueOnce({ data: { id: productId }, error: null })
-      .mockResolvedValueOnce({ data: null, error: { code: '23503', message: 'foreign key violation' } });
-    const response = createResponse();
-
-    await handler({ method: 'DELETE', url: `/api/admin/products/${productId}` }, response);
-
-    expect(response.statusCode).toBe(409);
-    expect(JSON.parse(response.body).error.message).toContain('Utiliza "Desactivar producto"');
-    expect(apiMocks.insert).not.toHaveBeenCalled();
+    expect(response.statusCode).toBe(400);
+    expect(apiMocks.from).not.toHaveBeenCalled();
+    expect(apiMocks.storageFrom).not.toHaveBeenCalled();
+    expect(apiMocks.storageRemove).not.toHaveBeenCalled();
   });
 
   it('passes multiline description and string sizes through an authorized PATCH', async () => {
@@ -514,7 +314,7 @@ describe('admin product delete endpoint', () => {
     expect(apiMocks.insert).not.toHaveBeenCalled();
   });
 
-  it('returns 401 and 403 for safe-delete requests before querying product data', async () => {
+  it('requires a session before rejecting DELETE without querying product data', async () => {
     apiMocks.authenticate.mockRejectedValueOnce(new ApiError(401, 'Authentication required.'));
     const unauthenticatedResponse = createResponse();
     await handler({ method: 'DELETE', url: `/api/admin/products/${productId}` }, unauthenticatedResponse);
@@ -522,11 +322,12 @@ describe('admin product delete endpoint', () => {
     expect(apiMocks.from).not.toHaveBeenCalled();
 
     apiMocks.authenticate.mockResolvedValueOnce({ id: 'customer-user' });
-    apiMocks.requirePermission.mockRejectedValueOnce(new ApiError(403, 'No autorizado.'));
     const forbiddenResponse = createResponse();
     await handler({ method: 'DELETE', url: `/api/admin/products/${productId}` }, forbiddenResponse);
-    expect(forbiddenResponse.statusCode).toBe(403);
-    expect(apiMocks.requirePermission).toHaveBeenCalledWith({ id: 'customer-user' }, 'products.archive');
+    expect(forbiddenResponse.statusCode).toBe(405);
+    expect(apiMocks.requirePermission).not.toHaveBeenCalled();
     expect(apiMocks.from).not.toHaveBeenCalled();
+    expect(apiMocks.storageFrom).not.toHaveBeenCalled();
+    expect(apiMocks.storageRemove).not.toHaveBeenCalled();
   });
 });

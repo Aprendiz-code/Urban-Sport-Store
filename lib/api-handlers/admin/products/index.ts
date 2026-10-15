@@ -1,9 +1,9 @@
-import { jsonError, jsonResponse, jsonSupabaseError, ApiError } from '../../../lib/api-helpers/response.ts';
-import { supabaseAdmin } from '../../../lib/api-helpers/supabase.ts';
-import { requirePermission } from '../../../lib/api-helpers/admin.ts';
-import { requireAuthenticatedUser } from '../../../lib/api-helpers/auth.ts';
-import { normalizeProductPayload } from '../../../lib/api-helpers/product-helpers.ts';
-import { handleProductImageUpload } from '../../../lib/api-helpers/product-image-upload.ts';
+import { jsonError, jsonResponse, jsonSupabaseError, ApiError } from '../../../api-helpers/response.ts';
+import { supabaseAdmin } from '../../../api-helpers/supabase.ts';
+import { requirePermission } from '../../../api-helpers/admin.ts';
+import { requireAuthenticatedUser } from '../../../api-helpers/auth.ts';
+import { normalizeProductPayload } from '../../../api-helpers/product-helpers.ts';
+import { handleProductImageUpload } from '../../../api-helpers/product-image-upload.ts';
 
 const PRODUCT_LIST_PAGE_SIZE = 1000;
 

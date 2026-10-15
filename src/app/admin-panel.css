@@ -1238,3 +1238,41 @@
     padding-left: 18px;
   }
 }
+
+.admin-category-dialog {
+  width: min(460px, calc(100vw - 32px));
+  max-width: none;
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  overflow: hidden;
+  border: 1px solid var(--admin-line);
+  border-radius: 8px;
+  padding: 0;
+  color: var(--admin-ink);
+  background: #fff;
+  box-shadow: 0 24px 64px rgb(16 24 40 / 20%);
+}
+
+.admin-category-dialog::backdrop {
+  background: rgb(16 24 40 / 42%);
+  backdrop-filter: blur(2px);
+}
+
+.admin-category-dialog {
+  width: min(460px, calc(100vw - 32px));
+  max-width: none;
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  overflow: hidden;
+  border: 1px solid var(--admin-line);
+  border-radius: 8px;
+  padding: 0;
+  color: var(--admin-ink);
+  background: #fff;
+  box-shadow: 0 24px 64px rgb(16 24 40 / 20%);
+}
+
+.admin-category-dialog::backdrop {
+  background: rgb(16 24 40 / 42%);
+  backdrop-filter: blur(2px);
+}

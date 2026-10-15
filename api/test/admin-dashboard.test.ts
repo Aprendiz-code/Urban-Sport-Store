@@ -16,7 +16,7 @@ vi.mock('../../lib/api-helpers/admin.js', () => ({
   requirePermission: apiMocks.requirePermission,
 }));
 
-import handler from '../admin/dashboard.js';
+import handler from '../../lib/api-handlers/admin/dashboard.js';
 import { ApiError } from '../../lib/api-helpers/response.js';
 
 function createResponse() {

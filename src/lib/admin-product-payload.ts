@@ -40,6 +40,10 @@ export function buildAdminProductPayload(product: Partial<Product>, isCreating =
   };
 }
 
+export function buildAdminProductCategoryUpdate(categoryId: string): { category_id: string } {
+  return { category_id: categoryId };
+}
+
 export async function runAdminProductSubmission<T>(
   save: () => Promise<T>,
   onSuccess: (result: T) => void,

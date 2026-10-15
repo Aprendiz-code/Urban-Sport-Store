@@ -6,6 +6,7 @@ const apiMocks = vi.hoisted(() => ({
   select: vi.fn(),
   single: vi.fn(),
   auditInsert: vi.fn(),
+  categoryRows: [] as Array<{ id: string; name: string; slug: string; is_active: boolean }>,
   authenticate: vi.fn(),
   requirePermission: vi.fn(),
 }));
@@ -20,7 +21,7 @@ vi.mock('../../lib/api-helpers/admin.js', () => ({
   requirePermission: apiMocks.requirePermission,
 }));
 
-import handler from '../admin/products/index.js';
+import handler from '../../lib/api-handlers/admin/products/index.js';
 
 const categoryId = '11111111-1111-1111-1111-111111111111';
 const createBody = () => ({
@@ -86,9 +87,18 @@ describe('admin product create endpoint', () => {
       error: null,
     });
     apiMocks.auditInsert.mockResolvedValue({ data: null, error: null });
+    apiMocks.categoryRows = [{ id: categoryId, name: 'Tenis Hombre', slug: 'tenis-hombre', is_active: true }];
+    const categoriesQuery = {
+      select: vi.fn(),
+      then: (resolve: (value: { data: typeof apiMocks.categoryRows; error: null }) => unknown) =>
+        Promise.resolve({ data: apiMocks.categoryRows, error: null }).then(resolve),
+    };
+    categoriesQuery.select.mockReturnValue(categoriesQuery);
     apiMocks.from.mockImplementation((table: string) => table === 'products'
       ? { insert: apiMocks.insert, select: apiMocks.select, single: apiMocks.single }
-      : { insert: apiMocks.auditInsert });
+      : table === 'categories'
+        ? categoriesQuery
+        : { insert: apiMocks.auditInsert });
   });
 
   it('returns the persisted row and ID for an authorized valid payload', async () => {
@@ -124,6 +134,19 @@ describe('admin product create endpoint', () => {
     expect(response.statusCode).toBe(400);
     expect(JSON.parse(response.body).error.message).toContain('URL HTTP o HTTPS permanente');
     expect(apiMocks.insert).not.toHaveBeenCalled();
+  });
+
+  it('blocks creation without a selected category before inserting', async () => {
+    const response = createResponse();
+    const body = createBody();
+    delete (body as Partial<typeof body>).category_id;
+
+    await handler(createRequest(body), response);
+
+    expect(response.statusCode).toBe(400);
+    expect(JSON.parse(response.body).error.message).toContain('categoría');
+    expect(apiMocks.insert).not.toHaveBeenCalled();
+    expect(apiMocks.auditInsert).not.toHaveBeenCalled();
   });
 
   it('returns structured foreign-key errors without claiming success', async () => {

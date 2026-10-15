@@ -1,17 +1,37 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const supabaseMocks = vi.hoisted(() => ({ from: vi.fn() }));
+const supabaseMocks = vi.hoisted(() => ({
+  from: vi.fn(),
+  categoryRows: [] as Array<{ id: string; name: string; slug: string; is_active: boolean }>,
+}));
 
 vi.mock('../../lib/api-helpers/supabase.js', () => ({
   supabaseAdmin: { from: supabaseMocks.from },
 }));
 
 import { normalizeProductPayload, normalizeProductUpdates } from '../../lib/api-helpers/product-helpers.js';
+import { PRODUCT_CATEGORY_NAMES } from '../../lib/product-categories.js';
 
 const categoryId = '123e4567-e89b-12d3-a456-426614174000';
+const activeCategories = PRODUCT_CATEGORY_NAMES.map((name, index) => ({
+  id: index === 0 ? categoryId : `00000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
+  name,
+  slug: name.toLowerCase().replace(/\s+/g, '-'),
+  is_active: true,
+}));
 
 describe('product payload normalization', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    supabaseMocks.categoryRows = activeCategories.map((category) => ({ ...category }));
+    const categoriesQuery = {
+      select: vi.fn(),
+      then: (resolve: (value: { data: typeof supabaseMocks.categoryRows; error: null }) => unknown) =>
+        Promise.resolve({ data: supabaseMocks.categoryRows, error: null }).then(resolve),
+    };
+    categoriesQuery.select.mockReturnValue(categoriesQuery);
+    supabaseMocks.from.mockImplementation((table: string) => table === 'categories' ? categoriesQuery : undefined);
+  });
 
   it('maps create form data to products columns and generates a slug', async () => {
     await expect(normalizeProductPayload({
@@ -48,7 +68,7 @@ describe('product payload normalization', () => {
         { name: 'Suela', value: 'Caucho' },
       ],
     });
-    expect(supabaseMocks.from).not.toHaveBeenCalled();
+    expect(supabaseMocks.from).toHaveBeenCalledWith('categories');
   });
 
   it('maps edits to the same database columns, including empty galleries', async () => {
@@ -70,6 +90,28 @@ describe('product payload normalization', () => {
       stock: 0,
     });
     expect(supabaseMocks.from).not.toHaveBeenCalled();
+  });
+
+  it('updates only category_id after validating the selected active category', async () => {
+    await expect(normalizeProductUpdates({ category_id: categoryId })).resolves.toEqual({ category_id: categoryId });
+    expect(supabaseMocks.from).toHaveBeenCalledWith('categories');
+  });
+
+  it.each([
+    ['unknown', '99999999-9999-4999-8999-999999999999', 'no existe o es ambigua'],
+    ['inactive', categoryId, 'no está activa o no es asignable'],
+  ])('rejects an %s or non-assignable category', async (_case, id, message) => {
+    if (_case === 'inactive') supabaseMocks.categoryRows[0]!.is_active = false;
+    await expect(normalizeProductUpdates({ category_id: id })).rejects.toThrow(message);
+  });
+
+  it('rejects category names duplicated after normalization', async () => {
+    supabaseMocks.categoryRows.push({
+      ...activeCategories[0]!,
+      id: '00000000-0000-4000-8000-000000000099',
+      name: ' TENIS   HOMBRE ',
+    });
+    await expect(normalizeProductUpdates({ category_id: categoryId })).rejects.toThrow('duplicada');
   });
 
   it('rejects invalid numeric values, malformed category ids, and oversized galleries', async () => {
