@@ -2,39 +2,51 @@ name: backend-ci
 
 on:
   push:
+    branches: [ main, master, cleanup/home-content-adapter ]
     paths:
       - 'api/**'
+      - 'lib/api-helpers/**'
+      - 'lib/server/**'
+      - 'src/lib/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.npmrc'
+      - 'vercel.json'
       - '.github/workflows/backend-ci.yml'
   pull_request:
     paths:
       - 'api/**'
+      - 'lib/api-helpers/**'
+      - 'lib/server/**'
+      - 'src/lib/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.npmrc'
+      - 'vercel.json'
       - '.github/workflows/backend-ci.yml'
 
 jobs:
   backend:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_DB: urbansportstore_test
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd="pg_isready -U postgres"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.1
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: cd api && npm install
-      - run: cd api && npm run db:generate
-      - run: cd api && DATABASE_URL=postgresql://postgres:postgres@localhost:5432/urbansportstore_test npm run db:deploy
-      - run: cd api && npm run lint
-      - run: cd api && npm test
-      - run: cd api && npm run build
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: npm ci
+        working-directory: api
+      - run: npm run lint
+        working-directory: api
+      - run: npm run typecheck
+        working-directory: api
+      - run: npm test
+        working-directory: api
+      - run: npm run build
+        working-directory: api

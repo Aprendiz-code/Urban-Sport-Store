@@ -2,65 +2,179 @@ name: CI
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, master, cleanup/home-content-adapter ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ main, master, cleanup/home-content-adapter ]
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_DB: urbansportstore
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d urbansportstore"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.1
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
-      - name: Install root deps
-        run: pnpm install
-      - name: Install api deps
-        run: |
-          cd api
-          pnpm install
-      - name: Generate Prisma client
-        run: |
-          cd api
-          pnpm prisma generate
-      - name: Run migrations
-        run: |
-          cd api
-          pnpm db:migrate
-      - name: Seed DB
-        run: |
-          cd api
-          pnpm db:seed
+          node-version: 22
+          cache: pnpm
+      - name: Install root dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck frontend
+        run: pnpm typecheck
+      - name: Run frontend tests
+        run: pnpm test
+        env:
+          VITE_API_URL: http://127.0.0.1:3000/api
       - name: Build frontend
         run: pnpm build
-      - name: Run tests (backend unit)
-        run: |
-          cd api
-          pnpm test
-      - name: Run E2E (Playwright)
-        run: |
-          pnpm add -D @playwright/test
-          npx playwright install --with-deps
-          pnpm e2e
         env:
-          E2E_BASE_URL: http://localhost:5173
-          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
-          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
-          E2E_SECRET: ${{ secrets.E2E_SECRET }}
-*** End Patch
+          VITE_API_URL: /api
+      - name: Install API dependencies
+        run: npm ci
+        working-directory: api
+      - name: Build API for local E2E
+        run: npm run build
+        working-directory: api
+      - name: Install Playwright browser
+        run: |
+          pnpm exec playwright install --with-deps chromium
+      - name: Run isolated local E2E
+        env:
+          SUPABASE_URL: http://127.0.0.1:54321
+          SUPABASE_ANON_KEY: ci-local-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: ci-local-service-role-key
+          PORT: '3000'
+          E2E_ALLOW_WRITES: 'false'
+          E2E_ADMIN_EMAIL: ''
+          E2E_ADMIN_PASSWORD: ''
+          E2E_ADMIN_ACCESS_TOKEN: ''
+          E2E_NON_ADMIN_ACCESS_TOKEN: ''
+          E2E_SUPABASE_REF: ''
+        run: |
+          set -euo pipefail
+
+          node -e '
+            const http = require("node:http");
+            http.createServer((_request, response) => {
+              response.writeHead(401, { "content-type": "application/json" });
+              response.end(JSON.stringify({ message: "Invalid JWT" }));
+            }).listen(54321, "127.0.0.1");
+          ' &
+          AUTH_STUB_PID=$!
+
+          node api/dist/api/index.js > /tmp/ci-api.log 2>&1 &
+          API_PID=$!
+          VITE_PID=''
+          VITE_PGID=''
+
+          cleanup() {
+            if [ -n "$VITE_PID" ]; then
+              if [ -n "$VITE_PGID" ]; then
+                kill -- "-$VITE_PGID" 2>/dev/null || true
+              else
+                kill "$VITE_PID" 2>/dev/null || true
+              fi
+              wait "$VITE_PID" 2>/dev/null || true
+            fi
+            kill "$API_PID" "$AUTH_STUB_PID" 2>/dev/null || true
+            wait "$API_PID" "$AUTH_STUB_PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          wait_for_local_http() {
+            local url="$1"
+            for attempt in $(seq 1 30); do
+              if curl --silent --output /dev/null "$url"; then
+                return 0
+              fi
+              sleep 1
+            done
+            cat /tmp/ci-api.log
+            cat /tmp/ci-vite.log 2>/dev/null || true
+            return 1
+          }
+
+          wait_for_local_http http://127.0.0.1:3000/api/health
+
+          stop_vite() {
+            if [ -n "$VITE_PID" ]; then
+              if [ -n "$VITE_PGID" ]; then
+                kill -- "-$VITE_PGID" 2>/dev/null || true
+              else
+                kill "$VITE_PID" 2>/dev/null || true
+              fi
+              wait "$VITE_PID" 2>/dev/null || true
+              VITE_PID=''
+              VITE_PGID=''
+            fi
+            for attempt in $(seq 1 10); do
+              if ! ss -ltnH 'sport = :5173' | grep -q .; then
+                return 0
+              fi
+              sleep 1
+            done
+            echo 'Vite port 5173 is still listening after shutdown.'
+            return 1
+          }
+
+          run_vite_specs() {
+            local supabase_url="$1"
+            shift
+            stop_vite
+            if ss -ltnH 'sport = :5173' | grep -q .; then
+              echo 'Vite port 5173 is not free before startup.'
+              return 1
+            fi
+            if [ -n "$supabase_url" ]; then
+              VITE_API_URL=http://127.0.0.1:5173/api \
+              VITE_SUPABASE_URL="$supabase_url" \
+              VITE_SUPABASE_ANON_KEY=ci-local-anon-key \
+                setsid ./node_modules/.bin/vite --host 127.0.0.1 --port 5173 --strictPort > /tmp/ci-vite.log 2>&1 &
+            else
+              env -u VITE_SUPABASE_URL -u VITE_SUPABASE_ANON_KEY \
+                VITE_API_URL=http://127.0.0.1:5173/api \
+                setsid ./node_modules/.bin/vite --host 127.0.0.1 --port 5173 --strictPort > /tmp/ci-vite.log 2>&1 &
+            fi
+            VITE_PID=$!
+            VITE_PGID="$(ps -o pgid= -p "$VITE_PID" | tr -d ' ')"
+            if [ -z "$VITE_PGID" ]; then
+              echo 'Unable to determine Vite process group.'
+              return 1
+            fi
+            wait_for_local_http http://127.0.0.1:5173
+            tr '\0' '\n' < "/proc/$VITE_PID/environ" | grep -Fx 'VITE_API_URL=http://127.0.0.1:5173/api'
+            if [ -n "$supabase_url" ]; then
+              tr '\0' '\n' < "/proc/$VITE_PID/environ" | grep -Fx "VITE_SUPABASE_URL=$supabase_url"
+            else
+              if tr '\0' '\n' < "/proc/$VITE_PID/environ" | grep -q '^VITE_SUPABASE_URL='; then
+                echo 'VITE_SUPABASE_URL must be unset for the storefront spec group.'
+                return 1
+              fi
+            fi
+
+            local test_status=0
+            if E2E_BASE_URL=http://127.0.0.1:5173 \
+              E2E_API_BASE=http://127.0.0.1:3000/api \
+              pnpm exec playwright test --config=e2e/playwright.config.ts "$@"; then
+              test_status=0
+            else
+              test_status=$?
+            fi
+
+            stop_vite
+            return "$test_status"
+          }
+
+          E2E_BASE_URL=http://127.0.0.1:5173 \
+          E2E_API_BASE=http://127.0.0.1:3000/api \
+            pnpm exec playwright test --config=e2e/playwright.config.ts e2e/tests/admin.api.spec.ts
+
+          run_vite_specs '' e2e/tests/storefront-product-gallery.spec.ts
+          run_vite_specs https://category-e2e.supabase.test \
+            e2e/tests/admin-product-category.spec.ts \
+            e2e/tests/admin.spec.ts \
+            e2e/tests/admin-sidebar.spec.ts
+          run_vite_specs https://checkout-test.supabase.test \
+            e2e/tests/checkout-shipping-quote.spec.ts
