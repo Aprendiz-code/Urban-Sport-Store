@@ -1494,7 +1494,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
                 </ul>
                 <div className="mt-4 rounded-xl border border-slate-800 bg-slate-900/60 p-3">
                   <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-200">Medios de pago disponibles</p>
-                  <div className="mt-3 grid grid-cols-3 items-center gap-x-3 gap-y-2 rounded-md bg-white p-2" aria-label="Medios de pago disponibles: Visa, Mastercard, American Express, PSE, Nequi y Bancolombia">
+                  <div className="mt-3 grid grid-cols-3 items-center gap-x-3 gap-y-2 rounded-md bg-white p-2" aria-label="Medios de pago disponibles: Visa, Mastercard, American Express, PSE, Nequi, Bancolombia y Daviplata">
                     {paymentMethods.map(({ name, logo }) => (
                       <span key={name} className="flex h-8 items-center justify-center">
                         <img src={logo} alt={name} className="max-h-full max-w-full object-contain" />
