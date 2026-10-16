@@ -63,6 +63,7 @@ import nequiLogo from "../../logos medios de pago/NEQUI.jpg";
 import visaLogo from "../../logos medios de pago/png-transparent-logo-brand-visa-font-visa-blue-text-trademark-thumbnail.png";
 import mastercardLogo from "../../logos medios de pago/images.png";
 import americanExpressLogo from "../../logos medios de pago/logo-American-Express.png";
+import daviplataLogo from "../../logos medios de pago/23fd2ba7d94e2977f3493e26dce63e97.jpg";
 
 const paymentMethods = [
   { name: "Visa", logo: visaLogo },
@@ -71,6 +72,7 @@ const paymentMethods = [
   { name: "PSE", logo: pseLogo },
   { name: "Nequi", logo: nequiLogo },
   { name: "Bancolombia", logo: bancolombiaLogo },
+  { name: "Daviplata", logo: daviplataLogo },
 ];
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
