@@ -6,7 +6,7 @@ const products: Product[] = [
   {
     id: 'active-1', name: 'Runner Pro', brand: 'Nike', price: 100, rating: 0, reviews: 0,
     image: '', category: 'Running', subcategory: '', stock: 4, sku: 'RUN-001', description: '',
-    colors: [], sizes: [], isActive: true,
+    colors: [], sizes: [], isActive: true, catalogSection: 'Tenis Hombre',
   },
   {
     id: 'inactive-1', name: 'Classic Tee', brand: 'Urban', price: 50, rating: 0, reviews: 0,
@@ -27,5 +27,11 @@ describe('admin product list filters', () => {
     expect(filterAdminProducts(products, '', 'active').map((product) => product.id)).toEqual(['active-1']);
     expect(filterAdminProducts(products, '', 'inactive').map((product) => product.id)).toEqual(['inactive-1']);
     expect(filterAdminProducts(products, 'urban', 'active')).toEqual([]);
+  });
+
+  it('filters by sports category or catalog section', () => {
+    expect(filterAdminProducts(products, '', 'all', 'Running').map((product) => product.id)).toEqual(['active-1']);
+    expect(filterAdminProducts(products, '', 'all', 'Tenis Hombre').map((product) => product.id)).toEqual(['active-1']);
+    expect(filterAdminProducts(products, '', 'all', 'Perfumes')).toEqual([]);
   });
 });

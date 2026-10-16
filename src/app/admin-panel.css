@@ -509,6 +509,10 @@
   display: inline-block;
 }
 
+.admin-row-actions[open] {
+  z-index: 30;
+}
+
 .admin-row-actions summary {
   list-style: none;
   cursor: pointer;

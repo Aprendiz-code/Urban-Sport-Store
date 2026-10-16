@@ -3141,6 +3141,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
   const [isProductFormDirty, setIsProductFormDirty] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [productStatusFilter, setProductStatusFilter] = useState<AdminProductStatusFilter>("all");
+  const [productCategoryFilter, setProductCategoryFilter] = useState("all");
   const [availabilityUpdatingId, setAvailabilityUpdatingId] = useState<string | null>(null);
   const [deletingProductId, setDeletingProductId] = useState<string | null>(null);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
@@ -3173,7 +3174,11 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     error: null,
   });
   const [stockAdjustmentSubmittingId, setStockAdjustmentSubmittingId] = useState<string | null>(null);
-  const availableCategories = [...new Set([...categories.map((category) => category.name), ...getProductCategories(products)])];
+  const availableCategories = [...new Set([
+    ...categories.map((category) => category.name),
+    ...getProductCategories(products),
+    ...products.map((product) => product.catalogSection).filter((section): section is string => Boolean(section)),
+  ])].sort((left, right) => left.localeCompare(right));
 
   useEffect(() => () => {
     objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
@@ -3479,7 +3484,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     setInventoryPage((currentPage) => Math.min(currentPage, inventoryTotalPages));
   }, [inventoryTotalPages]);
 
-  const filteredProducts = filterAdminProducts(products, searchTerm, productStatusFilter);
+  const filteredProducts = filterAdminProducts(products, searchTerm, productStatusFilter, productCategoryFilter);
 
   const [page, setPage] = useState(1);
   const perPage = 12;
@@ -4117,6 +4122,11 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                   <option value="all">Todos</option>
                   <option value="active">Activos</option>
                   <option value="inactive">Inactivos</option>
+                </select>
+                <select aria-label="Filtrar productos por categoría" value={productCategoryFilter} onChange={(event) => { setProductCategoryFilter(event.target.value); setPage(1); }}
+                  className="min-h-10 w-full bg-white px-3 sm:w-auto">
+                  <option value="all">Todas las categorías</option>
+                  {availableCategories.map((category) => <option key={category} value={category}>{category}</option>)}
                 </select>
               </div>
 

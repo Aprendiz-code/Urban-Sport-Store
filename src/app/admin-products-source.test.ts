@@ -63,6 +63,9 @@ describe('admin products table data source', () => {
 
   it('shows category and creation date while using a no-overflow mobile card layout', () => {
     expect(appSource).toContain("['Imagen', 'Nombre', 'Marca', 'Categoría', 'Precio', 'Stock', 'Estado', 'Creado', 'Acciones']");
+    expect(appSource).toContain('aria-label="Filtrar productos por categoría"');
+    expect(appSource).toContain('product.catalogSection');
+    expect(appSource).toContain('productCategoryFilter');
     expect(appSource).toContain('createdAt: record.created_at ?? undefined');
     expect(appSource).toContain('updatedAt: record.updated_at ?? undefined');
     expect(appSource).toContain('admin-table-scroll hidden lg:block');
