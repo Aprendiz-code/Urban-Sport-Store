@@ -57,6 +57,21 @@ import ProductGallery from './components/ProductGallery';
 import Toaster from './components/LazyToaster';
 import { toast } from '../lib/lazyToast';
 import type { Address as DomainAddress, GuestCartItem, Order, Product as DomainProduct } from '../types/domain';
+import pseLogo from "../../logos medios de pago/logo-pse.png";
+import bancolombiaLogo from "../../logos medios de pago/Logo_Bancolombia2.png";
+import nequiLogo from "../../logos medios de pago/NEQUI.jpg";
+import visaLogo from "../../logos medios de pago/png-transparent-logo-brand-visa-font-visa-blue-text-trademark-thumbnail.png";
+import mastercardLogo from "../../logos medios de pago/images.png";
+import americanExpressLogo from "../../logos medios de pago/logo-American-Express.png";
+
+const paymentMethods = [
+  { name: "Visa", logo: visaLogo },
+  { name: "Mastercard", logo: mastercardLogo },
+  { name: "American Express", logo: americanExpressLogo },
+  { name: "PSE", logo: pseLogo },
+  { name: "Nequi", logo: nequiLogo },
+  { name: "Bancolombia", logo: bancolombiaLogo },
+];
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 
@@ -1476,8 +1491,15 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
                   <li><button type="button" onClick={() => onNavigate("shipping")} className="min-h-10 w-full text-left text-xs text-slate-400 transition-colors hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">Envíos</button></li>
                 </ul>
                 <div className="mt-4 rounded-xl border border-slate-800 bg-slate-900/60 p-3">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-200">Métodos de pago</p>
-                  <p className="mt-2 text-xs leading-relaxed text-slate-400">PSE, tarjetas de crédito/débito, pago contra entrega</p>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-200">Medios de pago disponibles</p>
+                  <div className="mt-3 grid grid-cols-3 items-center gap-x-3 gap-y-2 rounded-md bg-white p-2" aria-label="Medios de pago disponibles: Visa, Mastercard, American Express, PSE, Nequi y Bancolombia">
+                    {paymentMethods.map(({ name, logo }) => (
+                      <span key={name} className="flex h-8 items-center justify-center">
+                        <img src={logo} alt={name} className="max-h-full max-w-full object-contain" />
+                      </span>
+                    ))}
+                  </div>
+                  <p className="mt-3 text-[11px] leading-relaxed text-slate-400">También puedes pagar contra entrega.</p>
                 </div>
               </div>
             </div>
