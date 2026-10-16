@@ -17,7 +17,6 @@ vi.mock('@supabase/supabase-js', () => ({
 import { supabaseAdmin } from '../../lib/api-helpers/supabase.js';
 import handler from '../orders.js';
 import detailHandler from '../orders/[id].js';
-import cancelHandler from '../orders/[id]/cancel.js';
 
 const idempotencyKey = '123e4567-e89b-42d3-a456-426614174000';
 const orderId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
@@ -353,10 +352,10 @@ describe('secure orders endpoints', () => {
     });
     const res = makeResponse();
 
-    await cancelHandler({
+    await detailHandler({
       method: 'POST',
       headers: { authorization: 'Bearer test-access-token' },
-      query: { id: orderId },
+      query: { id: orderId, action: 'cancel' },
     }, res);
 
     expect(supabaseAdmin!.rpc).toHaveBeenCalledWith('cancel_pending_order', { p_order_id: orderId });
@@ -370,10 +369,10 @@ describe('secure orders endpoints', () => {
       : createQuery({ data: { id: orderId, user_id: 'other-user', status: 'pending_payment' }, error: null }));
     const res = makeResponse();
 
-    await cancelHandler({
+    await detailHandler({
       method: 'POST',
       headers: { authorization: 'Bearer test-access-token' },
-      query: { id: orderId },
+      query: { id: orderId, action: 'cancel' },
     }, res);
 
     expect(res.statusCode).toBe(404);

@@ -2,12 +2,20 @@ import { jsonResponse, jsonError } from '../lib/api-helpers/response.ts';
 import { supabasePublic } from '../lib/api-helpers/supabase.ts';
 
 export default async function handler(req: any, res: any) {
+  const requestUrl = new URL(req.url ?? '', 'http://localhost');
+  if (requestUrl.searchParams.get('resource') === 'health') {
+    return jsonResponse(res, {
+      ok: true,
+      service: 'urbansport-api',
+    });
+  }
+
   if (req.method !== 'GET') {
     return jsonError(res, 405, 'Method not allowed.');
   }
 
   try {
-    const url = new URL(req.url ?? '', 'http://localhost');
+    const url = requestUrl;
     const id = url.searchParams.get('id');
     const slug = url.searchParams.get('slug');
 

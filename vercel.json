@@ -1,6 +1,8 @@
 {
   "rewrites": [
     { "source": "/api/admin/product-images", "destination": "/api/admin/products?resource=product-image" },
+    { "source": "/api/health", "destination": "/api/products?resource=health" },
+    { "source": "/api/orders/:id/cancel", "destination": "/api/orders/:id?action=cancel" },
     { "source": "/((?!api).*)", "destination": "/index.html" }
   ]
 }

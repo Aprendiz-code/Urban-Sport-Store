@@ -9,7 +9,12 @@
 *.pfx
 *.ppk
 api/account/**
-api/admin/**
+api/health.ts
+api/admin/audit.ts
+api/admin/categories/**
+api/admin/dashboard.ts
+api/admin/home-content.ts
+api/orders/**/cancel.ts
 api/test/**
 api/index.ts
 
