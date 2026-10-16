@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   resolveAssignableProductCategories,
+  resolveAssignableSportCategories,
   resolveProductCategoryName,
   type CategoryOption,
 } from '../category-service';
@@ -29,5 +30,9 @@ describe('resolveProductCategoryName', () => {
       { id: '44444444-4444-4444-4444-444444444444', name: 'Perfumes', slug: 'perfumes', isActive: false },
       { id: '55555555-5555-5555-5555-555555555555', name: 'Tenis   Hombre', slug: 'legacy-tenis-hombre', isActive: true },
     ])).toEqual([]);
+  });
+
+  it('exposes the active sports categories independently from catalog sections', () => {
+    expect(resolveAssignableSportCategories(categories).map((category) => category.displayName)).toEqual(['Running', 'Training']);
   });
 });

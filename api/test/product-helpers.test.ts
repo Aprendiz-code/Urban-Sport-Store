@@ -10,10 +10,10 @@ vi.mock('../../lib/api-helpers/supabase.js', () => ({
 }));
 
 import { normalizeProductPayload, normalizeProductUpdates } from '../../lib/api-helpers/product-helpers.js';
-import { PRODUCT_CATEGORY_NAMES } from '../../lib/product-categories.js';
+import { SPORT_CATEGORY_NAMES } from '../../lib/product-categories.js';
 
 const categoryId = '123e4567-e89b-12d3-a456-426614174000';
-const activeCategories = PRODUCT_CATEGORY_NAMES.map((name, index) => ({
+const activeCategories = SPORT_CATEGORY_NAMES.map((name, index) => ({
   id: index === 0 ? categoryId : `00000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
   name,
   slug: name.toLowerCase().replace(/\s+/g, '-'),
@@ -42,6 +42,7 @@ describe('product payload normalization', () => {
       stock: '12',
       sku: 'NKE-AF1-001',
       category_id: categoryId,
+      catalog_section: 'Tenis Hombre',
       image: 'https://storage.test/main.png',
       images: ['https://storage.test/gallery.png'],
       description: 'Calzado deportivo\n\nIdeal para entrenamiento.',
@@ -57,6 +58,7 @@ describe('product payload normalization', () => {
       price: 199900,
       compare_at_price: 229900,
       category_id: categoryId,
+      catalog_section: 'Tenis Hombre',
       stock: 12,
       sku: 'NKE-AF1-001',
       main_image: 'https://storage.test/main.png',
@@ -109,7 +111,7 @@ describe('product payload normalization', () => {
     supabaseMocks.categoryRows.push({
       ...activeCategories[0]!,
       id: '00000000-0000-4000-8000-000000000099',
-      name: ' TENIS   HOMBRE ',
+      name: ' URBANO ',
     });
     await expect(normalizeProductUpdates({ category_id: categoryId })).rejects.toThrow('duplicada');
   });
@@ -122,12 +124,14 @@ describe('product payload normalization', () => {
       stock: 0,
       sku: 'NKE-AF1-001',
       category_id: categoryId,
+      catalog_section: 'Tenis Hombre',
       main_image: 'https://storage.test/main.png',
     };
 
     await expect(normalizeProductPayload({ ...basePayload, price: -1 })).rejects.toThrow('mayor o igual a 0');
     await expect(normalizeProductPayload({ ...basePayload, stock: 1.5 })).rejects.toThrow('entero');
     await expect(normalizeProductPayload({ ...basePayload, category_id: 'not-a-uuid' })).rejects.toThrow('categoría');
+    await expect(normalizeProductPayload({ ...basePayload, catalog_section: 'Deportes' })).rejects.toThrow('sección del catálogo');
     await expect(normalizeProductPayload({ ...basePayload, images: Array.from({ length: 11 }, (_, index) => `image-${index}`) })).rejects.toThrow('hasta 10 imágenes');
     expect(supabaseMocks.from).not.toHaveBeenCalled();
   });

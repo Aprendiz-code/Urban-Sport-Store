@@ -33,6 +33,15 @@ export interface ProductSpecification {
   value: string;
 }
 
+export type ProductCatalogSection =
+  | 'Tenis Hombre'
+  | 'Tenis Mujer'
+  | 'Ropa Hombre'
+  | 'Ropa Mujer'
+  | 'Perfumes'
+  | 'Relojes'
+  | 'Gafas';
+
 export interface Product {
   id: string;
   name: string;
@@ -45,6 +54,7 @@ export interface Product {
   image: string;
   category: string;
   categoryId?: string;
+  catalogSection?: ProductCatalogSection | string;
   slug?: string | null;
   subcategory: string;
   stock: number;

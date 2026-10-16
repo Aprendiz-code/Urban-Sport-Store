@@ -10,6 +10,7 @@ export const productSchema = z.object({
   reviews: z.number().int().nonnegative().optional(),
   image: z.string().url().optional().or(z.string().min(0)),
   category: z.string().min(1),
+  catalogSection: z.string().min(1, 'Selecciona una sección del catálogo.'),
   subcategory: z.string().optional(),
   stock: z.number().int().nonnegative(),
   sku: z.string().optional(),

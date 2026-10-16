@@ -20,6 +20,7 @@ describe('admin product validation', () => {
       price: 120000,
       stock: 10,
       categoryId: validUuid,
+      catalogSection: 'Tenis Hombre',
       image: 'https://example.test/image.jpg',
       images: [],
     })).toEqual({});
@@ -31,11 +32,16 @@ describe('admin product validation', () => {
       price: 120000,
       stock: 10,
       categoryId: '',
+      catalogSection: 'Tenis Hombre',
       image: '',
       images: [],
     })).toMatchObject({
       category: 'Selecciona una categoría válida.',
     });
+    expect(validateProductForm({
+      name: 'Zapatilla Test', brand: 'Marca Test', sku: 'SKU-1', price: 1, stock: 1,
+      categoryId: validUuid, catalogSection: 'Deportes', image: 'https://example.test/image.jpg', images: [],
+    })).toHaveProperty('catalogSection', 'Selecciona una sección del catálogo válida.');
   });
 
   it('accepts zero price and rejects negative price, fractional stock, and oversized galleries', () => {
@@ -46,6 +52,7 @@ describe('admin product validation', () => {
       price: 0,
       stock: 0,
       categoryId: '123e4567-e89b-12d3-a456-426614174000',
+      catalogSection: 'Tenis Hombre',
       image: 'https://example.test/image.jpg',
       images: [],
     };
@@ -64,6 +71,7 @@ describe('admin product validation', () => {
       price: 120000,
       stock: 10,
       categoryId: '123e4567-e89b-12d3-a456-426614174000',
+      catalogSection: 'Tenis Hombre',
       image: 'https://example.test/image.jpg',
       images: [],
     };
@@ -80,6 +88,7 @@ describe('admin product validation', () => {
       price: 1,
       stock: 1,
       categoryId: '123e4567-e89b-12d3-a456-426614174000',
+      catalogSection: 'Tenis Hombre',
       image,
       images: [],
     })).toHaveProperty('image');
@@ -93,6 +102,7 @@ describe('admin product validation', () => {
       price: 1,
       stock: 1,
       categoryId: '123e4567-e89b-12d3-a456-426614174000',
+      catalogSection: 'Tenis Hombre',
       image: '',
       images: [],
       pendingImageCount: 1,

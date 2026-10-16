@@ -18,12 +18,12 @@ import { STORE_CONFIG } from "./store-config";
 import { subscribeToNewsletter } from "../lib/newsletter";
 import {
   fetchPublicCategories,
-  getUnavailableProductCategoryNames,
   parseCategoryOptions,
-  resolveAssignableProductCategories,
+  resolveAssignableSportCategories,
   resolveProductCategoryName,
   type CategoryOption,
 } from "../lib/category-service";
+import { PRODUCT_CATEGORY_NAMES } from "../../lib/product-categories";
 // promoRibbon moved to src/assets/cinta-10.png
 import type { ProductRecord } from "../lib/supabase-store";
 import { createProductViaAdminApi, updateProductViaAdminApi } from "../lib/admin-product-fallback";
@@ -246,6 +246,7 @@ const mapProductRecordToAppProduct = (record: ProductRecord, categories: readonl
     images: productImages.gallery,
     category: resolveProductCategoryName(record.category_id, record.category, categories),
     categoryId: record.category_id ?? undefined,
+    catalogSection: record.catalog_section ?? undefined,
     subcategory: record.subcategory ?? "",
     stock: record.stock ?? 0,
     sku: record.sku ?? record.id,
@@ -275,6 +276,7 @@ const mapAppProductToProductRecord = (product: Partial<Product> & { id?: string 
   image: product.image ?? "",
   category: product.category ?? "Zapatos",
   category_id: product.categoryId ?? product.category ?? null,
+  catalog_section: product.catalogSection ?? null,
   images: product.images ?? [],
   subcategory: product.subcategory ?? "",
   stock: Number(product.stock ?? 0),
@@ -3161,20 +3163,17 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
   const [activeProduct, setActiveProduct] = useState<Product | null>(null);
   const [productForm, setProductForm] = useState<Omit<Product, "id">>({
     name: "", brand: "", price: 0, originalPrice: undefined, discount: undefined,
-    rating: 0, reviews: 0, image: "", images: [], category: "", categoryId: undefined, subcategory: "",
+    rating: 0, reviews: 0, image: "", images: [], category: "", categoryId: undefined, catalogSection: "", subcategory: "",
     stock: 0, sku: "", description: "", colors: [], sizes: [], gender: "Unisex",
     isNew: false, isFeatured: false, specs: [], specifications: [],
   });
   const [newProductSize, setNewProductSize] = useState('');
 
-  const assignableProductCategories = useMemo(() => resolveAssignableProductCategories(categories), [categories]);
-  const unavailableProductCategoryNames = useMemo(() => getUnavailableProductCategoryNames(categories), [categories]);
-  const selectedCategoryOption = useMemo(() => {
-    const category = categories.find((option) => option.id === productForm.categoryId || option.name === productForm.category);
-    if (!category) return undefined;
-    const assignable = assignableProductCategories.find((option) => option.id === category.id);
-    return { ...category, displayName: assignable?.displayName ?? category.name };
-  }, [assignableProductCategories, categories, productForm.category, productForm.categoryId]);
+  const assignableSportCategories = useMemo(() => resolveAssignableSportCategories(categories), [categories]);
+  const selectedCategoryOption = useMemo(
+    () => categories.find((option) => option.id === productForm.categoryId || option.name === productForm.category),
+    [categories, productForm.category, productForm.categoryId],
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [productImageSelections, setProductImageSelections] = useState<AdminProductImageSelection[]>([]);
   const [primaryImageSelectionId, setPrimaryImageSelectionId] = useState<string | null>(null);
@@ -3194,7 +3193,10 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     error: null,
   });
   const [stockAdjustmentSubmittingId, setStockAdjustmentSubmittingId] = useState<string | null>(null);
-  const availableCategories = [...new Set([...categories.map((category) => category.name), ...getProductCategories(products)])];
+  const productCategoryFilterOptions = [
+    ...assignableSportCategories.map((category) => ({ value: `category:${category.id}`, label: category.displayName })),
+    ...PRODUCT_CATEGORY_NAMES.map((section) => ({ value: `section:${section}`, label: section })),
+  ];
 
   useEffect(() => () => {
     objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
@@ -3616,7 +3618,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     setActiveProduct(null);
     setProductForm({
       name: "", brand: "", price: 0, originalPrice: undefined, discount: undefined,
-      rating: 0, reviews: 0, image: "", images: [], category: "", categoryId: undefined, subcategory: "",
+      rating: 0, reviews: 0, image: "", images: [], category: "", categoryId: undefined, catalogSection: "", subcategory: "",
       stock: 0, sku: "", description: "", colors: [], sizes: [], gender: "Unisex",
       isNew: false, isFeatured: false, specs: [], specifications: [],
     });
@@ -3742,6 +3744,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       images: product.images ?? [],
       category: product.category,
       categoryId: product.categoryId,
+      catalogSection: product.catalogSection ?? "",
       subcategory: product.subcategory,
       stock: product.stock,
       sku: product.sku,
@@ -3766,6 +3769,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     const payload: Omit<Product, "id"> = {
       ...productForm,
       categoryId: normalizedCategoryId,
+      catalogSection: productForm.catalogSection,
       category: productForm.category || selectedCategoryOption?.name || '',
       colors: productForm.colors.map((color) => ({ name: color.name, hex: color.hex })),
       sizes: normalizedSizes,
@@ -3787,6 +3791,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       price: productForm.price,
       stock: productForm.stock,
       categoryId: normalizedCategoryId,
+      catalogSection: productForm.catalogSection,
       image: selectedPrimaryImage?.permanentUrl ?? "",
       images: selectedGalleryImages.flatMap((entry) => entry.permanentUrl ? [entry.permanentUrl] : []),
       pendingImageCount: productImageSelections.filter((entry) => Boolean(entry.file)).length,
@@ -3796,7 +3801,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
 
     if (categoriesStatus !== "ready") {
       errors.category = categoriesError ?? "Espera a que carguen las categorías antes de guardar.";
-    } else if (!assignableProductCategories.some((category) => category.id === normalizedCategoryId)) {
+    } else if (!assignableSportCategories.some((category) => category.id === normalizedCategoryId)) {
       errors.category = "Selecciona una categoría existente y activa.";
     }
 
@@ -4191,12 +4196,11 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                   aria-label="Filtrar productos por categoría"
                   value={productCategoryFilter}
                   onChange={(event) => { setProductCategoryFilter(event.target.value); setPage(1); }}
-                  disabled={categoriesStatus !== "ready" || assignableProductCategories.length === 0}
                   className="min-h-10 w-full bg-white px-3 sm:w-auto disabled:bg-slate-100 disabled:text-slate-400"
                 >
                   <option value="all">Todas las categorías</option>
-                  {assignableProductCategories.map((category) => (
-                    <option key={category.id} value={category.id}>{category.displayName}</option>
+                  {productCategoryFilterOptions.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
                 </select>
               </div>
@@ -4361,8 +4365,8 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                   </div>
                 </div>
 
-                {/* SKU y Categoría */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* SKU, sección y categoría deportiva */}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   <div>
                     <label htmlFor="admin-product-sku" className="text-xs font-bold text-slate-600 uppercase block mb-2">SKU *</label>
                     <input 
@@ -4377,16 +4381,39 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                     {formErrors.sku && <p id="admin-product-sku-error" role="alert" className="text-xs text-red-600 mt-1">{formErrors.sku}</p>}
                   </div>
                   <div>
-                    <label htmlFor="admin-product-category" className="text-xs font-bold text-slate-600 uppercase block mb-2">Categoría del producto *</label>
+                    <label htmlFor="admin-product-catalog-section" className="text-xs font-bold text-slate-600 uppercase block mb-2">Sección del catálogo *</label>
+                    <select
+                      id="admin-product-catalog-section"
+                      required
+                      value={productForm.catalogSection ?? ""}
+                      aria-invalid={Boolean(formErrors.catalogSection)}
+                      aria-describedby="admin-product-catalog-section-help admin-product-catalog-section-preview"
+                      onChange={(event) => {
+                        updateField('catalogSection', event.target.value);
+                        setFormErrors((previous) => ({ ...previous, catalogSection: '' }));
+                      }}
+                      className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-white hover:border-slate-300 focus:border-slate-500 focus:outline-none transition-colors text-slate-700"
+                    >
+                      <option value="" disabled>Selecciona una sección</option>
+                      {PRODUCT_CATEGORY_NAMES.map((section) => <option key={section} value={section}>{section}</option>)}
+                    </select>
+                    <p id="admin-product-catalog-section-help" className="mt-2 text-xs text-slate-500">El producto aparecerá en esta sección del catálogo.</p>
+                    <p id="admin-product-catalog-section-preview" role="status" className="mt-1 text-xs font-semibold text-slate-700">
+                      Se mostrará en: {productForm.catalogSection || "Selecciona una sección"}
+                    </p>
+                    {formErrors.catalogSection && <p role="alert" className="mt-2 text-xs text-red-600">{formErrors.catalogSection}</p>}
+                  </div>
+                  <div>
+                    <label htmlFor="admin-product-category" className="text-xs font-bold text-slate-600 uppercase block mb-2">Categoría deportiva *</label>
                     <select 
                       id="admin-product-category"
                       required
-                      aria-describedby="admin-product-category-help admin-product-category-preview"
+                      aria-describedby="admin-product-category-preview"
                       aria-invalid={Boolean(formErrors.category)}
                       value={productForm.categoryId ?? ""}
                       onChange={(e) => {
                         const nextCategoryId = e.target.value;
-                        const selectedOption = assignableProductCategories.find((option) => option.id === nextCategoryId);
+                        const selectedOption = assignableSportCategories.find((option) => option.id === nextCategoryId);
                         if (!selectedOption) {
                           updateField('categoryId', undefined);
                           updateField('category', "");
@@ -4400,22 +4427,21 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                           updateField('subcategory', defaultSubcategory ?? "");
                         }
                       }}
-                      disabled={categoriesStatus !== "ready" || assignableProductCategories.length === 0}
+                      disabled={categoriesStatus !== "ready" || assignableSportCategories.length === 0}
                       className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-white hover:border-slate-300 focus:border-slate-500 focus:outline-none transition-colors text-slate-700 disabled:bg-slate-100 disabled:text-slate-400"
                     >
-                      <option value="" disabled>Selecciona una categoría</option>
-                      {productForm.categoryId && !assignableProductCategories.some((category) => category.id === productForm.categoryId) && (
+                      <option value="" disabled>Selecciona una categoría deportiva</option>
+                      {productForm.categoryId && !assignableSportCategories.some((category) => category.id === productForm.categoryId) && (
                         <option value={productForm.categoryId} disabled>
-                          {selectedCategoryOption?.displayName ?? "Categoría actual no disponible"}
+                          {selectedCategoryOption?.name ?? "Categoría actual no disponible"}
                         </option>
                       )}
-                      {assignableProductCategories.map((option) => (
+                      {assignableSportCategories.map((option) => (
                         <option key={option.id} value={option.id}>{option.displayName}</option>
                       ))}
                     </select>
-                    <p id="admin-product-category-help" className="mt-2 text-xs text-slate-500">El producto aparecerá en esta sección del catálogo.</p>
                     <p id="admin-product-category-preview" role="status" className="mt-1 text-xs font-semibold text-slate-700">
-                      Se mostrará en: {selectedCategoryOption?.displayName ?? "Selecciona una categoría"}
+                      Categoría: {selectedCategoryOption?.name ?? "Selecciona una categoría deportiva"}
                     </p>
                     {categoriesStatus === "loading" && <p role="status" className="mt-2 text-xs text-slate-500">Cargando categorías…</p>}
                     {categoriesStatus === "error" && (
@@ -4424,9 +4450,9 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                         <button type="button" onClick={onRetryCategories} className="font-semibold underline">Reintentar</button>
                       </div>
                     )}
-                    {categoriesStatus === "ready" && unavailableProductCategoryNames.length > 0 && (
+                    {categoriesStatus === "ready" && assignableSportCategories.length === 0 && (
                       <p role="alert" className="mt-2 text-xs text-amber-800">
-                        Categorías no disponibles: {unavailableProductCategoryNames.join(", ")}.
+                        No hay categorías deportivas activas disponibles.
                       </p>
                     )}
                     {formErrors.category && <p role="alert" className="mt-2 text-xs text-red-600">{formErrors.category}</p>}
@@ -4644,7 +4670,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                 </p>
                 <div>
                   <label htmlFor="admin-category-change-select" className="mb-2 block text-xs font-bold uppercase text-slate-600">
-                    Nueva categoría
+                    Nueva categoría deportiva
                   </label>
                   <select
                     id="admin-category-change-select"
@@ -4655,16 +4681,15 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                     className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20 disabled:bg-slate-100"
                   >
                     <option value="" disabled>Selecciona una categoría</option>
-                    {categoryChangeProduct?.categoryId && !assignableProductCategories.some((category) => category.id === categoryChangeProduct.categoryId) && (
+                    {categoryChangeProduct?.categoryId && !assignableSportCategories.some((category) => category.id === categoryChangeProduct.categoryId) && (
                       <option value={categoryChangeProduct.categoryId} disabled>
                         {categoryChangeProduct.category || "Categoría actual no disponible"}
                       </option>
                     )}
-                    {assignableProductCategories.map((category) => (
+                    {assignableSportCategories.map((category) => (
                       <option key={category.id} value={category.id}>{category.displayName}</option>
                     ))}
                   </select>
-                  <p className="mt-2 text-xs text-slate-500">El producto aparecerá en esta sección del catálogo.</p>
                 </div>
                 {categoriesStatus === "loading" && <p role="status" className="text-sm text-slate-500">Cargando categorías…</p>}
                 {categoriesStatus === "error" && (
@@ -4673,9 +4698,9 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                     <button type="button" onClick={onRetryCategories} className="font-semibold underline">Reintentar</button>
                   </div>
                 )}
-                {categoriesStatus === "ready" && unavailableProductCategoryNames.length > 0 && (
+                {categoriesStatus === "ready" && assignableSportCategories.length === 0 && (
                   <p role="alert" className="text-sm text-amber-800">
-                    Categorías no disponibles: {unavailableProductCategoryNames.join(", ")}.
+                    No hay categorías deportivas activas disponibles.
                   </p>
                 )}
                 {categoryChangeError && <p role="alert" className="text-sm text-red-700">{categoryChangeError}</p>}

@@ -2,7 +2,9 @@ import { resolveApiBaseUrl } from './api-config';
 import {
   normalizeProductCategoryName,
   PRODUCT_CATEGORY_NAMES,
+  SPORT_CATEGORY_NAMES,
   type ProductCategoryName,
+  type SportCategoryName,
 } from '../../lib/product-categories';
 
 export interface CategoryOption {
@@ -14,6 +16,7 @@ export interface CategoryOption {
 }
 
 export type AssignableProductCategory = CategoryOption & { displayName: ProductCategoryName };
+export type AssignableSportCategory = CategoryOption & { displayName: SportCategoryName };
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -62,6 +65,19 @@ export function resolveAssignableProductCategories(
   categories: readonly CategoryOption[],
 ): AssignableProductCategory[] {
   return PRODUCT_CATEGORY_NAMES.flatMap((displayName) => {
+    const matches = categories.filter(
+      (category) => normalizeProductCategoryName(category.name) === normalizeProductCategoryName(displayName),
+    );
+    return matches.length === 1 && matches[0].isActive
+      ? [{ ...matches[0], displayName }]
+      : [];
+  });
+}
+
+export function resolveAssignableSportCategories(
+  categories: readonly CategoryOption[],
+): AssignableSportCategory[] {
+  return SPORT_CATEGORY_NAMES.flatMap((displayName) => {
     const matches = categories.filter(
       (category) => normalizeProductCategoryName(category.name) === normalizeProductCategoryName(displayName),
     );

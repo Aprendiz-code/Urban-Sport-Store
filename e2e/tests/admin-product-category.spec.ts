@@ -7,13 +7,9 @@ const expectedStaticHosts = new Set(['fonts.googleapis.com', 'images.unsplash.co
 const userId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const productId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const categories = [
-  { id: '10000000-0000-4000-8000-000000000001', name: 'Tenis Hombre', slug: 'tenis-hombre', is_active: true },
-  { id: '10000000-0000-4000-8000-000000000002', name: 'Tenis Mujer', slug: 'tenis-mujer', is_active: true },
-  { id: '10000000-0000-4000-8000-000000000003', name: 'Ropa Hombre', slug: 'ropa-hombre', is_active: true },
-  { id: '10000000-0000-4000-8000-000000000004', name: 'Ropa Mujer', slug: 'ropa-mujer', is_active: true },
-  { id: '10000000-0000-4000-8000-000000000005', name: 'Perfumes', slug: 'perfumes', is_active: true },
-  { id: '10000000-0000-4000-8000-000000000006', name: 'Relojes', slug: 'relojes', is_active: true },
-  { id: '10000000-0000-4000-8000-000000000007', name: 'Gafas', slug: 'gafas', is_active: true },
+  { id: '10000000-0000-4000-8000-000000000001', name: 'Urbano', slug: 'urbano', is_active: true },
+  { id: '10000000-0000-4000-8000-000000000002', name: 'Running', slug: 'running', is_active: true },
+  { id: '10000000-0000-4000-8000-000000000003', name: 'Training', slug: 'training', is_active: true },
 ] as const;
 
 type MockOptions = { role?: string; categoriesFailOnce?: boolean; listFailOnce?: boolean; patchFailOnce?: boolean };
@@ -28,7 +24,8 @@ function productRecord() {
     price: 120000,
     stock: 4,
     sku: 'E2E-CATEGORY-1',
-    category_id: categories[0].id,
+    category_id: categories[1].id,
+    catalog_section: 'Tenis Hombre',
     main_image: 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=',
     images: [],
     sizes: [],
@@ -176,23 +173,32 @@ test.describe('admin product categories with local mocks', () => {
     await expect(page.getByRole('alert')).toContainText('No fue posible cargar los productos.');
     await page.getByRole('button', { name: 'Reintentar', exact: true }).click();
     await expect(page.getByRole('row', { name: /Producto E2E/ })).toBeVisible();
+    const categoryFilter = page.getByRole('combobox', { name: 'Filtrar productos por categoría' });
+    await categoryFilter.selectOption('section:Perfumes');
+    await expect(page.getByRole('row', { name: /Producto E2E/ })).toHaveCount(0);
+    await categoryFilter.selectOption('section:Tenis Hombre');
+    await expect(page.getByRole('row', { name: /Producto E2E/ })).toBeVisible();
     expect(mocks.getListAttempts()).toBeGreaterThanOrEqual(2);
   });
 
-  test('new product requires a category and sends category_id to the API', async ({ page }) => {
+  test('new product selects a catalog section and sports category independently', async ({ page }) => {
     const mocks = await installMocks(page);
     await openProducts(page);
     await page.getByRole('button', { name: 'Nuevo producto', exact: true }).click();
 
+    const sectionSelect = page.locator('#admin-product-catalog-section');
     const categorySelect = page.locator('#admin-product-category');
+    await expect(sectionSelect).toHaveAttribute('required', '');
     await expect(categorySelect).toHaveAttribute('required', '');
-    await expect(categorySelect).toHaveValue('');
-    await expect(categorySelect.locator('option')).toHaveText([
-      'Selecciona una categoría', 'Tenis Hombre', 'Tenis Mujer', 'Ropa Hombre',
+    await expect(sectionSelect.locator('option')).toHaveText([
+      'Selecciona una sección', 'Tenis Hombre', 'Tenis Mujer', 'Ropa Hombre',
       'Ropa Mujer', 'Perfumes', 'Relojes', 'Gafas',
     ]);
-    await categorySelect.selectOption(categories[4].id);
+    await expect(categorySelect.locator('option')).toHaveText(['Selecciona una categoría deportiva', 'Urbano', 'Running', 'Training']);
+    await sectionSelect.selectOption('Perfumes');
+    await categorySelect.selectOption(categories[1].id);
     await expect(page.getByText('Se mostrará en: Perfumes')).toBeVisible();
+    await expect(page.getByText('Categoría: Running')).toBeVisible();
     await page.locator('#admin-product-name').fill('Perfume E2E');
     await page.locator('#admin-product-brand').fill('Marca E2E');
     await page.locator('#admin-product-price').fill('120000');
@@ -204,29 +210,30 @@ test.describe('admin product categories with local mocks', () => {
     await page.getByRole('button', { name: 'Crear producto', exact: true }).click();
 
     await expect(page.getByRole('dialog', { name: 'Crear producto' })).not.toBeVisible();
-    expect(mocks.getCreatePayload()).toMatchObject({ category_id: categories[4].id, name: 'Perfume E2E' });
+    expect(mocks.getCreatePayload()).toMatchObject({ category_id: categories[1].id, catalog_section: 'Perfumes', name: 'Perfume E2E' });
     expect(mocks.unexpectedRequests).toEqual([]);
   });
 
-  test('edit preselects the current category and category reassignment sends only category_id', async ({ page }) => {
+  test('edit restores both selections and category reassignment updates only category_id', async ({ page }) => {
     const mocks = await installMocks(page);
     await openProducts(page);
     const row = await openProductActions(page);
     await row.getByRole('button', { name: 'Editar', exact: true }).click();
-    await expect(page.locator('#admin-product-category')).toHaveValue(categories[0].id);
+    await expect(page.locator('#admin-product-category')).toHaveValue(categories[1].id);
+    await expect(page.locator('#admin-product-catalog-section')).toHaveValue('Tenis Hombre');
     await page.getByRole('button', { name: 'Cerrar formulario de producto' }).click();
 
     await row.locator('summary[aria-label^="Acciones para"]').click();
     await row.getByRole('button', { name: 'Cambiar categoría' }).click();
     const dialog = page.getByRole('dialog', { name: 'Cambiar categoría' });
-    await expect(dialog.getByLabel('Nueva categoría')).toHaveValue(categories[0].id);
-    await dialog.getByLabel('Nueva categoría').selectOption(categories[1].id);
+    await expect(dialog.getByLabel('Nueva categoría deportiva')).toHaveValue(categories[1].id);
+    await dialog.getByLabel('Nueva categoría deportiva').selectOption(categories[2].id);
     await dialog.getByRole('button', { name: 'Guardar categoría' }).click();
 
     await expect(dialog).not.toBeVisible();
-    await expect(row).toContainText('Tenis Mujer');
+    await expect(row).toContainText('Training');
     await expect(row.locator('summary')).toBeFocused();
-    expect(mocks.patchBodies).toEqual([{ category_id: categories[1].id }]);
+    expect(mocks.patchBodies).toEqual([{ category_id: categories[2].id }]);
     expect(mocks.unexpectedRequests).toEqual([]);
   });
 
@@ -247,20 +254,20 @@ test.describe('admin product categories with local mocks', () => {
     const row = await openProductActions(page);
     await row.getByRole('button', { name: 'Cambiar categoría' }).click();
     const dialog = page.getByRole('dialog', { name: 'Cambiar categoría' });
-    await dialog.getByLabel('Nueva categoría').selectOption(categories[1].id);
+    await dialog.getByLabel('Nueva categoría deportiva').selectOption(categories[2].id);
     await dialog.getByRole('button', { name: 'Guardar categoría' }).evaluate((button: HTMLButtonElement) => {
       button.click();
       button.click();
     });
 
     await expect(dialog.getByRole('alert')).toContainText('Fallo temporal al guardar.');
-    await expect(dialog.getByLabel('Nueva categoría')).toHaveValue(categories[1].id);
-    expect(mocks.patchBodies).toEqual([{ category_id: categories[1].id }]);
+    await expect(dialog.getByLabel('Nueva categoría deportiva')).toHaveValue(categories[2].id);
+    expect(mocks.patchBodies).toEqual([{ category_id: categories[2].id }]);
     await dialog.getByRole('button', { name: 'Guardar categoría' }).click();
     await expect(dialog).not.toBeVisible();
     expect(mocks.patchBodies).toEqual([
-      { category_id: categories[1].id },
-      { category_id: categories[1].id },
+      { category_id: categories[2].id },
+      { category_id: categories[2].id },
     ]);
   });
 

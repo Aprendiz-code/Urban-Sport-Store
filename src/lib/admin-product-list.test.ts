@@ -5,12 +5,12 @@ import { filterAdminProducts } from './admin-product-list';
 const products: Product[] = [
   {
     id: 'active-1', name: 'Runner Pro', brand: 'Nike', price: 100, rating: 0, reviews: 0,
-    image: '', category: 'Running', categoryId: 'category-running', subcategory: '', stock: 4, sku: 'RUN-001', description: '',
+    image: '', category: 'Running', categoryId: '11111111-1111-1111-1111-111111111111', catalogSection: 'Tenis Hombre', subcategory: '', stock: 4, sku: 'RUN-001', description: '',
     colors: [], sizes: [], isActive: true,
   },
   {
     id: 'inactive-1', name: 'Classic Tee', brand: 'Urban', price: 50, rating: 0, reviews: 0,
-    image: '', category: 'Ropa', categoryId: 'category-ropa', subcategory: '', stock: 0, sku: 'TEE-002', description: '',
+    image: '', category: 'Urbano', categoryId: '22222222-2222-2222-2222-222222222222', catalogSection: 'Ropa Hombre', subcategory: '', stock: 0, sku: 'TEE-002', description: '',
     colors: [], sizes: [], isActive: false,
   },
 ];
@@ -29,8 +29,9 @@ describe('admin product list filters', () => {
     expect(filterAdminProducts(products, 'urban', 'active')).toEqual([]);
   });
 
-  it('filters by stable category ID without matching legacy labels', () => {
-    expect(filterAdminProducts(products, '', 'all', 'category-running').map((product) => product.id)).toEqual(['active-1']);
-    expect(filterAdminProducts(products, '', 'all', 'category-missing')).toEqual([]);
+  it('filters by sports category ID or catalog section', () => {
+    expect(filterAdminProducts(products, '', 'all', 'category:11111111-1111-1111-1111-111111111111').map((product) => product.id)).toEqual(['active-1']);
+    expect(filterAdminProducts(products, '', 'all', 'section:Tenis Hombre').map((product) => product.id)).toEqual(['active-1']);
+    expect(filterAdminProducts(products, '', 'all', 'category:missing')).toEqual([]);
   });
 });

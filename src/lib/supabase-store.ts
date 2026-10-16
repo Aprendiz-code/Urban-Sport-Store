@@ -15,6 +15,7 @@ export interface ProductRecord {
   image: string;
   category: string;
   category_id?: string | null;
+  catalog_section?: string | null;
   main_image?: string | null;
   slug?: string | null;
   subcategory?: string | null;

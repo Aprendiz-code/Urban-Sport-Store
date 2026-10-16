@@ -21,6 +21,7 @@ export function buildAdminProductPayload(product: Partial<Product>, isCreating =
   const includeSizes = isCreating || product.sizes !== undefined;
   const includeSpecifications = isCreating || product.specifications !== undefined;
   const includeDescription = isCreating || product.description !== undefined;
+  const includeCatalogSection = isCreating || product.catalogSection !== undefined;
 
   return {
     slug: product.slug?.trim() || generatedSlug || `product-${Date.now()}`,
@@ -31,6 +32,7 @@ export function buildAdminProductPayload(product: Partial<Product>, isCreating =
     stock: Number(product.stock ?? 0),
     sku,
     category_id: product.categoryId ?? undefined,
+    ...(includeCatalogSection ? { catalog_section: product.catalogSection || undefined } : {}),
     ...(includeDescription ? { description: product.description ?? '' } : {}),
     ...(includeSizes ? { sizes } : {}),
     ...(includeSpecifications ? { specifications } : {}),

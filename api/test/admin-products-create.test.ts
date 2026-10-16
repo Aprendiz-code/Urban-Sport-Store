@@ -32,6 +32,7 @@ const createBody = () => ({
   stock: 1,
   sku: 'TEST-LOCAL-1',
   category_id: categoryId,
+  catalog_section: 'Tenis Hombre',
   main_image: 'https://storage.example/products/main.png',
   images: ['https://storage.example/products/main.png'],
   description: 'Material resistente\nPara entrenamiento.',
@@ -87,7 +88,7 @@ describe('admin product create endpoint', () => {
       error: null,
     });
     apiMocks.auditInsert.mockResolvedValue({ data: null, error: null });
-    apiMocks.categoryRows = [{ id: categoryId, name: 'Tenis Hombre', slug: 'tenis-hombre', is_active: true }];
+    apiMocks.categoryRows = [{ id: categoryId, name: 'Urbano', slug: 'urbano', is_active: true }];
     const categoriesQuery = {
       select: vi.fn(),
       then: (resolve: (value: { data: typeof apiMocks.categoryRows; error: null }) => unknown) =>
@@ -115,6 +116,7 @@ describe('admin product create endpoint', () => {
       stock: 1,
       sku: 'TEST-LOCAL-1',
       category_id: categoryId,
+      catalog_section: 'Tenis Hombre',
       main_image: 'https://storage.example/products/main.png',
       images: ['https://storage.example/products/main.png'],
       description: 'Material resistente\nPara entrenamiento.',

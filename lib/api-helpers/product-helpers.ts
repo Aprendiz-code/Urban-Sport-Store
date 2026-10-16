@@ -1,8 +1,9 @@
 import { supabaseAdmin } from './supabase.js';
 import { ApiError } from './response.js';
 import {
-  isAssignableProductCategoryName,
+  isAssignableSportCategoryName,
   normalizeProductCategoryName,
+  PRODUCT_CATEGORY_NAMES,
 } from '../product-categories.js';
 
 const ALLOWED_PRODUCT_COLUMNS = new Set([
@@ -13,6 +14,7 @@ const ALLOWED_PRODUCT_COLUMNS = new Set([
   'price',
   'compare_at_price',
   'category_id',
+  'catalog_section',
   'stock',
   'sku',
   'main_image',
@@ -156,6 +158,14 @@ function setProductFields(payload: Record<string, unknown>, body: any) {
     if (!UUID_PATTERN.test(categoryId.trim())) throw new ApiError(400, 'La categoría seleccionada no es válida.');
     payload.category_id = categoryId.trim();
   }
+  if (body.catalog_section !== undefined) {
+    const catalogSection = parseString(body.catalog_section);
+    const canonicalSection = PRODUCT_CATEGORY_NAMES.find(
+      (section) => normalizeProductCategoryName(section) === normalizeProductCategoryName(catalogSection ?? ''),
+    );
+    if (!canonicalSection) throw new ApiError(400, 'Selecciona una sección del catálogo válida.');
+    payload.catalog_section = canonicalSection;
+  }
   if (body.stock !== undefined) {
     const stock = toNumber(body.stock);
     if (stock === undefined || !Number.isInteger(stock) || stock < 0) {
@@ -221,7 +231,7 @@ async function resolveCategoryId(body: any): Promise<string | undefined> {
   }
 
   const category = categoryMatches[0];
-  if (category.is_active !== true || typeof category.name !== 'string' || !isAssignableProductCategoryName(category.name)) {
+  if (category.is_active !== true || typeof category.name !== 'string' || !isAssignableSportCategoryName(category.name)) {
     throw new ApiError(400, 'La categoría seleccionada no está activa o no es asignable.');
   }
 

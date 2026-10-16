@@ -6,7 +6,7 @@ export function filterAdminProducts(
   products: Product[],
   searchTerm: string,
   statusFilter: AdminProductStatusFilter,
-  categoryIdFilter = 'all',
+  categoryFilter = 'all',
 ): Product[] {
   const normalizedSearch = searchTerm.trim().toLowerCase();
 
@@ -16,7 +16,10 @@ export function filterAdminProducts(
       || (statusFilter === 'inactive' && product.isActive === false);
     const matchesSearch = !normalizedSearch || [product.name, product.brand, product.sku, product.category]
       .some((value) => value.toLowerCase().includes(normalizedSearch));
-    const matchesCategory = categoryIdFilter === 'all' || product.categoryId === categoryIdFilter;
+    const matchesCategory = categoryFilter === 'all'
+      || (categoryFilter.startsWith('category:') && product.categoryId === categoryFilter.slice('category:'.length))
+      || (categoryFilter.startsWith('section:') && product.catalogSection === categoryFilter.slice('section:'.length))
+      || product.categoryId === categoryFilter;
 
     return matchesStatus && matchesSearch && matchesCategory;
   });

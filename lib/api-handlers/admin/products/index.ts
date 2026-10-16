@@ -65,8 +65,8 @@ export default async function handler(req: any, res: any) {
       const body = await parseJsonBody(req);
       const payload = await normalizeProductPayload(body);
 
-      if (!payload.slug || !payload.name || !payload.brand || payload.price === undefined || !payload.sku || !payload.category_id) {
-        throw new ApiError(400, 'Los campos nombre, marca, precio, SKU y categoría son obligatorios.');
+      if (!payload.slug || !payload.name || !payload.brand || payload.price === undefined || !payload.sku || !payload.category_id || !payload.catalog_section) {
+        throw new ApiError(400, 'Los campos nombre, marca, precio, SKU, categoría deportiva y sección del catálogo son obligatorios.');
       }
       if (!payload.main_image && !(Array.isArray(payload.images) && payload.images.length > 0)) {
         throw new ApiError(400, 'El producto requiere al menos una imagen cargada.');
