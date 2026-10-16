@@ -103,22 +103,26 @@ type Product = DomainProduct;
 type AdminProductImageSelection = { id: string; src: string; permanentUrl?: string; file?: File; previewUrl?: string };
 
 const HOME_NAV_CATEGORIES = [
-  { name: "Tenis", filterCategory: "Running" },
-  { name: "Ropa Hombre", filterCategory: null },
-  { name: "Ropa Mujer", filterCategory: null },
-  { name: "Perfumes", filterCategory: null },
-  { name: "Relojes", filterCategory: null },
-  { name: "Gafas", filterCategory: null },
+  { name: "Tenis Hombre", filterCategory: "Tenis Hombre" },
+  { name: "Tenis Mujer", filterCategory: "Tenis Mujer" },
+  { name: "Ropa Hombre", filterCategory: "Ropa Hombre" },
+  { name: "Ropa Mujer", filterCategory: "Ropa Mujer" },
+  { name: "Perfumes", filterCategory: "Perfumes" },
+  { name: "Relojes", filterCategory: "Relojes" },
+  { name: "Gafas", filterCategory: "Gafas" },
 ] as const;
 
 const HOME_COLLECTIONS = [
-  { name: "Zapatos", filterCategory: "Running" },
-  { name: "Ropa Hombre", filterCategory: null },
-  { name: "Ropa Mujer", filterCategory: null },
-  { name: "Perfumes", filterCategory: null },
-  { name: "Relojes", filterCategory: null },
-  { name: "Gafas", filterCategory: null },
-];
+  { name: "Tenis Hombre", filterCategory: "Tenis Hombre" },
+  { name: "Tenis Mujer", filterCategory: "Tenis Mujer" },
+  { name: "Ropa Hombre", filterCategory: "Ropa Hombre" },
+  { name: "Ropa Mujer", filterCategory: "Ropa Mujer" },
+  { name: "Perfumes", filterCategory: "Perfumes" },
+  { name: "Relojes", filterCategory: "Relojes" },
+  { name: "Gafas", filterCategory: "Gafas" },
+] as const;
+
+const PRODUCT_CATALOG_SECTIONS = HOME_NAV_CATEGORIES.map((section) => section.name);
 
 function getProductCategories(products: Product[]): Category[] {
   return [...new Set(products.map((product) => product.category.trim()).filter(Boolean))]
@@ -238,6 +242,7 @@ const mapProductRecordToAppProduct = (record: ProductRecord, categories: readonl
     images: productImages.gallery,
     category: resolveProductCategoryName(record.category_id, record.category, categories),
     categoryId: record.category_id ?? undefined,
+    catalogSection: record.catalog_section ?? undefined,
     subcategory: record.subcategory ?? "",
     stock: record.stock ?? 0,
     sku: record.sku ?? record.id,
@@ -267,6 +272,7 @@ const mapAppProductToProductRecord = (product: Partial<Product> & { id?: string 
   image: product.image ?? "",
   category: product.category ?? "Zapatos",
   category_id: product.categoryId ?? product.category ?? null,
+  catalog_section: product.catalogSection ?? null,
   images: product.images ?? [],
   subcategory: product.subcategory ?? "",
   stock: Number(product.stock ?? 0),
@@ -1554,10 +1560,10 @@ function CatalogPage({ filterCategory, selectedBrand, setSelectedBrand, sortBy, 
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   const allBrands = [...new Set(products.map((p) => p.brand))];
-  const availableCategories = [...new Set([...categories.map((category) => category.name), ...getProductCategories(products)])];
+  const availableCategories = [...new Set([...categories.map((category) => category.name), ...getProductCategories(products), ...products.map((product) => product.catalogSection).filter((section): section is string => Boolean(section))])];
   const filtered = useMemo(() => {
     let list = products;
-    if (selectedCat) list = list.filter((p) => p.category === selectedCat);
+    if (selectedCat) list = list.filter((p) => p.category === selectedCat || p.catalogSection === selectedCat);
     if (selectedBrand) list = list.filter((p) => p.brand === selectedBrand);
     if (sortBy === "precio-asc") list = [...list].sort((a, b) => a.price - b.price);
     if (sortBy === "precio-desc") list = [...list].sort((a, b) => b.price - a.price);
@@ -3141,7 +3147,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
   const [activeProduct, setActiveProduct] = useState<Product | null>(null);
   const [productForm, setProductForm] = useState<Omit<Product, "id">>({
     name: "", brand: "", price: 0, originalPrice: undefined, discount: undefined,
-    rating: 0, reviews: 0, image: "", images: [], category: "", categoryId: undefined, subcategory: "",
+    rating: 0, reviews: 0, image: "", images: [], category: "", categoryId: undefined, catalogSection: "", subcategory: "",
     stock: 0, sku: "", description: "", colors: [], sizes: [], gender: "Unisex",
     isNew: false, isFeatured: false, specs: [], specifications: [],
   });
@@ -3544,7 +3550,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     setActiveProduct(null);
     setProductForm({
       name: "", brand: "", price: 0, originalPrice: undefined, discount: undefined,
-      rating: 0, reviews: 0, image: "", images: [], category: "", categoryId: undefined, subcategory: "",
+      rating: 0, reviews: 0, image: "", images: [], category: "", categoryId: undefined, catalogSection: "", subcategory: "",
       stock: 0, sku: "", description: "", colors: [], sizes: [], gender: "Unisex",
       isNew: false, isFeatured: false, specs: [], specifications: [],
     });
@@ -3670,6 +3676,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       images: product.images ?? [],
       category: product.category,
       categoryId: product.categoryId,
+      catalogSection: product.catalogSection ?? "",
       subcategory: product.subcategory,
       stock: product.stock,
       sku: product.sku,
@@ -3694,6 +3701,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     const payload: Omit<Product, "id"> = {
       ...productForm,
       categoryId: normalizedCategoryId,
+      catalogSection: productForm.catalogSection,
       category: productForm.category || selectedCategoryOption?.name || '',
       colors: productForm.colors.map((color) => ({ name: color.name, hex: color.hex })),
       sizes: normalizedSizes,
@@ -3715,6 +3723,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       price: productForm.price,
       stock: productForm.stock,
       categoryId: normalizedCategoryId,
+      catalogSection: productForm.catalogSection,
       image: selectedPrimaryImage?.permanentUrl ?? "",
       images: selectedGalleryImages.flatMap((entry) => entry.permanentUrl ? [entry.permanentUrl] : []),
       pendingImageCount: productImageSelections.filter((entry) => Boolean(entry.file)).length,
@@ -4271,8 +4280,8 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                   </div>
                 </div>
 
-                {/* SKU y Categoría */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* SKU, sección y categoría deportiva */}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   <div>
                     <label htmlFor="admin-product-sku" className="text-xs font-bold text-slate-600 uppercase block mb-2">SKU *</label>
                     <input 
@@ -4287,7 +4296,27 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                     {formErrors.sku && <p id="admin-product-sku-error" role="alert" className="text-xs text-red-600 mt-1">{formErrors.sku}</p>}
                   </div>
                   <div>
-                    <label htmlFor="admin-product-category" className="text-xs font-bold text-slate-600 uppercase block mb-2">Categoría *</label>
+                    <label htmlFor="admin-product-catalog-section" className="text-xs font-bold text-slate-600 uppercase block mb-2">Sección del catálogo *</label>
+                    <select
+                      id="admin-product-catalog-section"
+                      value={productForm.catalogSection ?? ""}
+                      onChange={(event) => {
+                        updateField('catalogSection', event.target.value);
+                        setFormErrors({ ...formErrors, catalogSection: '' });
+                      }}
+                      aria-invalid={Boolean(formErrors.catalogSection)}
+                      aria-describedby={formErrors.catalogSection ? "admin-product-catalog-section-error" : "admin-product-catalog-section-help"}
+                      className={`w-full px-4 py-3 rounded-xl border-2 transition-colors ${formErrors.catalogSection ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-white hover:border-slate-300 focus:border-slate-500'} focus:outline-none`}
+                    >
+                      <option value="" disabled>Selecciona una sección</option>
+                      {PRODUCT_CATALOG_SECTIONS.map((section) => <option key={section} value={section}>{section}</option>)}
+                    </select>
+                    <p id="admin-product-catalog-section-help" className="mt-1 text-xs text-slate-500">El producto aparecerá en esta sección del catálogo.</p>
+                    <p className="mt-1 text-xs text-slate-600">Se mostrará en: {productForm.catalogSection || 'Selecciona una sección'}</p>
+                    {formErrors.catalogSection && <p id="admin-product-catalog-section-error" role="alert" className="text-xs text-red-600 mt-1">{formErrors.catalogSection}</p>}
+                  </div>
+                  <div>
+                    <label htmlFor="admin-product-category" className="text-xs font-bold text-slate-600 uppercase block mb-2">Categoría deportiva *</label>
                     <select 
                       id="admin-product-category"
                       value={productForm.categoryId ?? ""}
@@ -4313,8 +4342,8 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                       <option value="" disabled>
                         {categories.length ? 'Selecciona una categoría' : 'Primero crea una categoría antes de agregar productos.'}
                       </option>
-                      {categories.filter((option) => option.slug === "urbano" || option.slug === "running").map((option) => (
-                        <option key={option.id} value={option.id}>{option.slug === "running" ? "Running / entrenamiento" : option.name}</option>
+                      {categories.filter((option) => ["urbano", "running", "training"].includes(option.slug)).map((option) => (
+                        <option key={option.id} value={option.id}>{option.name}</option>
                       ))}
                     </select>
                     {categories.length === 0 && (

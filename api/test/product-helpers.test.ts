@@ -22,6 +22,7 @@ describe('product payload normalization', () => {
       stock: '12',
       sku: 'NKE-AF1-001',
       category_id: categoryId,
+      catalog_section: 'Tenis Hombre',
       image: 'https://storage.test/main.png',
       images: ['https://storage.test/gallery.png'],
       description: 'Calzado deportivo\n\nIdeal para entrenamiento.',
@@ -37,6 +38,7 @@ describe('product payload normalization', () => {
       price: 199900,
       compare_at_price: 229900,
       category_id: categoryId,
+      catalog_section: 'Tenis Hombre',
       stock: 12,
       sku: 'NKE-AF1-001',
       main_image: 'https://storage.test/main.png',
@@ -86,6 +88,7 @@ describe('product payload normalization', () => {
     await expect(normalizeProductPayload({ ...basePayload, price: -1 })).rejects.toThrow('mayor o igual a 0');
     await expect(normalizeProductPayload({ ...basePayload, stock: 1.5 })).rejects.toThrow('entero');
     await expect(normalizeProductPayload({ ...basePayload, category_id: 'not-a-uuid' })).rejects.toThrow('categoría');
+    await expect(normalizeProductPayload({ ...basePayload, catalog_section: 'Infantil' })).rejects.toThrow('sección del catálogo');
     await expect(normalizeProductPayload({ ...basePayload, images: Array.from({ length: 11 }, (_, index) => `image-${index}`) })).rejects.toThrow('hasta 10 imágenes');
     expect(supabaseMocks.from).not.toHaveBeenCalled();
   });
