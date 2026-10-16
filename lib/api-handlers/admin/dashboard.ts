@@ -1,7 +1,7 @@
-import { jsonError, jsonResponse, ApiError } from '../../lib/api-helpers/response.ts';
-import { supabaseAdmin } from '../../lib/api-helpers/supabase.ts';
-import { requirePermission } from '../../lib/api-helpers/admin.ts';
-import { requireAuthenticatedUser } from '../../lib/api-helpers/auth.ts';
+import { jsonError, jsonResponse, ApiError } from '../../api-helpers/response.ts';
+import { supabaseAdmin } from '../../api-helpers/supabase.ts';
+import { requirePermission } from '../../api-helpers/admin.ts';
+import { requireAuthenticatedUser } from '../../api-helpers/auth.ts';
 
 const RECENT_ORDERS_LIMIT = 10;
 const SALES_PAGE_SIZE = 500;

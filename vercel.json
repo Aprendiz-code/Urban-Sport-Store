@@ -1,6 +1,17 @@
 {
   "rewrites": [
-    { "source": "/api/admin/product-images", "destination": "/api/admin/products?resource=product-image" },
     { "source": "/((?!api).*)", "destination": "/index.html" }
+  ],
+  "routes": [
+    {
+      "src": "^/api/admin/?$",
+      "dest": "/api/products",
+      "transforms": [{ "type": "request.path", "op": "set", "args": "/api/admin/_root" }]
+    },
+    {
+      "src": "^/api/admin/(.*)$",
+      "dest": "/api/products",
+      "transforms": [{ "type": "request.path", "op": "set", "args": "/api/admin/$1" }]
+    }
   ]
 }

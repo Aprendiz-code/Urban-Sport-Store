@@ -16,7 +16,14 @@ import HomePromoCarousel from "./components/HomePromoCarousel";
 import { STORE_CONFIG } from "./store-config";
 
 import { subscribeToNewsletter } from "../lib/newsletter";
-import { fetchPublicCategories, resolveProductCategoryName, type CategoryOption } from "../lib/category-service";
+import {
+  fetchPublicCategories,
+  parseCategoryOptions,
+  resolveAssignableSportCategories,
+  resolveProductCategoryName,
+  type CategoryOption,
+} from "../lib/category-service";
+import { PRODUCT_CATEGORY_NAMES } from "../../lib/product-categories";
 // promoRibbon moved to src/assets/cinta-10.png
 import type { ProductRecord } from "../lib/supabase-store";
 import { createProductViaAdminApi, updateProductViaAdminApi } from "../lib/admin-product-fallback";
@@ -50,7 +57,8 @@ import {
   submitCheckoutPayment,
 } from '../lib/checkout-quote-flow';
 import { MAX_PRODUCT_GALLERY_IMAGES, MAX_PRODUCT_TOTAL_IMAGES, normalizeProductSizes, normalizeProductSpecifications, submitAdminProductForm, validateProductForm } from '../lib/admin-product-form';
-import { buildAdminProductPayload } from '../lib/admin-product-payload';
+import { buildAdminProductCategoryUpdate, buildAdminProductPayload } from '../lib/admin-product-payload';
+import { runProductCategoryChangeOnce } from '../lib/admin-product-category';
 import { filterAdminProducts, type AdminProductStatusFilter } from '../lib/admin-product-list';
 import { normalizeProductImageList, resolveProductPublicImageUrl, uploadSelectedProductImages } from '../lib/admin-product-images';
 import ProductGallery from './components/ProductGallery';
@@ -238,6 +246,7 @@ const mapProductRecordToAppProduct = (record: ProductRecord, categories: readonl
     images: productImages.gallery,
     category: resolveProductCategoryName(record.category_id, record.category, categories),
     categoryId: record.category_id ?? undefined,
+    catalogSection: record.catalog_section ?? undefined,
     subcategory: record.subcategory ?? "",
     stock: record.stock ?? 0,
     sku: record.sku ?? record.id,
@@ -267,6 +276,7 @@ const mapAppProductToProductRecord = (product: Partial<Product> & { id?: string 
   image: product.image ?? "",
   category: product.category ?? "Zapatos",
   category_id: product.categoryId ?? product.category ?? null,
+  catalog_section: product.catalogSection ?? null,
   images: product.images ?? [],
   subcategory: product.subcategory ?? "",
   stock: Number(product.stock ?? 0),
@@ -3100,15 +3110,19 @@ function AccountPage({ onNavigate, onLogout, authUser, addresses, onCreateAddres
 
 // ─── ADMIN DASHBOARD ──────────────────────────────────────────────────────────
 
-function AdminDashboard({ onNavigate, products, productsStatus, productsError, onRetryProducts, categories, createProduct, updateProduct, setProductActive, adjustStock, productRefresh, initialSection, adminRole, homeContent, setHomeContent, homePreviewProducts, setHomePreviewProducts, homeSaleProducts, setHomeSaleProducts, homeNewArrivals, setHomeNewArrivals, saveHomeContent, homeContentSaving, backendAdminAvailable }: {
+function AdminDashboard({ onNavigate, products, productsStatus, productsError, onRetryProducts, categories, categoriesStatus, categoriesError, onRetryCategories, createProduct, updateProduct, updateProductCategory, setProductActive, adjustStock, productRefresh, initialSection, adminRole, homeContent, setHomeContent, homePreviewProducts, setHomePreviewProducts, homeSaleProducts, setHomeSaleProducts, homeNewArrivals, setHomeNewArrivals, saveHomeContent, homeContentSaving, backendAdminAvailable }: {
   onNavigate: (v: View) => void;
   products: Product[];
   productsStatus: ProductsStatus;
   productsError: string | null;
   onRetryProducts: () => void;
   categories: CategoryOption[];
+  categoriesStatus: ProductsStatus;
+  categoriesError: string | null;
+  onRetryCategories: () => void;
   createProduct: (product: Omit<Product, "id">) => Promise<void>;
   updateProduct: (productId: string, updates: Partial<Product>) => Promise<void>;
+  updateProductCategory: (productId: string, categoryId: string) => Promise<void>;
   setProductActive: (productId: string, isActive: boolean) => Promise<void>;
   adjustStock: (productId: string, movementType: 'in' | 'out' | 'correction', quantity: number, reason: string) => Promise<void>;
   productRefresh: number;
@@ -3131,23 +3145,35 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
   const productDialogRef = useRef<HTMLDialogElement>(null);
+  const categoryDialogRef = useRef<HTMLDialogElement>(null);
+  const categoryChangeTriggerRef = useRef<HTMLElement | null>(null);
+  const categoryChangeLockRef = useRef(false);
   const [isProductFormOpen, setIsProductFormOpen] = useState(false);
   const [isProductFormDirty, setIsProductFormDirty] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [productStatusFilter, setProductStatusFilter] = useState<AdminProductStatusFilter>("all");
+  const [productCategoryFilter, setProductCategoryFilter] = useState("all");
   const [availabilityUpdatingId, setAvailabilityUpdatingId] = useState<string | null>(null);
   const [deletingProductId, setDeletingProductId] = useState<string | null>(null);
+  const [categoryChangeProduct, setCategoryChangeProduct] = useState<Product | null>(null);
+  const [categoryChangeSelection, setCategoryChangeSelection] = useState("");
+  const [categoryChangeError, setCategoryChangeError] = useState<string | null>(null);
+  const [categoryChangeSaving, setCategoryChangeSaving] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [activeProduct, setActiveProduct] = useState<Product | null>(null);
   const [productForm, setProductForm] = useState<Omit<Product, "id">>({
     name: "", brand: "", price: 0, originalPrice: undefined, discount: undefined,
-    rating: 0, reviews: 0, image: "", images: [], category: "", categoryId: undefined, subcategory: "",
+    rating: 0, reviews: 0, image: "", images: [], category: "", categoryId: undefined, catalogSection: "", subcategory: "",
     stock: 0, sku: "", description: "", colors: [], sizes: [], gender: "Unisex",
     isNew: false, isFeatured: false, specs: [], specifications: [],
   });
   const [newProductSize, setNewProductSize] = useState('');
 
-  const selectedCategoryOption = useMemo(() => categories.find((option) => option.id === productForm.categoryId || option.name === productForm.category), [categories, productForm.category, productForm.categoryId]);
+  const assignableSportCategories = useMemo(() => resolveAssignableSportCategories(categories), [categories]);
+  const selectedCategoryOption = useMemo(
+    () => categories.find((option) => option.id === productForm.categoryId || option.name === productForm.category),
+    [categories, productForm.category, productForm.categoryId],
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [productImageSelections, setProductImageSelections] = useState<AdminProductImageSelection[]>([]);
   const [primaryImageSelectionId, setPrimaryImageSelectionId] = useState<string | null>(null);
@@ -3167,7 +3193,10 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     error: null,
   });
   const [stockAdjustmentSubmittingId, setStockAdjustmentSubmittingId] = useState<string | null>(null);
-  const availableCategories = [...new Set([...categories.map((category) => category.name), ...getProductCategories(products)])];
+  const productCategoryFilterOptions = [
+    ...assignableSportCategories.map((category) => ({ value: `category:${category.id}`, label: category.displayName })),
+    ...PRODUCT_CATEGORY_NAMES.map((section) => ({ value: `section:${section}`, label: section })),
+  ];
 
   useEffect(() => () => {
     objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
@@ -3214,6 +3243,16 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     if (isProductFormOpen && !dialog.open) dialog.showModal();
     if (!isProductFormOpen && dialog.open) dialog.close();
   }, [isProductFormOpen]);
+
+  useEffect(() => {
+    const dialog = categoryDialogRef.current;
+    if (!dialog) return;
+    if (categoryChangeProduct && !dialog.open) dialog.showModal();
+    if (!categoryChangeProduct && dialog.open) {
+      dialog.close();
+      window.requestAnimationFrame(() => categoryChangeTriggerRef.current?.focus());
+    }
+  }, [categoryChangeProduct]);
 
   const activeInventoryProducts = products.filter((product) => product.isActive !== false);
   const inventoryUnits = products.reduce((sum, product) => sum + Math.max(Number(product.stock ?? 0), 0), 0);
@@ -3473,7 +3512,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     setInventoryPage((currentPage) => Math.min(currentPage, inventoryTotalPages));
   }, [inventoryTotalPages]);
 
-  const filteredProducts = filterAdminProducts(products, searchTerm, productStatusFilter);
+  const filteredProducts = filterAdminProducts(products, searchTerm, productStatusFilter, productCategoryFilter);
 
   const [page, setPage] = useState(1);
   const perPage = 12;
@@ -3507,6 +3546,34 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     event.currentTarget.closest("details")?.removeAttribute("open");
   };
 
+  const openCategoryChange = (product: Product, trigger: HTMLElement) => {
+    categoryChangeTriggerRef.current = trigger;
+    setCategoryChangeProduct(product);
+    setCategoryChangeSelection(product.categoryId ?? "");
+    setCategoryChangeError(null);
+  };
+
+  const closeCategoryChange = () => {
+    if (categoryChangeSaving) return;
+    setCategoryChangeProduct(null);
+    setCategoryChangeSelection("");
+    setCategoryChangeError(null);
+  };
+
+  const saveCategoryChange = async () => {
+    if (!categoryChangeProduct || !categoryChangeSelection) return;
+    setCategoryChangeSaving(true);
+    await runProductCategoryChangeOnce(categoryChangeLockRef, async () => {
+      await updateProductCategory(categoryChangeProduct.id, categoryChangeSelection);
+      setCategoryChangeProduct(null);
+      setCategoryChangeSelection("");
+      setCategoryChangeError(null);
+    }, (error) => {
+      setCategoryChangeError(formatAdminApiError(error, "No se pudo cambiar la categoría."));
+    });
+    setCategoryChangeSaving(false);
+  };
+
   const renderProductActions = (product: Product) => (
     <details className="admin-row-actions">
       <summary className="admin-icon-button" aria-label={`Acciones para ${product.name}`} title="Acciones">
@@ -3515,6 +3582,13 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       <div className="admin-row-actions__menu" aria-label={`Acciones para ${product.name}`}>
         <button type="button" onClick={(event) => { closeRowActions(event); handleEditProduct(product); }}>
           <Edit size={15} aria-hidden="true" /> Editar
+        </button>
+        <button type="button" onClick={(event) => {
+          const trigger = event.currentTarget.closest("details")?.querySelector<HTMLElement>("summary") ?? event.currentTarget;
+          closeRowActions(event);
+          openCategoryChange(product, trigger);
+        }}>
+          <Tag size={15} aria-hidden="true" /> Cambiar categoría
         </button>
         <button type="button" disabled={availabilityUpdatingId !== null || deletingProductId !== null} aria-busy={availabilityUpdatingId === product.id} onClick={(event) => { closeRowActions(event); void handleProductAvailabilityChange(product); }}>
           <Check size={15} aria-hidden="true" /> {availabilityUpdatingId === product.id ? "Actualizando…" : product.isActive === false ? "Activar" : "Desactivar"}
@@ -3544,7 +3618,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     setActiveProduct(null);
     setProductForm({
       name: "", brand: "", price: 0, originalPrice: undefined, discount: undefined,
-      rating: 0, reviews: 0, image: "", images: [], category: "", categoryId: undefined, subcategory: "",
+      rating: 0, reviews: 0, image: "", images: [], category: "", categoryId: undefined, catalogSection: "", subcategory: "",
       stock: 0, sku: "", description: "", colors: [], sizes: [], gender: "Unisex",
       isNew: false, isFeatured: false, specs: [], specifications: [],
     });
@@ -3670,6 +3744,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       images: product.images ?? [],
       category: product.category,
       categoryId: product.categoryId,
+      catalogSection: product.catalogSection ?? "",
       subcategory: product.subcategory,
       stock: product.stock,
       sku: product.sku,
@@ -3694,6 +3769,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     const payload: Omit<Product, "id"> = {
       ...productForm,
       categoryId: normalizedCategoryId,
+      catalogSection: productForm.catalogSection,
       category: productForm.category || selectedCategoryOption?.name || '',
       colors: productForm.colors.map((color) => ({ name: color.name, hex: color.hex })),
       sizes: normalizedSizes,
@@ -3715,12 +3791,19 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       price: productForm.price,
       stock: productForm.stock,
       categoryId: normalizedCategoryId,
+      catalogSection: productForm.catalogSection,
       image: selectedPrimaryImage?.permanentUrl ?? "",
       images: selectedGalleryImages.flatMap((entry) => entry.permanentUrl ? [entry.permanentUrl] : []),
       pendingImageCount: productImageSelections.filter((entry) => Boolean(entry.file)).length,
       sizes: normalizedSizes,
       specifications: normalizedSpecifications,
     });
+
+    if (categoriesStatus !== "ready") {
+      errors.category = categoriesError ?? "Espera a que carguen las categorías antes de guardar.";
+    } else if (!assignableSportCategories.some((category) => category.id === normalizedCategoryId)) {
+      errors.category = "Selecciona una categoría existente y activa.";
+    }
 
     if (productImageSelections.length > MAX_PRODUCT_TOTAL_IMAGES) {
       errors.gallery = `Máximo ${MAX_PRODUCT_TOTAL_IMAGES} imágenes en total: 1 principal y hasta ${MAX_PRODUCT_GALLERY_IMAGES} adicionales.`;
@@ -4109,6 +4192,17 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                   <option value="active">Activos</option>
                   <option value="inactive">Inactivos</option>
                 </select>
+                <select
+                  aria-label="Filtrar productos por categoría"
+                  value={productCategoryFilter}
+                  onChange={(event) => { setProductCategoryFilter(event.target.value); setPage(1); }}
+                  className="min-h-10 w-full bg-white px-3 sm:w-auto disabled:bg-slate-100 disabled:text-slate-400"
+                >
+                  <option value="all">Todas las categorías</option>
+                  {productCategoryFilterOptions.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
               </div>
 
               <div className="admin-table-scroll hidden lg:block">
@@ -4271,8 +4365,8 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                   </div>
                 </div>
 
-                {/* SKU y Categoría */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* SKU, sección y categoría deportiva */}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   <div>
                     <label htmlFor="admin-product-sku" className="text-xs font-bold text-slate-600 uppercase block mb-2">SKU *</label>
                     <input 
@@ -4287,13 +4381,39 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                     {formErrors.sku && <p id="admin-product-sku-error" role="alert" className="text-xs text-red-600 mt-1">{formErrors.sku}</p>}
                   </div>
                   <div>
-                    <label htmlFor="admin-product-category" className="text-xs font-bold text-slate-600 uppercase block mb-2">Categoría *</label>
+                    <label htmlFor="admin-product-catalog-section" className="text-xs font-bold text-slate-600 uppercase block mb-2">Sección del catálogo *</label>
+                    <select
+                      id="admin-product-catalog-section"
+                      required
+                      value={productForm.catalogSection ?? ""}
+                      aria-invalid={Boolean(formErrors.catalogSection)}
+                      aria-describedby="admin-product-catalog-section-help admin-product-catalog-section-preview"
+                      onChange={(event) => {
+                        updateField('catalogSection', event.target.value);
+                        setFormErrors((previous) => ({ ...previous, catalogSection: '' }));
+                      }}
+                      className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-white hover:border-slate-300 focus:border-slate-500 focus:outline-none transition-colors text-slate-700"
+                    >
+                      <option value="" disabled>Selecciona una sección</option>
+                      {PRODUCT_CATEGORY_NAMES.map((section) => <option key={section} value={section}>{section}</option>)}
+                    </select>
+                    <p id="admin-product-catalog-section-help" className="mt-2 text-xs text-slate-500">El producto aparecerá en esta sección del catálogo.</p>
+                    <p id="admin-product-catalog-section-preview" role="status" className="mt-1 text-xs font-semibold text-slate-700">
+                      Se mostrará en: {productForm.catalogSection || "Selecciona una sección"}
+                    </p>
+                    {formErrors.catalogSection && <p role="alert" className="mt-2 text-xs text-red-600">{formErrors.catalogSection}</p>}
+                  </div>
+                  <div>
+                    <label htmlFor="admin-product-category" className="text-xs font-bold text-slate-600 uppercase block mb-2">Categoría deportiva *</label>
                     <select 
                       id="admin-product-category"
+                      required
+                      aria-describedby="admin-product-category-preview"
+                      aria-invalid={Boolean(formErrors.category)}
                       value={productForm.categoryId ?? ""}
                       onChange={(e) => {
                         const nextCategoryId = e.target.value;
-                        const selectedOption = categories.find((option) => option.id === nextCategoryId);
+                        const selectedOption = assignableSportCategories.find((option) => option.id === nextCategoryId);
                         if (!selectedOption) {
                           updateField('categoryId', undefined);
                           updateField('category', "");
@@ -4307,19 +4427,35 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                           updateField('subcategory', defaultSubcategory ?? "");
                         }
                       }}
-                      disabled={categories.length === 0}
+                      disabled={categoriesStatus !== "ready" || assignableSportCategories.length === 0}
                       className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-white hover:border-slate-300 focus:border-slate-500 focus:outline-none transition-colors text-slate-700 disabled:bg-slate-100 disabled:text-slate-400"
                     >
-                      <option value="" disabled>
-                        {categories.length ? 'Selecciona una categoría' : 'Primero crea una categoría antes de agregar productos.'}
-                      </option>
-                      {categories.filter((option) => option.slug === "urbano" || option.slug === "running").map((option) => (
-                        <option key={option.id} value={option.id}>{option.slug === "running" ? "Running / entrenamiento" : option.name}</option>
+                      <option value="" disabled>Selecciona una categoría deportiva</option>
+                      {productForm.categoryId && !assignableSportCategories.some((category) => category.id === productForm.categoryId) && (
+                        <option value={productForm.categoryId} disabled>
+                          {selectedCategoryOption?.name ?? "Categoría actual no disponible"}
+                        </option>
+                      )}
+                      {assignableSportCategories.map((option) => (
+                        <option key={option.id} value={option.id}>{option.displayName}</option>
                       ))}
                     </select>
-                    {categories.length === 0 && (
-                      <p className="mt-2 text-xs text-amber-700">Primero crea una categoría antes de agregar productos.</p>
+                    <p id="admin-product-category-preview" role="status" className="mt-1 text-xs font-semibold text-slate-700">
+                      Categoría: {selectedCategoryOption?.name ?? "Selecciona una categoría deportiva"}
+                    </p>
+                    {categoriesStatus === "loading" && <p role="status" className="mt-2 text-xs text-slate-500">Cargando categorías…</p>}
+                    {categoriesStatus === "error" && (
+                      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-red-700">
+                        <span role="alert">{categoriesError ?? "No se pudieron cargar las categorías."}</span>
+                        <button type="button" onClick={onRetryCategories} className="font-semibold underline">Reintentar</button>
+                      </div>
                     )}
+                    {categoriesStatus === "ready" && assignableSportCategories.length === 0 && (
+                      <p role="alert" className="mt-2 text-xs text-amber-800">
+                        No hay categorías deportivas activas disponibles.
+                      </p>
+                    )}
+                    {formErrors.category && <p role="alert" className="mt-2 text-xs text-red-600">{formErrors.category}</p>}
                   </div>
                 </div>
 
@@ -4497,6 +4633,95 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
               </form>
               </div>
             </div>
+            </dialog>
+            <dialog
+              ref={categoryDialogRef}
+              className="admin-category-dialog"
+              aria-labelledby="admin-category-dialog-title"
+              onCancel={(event) => {
+                event.preventDefault();
+                closeCategoryChange();
+              }}
+              onClick={(event) => {
+                if (event.target === categoryDialogRef.current) closeCategoryChange();
+              }}
+            >
+              <header className="admin-product-dialog__header">
+                <div>
+                  <h2 id="admin-category-dialog-title">Cambiar categoría</h2>
+                  <p>{categoryChangeProduct?.name ?? "Producto"}</p>
+                </div>
+                <button
+                  type="button"
+                  className="admin-icon-button"
+                  aria-label="Cerrar cambio de categoría"
+                  onClick={closeCategoryChange}
+                  disabled={categoryChangeSaving}
+                >
+                  <X size={18} aria-hidden="true" />
+                </button>
+              </header>
+              <form
+                className="admin-product-dialog__body space-y-4"
+                onSubmit={(event) => { event.preventDefault(); void saveCategoryChange(); }}
+              >
+                <p className="text-sm text-slate-700">
+                  <span className="font-semibold">Categoría actual:</span> {categoryChangeProduct?.category || "Sin categoría"}
+                </p>
+                <div>
+                  <label htmlFor="admin-category-change-select" className="mb-2 block text-xs font-bold uppercase text-slate-600">
+                    Nueva categoría deportiva
+                  </label>
+                  <select
+                    id="admin-category-change-select"
+                    autoFocus
+                    value={categoryChangeSelection}
+                    onChange={(event) => { setCategoryChangeSelection(event.target.value); setCategoryChangeError(null); }}
+                    disabled={categoriesStatus !== "ready" || categoryChangeSaving}
+                    className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20 disabled:bg-slate-100"
+                  >
+                    <option value="" disabled>Selecciona una categoría</option>
+                    {categoryChangeProduct?.categoryId && !assignableSportCategories.some((category) => category.id === categoryChangeProduct.categoryId) && (
+                      <option value={categoryChangeProduct.categoryId} disabled>
+                        {categoryChangeProduct.category || "Categoría actual no disponible"}
+                      </option>
+                    )}
+                    {assignableSportCategories.map((category) => (
+                      <option key={category.id} value={category.id}>{category.displayName}</option>
+                    ))}
+                  </select>
+                </div>
+                {categoriesStatus === "loading" && <p role="status" className="text-sm text-slate-500">Cargando categorías…</p>}
+                {categoriesStatus === "error" && (
+                  <div className="flex flex-wrap items-center gap-2 text-sm text-red-700">
+                    <p role="alert">{categoriesError ?? "No se pudieron cargar las categorías."}</p>
+                    <button type="button" onClick={onRetryCategories} className="font-semibold underline">Reintentar</button>
+                  </div>
+                )}
+                {categoriesStatus === "ready" && assignableSportCategories.length === 0 && (
+                  <p role="alert" className="text-sm text-amber-800">
+                    No hay categorías deportivas activas disponibles.
+                  </p>
+                )}
+                {categoryChangeError && <p role="alert" className="text-sm text-red-700">{categoryChangeError}</p>}
+                <footer className="flex flex-col-reverse gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={closeCategoryChange}
+                    disabled={categoryChangeSaving}
+                    className="min-h-10 rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={categoryChangeSaving || !categoryChangeSelection || categoryChangeSelection === categoryChangeProduct?.categoryId || categoriesStatus !== "ready"}
+                    className="min-h-10 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {categoryChangeSaving ? "Guardando…" : "Guardar categoría"}
+                  </button>
+                </footer>
+              </form>
             </dialog>
           </div>
         );
@@ -4981,6 +5206,11 @@ export default function App() {
   const [adminProductsStatus, setAdminProductsStatus] = useState<ProductsStatus>("loading");
   const [adminProductsError, setAdminProductsError] = useState<string | null>(null);
   const [categoryOptions, setCategoryOptions] = useState<CategoryOption[]>([]);
+  const [categoryOptionsStatus, setCategoryOptionsStatus] = useState<ProductsStatus>("loading");
+  const [categoryOptionsError, setCategoryOptionsError] = useState<string | null>(null);
+  const [adminCategoryOptions, setAdminCategoryOptions] = useState<CategoryOption[]>([]);
+  const [adminCategoryOptionsStatus, setAdminCategoryOptionsStatus] = useState<ProductsStatus>("loading");
+  const [adminCategoryOptionsError, setAdminCategoryOptionsError] = useState<string | null>(null);
   const [productRefresh, setProductRefresh] = useState(0);
   const [headerOffset, setHeaderOffset] = useState<number>(0);
 
@@ -5063,16 +5293,28 @@ export default function App() {
     const loadProducts = async () => {
       const apiUrl = normalizeApiRoot(import.meta.env.VITE_API_URL);
       setProductsStatus("loading");
+      setCategoryOptionsStatus("loading");
+      setCategoryOptionsError(null);
+
+      const categoriesRequest = fetchPublicCategories().then((loadedCategories) => {
+        if (isActive) {
+          setCategoryOptions(loadedCategories);
+          setCategoryOptionsStatus("ready");
+          setCategoryOptionsError(null);
+        }
+        return loadedCategories;
+      }).catch((error: unknown) => {
+        if (isActive) {
+          setCategoryOptions([]);
+          setCategoryOptionsStatus("error");
+          setCategoryOptionsError(error instanceof Error ? error.message : 'No se pudieron cargar las categorías.');
+        }
+        console.warn('No se pudieron cargar categorías desde el API.', error);
+        return [];
+      });
 
       try {
-        const [res, categories] = await Promise.all([
-          fetch(`${apiUrl}/products`),
-          fetchPublicCategories().catch((error) => {
-            console.warn('No se pudieron cargar categorías desde el API.', error);
-            return [];
-          }),
-        ]);
-        setCategoryOptions(categories);
+        const [res, categories] = await Promise.all([fetch(`${apiUrl}/products`), categoriesRequest]);
         if (!res.ok) {
           throw new Error(`Products API returned ${res.status}`);
         }
@@ -5098,6 +5340,7 @@ export default function App() {
       isActive = false;
     };
   }, [productRefresh]);
+
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [filterCategory, setFilterCategory] = useState<Category | null>(() => {
     if (typeof window === "undefined") return null;
@@ -5423,13 +5666,32 @@ export default function App() {
     setAdminProducts([]);
     setAdminProductsError(null);
     setAdminProductsStatus("loading");
+    setAdminCategoryOptionsStatus("loading");
+    setAdminCategoryOptionsError(null);
     logAuthDiagnostic("admin-data.started", { userId: authUser?.id, email: authUser?.email, sessionPresent: Boolean(authUser), isAdmin: true, redirectTo: "admin" });
 
-    void adminApi.fetchProducts().then((records) => {
+    const categoriesRequest = adminApi.fetchAdminCategories().then((records) => {
+      const loadedCategories = parseCategoryOptions(records);
+      if (isActive) {
+        setAdminCategoryOptions(loadedCategories);
+        setAdminCategoryOptionsStatus("ready");
+        setAdminCategoryOptionsError(null);
+      }
+      return loadedCategories;
+    }).catch((error: unknown) => {
+      if (isActive) {
+        setAdminCategoryOptions([]);
+        setAdminCategoryOptionsStatus("error");
+        setAdminCategoryOptionsError(error instanceof Error ? error.message : "No se pudieron cargar las categorías administrativas.");
+      }
+      return [];
+    });
+
+    void Promise.all([adminApi.fetchProducts(), categoriesRequest]).then(([records, categories]) => {
       if (!Array.isArray(records)) throw new Error("La API administrativa devolvió una respuesta inválida.");
       if (!isActive) return;
       logAuthDiagnostic("admin-data.succeeded", { userId: authUser?.id, email: authUser?.email, sessionPresent: true, isAdmin: true, itemCount: records.length });
-      setAdminProducts(records.map((record: ProductRecord) => mapProductRecordToAppProduct(record, categoryOptions)));
+      setAdminProducts(records.map((record: ProductRecord) => mapProductRecordToAppProduct(record, categories)));
       setAdminProductsStatus("ready");
     }).catch((error: unknown) => {
       if (!isActive) return;
@@ -5459,7 +5721,7 @@ export default function App() {
     return () => {
       isActive = false;
     };
-  }, [authReady, isAdmin, view, productRefresh, categoryOptions]);
+  }, [authReady, isAdmin, view, productRefresh]);
 
   const handleAuthSuccess = (user: User | null, adminStatus: boolean, role: string | null) => {
     setAuthUser(user);
@@ -5550,13 +5812,25 @@ export default function App() {
     try { recordAction('update_product', { id: updatedAppProduct.id, name: updatedAppProduct.name }); } catch (e) { }
   };
 
+  const updateProductCategory = async (productId: string, categoryId: string) => {
+    const updated = await adminApi.changeProductCategoryApi(productId, categoryId) as ProductRecord;
+    if (updated?.id !== productId || updated.category_id !== categoryId) {
+      throw new Error('La API no confirmó la nueva categoría del producto.');
+    }
+
+    const updatedProduct = mapProductRecordToAppProduct(updated, adminCategoryOptions);
+    setAdminProducts((current) => current.map((product) => product.id === productId ? updatedProduct : product));
+    setProducts((current) => current.map((product) => product.id === productId ? updatedProduct : product));
+    try { recordAction('update_product_category', { id: productId, categoryId }); } catch (error) { }
+  };
+
   const setProductActive = async (productId: string, isActive: boolean) => {
     const updated = await adminApi.updateProductAvailabilityApi(productId, isActive) as ProductRecord;
     if (updated?.is_active !== isActive) {
       throw new Error('La API no confirmó el cambio de estado del producto.');
     }
 
-    const updatedProduct = mapProductRecordToAppProduct(updated, categoryOptions);
+    const updatedProduct = mapProductRecordToAppProduct(updated, adminCategoryOptions);
     setAdminProducts((current) => current.map((product) => product.id === productId ? updatedProduct : product));
     try { recordAction(isActive ? 'activate_product' : 'deactivate_product', { id: productId }); } catch (error) { }
   };
@@ -5828,9 +6102,13 @@ export default function App() {
           productsStatus={adminProductsStatus}
           productsError={adminProductsError}
           onRetryProducts={refreshProducts}
-          categories={categoryOptions}
+          categories={adminCategoryOptions}
+          categoriesStatus={adminCategoryOptionsStatus}
+          categoriesError={adminCategoryOptionsError}
+          onRetryCategories={refreshProducts}
           createProduct={createProduct}
           updateProduct={updateProduct}
+          updateProductCategory={updateProductCategory}
           setProductActive={setProductActive}
           adjustStock={adjustStock}
           productRefresh={productRefresh}

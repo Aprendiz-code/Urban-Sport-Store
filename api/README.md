@@ -7,7 +7,7 @@
 Rutas administrativas existentes:
 
 - `GET/POST /api/admin/products`
-- `PATCH/DELETE /api/admin/products/:productId` (PATCH con `{ "is_active": boolean }` cambia solo la disponibilidad; DELETE borra físicamente, limpia rutas propias del bucket `products`, conserva las compartidas y devuelve `409` si una FK bloquea la fila; `207` indica que la fila se borró pero Storage/auditoría quedó parcial)
+- `PATCH /api/admin/products/:productId` (PATCH con `{ "is_active": boolean }` cambia solo la disponibilidad; DELETE responde `405` y no consulta ni modifica la base de datos o Storage)
 - `GET/POST /api/admin/categories`
 - `GET/PATCH/DELETE /api/admin/categories/:categoryId` (DELETE desactiva)
 - `GET/PATCH /api/admin/home-content`

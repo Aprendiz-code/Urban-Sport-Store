@@ -43,6 +43,7 @@ export function validateProductForm(form: {
   price?: number | string;
   stock?: number | string;
   categoryId?: string | null;
+  catalogSection?: string | null;
   image?: string | null;
   images?: Array<string | { url?: string } | null> | null;
   pendingImageCount?: number;
@@ -75,6 +76,10 @@ export function validateProductForm(form: {
 
   if (!isValidUuid(form.categoryId)) {
     errors.category = 'Selecciona una categoría válida.';
+  }
+
+  if (!['Tenis Hombre', 'Tenis Mujer', 'Ropa Hombre', 'Ropa Mujer', 'Perfumes', 'Relojes', 'Gafas'].includes(form.catalogSection ?? '')) {
+    errors.catalogSection = 'Selecciona una sección del catálogo válida.';
   }
 
   const normalizedSizes = (form.sizes ?? []).map((size) => size.trim());

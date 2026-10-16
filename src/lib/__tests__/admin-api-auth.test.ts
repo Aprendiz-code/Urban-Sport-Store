@@ -44,6 +44,26 @@ describe('authenticated admin API client', () => {
     expect(new Headers(options?.headers).get('Authorization')).toBe('Bearer current-admin-token');
   });
 
+  it('loads product categories through the permission-checked admin endpoint', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(successfulResponse(200, [{ id: 'category-1' }]) as Response);
+
+    await expect(adminApi.fetchAdminCategories()).resolves.toEqual([{ id: 'category-1' }]);
+
+    const [url, options] = vi.mocked(fetch).mock.calls[0] ?? [];
+    expect(new URL(String(url), 'http://localhost').pathname).toBe('/api/admin/categories');
+    expect(options?.method).toBe('GET');
+    expect(new Headers(options?.headers).get('Authorization')).toBe('Bearer current-admin-token');
+  });
+
+  it('does not request protected categories when no admin session exists', async () => {
+    vi.mocked(getAccessToken).mockResolvedValueOnce(null);
+
+    await expect(adminApi.fetchAdminCategories()).rejects.toMatchObject({
+      code: 'ADMIN_SESSION_REQUIRED',
+    });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it('unwraps the data envelope returned directly by API handlers', async () => {
     const products = [{ id: 'admin-1' }, { id: 'admin-2' }];
     vi.mocked(fetch).mockResolvedValueOnce({

@@ -2,23 +2,23 @@ import { useEffect, useState } from "react";
 import trendsBanner from "../../../img. baner promocional/Designer (3).png";
 import promotionBanner from "../../../img. baner promocional/Designer (4).png";
 import sportsOfferBanner from "../../../img. baner promocional/Designer (5).png";
-import collectionBanner from "../../../img. baner promocional/Designer (6).png";
+import collectionBanner from "../../../img. baner promocional/Designer (14).png";
 import "./home-promo-carousel.css";
 
 const slides = [
-  {
-    image: trendsBanner,
-    alt: "Nuevas tendencias UrbanSport Store",
-    label: "Nuevas tendencias UrbanSport Store",
-    width: 1376,
-    height: 768,
-  },
   {
     image: promotionBanner,
     alt: "Promoción UrbanSport Store",
     label: "Promoción UrbanSport Store",
     width: 1536,
     height: 1024,
+  },
+  {
+    image: trendsBanner,
+    alt: "Nuevas tendencias UrbanSport Store",
+    label: "Nuevas tendencias UrbanSport Store",
+    width: 1376,
+    height: 768,
   },
   {
     image: sportsOfferBanner,
@@ -29,8 +29,8 @@ const slides = [
   },
   {
     image: collectionBanner,
-    alt: "Colección deportiva UrbanSport Store",
-    label: "Colección deportiva UrbanSport Store",
+    alt: "Promoción Puma UrbanSport Store",
+    label: "Promoción Puma UrbanSport Store",
     width: 1536,
     height: 1024,
   },

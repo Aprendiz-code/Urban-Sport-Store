@@ -25,12 +25,27 @@ describe('admin products table data source', () => {
   });
 
   it('loads and refreshes the table through the admin API, not the public catalog', () => {
-    const adminLoader = appSource.match(/if \(!authReady \|\| !isAdmin \|\| view !== "admin"\) return;([\s\S]*?)\}, \[authReady, isAdmin, view, productRefresh, categoryOptions\]\);/);
+    const loaderStart = appSource.indexOf('Promise.all([adminApi.fetchProducts(), categoriesRequest])');
+    const loaderEnd = appSource.indexOf('}, [authReady, isAdmin, view, productRefresh]);', loaderStart);
+    const adminLoader = loaderStart >= 0 && loaderEnd > loaderStart
+      ? appSource.slice(loaderStart, loaderEnd)
+      : '';
 
-    expect(adminLoader?.[1]).toContain('adminApi.fetchProducts()');
-    expect(adminLoader?.[1]).toContain('setAdminProducts([])');
-    expect(adminLoader?.[1]).toContain('setAdminProductsStatus("error")');
-    expect(adminLoader?.[1]).not.toContain('fetch(`${apiUrl}/products`)');
+    expect(adminLoader).toContain('adminApi.fetchProducts()');
+    expect(adminLoader).toContain('Promise.all([adminApi.fetchProducts(), categoriesRequest])');
+    expect(appSource).toContain('const categoriesRequest = adminApi.fetchAdminCategories()');
+    expect(adminLoader).toContain('setAdminProducts([])');
+    expect(adminLoader).toContain('setAdminProductsStatus("error")');
+    expect(adminLoader).not.toContain('fetch(`${apiUrl}/products`)');
+  });
+
+  it('loads editor categories through the permission-checked admin endpoint', () => {
+    const dashboard = appSource.match(/<AdminDashboard\b([\s\S]*?)\/>/);
+
+    expect(appSource).toContain('adminApi.fetchAdminCategories()');
+    expect(dashboard?.[1]).toContain('categories={adminCategoryOptions}');
+    expect(dashboard?.[1]).toContain('categoriesStatus={adminCategoryOptionsStatus}');
+    expect(appSource).toContain('categories={categoryOptions}');
   });
 
   it('has explicit loading, error, retry, and empty states', () => {

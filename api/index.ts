@@ -43,11 +43,11 @@ async function resolveRoute(req: RoutedRequest, res: http.ServerResponse) {
     '/api/newsletter': () => import('./newsletter.ts'),
     '/api/orders': () => import('./orders.ts'),
     '/api/webhooks/wompi': () => import('./webhooks/wompi.ts'),
-    '/api/admin/categories': () => import('./admin/categories/index.ts'),
-    '/api/admin/home-content': () => import('./admin/home-content.ts'),
-    '/api/admin/audit': () => import('./admin/audit.ts'),
-    '/api/admin/products': () => import('./admin/products/index.ts'),
-    '/api/admin/product-images': () => import('./admin/products/index.ts'),
+    '/api/admin/categories': () => import('../lib/api-handlers/admin/categories/index.ts'),
+    '/api/admin/home-content': () => import('../lib/api-handlers/admin/home-content.ts'),
+    '/api/admin/audit': () => import('../lib/api-handlers/admin/audit.ts'),
+    '/api/admin/products': () => import('../lib/api-handlers/admin/products/index.ts'),
+    '/api/admin/product-images': () => import('../lib/api-handlers/admin/products/index.ts'),
   };
 
   const directHandler = handlers[pathname];
@@ -83,13 +83,13 @@ async function resolveRoute(req: RoutedRequest, res: http.ServerResponse) {
 
   const adminCategoryMatch = pathname.match(/^\/api\/admin\/categories\/(.+)$/);
   if (adminCategoryMatch) {
-    const module = await import('./admin/categories/[categoryId].ts');
+    const module = await import('../lib/api-handlers/admin/categories/[categoryId].ts');
     return module.default(req, res);
   }
 
   const adminProductMatch = pathname.match(/^\/api\/admin\/products\/(.+)$/);
   if (adminProductMatch) {
-    const module = await import('./admin/products/[productId].ts');
+    const module = await import('../lib/api-handlers/admin/products/[productId].ts');
     return module.default(req, res);
   }
 

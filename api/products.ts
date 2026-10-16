@@ -1,7 +1,13 @@
 import { jsonResponse, jsonError } from '../lib/api-helpers/response.ts';
 import { supabasePublic } from '../lib/api-helpers/supabase.ts';
+import handleAdminRequest from '../lib/api-helpers/admin-dispatch.ts';
 
 export default async function handler(req: any, res: any) {
+  const pathname = new URL(req.url ?? '/', 'http://localhost').pathname;
+  if (pathname === '/api/admin' || pathname.startsWith('/api/admin/')) {
+    return handleAdminRequest(req, res);
+  }
+
   if (req.method !== 'GET') {
     return jsonError(res, 405, 'Method not allowed.');
   }

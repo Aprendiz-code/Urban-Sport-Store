@@ -113,6 +113,10 @@ test('product cards open the matching detail and its gallery actions stay indepe
   await page.getByRole('button', { name: 'Agregar Zapatilla Uno a favoritos' }).first().click();
   expect(new URL(page.url()).searchParams.get('product')).toBeNull();
   await page.getByRole('combobox', { name: 'Seleccionar talla de Zapatilla Uno' }).first().selectOption('39');
-  await page.getByRole('button', { name: 'Agregar al carrito' }).first().click();
+  await page.getByRole('button', { name: 'Agregar Zapatilla Uno al carrito' }).click();
+  const cartDialog = page.getByRole('dialog');
+  await expect(cartDialog).toBeVisible();
+  await expect(cartDialog.getByText('Zapatilla Uno', { exact: true })).toBeVisible();
+  await expect(cartDialog.getByText('T: 39', { exact: true })).toBeVisible();
   expect(new URL(page.url()).searchParams.get('product')).toBeNull();
 });

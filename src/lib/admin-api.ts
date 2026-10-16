@@ -186,6 +186,10 @@ export async function fetchProducts() {
   return callApi('/products', { method: 'GET' });
 }
 
+export async function fetchAdminCategories() {
+  return callApi('/categories', { method: 'GET' });
+}
+
 export async function fetchAdminDashboard(): Promise<AdminDashboardData> {
   return callApi('/dashboard', { method: 'GET' }) as Promise<AdminDashboardData>;
 }
@@ -209,6 +213,13 @@ export async function updateProductApi(productId: string, payload: Partial<Produ
 
 export async function updateProductAvailabilityApi(productId: string, isActive: boolean) {
   return callApi(`/products/${productId}`, { method: 'PATCH', body: JSON.stringify({ is_active: isActive }) });
+}
+
+export async function changeProductCategoryApi(productId: string, categoryId: string) {
+  return callApi(`/products/${productId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ category_id: categoryId }),
+  });
 }
 
 export async function deleteProductApi(productId: string) {
@@ -285,4 +296,4 @@ export async function fetchAuditLogs(limit = 200) {
   return callApi(`/audit?limit=${limit}`, { method: 'GET' });
 }
 
-export default { fetchProducts, fetchAdminDashboard, createProductApi, uploadProductImageApi, fetchSupabaseProducts, createSupabaseProductApi, updateSupabaseProductApi, deleteSupabaseProductApi, updateProductApi, updateProductAvailabilityApi, deleteProductApi, updateHomeContentApi, createInventoryMovement, adjustProductStock, fetchAuditLogs };
+export default { fetchProducts, fetchAdminCategories, fetchAdminDashboard, createProductApi, uploadProductImageApi, fetchSupabaseProducts, createSupabaseProductApi, updateSupabaseProductApi, deleteSupabaseProductApi, updateProductApi, updateProductAvailabilityApi, changeProductCategoryApi, deleteProductApi, updateHomeContentApi, createInventoryMovement, adjustProductStock, fetchAuditLogs };
