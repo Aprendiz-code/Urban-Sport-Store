@@ -104,22 +104,26 @@ type Product = DomainProduct;
 type AdminProductImageSelection = { id: string; src: string; permanentUrl?: string; file?: File; previewUrl?: string };
 
 const HOME_NAV_CATEGORIES = [
-  { name: "Tenis", filterCategory: "Running" },
-  { name: "Ropa Hombre", filterCategory: null },
-  { name: "Ropa Mujer", filterCategory: null },
-  { name: "Perfumes", filterCategory: null },
-  { name: "Relojes", filterCategory: null },
-  { name: "Gafas", filterCategory: null },
+  { name: "Tenis Hombre", filterCategory: "Tenis Hombre" },
+  { name: "Tenis Mujer", filterCategory: "Tenis Mujer" },
+  { name: "Ropa Hombre", filterCategory: "Ropa Hombre" },
+  { name: "Ropa Mujer", filterCategory: "Ropa Mujer" },
+  { name: "Perfumes", filterCategory: "Perfumes" },
+  { name: "Relojes", filterCategory: "Relojes" },
+  { name: "Gafas", filterCategory: "Gafas" },
 ] as const;
 
 const HOME_COLLECTIONS = [
-  { name: "Zapatos", filterCategory: "Running" },
-  { name: "Ropa Hombre", filterCategory: null },
-  { name: "Ropa Mujer", filterCategory: null },
-  { name: "Perfumes", filterCategory: null },
-  { name: "Relojes", filterCategory: null },
-  { name: "Gafas", filterCategory: null },
-];
+  { name: "Tenis Hombre", filterCategory: "Tenis Hombre" },
+  { name: "Tenis Mujer", filterCategory: "Tenis Mujer" },
+  { name: "Ropa Hombre", filterCategory: "Ropa Hombre" },
+  { name: "Ropa Mujer", filterCategory: "Ropa Mujer" },
+  { name: "Perfumes", filterCategory: "Perfumes" },
+  { name: "Relojes", filterCategory: "Relojes" },
+  { name: "Gafas", filterCategory: "Gafas" },
+] as const;
+
+const PRODUCT_CATALOG_SECTIONS = HOME_NAV_CATEGORIES.map((section) => section.name);
 
 function getProductCategories(products: Product[]): Category[] {
   return [...new Set(products.map((product) => product.category.trim()).filter(Boolean))]
@@ -239,6 +243,7 @@ const mapProductRecordToAppProduct = (record: ProductRecord, categories: readonl
     images: productImages.gallery,
     category: resolveProductCategoryName(record.category_id, record.category, categories),
     categoryId: record.category_id ?? undefined,
+    catalogSection: record.catalog_section ?? undefined,
     subcategory: record.subcategory ?? "",
     stock: record.stock ?? 0,
     sku: record.sku ?? record.id,
@@ -268,6 +273,7 @@ const mapAppProductToProductRecord = (product: Partial<Product> & { id?: string 
   image: product.image ?? "",
   category: product.category ?? "Zapatos",
   category_id: product.categoryId ?? product.category ?? null,
+  catalog_section: product.catalogSection ?? null,
   images: product.images ?? [],
   subcategory: product.subcategory ?? "",
   stock: Number(product.stock ?? 0),
@@ -1558,10 +1564,10 @@ function CatalogPage({ filterCategory, selectedBrand, setSelectedBrand, sortBy, 
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   const allBrands = [...new Set(products.map((p) => p.brand))];
-  const availableCategories = [...new Set([...categories.map((category) => category.name), ...getProductCategories(products)])];
+  const availableCategories = [...new Set([...categories.map((category) => category.name), ...getProductCategories(products), ...products.map((product) => product.catalogSection).filter((section): section is string => Boolean(section))])];
   const filtered = useMemo(() => {
     let list = products;
-    if (selectedCat) list = list.filter((p) => p.category === selectedCat);
+    if (selectedCat) list = list.filter((p) => p.category === selectedCat || p.catalogSection === selectedCat);
     if (selectedBrand) list = list.filter((p) => p.brand === selectedBrand);
     if (sortBy === "precio-asc") list = [...list].sort((a, b) => a.price - b.price);
     if (sortBy === "precio-desc") list = [...list].sort((a, b) => b.price - a.price);
@@ -1589,7 +1595,7 @@ function CatalogPage({ filterCategory, selectedBrand, setSelectedBrand, sortBy, 
                   Todos ({products.length})
                 </button>
                 {availableCategories.map((category) => {
-                  const count = products.filter((product) => product.category === category).length;
+                  const count = products.filter((product) => product.category === category || product.catalogSection === category).length;
                   return (
                     <button key={category} onClick={() => onCategorySelect(category)} className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-colors flex justify-between items-center ${selectedCat === category ? "bg-[#bfdbfe] text-[#0b1220] font-bold" : "text-slate-600 hover:bg-slate-100"}`}>
                       <span>{category}</span><span className="text-xs opacity-60">{count}</span>
@@ -3145,7 +3151,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
   const [activeProduct, setActiveProduct] = useState<Product | null>(null);
   const [productForm, setProductForm] = useState<Omit<Product, "id">>({
     name: "", brand: "", price: 0, originalPrice: undefined, discount: undefined,
-    rating: 0, reviews: 0, image: "", images: [], category: "", categoryId: undefined, subcategory: "",
+    rating: 0, reviews: 0, image: "", images: [], category: "", categoryId: undefined, catalogSection: "", subcategory: "",
     stock: 0, sku: "", description: "", colors: [], sizes: [], gender: "Unisex",
     isNew: false, isFeatured: false, specs: [], specifications: [],
   });
@@ -3548,7 +3554,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     setActiveProduct(null);
     setProductForm({
       name: "", brand: "", price: 0, originalPrice: undefined, discount: undefined,
-      rating: 0, reviews: 0, image: "", images: [], category: "", categoryId: undefined, subcategory: "",
+      rating: 0, reviews: 0, image: "", images: [], category: "", categoryId: undefined, catalogSection: "", subcategory: "",
       stock: 0, sku: "", description: "", colors: [], sizes: [], gender: "Unisex",
       isNew: false, isFeatured: false, specs: [], specifications: [],
     });
@@ -3674,6 +3680,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       images: product.images ?? [],
       category: product.category,
       categoryId: product.categoryId,
+      catalogSection: product.catalogSection ?? "",
       subcategory: product.subcategory,
       stock: product.stock,
       sku: product.sku,
@@ -3698,6 +3705,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     const payload: Omit<Product, "id"> = {
       ...productForm,
       categoryId: normalizedCategoryId,
+      catalogSection: productForm.catalogSection,
       category: productForm.category || selectedCategoryOption?.name || '',
       colors: productForm.colors.map((color) => ({ name: color.name, hex: color.hex })),
       sizes: normalizedSizes,
@@ -3719,6 +3727,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       price: productForm.price,
       stock: productForm.stock,
       categoryId: normalizedCategoryId,
+      catalogSection: productForm.catalogSection,
       image: selectedPrimaryImage?.permanentUrl ?? "",
       images: selectedGalleryImages.flatMap((entry) => entry.permanentUrl ? [entry.permanentUrl] : []),
       pendingImageCount: productImageSelections.filter((entry) => Boolean(entry.file)).length,

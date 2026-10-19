@@ -20,6 +20,7 @@ describe('admin product validation', () => {
       price: 120000,
       stock: 10,
       categoryId: validUuid,
+      catalogSection: 'Tenis Hombre',
       image: 'https://example.test/image.jpg',
       images: [],
     })).toEqual({});
@@ -46,6 +47,7 @@ describe('admin product validation', () => {
       price: 0,
       stock: 0,
       categoryId: '123e4567-e89b-12d3-a456-426614174000',
+      catalogSection: 'Tenis Hombre',
       image: 'https://example.test/image.jpg',
       images: [],
     };
@@ -64,6 +66,7 @@ describe('admin product validation', () => {
       price: 120000,
       stock: 10,
       categoryId: '123e4567-e89b-12d3-a456-426614174000',
+      catalogSection: 'Tenis Hombre',
       image: 'https://example.test/image.jpg',
       images: [],
     };
@@ -80,6 +83,7 @@ describe('admin product validation', () => {
       price: 1,
       stock: 1,
       categoryId: '123e4567-e89b-12d3-a456-426614174000',
+      catalogSection: 'Tenis Hombre',
       image,
       images: [],
     })).toHaveProperty('image');
@@ -93,6 +97,7 @@ describe('admin product validation', () => {
       price: 1,
       stock: 1,
       categoryId: '123e4567-e89b-12d3-a456-426614174000',
+      catalogSection: 'Tenis Hombre',
       image: '',
       images: [],
       pendingImageCount: 1,

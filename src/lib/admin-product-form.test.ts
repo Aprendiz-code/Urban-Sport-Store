@@ -8,6 +8,7 @@ const validForm = {
   price: 120000,
   stock: 4,
   categoryId: '123e4567-e89b-12d3-a456-426614174000',
+  catalogSection: 'Tenis Hombre',
   image: 'https://storage.example/main.jpg',
 };
 

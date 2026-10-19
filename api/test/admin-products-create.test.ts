@@ -31,6 +31,7 @@ const createBody = () => ({
   stock: 1,
   sku: 'TEST-LOCAL-1',
   category_id: categoryId,
+  catalog_section: 'Tenis Hombre',
   main_image: 'https://storage.example/products/main.png',
   images: ['https://storage.example/products/main.png'],
   description: 'Material resistente\nPara entrenamiento.',

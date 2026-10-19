@@ -45,6 +45,7 @@ export interface Product {
   image: string;
   category: string;
   categoryId?: string;
+  catalogSection?: string;
   slug?: string | null;
   subcategory: string;
   stock: number;

@@ -9,6 +9,7 @@ const ALLOWED_PRODUCT_COLUMNS = new Set([
   'price',
   'compare_at_price',
   'category_id',
+  'catalog_section',
   'stock',
   'sku',
   'main_image',
@@ -19,6 +20,15 @@ const ALLOWED_PRODUCT_COLUMNS = new Set([
 ]);
 const UUID_PATTERN = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 const MAX_PRODUCT_GALLERY_IMAGES = 10;
+const PRODUCT_CATALOG_SECTIONS = new Set([
+  'Tenis Hombre',
+  'Tenis Mujer',
+  'Ropa Hombre',
+  'Ropa Mujer',
+  'Perfumes',
+  'Relojes',
+  'Gafas',
+]);
 
 function toNumber(value: unknown): number | undefined {
   if (typeof value === 'number') return value;
@@ -140,6 +150,13 @@ function setProductFields(payload: Record<string, unknown>, body: any) {
   if (typeof categoryId === 'string' && categoryId.trim()) {
     if (!UUID_PATTERN.test(categoryId.trim())) throw new ApiError(400, 'La categoría seleccionada no es válida.');
     payload.category_id = categoryId.trim();
+  }
+  if (body.catalog_section !== undefined) {
+    const catalogSection = parseString(body.catalog_section);
+    if (!catalogSection || !PRODUCT_CATALOG_SECTIONS.has(catalogSection)) {
+      throw new ApiError(400, 'La sección del catálogo seleccionada no es válida.');
+    }
+    payload.catalog_section = catalogSection;
   }
   if (body.stock !== undefined) {
     const stock = toNumber(body.stock);

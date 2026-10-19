@@ -80,12 +80,14 @@ describe('product payload normalization', () => {
       stock: 0,
       sku: 'NKE-AF1-001',
       category_id: categoryId,
+      catalog_section: 'Tenis Hombre',
       main_image: 'https://storage.test/main.png',
     };
 
     await expect(normalizeProductPayload({ ...basePayload, price: -1 })).rejects.toThrow('mayor o igual a 0');
     await expect(normalizeProductPayload({ ...basePayload, stock: 1.5 })).rejects.toThrow('entero');
     await expect(normalizeProductPayload({ ...basePayload, category_id: 'not-a-uuid' })).rejects.toThrow('categoría');
+    await expect(normalizeProductPayload({ ...basePayload, catalog_section: 'Infantil' })).rejects.toThrow('sección del catálogo');
     await expect(normalizeProductPayload({ ...basePayload, images: Array.from({ length: 11 }, (_, index) => `image-${index}`) })).rejects.toThrow('hasta 10 imágenes');
     expect(supabaseMocks.from).not.toHaveBeenCalled();
   });
