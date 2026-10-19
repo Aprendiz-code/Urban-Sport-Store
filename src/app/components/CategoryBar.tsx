@@ -1,7 +1,8 @@
 import "./category-bar.css";
 
 const categoryLinks = [
-  { id: "zapatos", label: "Tenis", href: "/?view=catalog", aliases: ["zapatos", "tenis", "running", "calzado"], fallbackCategory: "Running" },
+  { id: "tenis-hombre", label: "Tenis hombre", href: "/?view=catalog", aliases: ["tenis hombre", "zapatos", "tenis", "running", "calzado"], fallbackCategory: "Tenis Hombre" },
+  { id: "tenis-mujer", label: "Tenis mujer", href: "/?view=catalog", aliases: ["tenis mujer"], fallbackCategory: "Tenis Mujer" },
   { id: "ropa-hombre", label: "Ropa hombre", href: "/?view=catalog", aliases: ["ropa hombre", "ropa de hombre", "ropa masculina"], fallbackCategory: "Ropa Hombre" },
   { id: "ropa-mujer", label: "Ropa mujer", href: "/?view=catalog", aliases: ["ropa mujer", "ropa de mujer", "ropa femenina"], fallbackCategory: "Ropa Mujer" },
   { id: "perfumes", label: "Perfumes", href: "/?view=catalog", aliases: ["perfumes", "fragancias"], fallbackCategory: "Perfumes" },
