@@ -4284,8 +4284,8 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                   </div>
                 </div>
 
-                {/* SKU y Categoría */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* SKU, sección del catálogo y categoría deportiva */}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   <div>
                     <label htmlFor="admin-product-sku" className="text-xs font-bold text-slate-600 uppercase block mb-2">SKU *</label>
                     <input 
@@ -4300,7 +4300,26 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                     {formErrors.sku && <p id="admin-product-sku-error" role="alert" className="text-xs text-red-600 mt-1">{formErrors.sku}</p>}
                   </div>
                   <div>
-                    <label htmlFor="admin-product-category" className="text-xs font-bold text-slate-600 uppercase block mb-2">Categoría *</label>
+                    <label htmlFor="admin-product-catalog-section" className="text-xs font-bold text-slate-600 uppercase block mb-2">Sección del catálogo *</label>
+                    <select
+                      id="admin-product-catalog-section"
+                      value={productForm.catalogSection ?? ""}
+                      onChange={(event) => {
+                        updateField('catalogSection', event.target.value);
+                        setFormErrors({ ...formErrors, catalogSection: '' });
+                      }}
+                      aria-invalid={Boolean(formErrors.catalogSection)}
+                      aria-describedby={formErrors.catalogSection ? "admin-product-catalog-section-error" : "admin-product-catalog-section-help"}
+                      className={`w-full px-4 py-3 rounded-xl border-2 transition-colors ${formErrors.catalogSection ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-white hover:border-slate-300 focus:border-slate-500'} focus:outline-none`}
+                    >
+                      <option value="" disabled>Selecciona una sección</option>
+                      {PRODUCT_CATALOG_SECTIONS.map((section) => <option key={section} value={section}>{section}</option>)}
+                    </select>
+                    <p id="admin-product-catalog-section-help" className="mt-1 text-xs text-slate-500">El producto aparecerá en esta sección.</p>
+                    {formErrors.catalogSection && <p id="admin-product-catalog-section-error" role="alert" className="text-xs text-red-600 mt-1">{formErrors.catalogSection}</p>}
+                  </div>
+                  <div>
+                    <label htmlFor="admin-product-category" className="text-xs font-bold text-slate-600 uppercase block mb-2">Categoría deportiva *</label>
                     <select 
                       id="admin-product-category"
                       value={productForm.categoryId ?? ""}
