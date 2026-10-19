@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createProductViaAdminApi, deleteProductViaAdminApi, updateProductViaAdminApi } from '../admin-product-fallback';
-import adminApi from '../admin-api';
+import adminApi, { isDuplicateProductSkuError, parseAdminApiError } from '../admin-api';
 import { uploadProductImage } from '../supabase-store';
 import { clearLocalAuthSession, getAccessToken } from '../supabase-auth';
 import { getSupabaseClient } from '../supabase-client';
@@ -153,6 +153,22 @@ describe('authenticated admin API client', () => {
       message: expect.stringContaining('No tienes permisos'),
     });
     expect(fetch).toHaveBeenCalledOnce();
+  });
+
+  it('identifies only duplicate product SKU conflicts', () => {
+    const duplicateSku = parseAdminApiError(409, JSON.stringify({
+      error: {
+        code: '23505',
+        message: 'duplicate key value violates unique constraint "products_sku_key"',
+        details: 'A product SKU already exists.',
+      },
+    }));
+    const otherConflict = parseAdminApiError(409, JSON.stringify({
+      error: { code: '23505', message: 'duplicate key violates products_slug_key' },
+    }));
+
+    expect(isDuplicateProductSkuError(duplicateSku)).toBe(true);
+    expect(isDuplicateProductSkuError(otherConflict)).toBe(false);
   });
 
   it('adjusts stock through the secure RPC and returns the new stock values', async () => {

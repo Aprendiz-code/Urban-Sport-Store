@@ -11,6 +11,19 @@ export function normalizeProductSizes(sizes: readonly string[]): string[] {
   return sizes.map((size) => size.trim()).filter(Boolean);
 }
 
+export function generateProductSkuSuggestion(currentSku: string, uniqueSuffix: string): string {
+  const base = currentSku
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .trim()
+    .replace(/[^A-Z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 40);
+  const suffix = uniqueSuffix.replace(/[^A-Z0-9]/gi, '').slice(0, 8).toUpperCase();
+  return `${base || 'SKU'}-${suffix || 'NUEVO'}`;
+}
+
 export function normalizeProductSpecifications(specifications: readonly ProductSpecification[]): ProductSpecification[] {
   return specifications.flatMap(({ name, value }) => {
     const normalizedName = name.trim();

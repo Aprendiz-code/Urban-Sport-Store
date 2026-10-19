@@ -35,7 +35,7 @@ import { getMyProfile, getProfileAccess, ProfileAccessVerificationError, updateM
 import { getAdminPanelMenuLink } from "./admin-panel-menu";
 import { resolveApiBaseUrl } from "../lib/api-config";
 
-import adminApi, { AdminApiError, createSupabaseProductApi, updateSupabaseProductApi, deleteSupabaseProductApi, updateHomeContentApi, formatAdminApiError, isAdminAuthenticationError } from "../lib/admin-api";
+import adminApi, { AdminApiError, createSupabaseProductApi, updateSupabaseProductApi, deleteSupabaseProductApi, updateHomeContentApi, formatAdminApiError, isAdminAuthenticationError, isDuplicateProductSkuError } from "../lib/admin-api";
 import { uploadProductImage, getPublicUrl, STORAGE_BUCKET } from "../lib/supabase-store";
 import { recordAction } from "../lib/audit";
 import { productSchema } from '../lib/schemas';
@@ -49,7 +49,7 @@ import {
   runSingleFlight,
   submitCheckoutPayment,
 } from '../lib/checkout-quote-flow';
-import { MAX_PRODUCT_GALLERY_IMAGES, MAX_PRODUCT_TOTAL_IMAGES, normalizeProductSizes, normalizeProductSpecifications, submitAdminProductForm, validateProductForm } from '../lib/admin-product-form';
+import { generateProductSkuSuggestion, MAX_PRODUCT_GALLERY_IMAGES, MAX_PRODUCT_TOTAL_IMAGES, normalizeProductSizes, normalizeProductSpecifications, submitAdminProductForm, validateProductForm } from '../lib/admin-product-form';
 import { buildAdminProductPayload } from '../lib/admin-product-payload';
 import { filterAdminProducts, type AdminProductStatusFilter } from '../lib/admin-product-list';
 import { normalizeProductImageList, resolveProductPublicImageUrl, uploadSelectedProductImages } from '../lib/admin-product-images';
@@ -3164,6 +3164,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
   const [imageUploadProgress, setImageUploadProgress] = useState<{ completed: number; total: number } | null>(null);
   const objectUrlsRef = useRef(new Set<string>());
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+    const [skuConflict, setSkuConflict] = useState(false);
   const [dashboardData, setDashboardData] = useState<Awaited<ReturnType<typeof adminApi.fetchAdminDashboard>> | null>(null);
   const [dashboardStatus, setDashboardStatus] = useState<ProductsStatus>("loading");
   const [dashboardRefresh, setDashboardRefresh] = useState(0);
@@ -3548,6 +3549,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     setPrimaryImageSelectionId(null);
     setImageUploadProgress(null);
     setFormErrors({});
+    setSkuConflict(false);
     setIsProductFormDirty(false);
     setIsProductFormOpen(false);
     setFormMode("create");
@@ -3666,6 +3668,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     setPrimaryImageSelectionId(existingImages[0]?.id ?? null);
     setActiveProduct(product);
     setFormMode("edit");
+    setSkuConflict(false);
     setIsProductFormDirty(false);
     setIsProductFormOpen(true);
     setProductForm({
@@ -3785,7 +3788,13 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
           setAdminSection("products");
         });
       } catch (error) {
-        toast.error(formatAdminApiError(error, "No se pudo guardar el producto."));
+        if (formMode === 'create' && isDuplicateProductSkuError(error)) {
+          setSkuConflict(true);
+          setFormErrors((current) => ({ ...current, sku: 'Este SKU ya está registrado. Genera uno nuevo para continuar.' }));
+          toast.error('Ese SKU ya existe. Genera uno nuevo para continuar.');
+        } else {
+          toast.error(formatAdminApiError(error, "No se pudo guardar el producto."));
+        }
       } finally {
         setImageUploadProgress(null);
         setIsSubmitting(false);
@@ -4293,11 +4302,29 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                       value={productForm.sku} 
                       aria-invalid={Boolean(formErrors.sku)}
                       aria-describedby={formErrors.sku ? "admin-product-sku-error" : undefined}
-                      onChange={(e) => { updateField('sku', e.target.value); setFormErrors({...formErrors, sku: ''}) }}
+                      onChange={(e) => {
+                        updateField('sku', e.target.value);
+                        setSkuConflict(false);
+                        setFormErrors((current) => ({ ...current, sku: '' }));
+                      }}
                       placeholder="Ej: NKE-AF1-001" 
                       className={`w-full px-4 py-3 rounded-xl border-2 transition-colors ${formErrors.sku ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-white hover:border-slate-300 focus:border-slate-500'} focus:outline-none`}
                     />
                     {formErrors.sku && <p id="admin-product-sku-error" role="alert" className="text-xs text-red-600 mt-1">{formErrors.sku}</p>}
+                    {skuConflict && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          updateField('sku', generateProductSkuSuggestion(productForm.sku, crypto.randomUUID()));
+                          setSkuConflict(false);
+                          setFormErrors((current) => ({ ...current, sku: '' }));
+                        }}
+                        className="mt-2 inline-flex min-h-9 items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-800 hover:bg-blue-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+                      >
+                        <RefreshCw size={14} aria-hidden="true" />
+                        Generar SKU nuevo
+                      </button>
+                    )}
                   </div>
                   <div>
                     <label htmlFor="admin-product-catalog-section" className="text-xs font-bold text-slate-600 uppercase block mb-2">Sección del catálogo *</label>

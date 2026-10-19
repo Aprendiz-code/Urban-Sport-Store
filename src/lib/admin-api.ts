@@ -107,6 +107,13 @@ export function isAdminAuthenticationError(error: unknown): boolean {
   return error instanceof AdminApiError && error.status === 401;
 }
 
+export function isDuplicateProductSkuError(error: unknown): error is AdminApiError {
+  return error instanceof AdminApiError
+    && error.status === 409
+    && error.code === '23505'
+    && /products_sku_key/i.test(`${error.message} ${error.details ?? ''}`);
+}
+
 const API_ROOT = resolveApiBaseUrl(import.meta.env.VITE_API_URL);
 const API_BASE = `${API_ROOT}/admin`;
 

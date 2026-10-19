@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_PRODUCT_GALLERY_IMAGES, MAX_PRODUCT_TOTAL_IMAGES, normalizeProductSizes, normalizeProductSpecifications, validateProductForm } from './admin-product-form';
+import { generateProductSkuSuggestion, MAX_PRODUCT_GALLERY_IMAGES, MAX_PRODUCT_TOTAL_IMAGES, normalizeProductSizes, normalizeProductSpecifications, validateProductForm } from './admin-product-form';
 
 const validForm = {
   name: 'Zapatilla de entrenamiento',
@@ -30,6 +30,11 @@ describe('admin product image limits', () => {
 });
 
 describe('admin product information', () => {
+  it('generates a readable SKU suggestion with a unique suffix', () => {
+    expect(generateProductSkuSuggestion("Air Force 1 '07", '12345678-abcd'))
+      .toBe('AIR-FORCE-1-07-12345678');
+  });
+
   it('keeps size formats as strings and preserves specification order', () => {
     expect(normalizeProductSizes([' 7.5 ', '40 EU', ''])).toEqual(['7.5', '40 EU']);
     expect(normalizeProductSpecifications([
