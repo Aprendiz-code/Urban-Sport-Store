@@ -58,6 +58,12 @@ export interface Product {
   isNew?: boolean;
   isFeatured?: boolean;
   isActive?: boolean;
+  shippingWeightGrams?: number | null;
+  shippingLengthCm?: number | null;
+  shippingWidthCm?: number | null;
+  shippingHeightCm?: number | null;
+  shippingDeclaredValueCop?: number | null;
+  shippingUnitsPerGuide?: number | null;
   createdAt?: string;
   updatedAt?: string;
   specs?: string[];

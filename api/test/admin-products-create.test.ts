@@ -37,6 +37,12 @@ const createBody = () => ({
   description: 'Material resistente\nPara entrenamiento.',
   sizes: ['40 EU', '41 EU'],
   specifications: [{ name: 'Material', value: 'Cuero sintético' }],
+  shipping_weight_grams: 1000,
+  shipping_length_cm: 20,
+  shipping_width_cm: 20,
+  shipping_height_cm: 10,
+  shipping_declared_value_cop: 120000,
+  shipping_units_per_guide: 1,
 });
 
 function createRequest(body: Record<string, unknown>) {
@@ -111,6 +117,12 @@ describe('admin product create endpoint', () => {
       description: 'Material resistente\nPara entrenamiento.',
       sizes: ['40 EU', '41 EU'],
       specifications: [{ name: 'Material', value: 'Cuero sintético' }],
+      shipping_weight_grams: 1000,
+      shipping_length_cm: 20,
+      shipping_width_cm: 20,
+      shipping_height_cm: 10,
+      shipping_declared_value_cop: 120000,
+      shipping_units_per_guide: 1,
     })]);
     expect(Array.isArray(apiMocks.insert.mock.calls[0][0][0].images)).toBe(true);
     expect(response.statusCode).toBe(201);
@@ -124,6 +136,17 @@ describe('admin product create endpoint', () => {
 
     expect(response.statusCode).toBe(400);
     expect(JSON.parse(response.body).error.message).toContain('URL HTTP o HTTPS permanente');
+    expect(apiMocks.insert).not.toHaveBeenCalled();
+  });
+
+  it('rejects missing shipping fields before inserting', async () => {
+    const { shipping_weight_grams: _weight, ...body } = createBody();
+    const response = createResponse();
+
+    await handler(createRequest(body), response);
+
+    expect(response.statusCode).toBe(400);
+    expect(JSON.parse(response.body).error.message).toContain('peso, largo, ancho, alto');
     expect(apiMocks.insert).not.toHaveBeenCalled();
   });
 

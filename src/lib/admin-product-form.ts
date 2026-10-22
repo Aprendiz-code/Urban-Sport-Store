@@ -55,6 +55,12 @@ export function validateProductForm(form: {
   sku?: string;
   price?: number | string;
   stock?: number | string;
+  shippingWeightGrams?: number | string | null;
+  shippingLengthCm?: number | string | null;
+  shippingWidthCm?: number | string | null;
+  shippingHeightCm?: number | string | null;
+  shippingDeclaredValueCop?: number | string | null;
+  shippingUnitsPerGuide?: number | string | null;
   categoryId?: string | null;
   catalogSection?: string | null;
   image?: string | null;
@@ -62,7 +68,7 @@ export function validateProductForm(form: {
   pendingImageCount?: number;
   sizes?: readonly string[];
   specifications?: readonly ProductSpecification[];
-}): Record<string, string> {
+}, options: { requireShipping?: boolean } = {}): Record<string, string> {
   const errors: Record<string, string> = {};
 
   if (!String(form.name ?? '').trim()) {
@@ -85,6 +91,25 @@ export function validateProductForm(form: {
   const stock = Number(form.stock ?? 0);
   if (!Number.isInteger(stock) || stock < 0) {
     errors.stock = 'El stock debe ser un entero mayor o igual a 0';
+  }
+
+  const shippingFields = [
+    form.shippingWeightGrams,
+    form.shippingLengthCm,
+    form.shippingWidthCm,
+    form.shippingHeightCm,
+    form.shippingDeclaredValueCop,
+    form.shippingUnitsPerGuide,
+  ];
+  const providedShippingFields = shippingFields.filter((value) => value !== undefined && value !== null && value !== '').length;
+  if (options.requireShipping || providedShippingFields > 0) {
+    const shippingNumbers = shippingFields.map(Number);
+    if (providedShippingFields !== shippingFields.length
+      || shippingNumbers.some((value) => !Number.isFinite(value) || value <= 0)
+      || !Number.isInteger(shippingNumbers[0])
+      || shippingNumbers[5] !== 1) {
+      errors.shipping = 'Completa peso, dimensiones, valor declarado y unidades por guía con valores válidos.';
+    }
   }
 
   if (!isValidUuid(form.categoryId)) {

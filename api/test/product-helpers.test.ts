@@ -30,6 +30,12 @@ describe('product payload normalization', () => {
         { name: ' Material ', value: ' Cuero sintético ' },
         { name: 'Suela', value: 'Caucho' },
       ],
+      shipping_weight_grams: '1000',
+      shipping_length_cm: '20',
+      shipping_width_cm: '20',
+      shipping_height_cm: '10',
+      shipping_declared_value_cop: '120000',
+      shipping_units_per_guide: '1',
     })).resolves.toEqual({
       slug: 'nike-air-force-1-nke-af1-001',
       name: 'Nike Air Force 1',
@@ -47,6 +53,12 @@ describe('product payload normalization', () => {
         { name: 'Material', value: 'Cuero sintético' },
         { name: 'Suela', value: 'Caucho' },
       ],
+      shipping_weight_grams: 1000,
+      shipping_length_cm: 20,
+      shipping_width_cm: 20,
+      shipping_height_cm: 10,
+      shipping_declared_value_cop: 120000,
+      shipping_units_per_guide: 1,
     });
     expect(supabaseMocks.from).not.toHaveBeenCalled();
   });

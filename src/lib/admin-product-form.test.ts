@@ -56,4 +56,19 @@ describe('admin product information', () => {
     expect(validateProductForm({ ...validForm, specifications: [{ name: 'Material', value: '' }] }))
       .toHaveProperty('specifications');
   });
+
+  it('requires complete valid shipping data when creating a product', () => {
+    const shippingData = {
+      shippingWeightGrams: 1000,
+      shippingLengthCm: 20,
+      shippingWidthCm: 20,
+      shippingHeightCm: 10,
+      shippingDeclaredValueCop: 120000,
+      shippingUnitsPerGuide: 1,
+    };
+
+    expect(validateProductForm({ ...validForm, ...shippingData }, { requireShipping: true })).not.toHaveProperty('shipping');
+    expect(validateProductForm(validForm, { requireShipping: true })).toHaveProperty('shipping');
+    expect(validateProductForm({ ...validForm, ...shippingData, shippingUnitsPerGuide: 2 }, { requireShipping: true })).toHaveProperty('shipping');
+  });
 });

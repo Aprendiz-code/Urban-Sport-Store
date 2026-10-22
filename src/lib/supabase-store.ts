@@ -29,6 +29,12 @@ export interface ProductRecord {
   is_new?: boolean | null;
   is_featured?: boolean | null;
   is_active?: boolean | null;
+  shipping_weight_grams?: number | null;
+  shipping_length_cm?: number | null;
+  shipping_width_cm?: number | null;
+  shipping_height_cm?: number | null;
+  shipping_declared_value_cop?: number | null;
+  shipping_units_per_guide?: number | null;
   specs?: string[] | null;
   specifications?: ProductSpecification[] | null;
   reviews_count?: number | null;

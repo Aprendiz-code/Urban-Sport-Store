@@ -68,6 +68,17 @@ export default async function handler(req: any, res: any) {
       if (!payload.slug || !payload.name || !payload.brand || payload.price === undefined || !payload.sku || !payload.category_id || !payload.catalog_section) {
         throw new ApiError(400, 'Los campos nombre, marca, precio, SKU, categoría y sección del catálogo son obligatorios.');
       }
+      const requiredShippingFields = [
+        'shipping_weight_grams',
+        'shipping_length_cm',
+        'shipping_width_cm',
+        'shipping_height_cm',
+        'shipping_declared_value_cop',
+        'shipping_units_per_guide',
+      ] as const;
+      if (requiredShippingFields.some((field) => payload[field] === undefined || payload[field] === null)) {
+        throw new ApiError(400, 'Completa peso, largo, ancho, alto, valor declarado y unidades por guía para crear el producto.');
+      }
       if (!payload.main_image && !(Array.isArray(payload.images) && payload.images.length > 0)) {
         throw new ApiError(400, 'El producto requiere al menos una imagen cargada.');
       }

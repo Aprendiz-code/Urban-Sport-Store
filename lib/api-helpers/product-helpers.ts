@@ -17,6 +17,12 @@ const ALLOWED_PRODUCT_COLUMNS = new Set([
   'sizes',
   'specifications',
   'is_active',
+  'shipping_weight_grams',
+  'shipping_length_cm',
+  'shipping_width_cm',
+  'shipping_height_cm',
+  'shipping_declared_value_cop',
+  'shipping_units_per_guide',
 ]);
 const UUID_PATTERN = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 const MAX_PRODUCT_GALLERY_IMAGES = 10;
@@ -164,6 +170,30 @@ function setProductFields(payload: Record<string, unknown>, body: any) {
       throw new ApiError(400, 'El stock debe ser un entero mayor o igual a 0.');
     }
     payload.stock = stock;
+  }
+
+  const shippingFields = [
+    ['shipping_weight_grams', true],
+    ['shipping_length_cm', false],
+    ['shipping_width_cm', false],
+    ['shipping_height_cm', false],
+    ['shipping_declared_value_cop', false],
+    ['shipping_units_per_guide', true],
+  ] as const;
+  for (const [field, mustBeInteger] of shippingFields) {
+    if (body[field] === undefined) continue;
+    if (body[field] === null) {
+      payload[field] = null;
+      continue;
+    }
+    const value = toNumber(body[field]);
+    if (value === undefined || value <= 0 || (mustBeInteger && !Number.isInteger(value))) {
+      throw new ApiError(400, `El campo ${field} debe ser un número positivo${mustBeInteger ? ' entero' : ''}.`);
+    }
+    if (field === 'shipping_units_per_guide' && value !== 1) {
+      throw new ApiError(400, 'La configuración actual requiere una unidad por guía.');
+    }
+    payload[field] = value;
   }
 
   const mainImage = parsePermanentImageUrl(body.main_image ?? body.image, 'La imagen principal');
