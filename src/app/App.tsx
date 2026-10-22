@@ -3178,6 +3178,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
   const [imageUploadProgress, setImageUploadProgress] = useState<{ completed: number; total: number } | null>(null);
   const objectUrlsRef = useRef(new Set<string>());
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [productSubmissionError, setProductSubmissionError] = useState<string | null>(null);
     const [skuConflict, setSkuConflict] = useState(false);
   const [dashboardData, setDashboardData] = useState<Awaited<ReturnType<typeof adminApi.fetchAdminDashboard>> | null>(null);
   const [dashboardStatus, setDashboardStatus] = useState<ProductsStatus>("loading");
@@ -3563,6 +3564,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     setPrimaryImageSelectionId(null);
     setImageUploadProgress(null);
     setFormErrors({});
+    setProductSubmissionError(null);
     setSkuConflict(false);
     setIsProductFormDirty(false);
     setIsProductFormOpen(false);
@@ -3723,6 +3725,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
   const handleFormSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (isSubmitting) return;
+    setProductSubmissionError(null);
     const normalizedCategoryId = productForm.categoryId && /^[0-9a-fA-F-]{36}$/.test(productForm.categoryId) ? productForm.categoryId : undefined;
     const normalizedSizes = normalizeProductSizes(productForm.sizes);
     const normalizedSpecifications = normalizeProductSpecifications(productForm.specifications ?? []);
@@ -3772,7 +3775,9 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
 
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
-      toast.error(Object.values(errors)[0]);
+      const message = Object.values(errors)[0];
+      setProductSubmissionError(message);
+      toast.error(message);
       return;
     }
 
@@ -3780,6 +3785,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       productSchema.parse(payload as any);
     } catch (err: any) {
       const message = err?.errors?.[0]?.message ?? 'Datos de producto inválidos';
+      setProductSubmissionError(String(message));
       toast.error(String(message));
       return;
     }
@@ -3818,10 +3824,14 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       } catch (error) {
         if (formMode === 'create' && isDuplicateProductSkuError(error)) {
           setSkuConflict(true);
-          setFormErrors((current) => ({ ...current, sku: 'Este SKU ya está registrado. Genera uno nuevo para continuar.' }));
-          toast.error('Ese SKU ya existe. Genera uno nuevo para continuar.');
+          const message = 'Este SKU ya está registrado. Genera uno nuevo para continuar.';
+          setFormErrors((current) => ({ ...current, sku: message }));
+          setProductSubmissionError(message);
+          toast.error(message);
         } else {
-          toast.error(formatAdminApiError(error, "No se pudo guardar el producto."));
+          const message = formatAdminApiError(error, "No se pudo guardar el producto.");
+          setProductSubmissionError(message);
+          toast.error(message);
         }
       } finally {
         setImageUploadProgress(null);
@@ -4583,6 +4593,12 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                   {formErrors.image && <p className="text-xs text-red-600">{formErrors.image}</p>}
                   {formErrors.gallery && <p className="text-xs text-red-600">{formErrors.gallery}</p>}
                 </div>
+
+                {productSubmissionError && (
+                  <p role="alert" aria-live="assertive" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                    {productSubmissionError}
+                  </p>
+                )}
 
                 {/* Botones de acción mejorados */}
                 <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
