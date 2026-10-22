@@ -42,6 +42,7 @@ import { productSchema } from '../lib/schemas';
 import { normalizeGuestCartEntries, resolveGuestCartEntries } from '../lib/cart-service';
 import { getMyOrder, listMyOrders } from '../lib/order-service';
 import { createPendingOrder, createShippingQuote, createWompiPaymentSession, type ShippingQuote } from '../lib/order-service';
+import { configuredShippingProvider } from '../types/providers';
 import {
   createLatestQuoteRequestTracker,
   getCheckoutQuoteSummary,
@@ -1978,7 +1979,7 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
     setRecipientName(selectedAddress?.recipientName ?? '');
     setRecipientAddressId(selectedAddressId);
   }, [selectedAddressId]);
-  const quoteRequestInput = selectedAddress
+  const quoteRequestInput = configuredShippingProvider && selectedAddress
     && recipientAddressId === selectedAddressId
     && recipientName.trim()
     && cart.length > 0 ? {
@@ -2154,6 +2155,7 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
                   />
                 </div>
               )}
+              {!configuredShippingProvider && <p role="status" className="rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-600">El envío se cotizará cuando Coordinadora esté configurada.</p>}
               {shippingQuoteStatus === 'loading' && <p role="status" className="rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-600">Cotizando envío Coordinadora…</p>}
               {shippingQuoteStatus === 'error' && <p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{shippingQuoteError || 'No hay una tarifa válida para esta dirección y estos artículos.'}</p>}
               {quoteSummary.isExpired && (
@@ -3754,12 +3756,6 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       sku: productForm.sku,
       price: productForm.price,
       stock: productForm.stock,
-      shippingWeightGrams: productForm.shippingWeightGrams,
-      shippingLengthCm: productForm.shippingLengthCm,
-      shippingWidthCm: productForm.shippingWidthCm,
-      shippingHeightCm: productForm.shippingHeightCm,
-      shippingDeclaredValueCop: productForm.shippingDeclaredValueCop,
-      shippingUnitsPerGuide: productForm.shippingUnitsPerGuide,
       categoryId: normalizedCategoryId,
       catalogSection: productForm.catalogSection,
       image: selectedPrimaryImage?.permanentUrl ?? "",
@@ -3767,7 +3763,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       pendingImageCount: productImageSelections.filter((entry) => Boolean(entry.file)).length,
       sizes: normalizedSizes,
       specifications: normalizedSpecifications,
-    }, { requireShipping: formMode === 'create' });
+    });
 
     if (productImageSelections.length > MAX_PRODUCT_TOTAL_IMAGES) {
       errors.gallery = `Máximo ${MAX_PRODUCT_TOTAL_IMAGES} imágenes en total: 1 principal y hasta ${MAX_PRODUCT_GALLERY_IMAGES} adicionales.`;
@@ -4422,37 +4418,6 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
 
                 <section aria-labelledby="product-information-heading" className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
                   <h4 id="product-information-heading" className="text-sm font-bold text-slate-800">Información del producto</h4>
-                  <div className="space-y-3 border-b border-slate-200 pb-4">
-                    <div>
-                      <h5 className="text-sm font-semibold text-slate-800">Datos de envío *</h5>
-                      <p className="text-xs text-slate-500">Obligatorios para crear el producto y cotizar el transporte.</p>
-                    </div>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      {([
-                        ['shippingWeightGrams', 'Peso real (g)', '1000', '1'],
-                        ['shippingLengthCm', 'Largo del empaque (cm)', '20', '0.01'],
-                        ['shippingWidthCm', 'Ancho del empaque (cm)', '20', '0.01'],
-                        ['shippingHeightCm', 'Alto del empaque (cm)', '10', '0.01'],
-                        ['shippingDeclaredValueCop', 'Valor declarado (COP)', '1000', '1'],
-                        ['shippingUnitsPerGuide', 'Unidades por guía', '1', '1'],
-                      ] as const).map(([field, label, placeholder, step]) => (
-                        <div key={field}>
-                          <label htmlFor={`admin-product-${field}`} className="mb-1.5 block text-xs font-bold uppercase text-slate-600">{label}</label>
-                          <input
-                            id={`admin-product-${field}`}
-                            type="number"
-                            min="1"
-                            step={step}
-                            value={productForm[field] ?? ''}
-                            onChange={(event) => updateField(field, event.target.value === '' ? null : Number(event.target.value))}
-                            placeholder={placeholder}
-                            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                    {formErrors.shipping && <p role="alert" className="text-xs text-red-600">{formErrors.shipping}</p>}
-                  </div>
                   <div className="space-y-3 border-b border-slate-200 pb-4">
                     <div className="flex items-center justify-between gap-3">
                       <div>

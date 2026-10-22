@@ -1,4 +1,4 @@
-import type { Order, PaymentStatus, ShipmentStatus } from './domain';
+import type { Order, PaymentStatus, ShipmentStatus } from './domain.js';
 
 export interface StorageUploadRequest {
   area: 'products' | 'categories' | 'banners';

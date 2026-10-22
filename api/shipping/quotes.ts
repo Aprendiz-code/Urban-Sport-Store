@@ -3,6 +3,7 @@ import { ApiError, jsonError, jsonResponse } from '../../lib/api-helpers/respons
 import { supabaseAdmin } from '../../lib/api-helpers/supabase.ts';
 import { requireActiveProfile } from '../../lib/api-helpers/admin.ts';
 import { requireAuthenticatedUser } from '../../lib/api-helpers/auth.ts';
+import { configuredShippingProvider } from '../../src/types/providers.ts';
 import { shippingQuoteRequestSchema } from '../../src/lib/commerce-validation.ts';
 import {
   calculateCoordinadoraQuote,
@@ -62,6 +63,9 @@ export default async function handler(req: any, res: any) {
   try {
     const user = await requireAuthenticatedUser(req);
     await requireActiveProfile(user.id);
+    if (!configuredShippingProvider) {
+      return jsonError(res, 503, 'El servicio de envío aún no está configurado.');
+    }
     const body = await parseJsonBody(req);
     const validated = shippingQuoteRequestSchema.safeParse(body);
     if (!validated.success) return jsonError(res, 400, validated.error.issues[0]?.message ?? 'La solicitud de cotización no es válida.');
