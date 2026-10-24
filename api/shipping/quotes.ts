@@ -3,7 +3,10 @@ import { ApiError, jsonError, jsonResponse } from '../../lib/api-helpers/respons
 import { supabaseAdmin } from '../../lib/api-helpers/supabase.ts';
 import { requireActiveProfile } from '../../lib/api-helpers/admin.ts';
 import { requireAuthenticatedUser } from '../../lib/api-helpers/auth.ts';
-import { shippingQuoteRequestSchema } from '../../src/lib/commerce-validation.ts';
+import {
+  normalizeShippingQuoteRequest,
+  shippingQuoteRequestSchema,
+} from '../../src/lib/commerce-validation.ts';
 import {
   calculateCoordinadoraQuote,
   ShippingQuoteUnavailableError,
@@ -66,11 +69,12 @@ export default async function handler(req: any, res: any) {
     const validated = shippingQuoteRequestSchema.safeParse(body);
     if (!validated.success) return jsonError(res, 400, validated.error.issues[0]?.message ?? 'La solicitud de cotización no es válida.');
 
-    const normalizedItems = [...validated.data.items].sort((left, right) => left.productId.localeCompare(right.productId));
+    const normalizedRequest = normalizeShippingQuoteRequest(validated.data);
+    const normalizedItems = normalizedRequest.items;
     const productIds = normalizedItems.map((item) => item.productId);
     const { data: products, error: productsError } = await supabaseAdmin
       .from('products')
-      .select('id, name, sku, price, is_active, shipping_weight_grams, shipping_length_cm, shipping_width_cm, shipping_height_cm, shipping_declared_value_cop, shipping_units_per_guide')
+      .select('id,sku,price,is_active,shipping_weight_grams,shipping_length_cm,shipping_width_cm,shipping_height_cm,shipping_declared_value_cop,shipping_units_per_guide')
       .in('id', productIds);
     if (productsError) {
       console.error('[Shipping Quote] Product lookup failed', { code: productsError.code ?? 'SUPABASE_ERROR' });
@@ -111,17 +115,18 @@ export default async function handler(req: any, res: any) {
     }
 
     const matchingLocationRates = (rateRows ?? []).filter((row: any) => (
-      normalizeLocation(row.destination_city) === normalizeLocation(validated.data.address.city)
-      && normalizeLocation(row.destination_department) === normalizeLocation(validated.data.address.state)
+      row.destination_code === normalizedRequest.destinationCode
+      && normalizeLocation(row.destination_city) === normalizeLocation(normalizedRequest.address.city)
+      && normalizeLocation(row.destination_department) === normalizeLocation(normalizedRequest.address.state)
     ));
     if (matchingLocationRates.length === 0) {
       return jsonResponse(res, {
         ok: false,
-        error: { code: 422, message: 'Coordinadora no tiene cobertura configurada para esta dirección.' },
+        error: { code: 422, message: 'No hay cobertura configurada para este destino.' },
         data: { quote: null, coverage: { covered: false }, currency: 'COP' },
       }, 422);
     }
-    if (validated.data.address.country !== 'CO') {
+    if (normalizedRequest.address.country !== 'CO') {
       return jsonResponse(res, {
         ok: false,
         error: { code: 422, message: 'La cobertura configurada es únicamente para Colombia.' },
@@ -137,7 +142,7 @@ export default async function handler(req: any, res: any) {
         candidates.push({
           row,
           calculation: calculateCoordinadoraQuote({
-            address: validated.data.address,
+            address: normalizedRequest.address,
             products: productPackages,
             rate: toRate(row),
             now,
@@ -151,7 +156,7 @@ export default async function handler(req: any, res: any) {
       return jsonResponse(res, {
         ok: false,
         error: { code: 422, message: availableRates.length === 0
-          ? 'No hay una tarifa activa y vigente para esta ruta.'
+          ? 'No hay una tarifa activa y vigente para este destino.'
           : 'No hay una tarifa única aplicable al destino y peso de este pedido.' },
         data: { quote: null, coverage: { covered: true }, currency: 'COP' },
       }, 422);
@@ -161,12 +166,13 @@ export default async function handler(req: any, res: any) {
     const [{ row, calculation }] = candidates;
     const quoteId = randomUUID();
     const expiresAt = new Date(now.getTime() + QUOTE_LIFETIME_MINUTES * 60_000).toISOString();
-    const addressSnapshot = validated.data.address;
+    const addressSnapshot = normalizedRequest.address;
     const itemsSnapshot = normalizedItems;
     const productsSnapshot = productPackages.map((item) => ({ ...item }));
     const quoteSnapshot = {
       id: quoteId,
       provider: 'coordinadora',
+      calculatedBy: 'urban_sport_store',
       currency: 'COP',
       amountCop: calculation.amountCop,
       coverage: { covered: true, originCode: calculation.originCode, destinationCode: calculation.destinationCode },
@@ -215,10 +221,16 @@ export default async function handler(req: any, res: any) {
         quote: {
           id: quoteId,
           provider: 'coordinadora',
+          calculatedBy: 'urban_sport_store',
           currency: 'COP',
           amountCop: calculation.amountCop,
           subtotalCop,
           coverage: { covered: true, originCode: calculation.originCode, destinationCode: calculation.destinationCode },
+          destination: {
+            code: row.destination_code,
+            department: row.destination_department,
+            municipality: row.destination_city,
+          },
           estimatedDelivery: {
             minBusinessDays: calculation.estimatedDeliveryBusinessDays,
             maxBusinessDays: calculation.estimatedDeliveryBusinessDays,

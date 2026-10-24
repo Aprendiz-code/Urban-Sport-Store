@@ -22,6 +22,7 @@ describe('product payload normalization', () => {
       stock: '12',
       sku: 'NKE-AF1-001',
       category_id: categoryId,
+      catalog_section: 'Tenis Hombre',
       image: 'https://storage.test/main.png',
       images: ['https://storage.test/gallery.png'],
       description: 'Calzado deportivo\n\nIdeal para entrenamiento.',
@@ -30,6 +31,12 @@ describe('product payload normalization', () => {
         { name: ' Material ', value: ' Cuero sintético ' },
         { name: 'Suela', value: 'Caucho' },
       ],
+      shipping_weight_grams: '1000',
+      shipping_length_cm: '20',
+      shipping_width_cm: '20',
+      shipping_height_cm: '10',
+      shipping_declared_value_cop: '1000',
+      shipping_units_per_guide: '1',
     })).resolves.toEqual({
       slug: 'nike-air-force-1-nke-af1-001',
       name: 'Nike Air Force 1',
@@ -37,6 +44,7 @@ describe('product payload normalization', () => {
       price: 199900,
       compare_at_price: 229900,
       category_id: categoryId,
+      catalog_section: 'Tenis Hombre',
       stock: 12,
       sku: 'NKE-AF1-001',
       main_image: 'https://storage.test/main.png',
@@ -47,6 +55,12 @@ describe('product payload normalization', () => {
         { name: 'Material', value: 'Cuero sintético' },
         { name: 'Suela', value: 'Caucho' },
       ],
+      shipping_weight_grams: 1000,
+      shipping_length_cm: 20,
+      shipping_width_cm: 20,
+      shipping_height_cm: 10,
+      shipping_declared_value_cop: 1000,
+      shipping_units_per_guide: 1,
     });
     expect(supabaseMocks.from).not.toHaveBeenCalled();
   });
@@ -60,6 +74,7 @@ describe('product payload normalization', () => {
       sizes: [],
       specifications: [],
       stock: 0,
+      shipping_length_cm: 20,
     })).resolves.toEqual({
       brand: 'Nike Sportswear',
       main_image: 'https://storage.test/updated.png',
@@ -68,6 +83,7 @@ describe('product payload normalization', () => {
       sizes: [],
       specifications: [],
       stock: 0,
+      shipping_length_cm: 20,
     });
     expect(supabaseMocks.from).not.toHaveBeenCalled();
   });
@@ -111,6 +127,12 @@ describe('product payload normalization', () => {
     await expect(normalizeProductPayload({ name: 'Producto', description: { html: '<script>' } }))
       .rejects.toThrow('La descripción debe ser texto.');
     expect(supabaseMocks.from).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid shipping dimensions and non-integer mass or guide quantity', async () => {
+    await expect(normalizeProductPayload({ shipping_length_cm: 0 })).rejects.toThrow('debe ser un número positivo');
+    await expect(normalizeProductPayload({ shipping_weight_grams: 1.2 })).rejects.toThrow('entero');
+    await expect(normalizeProductPayload({ shipping_units_per_guide: 1.5 })).rejects.toThrow('entero');
   });
 
   it('removes blank values from sizes and empty specification rows without reordering', async () => {
