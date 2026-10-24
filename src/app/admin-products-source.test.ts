@@ -70,13 +70,16 @@ describe('admin products table data source', () => {
     expect(appSource).toContain('break-words text-xs text-slate-600">{p.brand} · {p.category');
   });
 
-  it('keeps archive explicitly disabled while the Preview admin endpoint is excluded', () => {
-    const archiveAction = appSource.match(/<button type="button" className="is-danger" disabled title="Acción de archivo no disponible en Preview">([\s\S]*?)<\/button>/)?.[0] ?? '';
-
-    expect(archiveAction).toContain('Archivar no disponible en Preview');
-    expect(appSource).not.toContain('ProductArchiveResult');
-    expect(appSource).not.toContain('archiveProductApi');
-    expect(appSource).not.toContain('handleProductArchive');
+  it('archives products, keeps the admin row inactive, and reports pending audit', () => {
+    expect(appSource).toContain('handleProductArchive');
+    expect(appSource).toContain('archiveProduct(product.id)');
+    expect(appSource).toContain('¿Archivar "${product.name}"?');
+    expect(appSource).toContain('"Archivando…" : "Archivar"');
+    expect(appSource).toContain('Producto archivado; auditoría pendiente.');
+    expect(appSource).toContain('Producto archivado correctamente.');
+    expect(appSource).toContain('adminApi.archiveProductApi(productId)');
+    expect(appSource).toContain('setAdminProducts((current) => current.map((product) => product.id === productId ? { ...product, isActive: false } : product))');
+    expect(appSource).not.toContain('setAdminProducts((current) => current.filter((product) => product.id !== productId))');
   });
 
   it('keeps the admin avatar distinct from the regular user icon', () => {
