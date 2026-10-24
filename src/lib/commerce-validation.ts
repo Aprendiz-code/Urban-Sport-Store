@@ -59,14 +59,24 @@ export const inlineOrderAddressSchema = z.object({
 }).strict();
 
 export const shippingQuoteRequestSchema = z.object({
-  address: inlineOrderAddressSchema,
+  destinationCode: z.string().regex(/^\d{8}$/, 'Selecciona un destino tarifario válido.'),
+  address: inlineOrderAddressSchema.extend({ country: z.literal('CO') }),
   items: z.array(pendingOrderItemSchema).min(1, 'Debe incluir al menos un producto.').max(20, 'El pedido admite hasta 20 productos distintos.')
     .refine((items) => new Set(items.map((item) => item.productId)).size === items.length, {
       message: 'No repitas productos en el pedido.',
     }),
 }).strict();
 
-export const createOrderRequestSchema = shippingQuoteRequestSchema.extend({
+export function normalizeShippingQuoteRequest(
+  request: z.infer<typeof shippingQuoteRequestSchema>,
+): z.infer<typeof shippingQuoteRequestSchema> {
+  return {
+    ...request,
+    items: [...request.items].sort((left, right) => left.productId.localeCompare(right.productId)),
+  };
+}
+
+export const createOrderRequestSchema = shippingQuoteRequestSchema.omit({ destinationCode: true }).extend({
   shippingQuoteId: z.string({ required_error: 'Confirma una cotización de envío vigente antes de pagar.' })
     .uuid('La cotización de envío no es válida.'),
   note: z.string().trim().max(500).optional(),

@@ -3,6 +3,7 @@ import {
   addressSchema,
   cartItemSchema,
   createOrderRequestSchema,
+  shippingQuoteRequestSchema,
   allowedOrderStatusTransitions,
   profileUpdateSchema,
 } from '../commerce-validation';
@@ -25,10 +26,10 @@ describe('commerce validation', () => {
       shippingQuoteId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
       address: {
         recipientName: 'Ana Gómez',
+        addressLine1: 'Cra 15 #84-25',
         city: 'Bogotá',
         state: 'Cundinamarca',
         postalCode: '110221',
-        addressLine1: 'Cra 15 #84-25',
         phone: '+57 311 234 5678',
         country: 'CO',
       },
@@ -39,6 +40,10 @@ describe('commerce validation', () => {
     });
 
     expect(order.items[0].quantity).toBe(1);
+    expect(order.address.country).toBe('CO');
+    expect(shippingQuoteRequestSchema.parse({
+      destinationCode: '11001000', address: order.address, items: order.items,
+    }).items).toHaveLength(1);
   });
 
   it('rejects invalid quantities and disallowed client-controlled fields', () => {
@@ -48,10 +53,10 @@ describe('commerce validation', () => {
       shippingQuoteId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
       address: {
         recipientName: 'Ana Gómez',
+        addressLine1: 'Cra 15 #84-25',
         city: 'Bogotá',
         state: 'Cundinamarca',
         postalCode: '110221',
-        addressLine1: 'Cra 15 #84-25',
         phone: '+57 311 234 5678',
         country: 'CO',
       },
@@ -80,7 +85,40 @@ describe('commerce validation', () => {
     }
   });
 
+  it('rejects extra address fields, oversized address content, and unbounded product lists', () => {
+    const address = {
+      recipientName: 'Ana Gómez',
+      addressLine1: 'Cra 15 #84-25',
+      city: 'Bogotá',
+      state: 'Cundinamarca',
+      postalCode: '110221',
+      phone: '+57 311 234 5678',
+      country: 'CO',
+    };
+    const productId = '11111111-1111-4111-8111-111111111111';
+
+    expect(() => createOrderRequestSchema.parse({
+      shippingQuoteId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      address: { ...address, arbitrary: 'ignored?' },
+      items: [{ productId, quantity: 1 }],
+    })).toThrow();
+    expect(() => createOrderRequestSchema.parse({
+      shippingQuoteId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      address: { ...address, addressLine1: 'x'.repeat(181) },
+      items: [{ productId, quantity: 1 }],
+    })).toThrow();
+    expect(() => createOrderRequestSchema.parse({
+      address,
+      items: Array.from({ length: 21 }, (_, index) => ({
+        productId: `11111111-1111-4111-8111-${String(index + 1).padStart(12, '0')}`,
+        quantity: 1,
+      })),
+    })).toThrow();
+  });
+
   it('documents the valid order status transitions', () => {
+    expect(allowedOrderStatusTransitions.pending_payment).toEqual(['cancelled']);
+    expect(allowedOrderStatusTransitions.confirmed).not.toContain('cancelled');
     expect(allowedOrderStatusTransitions.pending).toContain('confirmed');
     expect(allowedOrderStatusTransitions.confirmed).toContain('processing');
     expect(allowedOrderStatusTransitions.shipped).toContain('delivered');

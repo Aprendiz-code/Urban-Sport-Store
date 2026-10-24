@@ -33,6 +33,15 @@ export interface ProductSpecification {
   value: string;
 }
 
+export type ProductCatalogSection =
+  | 'Tenis Hombre'
+  | 'Tenis Mujer'
+  | 'Ropa Hombre'
+  | 'Ropa Mujer'
+  | 'Perfumes'
+  | 'Relojes'
+  | 'Gafas';
+
 export interface Product {
   id: string;
   name: string;
@@ -45,7 +54,7 @@ export interface Product {
   image: string;
   category: string;
   categoryId?: string;
-  catalogSection?: string;
+  catalogSection?: ProductCatalogSection | string;
   slug?: string | null;
   subcategory: string;
   stock: number;
@@ -58,6 +67,12 @@ export interface Product {
   isNew?: boolean;
   isFeatured?: boolean;
   isActive?: boolean;
+  shippingWeightGrams?: number | null;
+  shippingLengthCm?: number | null;
+  shippingWidthCm?: number | null;
+  shippingHeightCm?: number | null;
+  shippingDeclaredValueCop?: number | null;
+  shippingUnitsPerGuide?: number | null;
   createdAt?: string;
   updatedAt?: string;
   specs?: string[];
@@ -106,6 +121,12 @@ export interface Address {
   userId?: string;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface ShippingDestination {
+  code: string;
+  department: string;
+  municipality: string;
 }
 
 export interface CartItem {
@@ -193,9 +214,11 @@ export interface Order {
   shippingAmount: number;
   total: number;
   paymentProvider?: string | null;
-  shippingQuoteId?: string | null;
+  shippingProvider?: string | null;
   paymentReference?: string | null;
   shippingMethod?: string | null;
+  shippingQuoteId?: string | null;
+  shippingQuoteSnapshot?: Record<string, unknown> | null;
   trackingNumber?: string | null;
   shippingAddress: OrderAddressSnapshot;
   notes?: string | null;

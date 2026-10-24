@@ -15,6 +15,12 @@ export const productSchema = z.object({
   stock: z.number().int().nonnegative(),
   sku: z.string().optional(),
   description: z.string().optional(),
+  shippingWeightGrams: z.number().int().positive().nullable().optional(),
+  shippingLengthCm: z.number().positive().nullable().optional(),
+  shippingWidthCm: z.number().positive().nullable().optional(),
+  shippingHeightCm: z.number().positive().nullable().optional(),
+  shippingDeclaredValueCop: z.number().positive().nullable().optional(),
+  shippingUnitsPerGuide: z.number().int().positive().nullable().optional(),
 });
 
 export type ProductForm = z.infer<typeof productSchema>;

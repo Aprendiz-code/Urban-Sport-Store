@@ -13,6 +13,7 @@ import "./admin-panel.css";
 import HorizontalProductCarousel from "./components/ProductCarousel";
 import CategoryBar from "./components/CategoryBar";
 import HomePromoCarousel from "./components/HomePromoCarousel";
+import AdminShippingRates from "./components/AdminShippingRates";
 import { STORE_CONFIG } from "./store-config";
 
 import { subscribeToNewsletter } from "../lib/newsletter";
@@ -35,13 +36,24 @@ import { getMyProfile, getProfileAccess, ProfileAccessVerificationError, updateM
 import { getAdminPanelMenuLink } from "./admin-panel-menu";
 import { resolveApiBaseUrl } from "../lib/api-config";
 
-import adminApi, { AdminApiError, createSupabaseProductApi, updateSupabaseProductApi, deleteSupabaseProductApi, updateHomeContentApi, formatAdminApiError, isAdminAuthenticationError, isDuplicateProductSkuError } from "../lib/admin-api";
+import adminApi, { AdminApiError, createSupabaseProductApi, updateSupabaseProductApi, deleteSupabaseProductApi, updateHomeContentApi, formatAdminApiError, isAdminAuthenticationError, type ProductArchiveResult } from "../lib/admin-api";
 import { uploadProductImage, getPublicUrl, STORAGE_BUCKET } from "../lib/supabase-store";
 import { recordAction } from "../lib/audit";
 import { productSchema } from '../lib/schemas';
 import { normalizeGuestCartEntries, resolveGuestCartEntries } from '../lib/cart-service';
-import { getMyOrder, listMyOrders } from '../lib/order-service';
-import { createPendingOrder, createShippingQuote, createWompiPaymentSession, type ShippingQuote } from '../lib/order-service';
+import {
+  cancelPendingOrder,
+  confirmPendingOrderRequote,
+  createPendingOrder,
+  createShippingQuote,
+  createWompiPaymentSession,
+  getMyOrder,
+  listMyOrders,
+  listShippingDestinations,
+  type ShippingDestination,
+  type ShippingQuote,
+  type ShippingQuoteRequest,
+} from '../lib/order-service';
 import {
   createLatestQuoteRequestTracker,
   getCheckoutQuoteSummary,
@@ -49,7 +61,8 @@ import {
   runSingleFlight,
   submitCheckoutPayment,
 } from '../lib/checkout-quote-flow';
-import { generateProductSkuSuggestion, MAX_PRODUCT_GALLERY_IMAGES, MAX_PRODUCT_TOTAL_IMAGES, normalizeProductSizes, normalizeProductSpecifications, submitAdminProductForm, validateProductForm } from '../lib/admin-product-form';
+import { getPaymentReturnDestination, isPaymentReturnPath } from '../lib/payment-return';
+import { MAX_PRODUCT_GALLERY_IMAGES, MAX_PRODUCT_TOTAL_IMAGES, normalizeProductSizes, normalizeProductSpecifications, submitAdminProductForm, validateProductForm } from '../lib/admin-product-form';
 import { buildAdminProductPayload } from '../lib/admin-product-payload';
 import { filterAdminProducts, type AdminProductStatusFilter } from '../lib/admin-product-list';
 import { normalizeProductImageList, resolveProductPublicImageUrl, uploadSelectedProductImages } from '../lib/admin-product-images';
@@ -62,7 +75,7 @@ import paymentMethodsImage from "../../logo medios de pago/payment-methods-trans
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 
 type View =
-  | "home" | "catalog" | "product" | "checkout"
+  | "home" | "catalog" | "product" | "checkout" | "payment-return"
   | "login" | "register" | "account"
   | "admin-login" | "admin" | "password-reset"
   | "privacy" | "terms" | "shipping" | "returns" | "contact";
@@ -70,6 +83,7 @@ type ProductsStatus = "loading" | "ready" | "error";
 function getInitialView(): View {
   if (typeof window === "undefined") return "home";
   const { pathname, search } = window.location;
+  if (isPaymentReturnPath(pathname)) return 'payment-return';
   const query = new URLSearchParams(search);
   const hash = new URLSearchParams(window.location.hash.slice(1));
   if (pathname === "/reset-password" || query.get("type") === "recovery" || hash.get("type") === "recovery") return "password-reset";
@@ -95,7 +109,7 @@ function getInitialAdminSection(): string | undefined {
   if (sectionParam) return sectionParam;
   if (window.location.pathname === "/admin/login") return undefined;
   const pathSection = window.location.pathname.match(/^\/admin\/([^/]+)/)?.[1];
-  const existingSections = ["dashboard", "homepage", "products", "orders", "inventory", "coupons", "reports", "activity", "settings"];
+  const existingSections = ["dashboard", "homepage", "products", "orders", "inventory", "coupons", "reports", "activity", "settings", "shipping"];
   return pathSection && existingSections.includes(pathSection) ? pathSection : undefined;
 }
 
@@ -190,7 +204,7 @@ const DEFAULT_HERO_TITLE = "VISTE TU ESTILO. MARCA LA DIFERENCIA.";
 const DEFAULT_HERO_SUBTITLE = "Explora calzado, ropa deportiva y accesorios para completar tu estilo.";
 const DEFAULT_HERO_IMAGE = "https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?auto=format&fit=crop&w=1600&h=900&q=85";
 const TOP_BENEFITS_MESSAGES = [
-  "Envío gratis a toda Colombia por compras superiores a $300.000",
+  "Consulta cobertura, tarifa y plazo de envío antes de pagar",
   "Compra 100% segura: aceptamos todos los medios de pago",
   "Atención y soporte 24/7 para resolver tus dudas",
   "Productos 100% originales con garantía de marca",
@@ -252,6 +266,12 @@ const mapProductRecordToAppProduct = (record: ProductRecord, categories: readonl
     sizes: record.sizes ?? [],
     specifications: record.specifications ?? [],
     isActive: record.is_active !== false,
+    shippingWeightGrams: record.shipping_weight_grams,
+    shippingLengthCm: record.shipping_length_cm,
+    shippingWidthCm: record.shipping_width_cm,
+    shippingHeightCm: record.shipping_height_cm,
+    shippingDeclaredValueCop: record.shipping_declared_value_cop,
+    shippingUnitsPerGuide: record.shipping_units_per_guide,
     createdAt: record.created_at ?? undefined,
     updatedAt: record.updated_at ?? undefined,
     gender: record.gender as Product["gender"],
@@ -283,6 +303,12 @@ const mapAppProductToProductRecord = (product: Partial<Product> & { id?: string 
   sizes: product.sizes ?? [],
   specifications: product.specifications ?? [],
   is_active: product.isActive ?? true,
+  shipping_weight_grams: product.shippingWeightGrams ?? null,
+  shipping_length_cm: product.shippingLengthCm ?? null,
+  shipping_width_cm: product.shippingWidthCm ?? null,
+  shipping_height_cm: product.shippingHeightCm ?? null,
+  shipping_declared_value_cop: product.shippingDeclaredValueCop ?? null,
+  shipping_units_per_guide: product.shippingUnitsPerGuide ?? null,
   gender: (product.gender ?? "Unisex") as string,
   is_new: product.isNew ?? false,
   is_featured: product.isFeatured ?? false,
@@ -1502,7 +1528,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
 }
 
 function LegalPage({ kind, onNavigate }: { kind: View; onNavigate: (v: View) => void }) {
-  const maps: Record<Exclude<View, "home" | "catalog" | "product" | "checkout" | "login" | "register" | "account" | "admin-login" | "admin" | "password-reset">, { title: string; paragraph: string } > = {
+  const maps: Record<Exclude<View, "home" | "catalog" | "product" | "checkout" | "payment-return" | "login" | "register" | "account" | "admin-login" | "admin" | "password-reset">, { title: string; paragraph: string } > = {
     privacy: {
       title: "Política de privacidad",
       paragraph: "Urban Sport Store recolecta la información necesaria para procesar tus pedidos, mejorar tu experiencia de compra y comunicarte con respecto a envíos, cambios, promociones y atención al cliente. Usamos tus datos solo para fines operativos y de servicio, nunca para terceros ajenos a la operación comercial. Tienes derecho a acceder, corregir, actualizar o solicitar la eliminación de tus datos personales de acuerdo con la normativa aplicable.",
@@ -1513,7 +1539,7 @@ function LegalPage({ kind, onNavigate }: { kind: View; onNavigate: (v: View) => 
     },
     shipping: {
       title: "Envíos",
-      paragraph: "Realizamos envíos a Cali y a todo Colombia con tiempos estimados según la ciudad, la zona y la logística disponible. Si tu compra supera $150.000 COP, el envío puede quedar habilitado de forma gratuita según la promoción vigente. El valor final del envío se confirma al momento de confirmar tu pedido.",
+      paragraph: "La cobertura depende de las tarifas activas de Coordinadora. Antes de pagar, el checkout valida la dirección y muestra el costo del envío y el plazo estimado. No se crean pedidos cuando no hay una cotización vigente para el destino y los artículos.",
     },
     returns: {
       title: "Cambios y devoluciones",
@@ -1595,7 +1621,7 @@ function CatalogPage({ filterCategory, selectedBrand, setSelectedBrand, sortBy, 
                   Todos ({products.length})
                 </button>
                 {availableCategories.map((category) => {
-                  const count = products.filter((product) => product.category === category || product.catalogSection === category).length;
+                  const count = products.filter((product) => product.category === category).length;
                   return (
                     <button key={category} onClick={() => onCategorySelect(category)} className={`w-full text-left px-3 py-2 rounded-xl text-sm transition-colors flex justify-between items-center ${selectedCat === category ? "bg-[#bfdbfe] text-[#0b1220] font-bold" : "text-slate-600 hover:bg-slate-100"}`}>
                       <span>{category}</span><span className="text-xs opacity-60">{count}</span>
@@ -1919,12 +1945,27 @@ function ProductDetailPage({ product, products, onBack, onAddToCart, onNavigate,
 
 // ─── CHECKOUT ────────────────────────────────────────────────────────────────
 
-function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelectAddress, onCreateAddress, onPaymentStarted }: { cart: StorefrontCartLine[]; onNavigate: (v: View) => void; addresses: Address[]; selectedAddressId: string; onSelectAddress: (id: string) => void; onCreateAddress: (address: Omit<Address, 'id'>) => void; onPaymentStarted: () => void; }) {
+function CheckoutPage({ cart, catalogProducts, resumedOrder, onNavigate, addresses, selectedAddressId, onSelectAddress, onCreateAddress, onPaymentStarted }: { cart: StorefrontCartLine[]; catalogProducts: Product[]; resumedOrder: Order | null; onNavigate: (v: View) => void; addresses: Address[]; selectedAddressId: string; onSelectAddress: (id: string) => void; onCreateAddress: (address: Omit<Address, 'id'>) => void; onPaymentStarted: () => void; }) {
   const [step, setStep] = useState(0);
   const [showNewAddress, setShowNewAddress] = useState(false);
   const [recipientName, setRecipientName] = useState('');
   const [recipientAddressId, setRecipientAddressId] = useState(selectedAddressId);
   const [paymentError, setPaymentError] = useState('');
+  const [requoteError, setRequoteError] = useState('');
+  const [destinations, setDestinations] = useState<ShippingDestination[]>([]);
+  const [destinationStatus, setDestinationStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [destinationError, setDestinationError] = useState('');
+  const [selectedDepartment, setSelectedDepartment] = useState('');
+  const [destinationCode, setDestinationCode] = useState('');
+  const [useOrderAddress, setUseOrderAddress] = useState(Boolean(resumedOrder));
+  const [requoteProposal, setRequoteProposal] = useState<{
+    quoteKey: string;
+    quoteId: string;
+    previousTotal: number;
+    subtotal: number;
+    shipping: number;
+    total: number;
+  } | null>(null);
   const [shippingQuoteState, setShippingQuoteState] = useState<{
     requestKey: string | null;
     status: 'idle' | 'loading' | 'ready' | 'error';
@@ -1948,44 +1989,124 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
     phone: "",
     isDefault: false,
   });
-  const subtotal = cart.reduce((s, i) => s + i.product.price * i.qty, 0);
+
+  const resumedLines = resumedOrder?.items.map((item) => {
+    const product = catalogProducts.find((candidate) => candidate.id === item.productId);
+    return product
+      ? { product, qty: item.quantity, selectedSize: '', selectedColor: '' }
+      : null;
+  }) ?? null;
+  const resumedCatalogValid = !resumedOrder
+    || (resumedLines !== null && resumedLines.every((line) => line !== null));
+  const checkoutCart = resumedOrder
+    ? resumedCatalogValid ? resumedLines as StorefrontCartLine[] : []
+    : cart;
+  const subtotal = checkoutCart.reduce((sum, item) => sum + item.product.price * item.qty, 0);
   const STEPS = ["Dirección", "Envío", "Pago"];
   const selectedAddress = addresses.find((address) => address.id === selectedAddressId);
-  const cartFingerprint = cart.map((item) => `${item.product.id}:${item.qty}`).sort().join('|');
-  const addressFingerprint = selectedAddress ? JSON.stringify({
-    line1: selectedAddress.line1,
-    line2: selectedAddress.line2 ?? '',
-    city: selectedAddress.city,
-    state: selectedAddress.state,
-    postalCode: selectedAddress.postalCode,
-    country: selectedAddress.country,
-    phone: selectedAddress.phone,
-    recipientName,
-  }) : '';
+  const cartFingerprint = checkoutCart
+    .map((item) => `${item.product.id}:${item.qty}`).sort().join('|');
+  const activeAddress = resumedOrder && useOrderAddress
+    ? resumedOrder.shippingAddress
+    : selectedAddress
+      ? {
+          recipientName: recipientName.trim(),
+          addressLine1: selectedAddress.line1,
+          addressLine2: selectedAddress.line2,
+          city: selectedAddress.city,
+          state: selectedAddress.state,
+          postalCode: selectedAddress.postalCode,
+          country: selectedAddress.country,
+          phone: selectedAddress.phone,
+        }
+      : null;
+  const addressFingerprint = activeAddress ? JSON.stringify(activeAddress) : '';
+  const selectedDestination = destinations.find((item) => item.code === destinationCode);
+
   useEffect(() => {
     setRecipientName(selectedAddress?.recipientName ?? '');
     setRecipientAddressId(selectedAddressId);
   }, [selectedAddressId]);
-  const quoteRequestInput = selectedAddress
-    && recipientAddressId === selectedAddressId
-    && recipientName.trim()
-    && cart.length > 0 ? {
-    address: {
-      recipientName: recipientName.trim(),
-      addressLine1: selectedAddress.line1,
-      ...(selectedAddress.line2 ? { addressLine2: selectedAddress.line2 } : {}),
-      city: selectedAddress.city,
-      state: selectedAddress.state,
-      postalCode: selectedAddress.postalCode,
-      country: selectedAddress.country.trim().toUpperCase() === 'COLOMBIA'
-        ? 'CO'
-        : selectedAddress.country.trim().toUpperCase(),
-      phone: selectedAddress.phone,
-    },
-    items: cart.map((item) => ({ productId: item.product.id, quantity: item.qty })),
+
+  useEffect(() => {
+    setUseOrderAddress(Boolean(resumedOrder));
+    setRequoteProposal(null);
+    setRequoteError('');
+    setDestinationCode('');
+    setSelectedDepartment('');
+    setStep(0);
+  }, [resumedOrder?.id]);
+
+  useEffect(() => {
+    let active = true;
+    void listShippingDestinations().then((values) => {
+      if (!active) return;
+      setDestinations(values);
+      setDestinationStatus('ready');
+      const currentAddress = resumedOrder?.shippingAddress ?? selectedAddress;
+      const matches = values.filter((item) => item.department === currentAddress?.state
+        && item.municipality === currentAddress?.city);
+      const previousSnapshot = resumedOrder?.shippingQuoteSnapshot;
+      const previousCode = previousSnapshot
+        && typeof previousSnapshot === 'object'
+        && 'coverage' in previousSnapshot
+        && previousSnapshot.coverage
+        && typeof previousSnapshot.coverage === 'object'
+        && 'destinationCode' in previousSnapshot.coverage
+        ? previousSnapshot.coverage.destinationCode
+        : null;
+      const exactPrevious = matches.find((item) => item.code === previousCode);
+      const uniqueMatch = matches.length === 1 ? matches[0] : null;
+      const initial = exactPrevious ?? uniqueMatch;
+      if (initial) {
+        setSelectedDepartment(initial.department);
+        setDestinationCode(initial.code);
+      }
+    }).catch((error) => {
+      if (!active) return;
+      setDestinationStatus('error');
+      setDestinationError(error instanceof Error ? error.message : 'No fue posible cargar destinos.');
+    });
+    return () => { active = false; };
+  }, [resumedOrder?.id, selectedAddressId, destinations.length]);
+
+  const normalizedAddress = activeAddress && selectedDestination ? {
+    recipientName: activeAddress.recipientName?.trim() ?? recipientName.trim(),
+    addressLine1: 'addressLine1' in activeAddress
+      ? activeAddress.addressLine1
+      : activeAddress.line1,
+    ...(('addressLine2' in activeAddress
+      ? activeAddress.addressLine2
+      : activeAddress.line2)
+      ? { addressLine2: 'addressLine2' in activeAddress
+          ? activeAddress.addressLine2
+          : activeAddress.line2 }
+      : {}),
+    city: selectedDestination.municipality,
+    state: selectedDestination.department,
+    postalCode: activeAddress.postalCode,
+    country: (activeAddress.country ?? '').trim().toUpperCase() === 'COLOMBIA'
+      ? 'CO'
+      : (activeAddress.country ?? '').trim().toUpperCase(),
+    phone: activeAddress.phone,
   } : null;
+  const normalizedItems = checkoutCart
+    .map((item) => ({ productId: item.product.id, quantity: item.qty }))
+    .sort((left, right) => left.productId.localeCompare(right.productId));
+  const canUseCurrentAddress = Boolean(
+    resumedOrder && useOrderAddress
+      || selectedAddress && recipientAddressId === selectedAddressId && recipientName.trim(),
+  );
+  const quoteRequestInput: ShippingQuoteRequest | null = normalizedAddress
+    && destinationCode && canUseCurrentAddress
+    && normalizedItems.length > 0 && resumedCatalogValid
+    ? { destinationCode, address: normalizedAddress, items: normalizedItems }
+    : null;
+  const quoteAddressId = resumedOrder && useOrderAddress
+    ? `order:${resumedOrder.id}`
+    : selectedAddressId;
   const currentQuoteKey = quoteRequestInput
-    ? getShippingQuoteRequestKey(quoteRequestInput, selectedAddressId)
+    ? getShippingQuoteRequestKey(quoteRequestInput, quoteAddressId)
     : null;
   const quoteRequestInputRef = useRef(quoteRequestInput);
   quoteRequestInputRef.current = quoteRequestInput;
@@ -2005,9 +2126,16 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
     currentQuoteKey,
     subtotal,
     quoteClock,
+    (orderAwaitingPayment ?? resumedOrder)?.discountAmount ?? 0,
   );
   const quoteCanProceed = quoteSummary.canContinue;
   const checkoutSubtotal = quoteSummary.subtotalCop;
+
+  useEffect(() => {
+    setRequoteProposal(null);
+    setRequoteError('');
+  }, [currentQuoteKey]);
+
   useEffect(() => {
     const requestKey = currentQuoteKey;
     const requestInput = quoteRequestInputRef.current;
@@ -2045,45 +2173,58 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
     return () => window.clearTimeout(timer);
   }, [shippingQuote, quoteCanProceed]);
 
-  const startPayment = () => runSingleFlight(paymentRequestLock, async () => {
-    if (!selectedAddress || !recipientName.trim()) {
-      setPaymentError('Selecciona una dirección e indica el nombre de quien recibe.');
+  const startPayment = (confirmRequote = false) => runSingleFlight(paymentRequestLock, async () => {
+    if (!quoteRequestInput || !quoteCanProceed || !shippingQuote || quoteSummary.totalCop === null) {
+      setPaymentError('Selecciona un destino y una cotización vigente antes de continuar.');
       return;
     }
-
-    const normalizedCountry = selectedAddress.country.trim().toUpperCase();
-    const country = normalizedCountry === 'COLOMBIA' ? 'CO' : normalizedCountry;
-    if (!/^[A-Z]{2}$/.test(country)) {
-      setPaymentError('El país de la dirección debe usar su código de dos letras.');
+    if (!resumedOrder && (!selectedAddress || !recipientName.trim())) {
+      setPaymentError('Selecciona una dirección e indica el nombre de quien recibe.');
       return;
     }
 
     setPaymentStarting(true);
     setPaymentError('');
+    setRequoteError('');
     try {
       const result = await submitCheckoutPayment({
         quote: shippingQuote,
         quoteKey: quoteStateMatchesCurrent ? shippingQuoteState.requestKey : null,
         currentQuoteKey,
-        address: quoteRequestInput?.address ?? {
-          recipientName: recipientName.trim(),
-          addressLine1: selectedAddress.line1,
-          ...(selectedAddress.line2 ? { addressLine2: selectedAddress.line2 } : {}),
-          city: selectedAddress.city,
-          state: selectedAddress.state,
-          postalCode: selectedAddress.postalCode,
-          country,
-          phone: selectedAddress.phone,
-        },
-        items: cart.map((item) => ({ productId: item.product.id, quantity: item.qty })),
-        existingOrder: orderAwaitingPayment,
+        request: quoteRequestInput,
+        existingOrder: orderAwaitingPayment ?? resumedOrder,
+        onOrderReady: setOrderAwaitingPayment,
+        confirmRequote,
+        confirmedTotal: quoteSummary.totalCop,
         now: Date.now(),
       }, {
         createOrder: createPendingOrder,
+        requoteOrder: async ({ order, quote, request, confirmedTotal }) =>
+          confirmPendingOrderRequote({
+            orderId: order.id,
+            quote,
+            request,
+            confirmedTotal,
+            expectedUpdatedAt: order.updatedAt,
+          }),
         createPaymentSession: createWompiPaymentSession,
       });
+
+      if (result.status === 'confirmation_required') {
+        setRequoteProposal({
+          quoteKey: currentQuoteKey,
+          quoteId: shippingQuote.id,
+          previousTotal: result.proposal.previousTotal,
+          subtotal: result.proposal.subtotal,
+          shipping: result.proposal.shipping,
+          total: result.proposal.total,
+        });
+        setRequoteError('Revisa el total propuesto. Confírmalo explícitamente para continuar.');
+        return;
+      }
+
       setOrderAwaitingPayment(result.order);
-      onPaymentStarted();
+      if (!resumedOrder) onPaymentStarted();
       window.location.assign(result.session.checkoutUrl);
     } catch (error) {
       setPaymentError(error instanceof Error ? error.message : 'No fue posible iniciar el pago.');
@@ -2091,6 +2232,18 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
       setPaymentStarting(false);
     }
   });
+
+  const confirmRequote = Boolean(
+    requoteProposal
+      && requoteProposal.quoteKey === currentQuoteKey
+      && requoteProposal.quoteId === shippingQuote?.id
+      && quoteCanProceed,
+  );
+  const checkoutBlocked = paymentStarting
+    || !quoteCanProceed
+    || !quoteRequestInput
+    || destinationStatus !== 'ready'
+    || !resumedCatalogValid;
   return (
     <main className="pt-8 sm:pt-10 md:pt-12 pb-10 min-h-screen max-w-5xl mx-auto px-4 sm:px-6">
       <div className="flex items-center gap-3 mb-8">
@@ -2102,7 +2255,6 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
         </div>
       </div>
 
-      {/* Stepper */}
       <div className="flex items-center gap-2 mb-10 overflow-x-auto pb-1">
         {STEPS.map((s, i) => (
           <div key={s} className="flex items-center gap-2 shrink-0">
@@ -2126,10 +2278,22 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
           {step === 0 && (
             <div className="space-y-3 sm:space-y-4">
               <h3 className="text-base sm:text-lg font-extrabold text-slate-900 mb-3 sm:mb-4">Dirección de entrega</h3>
-              {addresses.length === 0 && (
+              {addresses.length === 0 && !resumedOrder && (
                 <p className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950">Agrega una dirección de entrega para continuar con tu pedido.</p>
               )}
-              {addresses.length > 0 && (
+              {resumedOrder && useOrderAddress && (
+                <section className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
+                  <p className="font-semibold">Dirección guardada en el pedido {resumedOrder.orderNumber}</p>
+                  <p>{resumedOrder.shippingAddress.recipientName} · {resumedOrder.shippingAddress.addressLine1}</p>
+                  {resumedOrder.shippingAddress.addressLine2 && <p>{resumedOrder.shippingAddress.addressLine2}</p>}
+                  <p>{resumedOrder.shippingAddress.city}, {resumedOrder.shippingAddress.state} · {resumedOrder.shippingAddress.postalCode}</p>
+                  <button type="button" className="mt-2 text-sm font-semibold underline"
+                    onClick={() => setUseOrderAddress(false)}>
+                    Cambiar dirección
+                  </button>
+                </section>
+              )}
+              {(!resumedOrder || !useOrderAddress) && addresses.length > 0 && (
                 <div>
                   <label htmlFor="checkout-recipient" className="mb-1.5 block text-xs font-bold uppercase tracking-widest text-slate-500">Nombre de quien recibe</label>
                   <input
@@ -2142,7 +2306,47 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
                   />
                 </div>
               )}
-              {shippingQuoteStatus === 'loading' && <p role="status" className="rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-600">Cotizando envío Coordinadora…</p>}
+              {resumedOrder && !useOrderAddress && (
+                <button type="button" className="text-sm font-semibold underline"
+                  onClick={() => setUseOrderAddress(true)}>
+                  Volver a la dirección del pedido
+                </button>
+              )}
+              {destinationStatus === 'loading' && <p role="status" className="rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-600">Cargando destinos configurados…</p>}
+              {destinationStatus === 'error' && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{destinationError}</p>}
+              {destinationStatus === 'ready' && (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="checkout-shipping-department" className="mb-1 block text-xs font-bold uppercase text-slate-500">Departamento</label>
+                    <select id="checkout-shipping-department" value={selectedDepartment}
+                      onChange={(event) => {
+                        setSelectedDepartment(event.target.value);
+                        setDestinationCode('');
+                        setShippingQuoteState({ requestKey: null, status: 'idle', quote: null, error: '' });
+                      }}
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm">
+                      <option value="">Selecciona departamento</option>
+                      {[...new Set(destinations.map((item) => item.department))].sort((a, b) => a.localeCompare(b, 'es')).map((department) => (
+                        <option key={department} value={department}>{department}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="checkout-shipping-destination" className="mb-1 block text-xs font-bold uppercase text-slate-500">Municipio / destino tarifario</label>
+                    <select id="checkout-shipping-destination" value={destinationCode}
+                      onChange={(event) => setDestinationCode(event.target.value)}
+                      disabled={!selectedDepartment}
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm disabled:bg-slate-100">
+                      <option value="">Selecciona destino configurado</option>
+                      {destinations.filter((item) => item.department === selectedDepartment).map((item) => (
+                        <option key={item.code} value={item.code}>{item.municipality}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+              {!resumedCatalogValid && <p role="alert" className="text-sm text-red-700">Un producto del pedido ya no está disponible para cotizar.</p>}
+              {shippingQuoteStatus === 'loading' && <p role="status" className="rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-600">Calculando envío con tarifas configuradas…</p>}
               {shippingQuoteStatus === 'error' && <p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{shippingQuoteError || 'No hay una tarifa válida para esta dirección y estos artículos.'}</p>}
               {quoteSummary.isExpired && (
                 <p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
@@ -2150,7 +2354,16 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
                   <button type="button" onClick={() => setShippingQuoteRefresh((value) => value + 1)} className="ml-2 font-semibold underline">Volver a cotizar</button>
                 </p>
               )}
-              {quoteCanProceed && shippingQuote && <p role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">Envío Coordinadora cotizado: {fmt(shippingQuote.amountCop)} COP · entrega estimada en {shippingQuote.estimatedDelivery.minBusinessDays} día(s) hábil(es).</p>}
+              {quoteCanProceed && shippingQuote && (
+                <section role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+                  <p className="font-semibold">Envío calculado por Urban Sport Store</p>
+                  <p>{shippingQuote.destination.department}, {shippingQuote.destination.municipality} · cobertura configurada</p>
+                  <p>Subtotal: {fmt(shippingQuote.subtotalCop)} COP</p>
+                  <p>Envío: {fmt(shippingQuote.amountCop)} COP</p>
+                  <p>Total: {fmt(quoteSummary.totalCop ?? 0)} COP</p>
+                  <p>Vigente hasta {new Date(shippingQuote.expiresAt).toLocaleTimeString('es-CO')}</p>
+                </section>
+              )}
               {addresses.map((a) => (
                 <label key={a.id} className={"flex gap-2 sm:gap-3 p-3 sm:p-4 rounded-lg sm:rounded-2xl border-2 cursor-pointer transition-all " + (selectedAddressId === a.id ? "border-[#bfdbfe] bg-blue-50/50" : "border-slate-200 hover:border-slate-300")}>
                   <input type="radio" name="addr" checked={selectedAddressId === a.id} onChange={() => {
@@ -2213,13 +2426,15 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
 
           {step === 1 && (
             <div className="space-y-3 sm:space-y-4">
-              <h3 className="text-base sm:text-lg font-extrabold text-slate-900 mb-3 sm:mb-4">Envío Coordinadora</h3>
+              <h3 className="text-base sm:text-lg font-extrabold text-slate-900 mb-3 sm:mb-4">Envío calculado por Urban Sport Store</h3>
               {shippingQuoteStatus === 'loading' && <p role="status" className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-700">Calculando una cotización vigente…</p>}
               {shippingQuoteStatus === 'error' && <p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">{shippingQuoteError || 'No hay una cotización válida para esta dirección y estos artículos.'}</p>}
               {quoteCanProceed && shippingQuote && (
                 <div className="space-y-2 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
-                  <p className="font-bold">Cobertura confirmada · Coordinadora · ruta {shippingQuote.coverage.originCode} → {shippingQuote.coverage.destinationCode}</p>
+                  <p className="font-bold">{shippingQuote.destination.department}, {shippingQuote.destination.municipality} · cobertura configurada</p>
+                  <p>Subtotal: <strong>{fmt(shippingQuote.subtotalCop)} COP</strong></p>
                   <p>Envío: <strong>{fmt(shippingQuote.amountCop)} COP</strong></p>
+                  <p>Total: <strong>{fmt(quoteSummary.totalCop ?? 0)} COP</strong></p>
                   <p>Entrega estimada: <strong>{shippingQuote.estimatedDelivery.minBusinessDays === shippingQuote.estimatedDelivery.maxBusinessDays
                     ? `${shippingQuote.estimatedDelivery.minBusinessDays} día${shippingQuote.estimatedDelivery.minBusinessDays === 1 ? '' : 's'} hábil${shippingQuote.estimatedDelivery.minBusinessDays === 1 ? '' : 'es'}`
                     : `${shippingQuote.estimatedDelivery.minBusinessDays}–${shippingQuote.estimatedDelivery.maxBusinessDays} días hábiles`}</strong></p>
@@ -2237,6 +2452,14 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
 
           {step === 2 && (
             <div className="space-y-5">
+              {resumedOrder && shippingQuote && resumedOrder.shippingQuoteId !== shippingQuote.id && (
+                <section className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+                  <p>Total anterior: {fmt(requoteProposal?.previousTotal ?? resumedOrder.total)} COP</p>
+                  <p>Nuevo total propuesto: {fmt(requoteProposal?.total ?? quoteSummary.totalCop ?? 0)} COP</p>
+                  <p>El siguiente clic confirma expresamente el importe mostrado; todavía no se ha iniciado el pago.</p>
+                </section>
+              )}
+              {requoteError && <p role="alert" className="text-sm text-amber-900">{requoteError}</p>}
               <h3 className="text-lg font-extrabold text-slate-900 mb-4">Pago con Wompi Sandbox</h3>
               <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-700">
                 <p>El pedido se registrará como pendiente y continuarás en el checkout alojado de Wompi.</p>
@@ -2248,8 +2471,25 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
 
           <div className="flex flex-col sm:flex-row gap-3 mt-6 sm:mt-8">
             {step > 0 && !orderAwaitingPayment && <Btn variant="secondary" onClick={() => setStep(step - 1)} className="flex-1 sm:flex-none justify-center"><ChevronLeft size={14} /> Atrás</Btn>}
-            <Btn variant="primary" className="flex-1" size="lg" disabled={paymentStarting || !quoteCanProceed || (step === 0 && (!selectedAddressId || !selectedAddress || !recipientName.trim()))} onClick={() => step === 2 ? void startPayment() : setStep(step + 1)}>
-              {step === 2 ? (paymentStarting ? "Conectando con Wompi…" : <>Pagar con Wompi <ArrowRight size={15} /></>) : <>Continuar <ChevronRight size={15} /></>}
+            <Btn
+              variant="primary"
+              className="flex-1"
+              size="lg"
+              disabled={checkoutBlocked || (step === 0 && !resumedOrder
+                && (!selectedAddressId || !selectedAddress || !recipientName.trim()))}
+              onClick={() => step === 2
+                ? void startPayment(confirmRequote)
+                : setStep(step + 1)}
+            >
+              {step === 2
+                ? paymentStarting
+                  ? 'Confirmando pedido…'
+                  : confirmRequote
+                    ? 'Confirmar nuevo total y pagar'
+                    : resumedOrder && shippingQuote?.id !== resumedOrder.shippingQuoteId
+                      ? 'Revisar nuevo total'
+                      : <>Pagar con Wompi <ArrowRight size={15} /></>
+                : <>Continuar <ChevronRight size={15} /></>}
             </Btn>
           </div>
         </div>
@@ -2259,7 +2499,7 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
           <div className="bg-white/95 rounded-lg sm:rounded-[30px] border border-slate-200/80 shadow-[0_22px_60px_-42px_rgba(15,23,42,0.18)] p-4 sm:p-5 sticky top-[152px] space-y-4">
             <h3 className="text-xs sm:text-sm font-extrabold text-slate-800">Resumen del pedido</h3>
             <div className="space-y-2 sm:space-y-3 max-h-40 sm:max-h-52 overflow-y-auto">
-              {cart.map((item) => (
+              {checkoutCart.map((item) => (
                     <div key={`${item.product.id}-${item.selectedSize}-${item.selectedColor}`} className="flex gap-2 sm:gap-3">
                   <div className="relative shrink-0">
                     <img src={item.product.image} alt="" onError={(event) => { event.currentTarget.style.display = "none"; }} className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-cover bg-slate-100" />
@@ -2275,7 +2515,8 @@ function CheckoutPage({ cart, onNavigate, addresses, selectedAddressId, onSelect
             </div>
             <div className="space-y-1 sm:space-y-1.5 text-xs sm:text-sm border-t border-slate-100 pt-3">
               <div className="flex justify-between text-slate-500"><span>Subtotal</span><span className="price text-slate-800">{fmt(checkoutSubtotal)} COP</span></div>
-              <div className="flex justify-between text-slate-500"><span>Envío Coordinadora</span><span className="price text-slate-800">{quoteSummary.shippingCop !== null ? `${fmt(quoteSummary.shippingCop)} COP` : shippingQuoteStatus === 'loading' ? 'Cotizando…' : 'No disponible'}</span></div>
+              <div className="flex justify-between text-slate-500"><span>Envío calculado por Urban Sport Store</span><span className="price text-slate-800">{quoteSummary.shippingCop !== null ? `${fmt(quoteSummary.shippingCop)} COP` : shippingQuoteStatus === 'loading' ? 'Calculando…' : 'No disponible'}</span></div>
+              {((orderAwaitingPayment ?? resumedOrder)?.discountAmount ?? 0) > 0 && <div className="flex justify-between text-emerald-700"><span>Descuento aplicado</span><span className="price">-{fmt((orderAwaitingPayment ?? resumedOrder)?.discountAmount ?? 0)} COP</span></div>}
               <div className="flex justify-between font-extrabold text-slate-900 text-sm sm:text-base border-t border-slate-100 pt-1.5">
                 <span>Total</span><span>{quoteSummary.totalCop !== null ? `${fmt(quoteSummary.totalCop)} COP` : 'Cotización pendiente'}</span>
               </div>
@@ -2676,7 +2917,7 @@ function PasswordRecoveryPage({ onNavigate }: { onNavigate: (view: View) => void
 
 // ─── ACCOUNT PAGE ─────────────────────────────────────────────────────────────
 
-function AccountPage({ onNavigate, onLogout, authUser, addresses, onCreateAddress, onUpdateAddress, onDeleteAddress }: { onNavigate: (v: View) => void; onLogout: () => void; authUser: User | null; addresses: Address[]; onCreateAddress: (address: Omit<Address, 'id'>) => void; onUpdateAddress: (addressId: string, updates: Partial<Address>) => void; onDeleteAddress: (addressId: string) => void; }) {
+function AccountPage({ onNavigate, onLogout, authUser, addresses, onCreateAddress, onUpdateAddress, onDeleteAddress, onResumeOrder }: { onNavigate: (v: View) => void; onLogout: () => void; authUser: User | null; addresses: Address[]; onCreateAddress: (address: Omit<Address, 'id'>) => void; onUpdateAddress: (addressId: string, updates: Partial<Address>) => void; onDeleteAddress: (addressId: string) => void; onResumeOrder: (order: Order) => void; }) {
   const [section, setSection] = useState<"orders" | "profile" | "addresses" | "activity">("orders");
   const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
   const [showNewAddressForm, setShowNewAddressForm] = useState(false);
@@ -2700,6 +2941,14 @@ function AccountPage({ onNavigate, onLogout, authUser, addresses, onCreateAddres
   const [orders, setOrders] = useState<Order[]>([]);
   const [ordersStatus, setOrdersStatus] = useState<"loading" | "ready" | "unavailable">("loading");
   const [ordersError, setOrdersError] = useState<string | null>(null);
+  const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
+  const [resumingOrderId, setResumingOrderId] = useState<string | null>(null);
+  const [resumeError, setResumeError] = useState<string | null>(null);
+  const [orderCancellationNotice, setOrderCancellationNotice] = useState<{
+    orderId: string;
+    message: string;
+    isError: boolean;
+  } | null>(null);
   const [ordersRefresh, setOrdersRefresh] = useState(0);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [orderDetailTargetId, setOrderDetailTargetId] = useState<string | null>(null);
@@ -2779,6 +3028,50 @@ function AccountPage({ onNavigate, onLogout, authUser, addresses, onCreateAddres
       }
     } finally {
       if (requestId === orderDetailRequestId.current) setOrderDetailLoading(false);
+    }
+  };
+
+  const handleResumeOrder = async (order: Order) => {
+    if (order.status !== 'pending_payment' || resumingOrderId !== null) return;
+    setResumeError(null);
+    setResumingOrderId(order.id);
+    try {
+      const currentOrder = await getMyOrder(order.id);
+      if (currentOrder.id !== order.id || currentOrder.status !== 'pending_payment') {
+        setResumeError('Este pedido ya no está disponible para retomar.');
+        return;
+      }
+      onResumeOrder(currentOrder);
+    } catch (error) {
+      setResumeError(error instanceof Error ? error.message : 'No se pudo cargar el pedido.');
+    } finally {
+      setResumingOrderId(null);
+    }
+  };
+
+  const handleCancelOrder = async (order: Order) => {
+    if (order.status !== 'pending_payment' || cancellingOrderId) return;
+    if (!window.confirm(`¿Cancelar el pedido ${order.orderNumber}?`)) return;
+
+    setCancellingOrderId(order.id);
+    setOrderCancellationNotice(null);
+    try {
+      const result = await cancelPendingOrder(order.id);
+      setOrders((current) => current.map((item) => (
+        item.id === result.id ? { ...item, status: result.status } : item
+      )));
+      setSelectedOrder((current) => (
+        current?.id === result.id ? { ...current, status: result.status } : current
+      ));
+      setOrderCancellationNotice({ orderId: order.id, message: 'Pedido cancelado.', isError: false });
+    } catch (error) {
+      setOrderCancellationNotice({
+        orderId: order.id,
+        message: error instanceof Error ? error.message : 'No se pudo cancelar el pedido.',
+        isError: true,
+      });
+    } finally {
+      setCancellingOrderId(null);
     }
   };
 
@@ -2910,15 +3203,17 @@ function AccountPage({ onNavigate, onLogout, authUser, addresses, onCreateAddres
                         {new Date(order.createdAt).toLocaleString("es-CO")}
                       </p>
                     </div>
-                    <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-900">
-                      {order.status === "pending_payment" ? "Pendiente de pago" : order.status}
+                    <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${order.status === "cancelled" ? "border-red-200 bg-red-50 text-red-700" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
+                      {order.status === "pending_payment" ? "Pendiente de pago" : ORDER_STATUS_LABELS[order.status] ?? order.status}
                     </span>
                   </div>
                   <p className="mt-3 text-sm text-slate-600">
                     Pedido registrado; no se ha iniciado ni cobrado ningún pago.
                   </p>
                   <p className="mt-1 text-sm font-semibold text-slate-800">
-                    Subtotal provisional: {fmt(order.subtotal)} · envío por confirmar
+                    {order.shippingQuoteId
+                      ? `Subtotal ${fmt(order.subtotal)} · envío calculado por Urban Sport Store ${fmt(order.shippingAmount)} · total ${fmt(order.total)}`
+                      : `Subtotal ${fmt(order.subtotal)} · envío no registrado`}
                   </p>
                   {order.reservationExpiresAt && (
                     <p className="mt-1 text-xs text-slate-500">
@@ -2933,6 +3228,34 @@ function AccountPage({ onNavigate, onLogout, authUser, addresses, onCreateAddres
                   >
                     {orderDetailLoading && orderDetailTargetId === order.id ? "Cargando…" : selectedOrder?.id === order.id ? "Ocultar detalle" : "Ver detalle"}
                   </button>
+                  {order.status === 'pending_payment' && (
+                    <button
+                      type="button"
+                      onClick={() => void handleResumeOrder(order)}
+                      disabled={resumingOrderId !== null}
+                      className="ml-2 mt-4 min-h-10 rounded-lg border border-emerald-200 px-3 text-sm font-semibold text-emerald-800 hover:bg-emerald-50 disabled:opacity-60"
+                    >
+                      {resumingOrderId === order.id ? 'Cargando pedido…' : 'Retomar pedido'}
+                    </button>
+                  )}
+                  {resumeError && (
+                    <p role="alert" className="mt-2 text-sm text-red-700">{resumeError}</p>
+                  )}
+                  {order.status === 'pending_payment' && (
+                    <button
+                      type="button"
+                      onClick={() => void handleCancelOrder(order)}
+                      disabled={cancellingOrderId !== null}
+                      className="ml-2 mt-4 min-h-10 rounded-lg border border-red-200 px-3 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60"
+                    >
+                      {cancellingOrderId === order.id ? 'Cancelando…' : 'Cancelar pedido'}
+                    </button>
+                  )}
+                  {orderCancellationNotice?.orderId === order.id && (
+                    <p role={orderCancellationNotice.isError ? 'alert' : 'status'} className={`mt-3 text-sm ${orderCancellationNotice.isError ? 'text-red-700' : 'text-emerald-700'}`}>
+                      {orderCancellationNotice.message}
+                    </p>
+                  )}
                   {orderDetailError && orderDetailTargetId === order.id && selectedOrder === null && (
                     <p role="alert" className="mt-3 text-sm text-red-700">{orderDetailError}</p>
                   )}
@@ -2957,7 +3280,9 @@ function AccountPage({ onNavigate, onLogout, authUser, addresses, onCreateAddres
                         ))}
                       </ul>
                       <p className="text-xs text-slate-500">
-                        El pedido no incluye pago ni checkout. El valor de envío y el total final se confirmarán posteriormente.
+                        {selectedOrder.shippingQuoteId
+                          ? `Envío ${selectedOrder.shippingMethod ?? 'Coordinadora'}: ${fmt(selectedOrder.shippingAmount)} · total: ${fmt(selectedOrder.total)}.`
+                          : 'Este pedido histórico no tiene una cotización de envío registrada.'}
                       </p>
                     </div>
                   )}
@@ -3110,7 +3435,7 @@ function AccountPage({ onNavigate, onLogout, authUser, addresses, onCreateAddres
 
 // ─── ADMIN DASHBOARD ──────────────────────────────────────────────────────────
 
-function AdminDashboard({ onNavigate, products, productsStatus, productsError, onRetryProducts, categories, createProduct, updateProduct, setProductActive, adjustStock, productRefresh, initialSection, adminRole, homeContent, setHomeContent, homePreviewProducts, setHomePreviewProducts, homeSaleProducts, setHomeSaleProducts, homeNewArrivals, setHomeNewArrivals, saveHomeContent, homeContentSaving, backendAdminAvailable }: {
+function AdminDashboard({ onNavigate, products, productsStatus, productsError, onRetryProducts, categories, createProduct, updateProduct, changeProductCategory, setProductActive, archiveProduct, adjustStock, productRefresh, initialSection, adminRole, homeContent, setHomeContent, homePreviewProducts, setHomePreviewProducts, homeSaleProducts, setHomeSaleProducts, homeNewArrivals, setHomeNewArrivals, saveHomeContent, homeContentSaving, backendAdminAvailable }: {
   onNavigate: (v: View) => void;
   products: Product[];
   productsStatus: ProductsStatus;
@@ -3119,7 +3444,9 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
   categories: CategoryOption[];
   createProduct: (product: Omit<Product, "id">) => Promise<void>;
   updateProduct: (productId: string, updates: Partial<Product>) => Promise<void>;
+  changeProductCategory: (productId: string, categoryId: string) => Promise<void>;
   setProductActive: (productId: string, isActive: boolean) => Promise<void>;
+  archiveProduct: (productId: string) => Promise<ProductArchiveResult>;
   adjustStock: (productId: string, movementType: 'in' | 'out' | 'correction', quantity: number, reason: string) => Promise<void>;
   productRefresh: number;
   initialSection?: string;
@@ -3143,10 +3470,17 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
   const productDialogRef = useRef<HTMLDialogElement>(null);
   const [isProductFormOpen, setIsProductFormOpen] = useState(false);
   const [isProductFormDirty, setIsProductFormDirty] = useState(false);
+  const [productSaveError, setProductSaveError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [productStatusFilter, setProductStatusFilter] = useState<AdminProductStatusFilter>("all");
   const [availabilityUpdatingId, setAvailabilityUpdatingId] = useState<string | null>(null);
   const [deletingProductId, setDeletingProductId] = useState<string | null>(null);
+  const categoryChangeDialogRef = useRef<HTMLDialogElement>(null);
+  const categoryChangeSubmittingRef = useRef(false);
+  const [categoryChangeProduct, setCategoryChangeProduct] = useState<Product | null>(null);
+  const [categoryChangeSelection, setCategoryChangeSelection] = useState("");
+  const [categoryChangeError, setCategoryChangeError] = useState<string | null>(null);
+  const [categoryChangeSaving, setCategoryChangeSaving] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [activeProduct, setActiveProduct] = useState<Product | null>(null);
   const [productForm, setProductForm] = useState<Omit<Product, "id">>({
@@ -3164,7 +3498,6 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
   const [imageUploadProgress, setImageUploadProgress] = useState<{ completed: number; total: number } | null>(null);
   const objectUrlsRef = useRef(new Set<string>());
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-    const [skuConflict, setSkuConflict] = useState(false);
   const [dashboardData, setDashboardData] = useState<Awaited<ReturnType<typeof adminApi.fetchAdminDashboard>> | null>(null);
   const [dashboardStatus, setDashboardStatus] = useState<ProductsStatus>("loading");
   const [dashboardRefresh, setDashboardRefresh] = useState(0);
@@ -3179,6 +3512,13 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
   });
   const [stockAdjustmentSubmittingId, setStockAdjustmentSubmittingId] = useState<string | null>(null);
   const availableCategories = [...new Set([...categories.map((category) => category.name), ...getProductCategories(products)])];
+
+  useEffect(() => {
+    const dialog = categoryChangeDialogRef.current;
+    if (!dialog) return;
+    if (categoryChangeProduct && !dialog.open) dialog.showModal();
+    if (!categoryChangeProduct && dialog.open) dialog.close();
+  }, [categoryChangeProduct]);
 
   useEffect(() => () => {
     objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
@@ -3306,11 +3646,12 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     { id: "reports", icon: <BarChart2 size={16} />, label: "Reportes" },
     { id: "activity", icon: <Grid3X3 size={16} />, label: "Actividad" },
     { id: "settings", icon: <Settings size={16} />, label: "Ajustes" },
+    { id: "shipping", icon: <Truck size={16} />, label: "Tarifas de envío" },
   ];
 
   const SECTIONS_BY_ROLE: Record<string, string[]> = {
     OWNER: SIDEBAR_LINKS.map((link) => link.id),
-    ADMIN: SIDEBAR_LINKS.filter((link) => link.id !== "settings").map((link) => link.id),
+    ADMIN: SIDEBAR_LINKS.filter((link) => link.id !== "settings" && link.id !== "shipping").map((link) => link.id),
     CATALOG_MANAGER: ["dashboard", "homepage", "products"],
     LOGISTICS: ["dashboard", "orders", "inventory"],
     ACCOUNTANT: ["dashboard", "orders", "reports"],
@@ -3328,6 +3669,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     reports: "Reportes",
     activity: "Actividad",
     settings: "Ajustes",
+    shipping: "Tarifas de envío",
   };
 
   const pageTitle = SECTION_TITLES[adminSection] ?? "Panel de administración";
@@ -3341,6 +3683,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     reports: "Revisa los datos de ventas disponibles.",
     activity: "Historial de cambios registrados en el panel.",
     settings: "Preferencias disponibles para esta cuenta.",
+    shipping: "Configura tarifas de envío locales de Coordinadora.",
   };
 
   const updateAdminSectionUrl = (section: string) => {
@@ -3514,6 +3857,55 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     }
   };
 
+  const handleProductArchive = async (product: Product) => {
+    const confirmation = `¿Archivar "${product.name}"?\n\nEl producto dejará de aparecer en la tienda y permanecerá en administración como inactivo. Sus imágenes y datos históricos se conservarán.`;
+    if (!window.confirm(confirmation)) return;
+
+    setDeletingProductId(product.id);
+    try {
+      const result = await archiveProduct(product.id);
+      if (result.audit_status === "pending") {
+        toast.error("Producto archivado; auditoría pendiente.");
+      } else {
+        toast.success("Producto archivado correctamente.");
+      }
+    } catch (error) {
+      toast.error(formatAdminApiError(error, "No se pudo archivar el producto."));
+    } finally {
+      setDeletingProductId(null);
+    }
+  };
+
+  const openCategoryChange = (product: Product, trigger: HTMLButtonElement) => {
+    const summary = trigger.closest("details")?.querySelector("summary");
+    if (summary instanceof HTMLElement) summary.focus();
+    setCategoryChangeProduct(product);
+    setCategoryChangeSelection(product.categoryId ?? "");
+    setCategoryChangeError(null);
+  };
+
+  const closeCategoryChange = () => {
+    if (categoryChangeSubmittingRef.current) return;
+    setCategoryChangeProduct(null);
+    setCategoryChangeError(null);
+  };
+
+  const saveCategoryChange = async () => {
+    if (!categoryChangeProduct || !categoryChangeSelection || categoryChangeSubmittingRef.current) return;
+    categoryChangeSubmittingRef.current = true;
+    setCategoryChangeSaving(true);
+    setCategoryChangeError(null);
+    try {
+      await changeProductCategory(categoryChangeProduct.id, categoryChangeSelection);
+      setCategoryChangeProduct(null);
+    } catch (error) {
+      setCategoryChangeError(formatAdminApiError(error, "No se pudo cambiar la categoría."));
+    } finally {
+      categoryChangeSubmittingRef.current = false;
+      setCategoryChangeSaving(false);
+    }
+  };
+
   const closeRowActions = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.currentTarget.closest("details")?.removeAttribute("open");
   };
@@ -3527,11 +3919,14 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
         <button type="button" onClick={(event) => { closeRowActions(event); handleEditProduct(product); }}>
           <Edit size={15} aria-hidden="true" /> Editar
         </button>
+        <button type="button" onClick={(event) => { closeRowActions(event); openCategoryChange(product, event.currentTarget); }}>
+          <Tag size={15} aria-hidden="true" /> Cambiar categoría
+        </button>
         <button type="button" disabled={availabilityUpdatingId !== null || deletingProductId !== null} aria-busy={availabilityUpdatingId === product.id} onClick={(event) => { closeRowActions(event); void handleProductAvailabilityChange(product); }}>
           <Check size={15} aria-hidden="true" /> {availabilityUpdatingId === product.id ? "Actualizando…" : product.isActive === false ? "Activar" : "Desactivar"}
         </button>
-        <button type="button" className="is-danger" disabled title="Acción de archivo no disponible en Preview">
-          <Archive size={15} aria-hidden="true" /> Archivar no disponible en Preview
+        <button type="button" className="is-danger" disabled={availabilityUpdatingId !== null || deletingProductId !== null || product.isActive === false} aria-busy={deletingProductId === product.id} onClick={(event) => { closeRowActions(event); void handleProductArchive(product); }}>
+          <Archive size={15} aria-hidden="true" /> {deletingProductId === product.id ? "Archivando…" : "Archivar"}
         </button>
       </div>
     </details>
@@ -3549,7 +3944,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     setPrimaryImageSelectionId(null);
     setImageUploadProgress(null);
     setFormErrors({});
-    setSkuConflict(false);
+    setProductSaveError(null);
     setIsProductFormDirty(false);
     setIsProductFormOpen(false);
     setFormMode("create");
@@ -3668,7 +4063,6 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     setPrimaryImageSelectionId(existingImages[0]?.id ?? null);
     setActiveProduct(product);
     setFormMode("edit");
-    setSkuConflict(false);
     setIsProductFormDirty(false);
     setIsProductFormOpen(true);
     setProductForm({
@@ -3691,6 +4085,12 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       colors: product.colors,
       sizes: product.sizes,
       specifications: product.specifications ?? [],
+      shippingWeightGrams: product.shippingWeightGrams,
+      shippingLengthCm: product.shippingLengthCm,
+      shippingWidthCm: product.shippingWidthCm,
+      shippingHeightCm: product.shippingHeightCm,
+      shippingDeclaredValueCop: product.shippingDeclaredValueCop,
+      shippingUnitsPerGuide: product.shippingUnitsPerGuide,
       gender: product.gender ?? "Unisex",
       isNew: product.isNew ?? false,
       isFeatured: product.isFeatured ?? false,
@@ -3701,6 +4101,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
   const handleFormSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (isSubmitting) return;
+    setProductSaveError(null);
     const normalizedCategoryId = productForm.categoryId && /^[0-9a-fA-F-]{36}$/.test(productForm.categoryId) ? productForm.categoryId : undefined;
     const normalizedSizes = normalizeProductSizes(productForm.sizes);
     const normalizedSpecifications = normalizeProductSpecifications(productForm.specifications ?? []);
@@ -3713,6 +4114,12 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       colors: productForm.colors.map((color) => ({ name: color.name, hex: color.hex })),
       sizes: normalizedSizes,
       specifications: normalizedSpecifications,
+      shippingWeightGrams: productForm.shippingWeightGrams,
+      shippingLengthCm: productForm.shippingLengthCm,
+      shippingWidthCm: productForm.shippingWidthCm,
+      shippingHeightCm: productForm.shippingHeightCm,
+      shippingDeclaredValueCop: productForm.shippingDeclaredValueCop,
+      shippingUnitsPerGuide: productForm.shippingUnitsPerGuide,
       rating: Number(productForm.rating) || 0,
       reviews: Number(productForm.reviews) || 0,
       price: Number(productForm.price) || 0,
@@ -3729,6 +4136,12 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       sku: productForm.sku,
       price: productForm.price,
       stock: productForm.stock,
+      shippingWeightGrams: productForm.shippingWeightGrams,
+      shippingLengthCm: productForm.shippingLengthCm,
+      shippingWidthCm: productForm.shippingWidthCm,
+      shippingHeightCm: productForm.shippingHeightCm,
+      shippingDeclaredValueCop: productForm.shippingDeclaredValueCop,
+      shippingUnitsPerGuide: productForm.shippingUnitsPerGuide,
       categoryId: normalizedCategoryId,
       catalogSection: productForm.catalogSection,
       image: selectedPrimaryImage?.permanentUrl ?? "",
@@ -3736,7 +4149,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       pendingImageCount: productImageSelections.filter((entry) => Boolean(entry.file)).length,
       sizes: normalizedSizes,
       specifications: normalizedSpecifications,
-    });
+    }, { requireShipping: formMode === 'create' });
 
     if (productImageSelections.length > MAX_PRODUCT_TOTAL_IMAGES) {
       errors.gallery = `Máximo ${MAX_PRODUCT_TOTAL_IMAGES} imágenes en total: 1 principal y hasta ${MAX_PRODUCT_GALLERY_IMAGES} adicionales.`;
@@ -3744,7 +4157,9 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
 
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
-      toast.error(Object.values(errors)[0]);
+      const firstError = Object.values(errors)[0];
+      setProductSaveError(firstError);
+      toast.error(firstError);
       return;
     }
 
@@ -3752,6 +4167,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       productSchema.parse(payload as any);
     } catch (err: any) {
       const message = err?.errors?.[0]?.message ?? 'Datos de producto inválidos';
+      setProductSaveError(String(message));
       toast.error(String(message));
       return;
     }
@@ -3788,13 +4204,9 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
           setAdminSection("products");
         });
       } catch (error) {
-        if (formMode === 'create' && isDuplicateProductSkuError(error)) {
-          setSkuConflict(true);
-          setFormErrors((current) => ({ ...current, sku: 'Este SKU ya está registrado. Genera uno nuevo para continuar.' }));
-          toast.error('Ese SKU ya existe. Genera uno nuevo para continuar.');
-        } else {
-          toast.error(formatAdminApiError(error, "No se pudo guardar el producto."));
-        }
+        const message = formatAdminApiError(error, "No se pudo guardar el producto.");
+        setProductSaveError(message);
+        toast.error(message);
       } finally {
         setImageUploadProgress(null);
         setIsSubmitting(false);
@@ -4224,6 +4636,11 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                 </header>
                 <div className="admin-product-dialog__body">
               <form onSubmit={handleFormSubmit} className="space-y-4">
+                {productSaveError && (
+                  <p role="alert" aria-live="assertive" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                    {productSaveError}
+                  </p>
+                )}
                 {/* Nombre y Marca */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
@@ -4293,7 +4710,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                   </div>
                 </div>
 
-                {/* SKU, sección del catálogo y categoría deportiva */}
+                {/* SKU, sección y categoría deportiva */}
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   <div>
                     <label htmlFor="admin-product-sku" className="text-xs font-bold text-slate-600 uppercase block mb-2">SKU *</label>
@@ -4302,29 +4719,11 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                       value={productForm.sku} 
                       aria-invalid={Boolean(formErrors.sku)}
                       aria-describedby={formErrors.sku ? "admin-product-sku-error" : undefined}
-                      onChange={(e) => {
-                        updateField('sku', e.target.value);
-                        setSkuConflict(false);
-                        setFormErrors((current) => ({ ...current, sku: '' }));
-                      }}
+                      onChange={(e) => { updateField('sku', e.target.value); setFormErrors({...formErrors, sku: ''}) }}
                       placeholder="Ej: NKE-AF1-001" 
                       className={`w-full px-4 py-3 rounded-xl border-2 transition-colors ${formErrors.sku ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-white hover:border-slate-300 focus:border-slate-500'} focus:outline-none`}
                     />
                     {formErrors.sku && <p id="admin-product-sku-error" role="alert" className="text-xs text-red-600 mt-1">{formErrors.sku}</p>}
-                    {skuConflict && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          updateField('sku', generateProductSkuSuggestion(productForm.sku, crypto.randomUUID()));
-                          setSkuConflict(false);
-                          setFormErrors((current) => ({ ...current, sku: '' }));
-                        }}
-                        className="mt-2 inline-flex min-h-9 items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-800 hover:bg-blue-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-                      >
-                        <RefreshCw size={14} aria-hidden="true" />
-                        Generar SKU nuevo
-                      </button>
-                    )}
                   </div>
                   <div>
                     <label htmlFor="admin-product-catalog-section" className="text-xs font-bold text-slate-600 uppercase block mb-2">Sección del catálogo *</label>
@@ -4342,11 +4741,12 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                       <option value="" disabled>Selecciona una sección</option>
                       {PRODUCT_CATALOG_SECTIONS.map((section) => <option key={section} value={section}>{section}</option>)}
                     </select>
-                    <p id="admin-product-catalog-section-help" className="mt-1 text-xs text-slate-500">El producto aparecerá en esta sección.</p>
+                    <p id="admin-product-catalog-section-help" className="mt-1 text-xs text-slate-500">El producto aparecerá en esta sección del catálogo.</p>
+                    <p className="mt-1 text-xs text-slate-600">Se mostrará en: {productForm.catalogSection || 'Selecciona una sección'}</p>
                     {formErrors.catalogSection && <p id="admin-product-catalog-section-error" role="alert" className="text-xs text-red-600 mt-1">{formErrors.catalogSection}</p>}
                   </div>
                   <div>
-                    <label htmlFor="admin-product-category" className="text-xs font-bold text-slate-600 uppercase block mb-2">Categoría deportiva *</label>
+                    <label htmlFor="admin-product-category" className="text-xs font-bold text-slate-600 uppercase block mb-2">Categoría *</label>
                     <select 
                       id="admin-product-category"
                       value={productForm.categoryId ?? ""}
@@ -4372,8 +4772,8 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                       <option value="" disabled>
                         {categories.length ? 'Selecciona una categoría' : 'Primero crea una categoría antes de agregar productos.'}
                       </option>
-                      {categories.filter((option) => option.slug === "urbano" || option.slug === "running").map((option) => (
-                        <option key={option.id} value={option.id}>{option.slug === "running" ? "Running / entrenamiento" : option.name}</option>
+                      {categories.map((option) => (
+                        <option key={option.id} value={option.id}>{option.name}</option>
                       ))}
                     </select>
                     {categories.length === 0 && (
@@ -4384,6 +4784,37 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
 
                 <section aria-labelledby="product-information-heading" className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
                   <h4 id="product-information-heading" className="text-sm font-bold text-slate-800">Información del producto</h4>
+                  <div className="space-y-3 border-b border-slate-200 pb-4">
+                    <div>
+                      <h5 className="text-sm font-semibold text-slate-800">Datos de envío</h5>
+                      <p className="text-xs text-slate-500">Necesarios para habilitar una cotización de transporte.</p>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {([
+                        ['shippingWeightGrams', 'Peso real (g)', '1000', '1'],
+                        ['shippingLengthCm', 'Largo del empaque (cm)', '20', '0.01'],
+                        ['shippingWidthCm', 'Ancho del empaque (cm)', '20', '0.01'],
+                        ['shippingHeightCm', 'Alto del empaque (cm)', '10', '0.01'],
+                        ['shippingDeclaredValueCop', 'Valor declarado (COP)', '1000', '1'],
+                        ['shippingUnitsPerGuide', 'Unidades por guía', '1', '1'],
+                      ] as const).map(([field, label, placeholder, step]) => (
+                        <div key={field}>
+                          <label htmlFor={`admin-product-${field}`} className="mb-1.5 block text-xs font-bold uppercase text-slate-600">{label}</label>
+                          <input
+                            id={`admin-product-${field}`}
+                            type="number"
+                            min="1"
+                            step={step}
+                            value={productForm[field] ?? ''}
+                            onChange={(event) => updateField(field, event.target.value === '' ? null : Number(event.target.value))}
+                            placeholder={placeholder}
+                            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    {formErrors.shipping && <p role="alert" className="text-xs text-red-600">{formErrors.shipping}</p>}
+                  </div>
                   <div className="space-y-3 border-b border-slate-200 pb-4">
                     <div className="flex items-center justify-between gap-3">
                       <div>
@@ -4396,7 +4827,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                       <input
                         aria-label="Nueva talla"
                         value={newProductSize}
-                        onChange={(event) => { setNewProductSize(event.target.value); setIsProductFormDirty(true); }}
+                        onChange={(event) => { setNewProductSize(event.target.value); setProductSaveError(null); setIsProductFormDirty(true); }}
                         onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addProductSize(); } }}
                         placeholder="Ej: 40 EU, 7.5, M"
                         className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20"
@@ -4509,7 +4940,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                             </div>
                             <div className="min-h-12 p-2">
                               {!isPrimary ? (
-                                <button type="button" onClick={() => { setPrimaryImageSelectionId(entry.id); setIsProductFormDirty(true); }} disabled={isSubmitting} className="text-left text-xs font-semibold text-blue-700 hover:underline disabled:opacity-50">Usar como principal</button>
+                                <button type="button" onClick={() => { setPrimaryImageSelectionId(entry.id); setProductSaveError(null); setIsProductFormDirty(true); }} disabled={isSubmitting} className="text-left text-xs font-semibold text-blue-700 hover:underline disabled:opacity-50">Usar como principal</button>
                               ) : (
                                 <span className="text-xs font-medium text-slate-600">Imagen principal</span>
                               )}
@@ -4557,8 +4988,50 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
               </div>
             </div>
             </dialog>
+            <dialog
+              ref={categoryChangeDialogRef}
+              className="admin-product-dialog"
+              aria-labelledby="admin-category-dialog-title"
+              onCancel={(event) => { event.preventDefault(); closeCategoryChange(); }}
+            >
+              <div className="admin-product-dialog__panel">
+                <header className="admin-product-dialog__header">
+                  <div>
+                    <h2 id="admin-category-dialog-title">Cambiar categoría</h2>
+                    <p>{categoryChangeProduct?.name}</p>
+                  </div>
+                  <button type="button" className="admin-icon-button" aria-label="Cerrar cambio de categoría" onClick={closeCategoryChange} disabled={categoryChangeSaving}>
+                    <X size={18} aria-hidden="true" />
+                  </button>
+                </header>
+                <form onSubmit={(event) => { event.preventDefault(); void saveCategoryChange(); }}>
+                  <label htmlFor="admin-category-change-select">Nueva categoría</label>
+                  <select
+                    id="admin-category-change-select"
+                    value={categoryChangeSelection}
+                    onChange={(event) => setCategoryChangeSelection(event.target.value)}
+                    disabled={categoryChangeSaving || categories.length === 0}
+                  >
+                    <option value="" disabled>Selecciona una categoría</option>
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>{category.name}</option>
+                    ))}
+                  </select>
+                  {categoryChangeError && <p role="alert">{categoryChangeError}</p>}
+                  <button type="button" onClick={closeCategoryChange} disabled={categoryChangeSaving}>Cancelar</button>
+                  <button
+                    type="submit"
+                    disabled={categoryChangeSaving || !categoryChangeSelection || categoryChangeSelection === categoryChangeProduct?.categoryId}
+                  >
+                    {categoryChangeSaving ? "Guardando…" : "Guardar categoría"}
+                  </button>
+                </form>
+              </div>
+            </dialog>
           </div>
         );
+      case "shipping":
+        return <AdminShippingRates />;
 
       case "orders":
         return (
@@ -4821,6 +5294,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
   type UpdateFieldFn = <K extends keyof Omit<Product, "id">>(field: K, value: Omit<Product, "id">[K]) => void;
   const updateField: UpdateFieldFn = (field, value) => {
     setProductForm((prev) => ({ ...prev, [field]: value }));
+    setProductSaveError(null);
     setIsProductFormDirty(true);
   };
 
@@ -4913,6 +5387,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     setProductImageSelections((previous) => [...previous, ...additions]);
     setPrimaryImageSelectionId((previous) => previous ?? additions[0].id);
     setFormErrors((previous) => ({ ...previous, image: '', gallery: '' }));
+    setProductSaveError(null);
     setIsProductFormDirty(true);
   };
 
@@ -4922,6 +5397,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     const remaining = productImageSelections.filter((entry) => entry.id !== imageId);
     setProductImageSelections(remaining);
     if (primaryImageSelectionId === imageId) setPrimaryImageSelectionId(remaining[0]?.id ?? null);
+    setProductSaveError(null);
     setIsProductFormDirty(true);
   };
 
@@ -5032,6 +5508,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
 
 export default function App() {
   const [view, setView] = useState<View>(getInitialView);
+  const [checkoutOrder, setCheckoutOrder] = useState<Order | null>(null);
   const [backendHomeAvailable, setBackendHomeAvailable] = useState<boolean | null>(null);
   const [initialAdminSection, setInitialAdminSection] = useState<string | undefined>(getInitialAdminSection);
   const [products, setProducts] = useState<Product[]>([]);
@@ -5563,6 +6040,12 @@ export default function App() {
       stock: Number(product.stock ?? record.stock ?? 0),
       description: product.description ?? record.description ?? "",
       originalPrice: product.originalPrice ?? record.original_price ?? undefined,
+      shippingWeightGrams: product.shippingWeightGrams,
+      shippingLengthCm: product.shippingLengthCm,
+      shippingWidthCm: product.shippingWidthCm,
+      shippingHeightCm: product.shippingHeightCm,
+      shippingDeclaredValueCop: product.shippingDeclaredValueCop,
+      shippingUnitsPerGuide: product.shippingUnitsPerGuide,
     }, true);
 
     if (!adminPayload.category_id || typeof adminPayload.category_id !== 'string' || !/^[0-9a-fA-F-]{36}$/.test(String(adminPayload.category_id))) {
@@ -5620,6 +6103,27 @@ export default function App() {
     try { recordAction(isActive ? 'activate_product' : 'deactivate_product', { id: productId }); } catch (error) { }
   };
 
+  const changeProductCategory = async (productId: string, categoryId: string) => {
+    const updated = await adminApi.changeProductCategoryApi(productId, categoryId) as ProductRecord;
+    if (updated?.category_id !== categoryId) {
+      throw new Error('La API no confirmó el cambio de categoría.');
+    }
+    const category = categoryOptions.find((option) => option.id === categoryId);
+    setAdminProducts((current) => current.map((product) => product.id === productId
+      ? { ...product, categoryId, category: category?.name ?? product.category }
+      : product));
+  };
+
+  const archiveProduct = async (productId: string): Promise<ProductArchiveResult> => {
+    const result = await adminApi.archiveProductApi(productId);
+    if (!result.archived || result.is_active !== false) {
+      throw new Error('La API no confirmó el archivado del producto.');
+    }
+    setAdminProducts((current) => current.map((product) => product.id === productId ? { ...product, isActive: false } : product));
+    try { recordAction('archive_product', { id: productId }); } catch (error) { }
+    return result;
+  };
+
   const adjustStock = async (productId: string, movementType: 'in' | 'out' | 'correction', quantity: number, reason: string) => {
     const normalizedReason = reason.trim();
     if (!normalizedReason) {
@@ -5635,8 +6139,9 @@ export default function App() {
     return;
   };
 
-  const navigate = (v: View, product?: Product) => {
+  const navigate = (v: View, product?: Product, resumeOrder?: Order) => {
     try {
+      setCheckoutOrder(v === 'checkout' ? resumeOrder ?? null : null);
       setView(v);
 
       if (typeof window !== "undefined") {
@@ -5646,6 +6151,7 @@ export default function App() {
           catalog: "/",
           product: "/",
           checkout: "/",
+          "payment-return": "/checkout/return",
           login: "/login",
           register: "/register",
           "password-reset": "/reset-password",
@@ -5803,7 +6309,6 @@ export default function App() {
             onCategorySelect={handleCategorySelect}
             onSelectProduct={handleSelectProduct}
           />
-          <Toaster />
         </>
       )}
       {view === "home" && (
@@ -5855,14 +6360,33 @@ export default function App() {
       )}
       {view === "checkout" && (
         <CheckoutPage
+          key={checkoutOrder?.id ?? 'new-checkout'}
           cart={cart}
+          catalogProducts={products}
+          resumedOrder={checkoutOrder}
           onNavigate={navigate}
           addresses={addresses}
           selectedAddressId={selectedAddressId}
           onSelectAddress={setSelectedAddressId}
           onCreateAddress={createAddress}
-          onPaymentStarted={() => setCart([])}
+          onPaymentStarted={() => {
+            if (!checkoutOrder) setCart([]);
+          }}
         />
+      )}
+      {view === "payment-return" && (
+        <main className="mx-auto max-w-3xl px-4 py-12">
+          <h1 className="text-2xl font-bold">Regreso del checkout</h1>
+          <p className="mt-3 text-slate-600">
+            El retorno no confirma el pago. Consulta tus pedidos desde tu cuenta.
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate(getPaymentReturnDestination(Boolean(authUser)))}
+          >
+            {authUser ? "Ir a Mi cuenta" : "Inicia sesión para consultar tus pedidos"}
+          </button>
+        </main>
       )}
       {view === "login" && <LoginPage isRegister={false} onNavigate={navigate} onLogin={handleAuthSuccess} headerOffset={headerOffset} />}
       {view === "register" && <LoginPage isRegister={true} onNavigate={navigate} onLogin={handleAuthSuccess} headerOffset={headerOffset} />}
@@ -5877,6 +6401,7 @@ export default function App() {
           onCreateAddress={createAddress}
           onUpdateAddress={updateAddress}
           onDeleteAddress={deleteAddress}
+          onResumeOrder={(order) => navigate('checkout', undefined, order)}
         />
       )}
       {view === "admin" && isAdmin && (
@@ -5890,7 +6415,9 @@ export default function App() {
           categories={categoryOptions}
           createProduct={createProduct}
           updateProduct={updateProduct}
+          changeProductCategory={changeProductCategory}
           setProductActive={setProductActive}
+          archiveProduct={archiveProduct}
           adjustStock={adjustStock}
           productRefresh={productRefresh}
           initialSection={initialAdminSection}
@@ -5920,6 +6447,7 @@ export default function App() {
         />
       )}
 
+      <Toaster />
       {/* Mobile bottom nav removed for web-style layout */}
     </div>
   );

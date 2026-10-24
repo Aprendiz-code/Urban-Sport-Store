@@ -6,7 +6,7 @@ vi.mock('../supabase-auth', () => ({
 
 import { getAccessToken } from '../supabase-auth';
 import { createPendingOrder, createShippingQuote, OrderServiceError } from '../order-service';
-import { getMyOrder, listMyOrders } from '../order-service';
+import { cancelPendingOrder, getMyOrder, listMyOrders } from '../order-service';
 import { createWompiPaymentSession } from '../order-service';
 
 const validRequest = {
@@ -21,6 +21,11 @@ const validRequest = {
     phone: '+57 311 234 5678',
   },
   items: [{ productId: '11111111-1111-4111-8111-111111111111', quantity: 1 }],
+};
+const validQuoteRequest = {
+  destinationCode: '11001000',
+  address: validRequest.address,
+  items: validRequest.items,
 };
 
 const persistedOrder = {
@@ -44,32 +49,43 @@ beforeEach(() => {
 });
 
 describe('order service', () => {
-  it('uses the quote amount and delivery data returned by the backend', async () => {
+  it('requests a server quote using only address and product quantities', async () => {
     vi.mocked(getAccessToken).mockResolvedValue('session-token');
-    const quoteRequest = { address: validRequest.address, items: validRequest.items };
-    const backendQuote = {
-      id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
-      provider: 'coordinadora',
-      currency: 'COP',
-      amountCop: 9010,
-      subtotalCop: 1000,
-      coverage: { covered: true, originCode: '11001000', destinationCode: '11001000' },
-      estimatedDelivery: { minBusinessDays: 2, maxBusinessDays: 4 },
-      expiresAt: new Date(Date.now() + 60_000).toISOString(),
-    };
-    const fetchMock = vi.fn().mockResolvedValue(new Response(
-      JSON.stringify({ ok: true, data: { quote: backendQuote } }),
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(
+      JSON.stringify({ ok: true, data: { quote: {
+        id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+        provider: 'coordinadora', currency: 'COP', amountCop: 9010, subtotalCop: 1000,
+        calculatedBy: 'urban_sport_store',
+        coverage: { covered: true, originCode: '11001000', destinationCode: '11001000' },
+        destination: { code: '11001000', department: 'Cundinamarca', municipality: 'Bogotá' },
+        estimatedDelivery: { minBusinessDays: 1, maxBusinessDays: 1 },
+        expiresAt: new Date(Date.now() + 30 * 60_000).toISOString(),
+      } } }),
       { status: 201, headers: { 'Content-Type': 'application/json' } },
+    )));
+
+    await expect(createShippingQuote(validQuoteRequest)).resolves.toMatchObject({
+      provider: 'coordinadora', amountCop: 9010, subtotalCop: 1000, currency: 'COP',
+    });
+    const [url, options] = vi.mocked(fetch).mock.calls[0];
+    const body = JSON.parse(String(options?.body));
+    expect(String(url)).toContain('/shipping/quotes');
+    expect(body).toEqual(validQuoteRequest);
+    expect(body).not.toHaveProperty('amountCop');
+    expect(body).not.toHaveProperty('shippingAmount');
+  });
+
+  it('surfaces a failed quote response for the checkout to block payment', async () => {
+    vi.mocked(getAccessToken).mockResolvedValue('session-token');
+    const fetchMock = vi.fn().mockResolvedValue(new Response(
+      JSON.stringify({ ok: false, error: { code: 422, message: 'No hay cobertura configurada.' } }),
+      { status: 422, headers: { 'Content-Type': 'application/json' } },
     ));
     vi.stubGlobal('fetch', fetchMock);
 
-    await expect(createShippingQuote(quoteRequest)).resolves.toMatchObject({
-      id: backendQuote.id,
-      amountCop: 9010,
-      estimatedDelivery: { minBusinessDays: 2, maxBusinessDays: 4 },
-    });
-    expect(String(fetchMock.mock.calls[0][0])).toContain('/shipping/quotes');
-    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual(quoteRequest);
+    await expect(createShippingQuote(validQuoteRequest))
+      .rejects.toMatchObject({ status: 422, message: 'No hay cobertura configurada.' });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it('does not treat the blocked API response as a persisted order', async () => {
@@ -119,9 +135,9 @@ describe('order service', () => {
       status: 'pending_payment',
       paymentStatus: 'pending',
     });
-    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toMatchObject({
-      shippingQuoteId: validRequest.shippingQuoteId,
-    });
+      expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toMatchObject({
+        shippingQuoteId: validRequest.shippingQuoteId,
+      });
     await expect(createPendingOrder(validRequest)).resolves.toMatchObject({ id: persistedOrder.id });
     const sentKeys = fetchMock.mock.calls.map((call) => new Headers(call[1]?.headers).get('Idempotency-Key'));
     expect(sentKeys).toEqual(idempotencyKeys);
@@ -145,6 +161,38 @@ describe('order service', () => {
     await expect(getMyOrder(persistedOrder.id)).resolves.toMatchObject({ id: persistedOrder.id });
     expect(String(fetchMock.mock.calls[0][0])).toContain('/orders');
     expect(String(fetchMock.mock.calls[1][0])).toContain(`/orders/${persistedOrder.id}`);
+  });
+
+  it('cancels one pending order through the existing authenticated endpoint', async () => {
+    vi.mocked(getAccessToken).mockResolvedValue('session-token');
+    const fetchMock = vi.fn().mockResolvedValue(new Response(
+      JSON.stringify({ ok: true, data: { order: { id: persistedOrder.id, status: 'cancelled' } } }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    ));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(cancelPendingOrder(persistedOrder.id)).resolves.toEqual({
+      id: persistedOrder.id,
+      status: 'cancelled',
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining(`/orders/${persistedOrder.id}/cancel`),
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
+  it('does not report cancellation when the endpoint returns another state', async () => {
+    vi.mocked(getAccessToken).mockResolvedValue('session-token');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(
+      JSON.stringify({ ok: true, data: { order: { id: persistedOrder.id, status: 'pending_payment' } } }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    )));
+
+    await expect(cancelPendingOrder(persistedOrder.id)).rejects.toMatchObject({
+      status: 503,
+      message: 'No se confirmó la cancelación del pedido.',
+    });
   });
 
   it('creates an authenticated Wompi payment session and accepts only a sandbox checkout URL', async () => {

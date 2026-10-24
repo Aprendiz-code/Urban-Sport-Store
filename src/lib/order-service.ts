@@ -1,16 +1,30 @@
-import type { Order, CheckoutRequest } from '../types/domain';
-import { createOrderRequestSchema } from './commerce-validation';
-import { shippingQuoteRequestSchema } from './commerce-validation';
+import type { Order, CheckoutRequest, OrderAddressSnapshot, OrderRequestItem, ShippingDestination } from '../types/domain';
+import {
+  createOrderRequestSchema,
+  normalizeShippingQuoteRequest,
+  shippingQuoteRequestSchema,
+} from './commerce-validation';
 import { getAccessToken } from './supabase-auth';
 import { resolveApiBaseUrl } from './api-config';
 
 const API_ROOT = resolveApiBaseUrl(import.meta.env.VITE_API_URL);
 
 export class OrderServiceError extends Error {
-  constructor(public readonly status: number, message: string) {
+  constructor(
+    public readonly status: number,
+    message: string,
+    public readonly code?: string,
+    public readonly data?: unknown,
+  ) {
     super(message);
     this.name = 'OrderServiceError';
   }
+}
+
+export interface ShippingQuoteRequest {
+  destinationCode: string;
+  address: OrderAddressSnapshot;
+  items: OrderRequestItem[];
 }
 
 export interface ShippingQuote {
@@ -20,19 +34,36 @@ export interface ShippingQuote {
   amountCop: number;
   subtotalCop: number;
   coverage: { covered: true; originCode: string; destinationCode: string };
+  calculatedBy: 'urban_sport_store';
+  destination: ShippingDestination;
   estimatedDelivery: { minBusinessDays: number; maxBusinessDays: number };
   expiresAt: string;
 }
 
-export async function createShippingQuote(input: {
-  address: CheckoutRequest['address'];
-  items: CheckoutRequest['items'];
-}): Promise<ShippingQuote> {
+export async function listShippingDestinations(): Promise<ShippingDestination[]> {
+  const result = await request<unknown>('/shipping/destinations');
+  const destinations = result && typeof result === 'object' && 'destinations' in result
+    ? (result as { destinations: unknown }).destinations
+    : null;
+  if (!Array.isArray(destinations) || !destinations.every((value) => {
+    if (!value || typeof value !== 'object') return false;
+    const item = value as Partial<ShippingDestination>;
+    return typeof item.code === 'string' && /^\d{8}$/.test(item.code)
+      && typeof item.department === 'string' && item.department.length > 0
+      && typeof item.municipality === 'string' && item.municipality.length > 0;
+  })) {
+    throw new OrderServiceError(503, 'Los destinos configurados no están disponibles.');
+  }
+  return destinations as ShippingDestination[];
+}
+
+export async function createShippingQuote(input: ShippingQuoteRequest): Promise<ShippingQuote> {
   const validated = shippingQuoteRequestSchema.safeParse(input);
   if (!validated.success) throw new OrderServiceError(400, validated.error.issues[0]?.message ?? 'Solicitud de cotización inválida.');
+  const normalizedRequest = normalizeShippingQuoteRequest(validated.data);
   const result = await request<unknown>('/shipping/quotes', {
     method: 'POST',
-    body: JSON.stringify(validated.data),
+    body: JSON.stringify(normalizedRequest),
   });
   const quote = result && typeof result === 'object' && 'quote' in result
     ? (result as { quote: unknown }).quote
@@ -43,17 +74,21 @@ export async function createShippingQuote(input: {
   if (typeof value.id !== 'string'
     || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value.id)
     || value.provider !== 'coordinadora'
+    || value.calculatedBy !== 'urban_sport_store'
     || value.currency !== 'COP'
     || !Number.isFinite(value.amountCop)
     || (value.amountCop ?? 0) <= 0
     || !Number.isFinite(value.subtotalCop)
     || (value.subtotalCop ?? -1) < 0
     || value.coverage?.covered !== true
+    || value.destination?.code !== normalizedRequest.destinationCode
+    || typeof value.destination.department !== 'string'
+    || typeof value.destination.municipality !== 'string'
     || !Number.isInteger(value.estimatedDelivery?.minBusinessDays)
     || !Number.isInteger(value.estimatedDelivery?.maxBusinessDays)
     || !Number.isFinite(expiresAt)
     || expiresAt <= Date.now()) {
-    throw new OrderServiceError(503, 'No se recibió una cotización vigente de Coordinadora.');
+    throw new OrderServiceError(503, 'No se recibió una cotización vigente.');
   }
   return value as ShippingQuote;
 }
@@ -83,16 +118,86 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   });
   const payload = await response.json().catch(() => null) as {
     data?: unknown;
-    error?: { message?: string };
+    error?: { code?: string | number; message?: string };
   } | null;
 
   if (!response.ok) {
     throw new OrderServiceError(
       response.status,
       payload?.error?.message ?? 'La operación de pedidos no está disponible.',
+      typeof payload?.error?.code === 'string' ? payload.error.code : undefined,
+      payload?.data,
     );
   }
   return payload?.data as T;
+}
+
+export type PendingOrderRequoteResult =
+  | { status: 'updated' | 'already_applied'; order: Order }
+  | {
+      status: 'confirmation_required';
+      previousTotal: number;
+      subtotal: number;
+      shipping: number;
+      total: number;
+    }
+  | { status: 'conflict'; message: string };
+
+export async function confirmPendingOrderRequote(input: {
+  orderId: string;
+  quote: ShippingQuote;
+  request: ShippingQuoteRequest;
+  confirmedTotal: number;
+  expectedUpdatedAt: string;
+}): Promise<PendingOrderRequoteResult> {
+  const validatedRequest = shippingQuoteRequestSchema.safeParse(input.request);
+  if (!validatedRequest.success) {
+    return {
+      status: 'conflict',
+      message: validatedRequest.error.issues[0]?.message ?? 'Solicitud de cotización inválida.',
+    };
+  }
+  const normalizedRequest = normalizeShippingQuoteRequest(validatedRequest.data);
+  try {
+    const result = await request<Record<string, unknown>>(
+      `/orders/${encodeURIComponent(input.orderId)}/requote`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          shippingQuoteId: input.quote.id,
+          ...normalizedRequest,
+          confirmedTotal: input.confirmedTotal,
+          expectedUpdatedAt: input.expectedUpdatedAt,
+        }),
+      },
+    );
+    if (result.status !== 'updated' && result.status !== 'already_applied') {
+      return { status: 'conflict', message: 'No se confirmó la re-cotización.' };
+    }
+    const order = await getMyOrder(input.orderId);
+    if (order.id !== input.orderId) {
+      return { status: 'conflict', message: 'La re-cotización no conservó el pedido original.' };
+    }
+    return { status: result.status, order };
+  } catch (error) {
+    if (!(error instanceof OrderServiceError)) throw error;
+    if (error.code === 'confirmation_required' && error.data && typeof error.data === 'object') {
+      const proposal = error.data as Record<string, unknown>;
+      if (typeof proposal.previousTotal === 'number'
+        && typeof proposal.subtotal === 'number'
+        && typeof proposal.shipping === 'number'
+        && typeof proposal.total === 'number') {
+        return {
+          status: 'confirmation_required',
+          previousTotal: proposal.previousTotal,
+          subtotal: proposal.subtotal,
+          shipping: proposal.shipping,
+          total: proposal.total,
+        };
+      }
+    }
+    return { status: 'conflict', message: error.message };
+  }
 }
 
 export async function createPendingOrder(input: CheckoutRequest): Promise<Order> {
@@ -181,4 +286,23 @@ export async function getMyOrder(orderId: string): Promise<Order> {
     throw new OrderServiceError(503, 'El detalle del pedido no está disponible.');
   }
   return order;
+}
+
+export async function cancelPendingOrder(orderId: string): Promise<{ id: string; status: 'cancelled' }> {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(orderId)) {
+    throw new OrderServiceError(400, 'El identificador del pedido no es válido.');
+  }
+
+  const result = await request<unknown>(`/orders/${encodeURIComponent(orderId)}/cancel`, {
+    method: 'POST',
+  });
+  const order = result && typeof result === 'object' && 'order' in result
+    ? (result as { order: { id?: unknown; status?: unknown } }).order
+    : null;
+
+  if (order?.id !== orderId || order.status !== 'cancelled') {
+    throw new OrderServiceError(503, 'No se confirmó la cancelación del pedido.');
+  }
+
+  return { id: orderId, status: 'cancelled' };
 }
