@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import { jsonError, jsonResponse, jsonSupabaseError, ApiError } from './response.js';
-import { supabaseAdmin } from './supabase.js';
-import { requirePermission } from './admin.js';
-import { requireAuthenticatedUser } from './auth.js';
+import { jsonError, jsonResponse, jsonSupabaseError, ApiError } from './response.ts';
+import { supabaseAdmin } from './supabase.ts';
+import { requirePermission } from './admin.ts';
+import { requireAuthenticatedUser } from './auth.ts';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const IMAGE_TYPES = new Map([

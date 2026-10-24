@@ -3,6 +3,10 @@ import { mergeRouteIdQuery, type RequestQuery } from '../lib/api-helpers/route-q
 
 type RoutedRequest = http.IncomingMessage & { query?: RequestQuery };
 
+type RoutedRequest = http.IncomingMessage & {
+  query?: Record<string, string | string[] | undefined>;
+};
+
 const CORS_ORIGINS = new Set([
   'http://localhost:3000',
   'http://127.0.0.1:3000',
@@ -42,9 +46,13 @@ async function resolveRoute(req: RoutedRequest, res: http.ServerResponse) {
     '/api/home': () => import('./home.ts'),
     '/api/newsletter': () => import('./newsletter.ts'),
     '/api/orders': () => import('./orders.ts'),
+    '/api/shipping/destinations': () => import('./shipping/destinations.ts'),
+    '/api/shipping/quotes': () => import('./shipping/quotes.ts'),
+    '/api/shipping/rates': () => import('./shipping/rates.ts'),
     '/api/webhooks/wompi': () => import('./webhooks/wompi.ts'),
     '/api/admin/categories': () => import('./admin/categories/index.ts'),
     '/api/admin/home-content': () => import('./admin/home-content.ts'),
+    '/api/admin/dashboard': () => import('./admin/dashboard.ts'),
     '/api/admin/audit': () => import('./admin/audit.ts'),
     '/api/admin/products': () => import('./admin/products/index.ts'),
     '/api/admin/product-images': () => import('./admin/products/index.ts'),
@@ -60,6 +68,13 @@ async function resolveRoute(req: RoutedRequest, res: http.ServerResponse) {
   if (orderCancelMatch) {
     const module = await import('./orders/[id]/cancel.ts');
     req.query = mergeRouteIdQuery(req.query, orderCancelMatch[1]);
+    return module.default(req, res);
+  }
+
+  const orderRequoteMatch = pathname.match(/^\/api\/orders\/([^/]+)\/requote$/);
+  if (orderRequoteMatch) {
+    const module = await import('./orders/[id]/requote.ts');
+    req.query = { ...(req.query ?? {}), id: orderRequoteMatch[1] };
     return module.default(req, res);
   }
 
