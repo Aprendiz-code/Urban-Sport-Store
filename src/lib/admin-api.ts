@@ -218,6 +218,26 @@ export async function updateProductAvailabilityApi(productId: string, isActive: 
   return callApi(`/products/${productId}`, { method: 'PATCH', body: JSON.stringify({ is_active: isActive }) });
 }
 
+export async function changeProductCategoryApi(productId: string, categoryId: string) {
+  return callApi(`/products/${productId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ category_id: categoryId }),
+  });
+}
+
+export type ProductArchiveResult = {
+  id: string;
+  is_active: false;
+  archived: true;
+  audit_recorded: boolean;
+  audit_status: 'recorded' | 'pending';
+  warning?: { code: 'AUDIT_PENDING'; message: string };
+};
+
+export async function archiveProductApi(productId: string): Promise<ProductArchiveResult> {
+  return await callApi(`/products/${productId}`, { method: 'DELETE' }) as ProductArchiveResult;
+}
+
 export async function deleteProductApi(productId: string) {
   return callApi(`/products/${productId}`, { method: 'DELETE' });
 }
@@ -292,4 +312,16 @@ export async function fetchAuditLogs(limit = 200) {
   return callApi(`/audit?limit=${limit}`, { method: 'GET' });
 }
 
-export default { fetchProducts, fetchAdminDashboard, createProductApi, uploadProductImageApi, fetchSupabaseProducts, createSupabaseProductApi, updateSupabaseProductApi, deleteSupabaseProductApi, updateProductApi, updateProductAvailabilityApi, deleteProductApi, updateHomeContentApi, createInventoryMovement, adjustProductStock, fetchAuditLogs };
+export async function fetchShippingRates() {
+  return callApi('/shipping/rates', { method: 'GET' });
+}
+
+export async function createShippingRate(payload: Record<string, unknown>) {
+  return callApi('/shipping/rates', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+export async function updateShippingRate(rateId: string, payload: Record<string, unknown>) {
+  return callApi('/shipping/rates', { method: 'PATCH', body: JSON.stringify({ ...payload, rateId }) });
+}
+
+export default { fetchProducts, fetchAdminDashboard, createProductApi, uploadProductImageApi, fetchSupabaseProducts, createSupabaseProductApi, updateSupabaseProductApi, deleteSupabaseProductApi, updateProductApi, updateProductAvailabilityApi, changeProductCategoryApi, archiveProductApi, deleteProductApi, updateHomeContentApi, createInventoryMovement, adjustProductStock, fetchAuditLogs, fetchShippingRates, createShippingRate, updateShippingRate };

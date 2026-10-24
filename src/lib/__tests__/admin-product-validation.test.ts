@@ -32,6 +32,7 @@ describe('admin product validation', () => {
       price: 120000,
       stock: 10,
       categoryId: '',
+      catalogSection: 'Tenis Hombre',
       image: '',
       images: [],
     })).toMatchObject({
@@ -56,6 +57,32 @@ describe('admin product validation', () => {
     expect(validateProductForm({ ...validProduct, price: -1 })).toHaveProperty('price');
     expect(validateProductForm({ ...validProduct, stock: 1.5 })).toHaveProperty('stock');
     expect(validateProductForm({ ...validProduct, images: Array.from({ length: 11 }, (_, index) => `image-${index}`) })).toHaveProperty('gallery');
+  });
+
+  it('requires the complete shipping package on create but allows partial shipping edits', () => {
+    const product = {
+      name: 'Zapatilla Test',
+      brand: 'Marca Test',
+      sku: 'SKU-1',
+      price: 120000,
+      stock: 10,
+      categoryId: '123e4567-e89b-12d3-a456-426614174000',
+      catalogSection: 'Tenis Hombre',
+      image: 'https://example.test/image.jpg',
+      images: [],
+    };
+    const shipping = {
+      shippingWeightGrams: 1000,
+      shippingLengthCm: 20,
+      shippingWidthCm: 20,
+      shippingHeightCm: 10,
+      shippingDeclaredValueCop: 120000,
+      shippingUnitsPerGuide: 1,
+    };
+
+    expect(validateProductForm(product, { requireShipping: true })).toHaveProperty('shipping');
+    expect(validateProductForm({ ...product, ...shipping }, { requireShipping: true })).not.toHaveProperty('shipping');
+    expect(validateProductForm({ ...product, shippingWeightGrams: 1000 })).not.toHaveProperty('shipping');
   });
 
   it('requires a non-empty brand and accepts a valid brand value', () => {

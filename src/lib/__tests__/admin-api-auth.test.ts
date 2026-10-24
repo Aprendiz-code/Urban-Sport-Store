@@ -55,6 +55,26 @@ describe('authenticated admin API client', () => {
     await expect(adminApi.fetchProducts()).resolves.toEqual(products);
   });
 
+  it('returns the archived product and pending audit status from the API contract', async () => {
+    const archiveResult = {
+      id: 'product-1',
+      is_active: false,
+      archived: true,
+      audit_recorded: false,
+      audit_status: 'pending',
+      warning: { code: 'AUDIT_PENDING', message: 'Producto archivado; auditoría pendiente.' },
+    };
+    vi.mocked(fetch).mockResolvedValueOnce(successfulResponse(200, archiveResult) as Response);
+
+    await expect(adminApi.archiveProductApi('product-1')).resolves.toEqual(archiveResult);
+
+    const [url, options] = vi.mocked(fetch).mock.calls[0] ?? [];
+    expect(new URL(String(url), 'http://localhost').pathname).toBe('/api/admin/products/product-1');
+    expect(options?.method).toBe('DELETE');
+    expect(new Headers(options?.headers).get('Authorization')).toBe('Bearer current-admin-token');
+    expect(fetch).toHaveBeenCalledOnce();
+  });
+
   it('uses the authenticated client for create, edit, archive, and image upload', async () => {
     vi.mocked(fetch)
       .mockResolvedValueOnce(successfulResponse(201, { id: 'created-1' }) as Response)

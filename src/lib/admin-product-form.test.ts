@@ -56,4 +56,18 @@ describe('admin product information', () => {
     expect(validateProductForm({ ...validForm, specifications: [{ name: 'Material', value: '' }] }))
       .toHaveProperty('specifications');
   });
+
+  it('accepts complete shipping data and rejects partial or invalid package metadata', () => {
+    const shippingData = {
+      shippingWeightGrams: 1000,
+      shippingLengthCm: 20,
+      shippingWidthCm: 20,
+      shippingHeightCm: 10,
+      shippingDeclaredValueCop: 1000,
+      shippingUnitsPerGuide: 1,
+    };
+    expect(validateProductForm({ ...validForm, ...shippingData })).not.toHaveProperty('shipping');
+    expect(validateProductForm({ ...validForm, shippingWeightGrams: 1000 })).toHaveProperty('shipping');
+    expect(validateProductForm({ ...validForm, ...shippingData, shippingUnitsPerGuide: 2 })).toHaveProperty('shipping');
+  });
 });

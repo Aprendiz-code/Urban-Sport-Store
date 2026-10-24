@@ -32,6 +32,12 @@ const createBody = () => ({
   sku: 'TEST-LOCAL-1',
   category_id: categoryId,
   catalog_section: 'Tenis Hombre',
+  shipping_weight_grams: 1000,
+  shipping_length_cm: 20,
+  shipping_width_cm: 20,
+  shipping_height_cm: 10,
+  shipping_declared_value_cop: 1000,
+  shipping_units_per_guide: 1,
   main_image: 'https://storage.example/products/main.png',
   images: ['https://storage.example/products/main.png'],
   description: 'Material resistente\nPara entrenamiento.',
@@ -77,6 +83,7 @@ describe('admin product create endpoint', () => {
         stock: 1,
         sku: 'TEST-LOCAL-1',
         category_id: categoryId,
+        catalog_section: 'Tenis Hombre',
         main_image: 'https://storage.example/products/main.png',
         images: ['https://storage.example/products/main.png'],
         description: 'Material resistente\nPara entrenamiento.',
@@ -106,6 +113,13 @@ describe('admin product create endpoint', () => {
       stock: 1,
       sku: 'TEST-LOCAL-1',
       category_id: categoryId,
+      catalog_section: 'Tenis Hombre',
+      shipping_weight_grams: 1000,
+      shipping_length_cm: 20,
+      shipping_width_cm: 20,
+      shipping_height_cm: 10,
+      shipping_declared_value_cop: 1000,
+      shipping_units_per_guide: 1,
       main_image: 'https://storage.example/products/main.png',
       images: ['https://storage.example/products/main.png'],
       description: 'Material resistente\nPara entrenamiento.',
@@ -124,6 +138,18 @@ describe('admin product create endpoint', () => {
 
     expect(response.statusCode).toBe(400);
     expect(JSON.parse(response.body).error.message).toContain('URL HTTP o HTTPS permanente');
+    expect(apiMocks.insert).not.toHaveBeenCalled();
+  });
+
+  it('rejects creation before Supabase insert when required shipping fields are missing', async () => {
+    const body = createBody();
+    delete (body as Partial<typeof body>).shipping_height_cm;
+    const response = createResponse();
+
+    await handler(createRequest(body), response);
+
+    expect(response.statusCode).toBe(400);
+    expect(JSON.parse(response.body).error.message).toContain('Completa peso, largo, ancho, alto');
     expect(apiMocks.insert).not.toHaveBeenCalled();
   });
 

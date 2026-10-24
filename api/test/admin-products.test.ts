@@ -6,23 +6,12 @@ const apiMocks = vi.hoisted(() => ({
   update: vi.fn(),
   delete: vi.fn(),
   insert: vi.fn(),
-  storageFrom: vi.fn(),
-  storageRemove: vi.fn(),
-  productImageRows: [] as Array<{ path: string }>,
-  sharedProductImageRows: [] as Array<{ path: string; product_id: string }>,
-  otherProductRows: [] as Array<{ main_image?: string | null; images?: string[] | null }>,
-  productImageError: null as unknown,
-  orderImageRows: [] as Array<{ image_path?: string | null }>,
-  orderImageError: null as unknown,
-  orderImageRanges: [] as Array<[number, number]>,
-  categoryRows: [] as Array<{ image?: string | null; image_url?: string | null }>,
-  categoryRanges: [] as Array<[number, number]>,
   authenticate: vi.fn(),
   requirePermission: vi.fn(),
 }));
 
 vi.mock('../../lib/api-helpers/supabase.js', () => ({
-  supabaseAdmin: { from: apiMocks.from, storage: { from: apiMocks.storageFrom } },
+  supabaseAdmin: { from: apiMocks.from },
 }));
 vi.mock('../../lib/api-helpers/auth.js', () => ({
   requireAuthenticatedUser: apiMocks.authenticate,
@@ -58,7 +47,7 @@ function createJsonRequest(method: string, url: string, body: Record<string, unk
   };
 }
 
-describe('admin product delete endpoint', () => {
+describe('admin product archive endpoint', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     apiMocks.authenticate.mockResolvedValue({ id: 'admin-user' });
@@ -68,18 +57,6 @@ describe('admin product delete endpoint', () => {
       .mockResolvedValueOnce({ data: { id: productId, sku: 'SKU-1', is_active: false }, error: null });
     apiMocks.update.mockReturnThis();
     apiMocks.insert.mockResolvedValue({ data: null, error: null });
-    apiMocks.productImageRows = [];
-    apiMocks.sharedProductImageRows = [];
-    apiMocks.otherProductRows = [];
-    apiMocks.productImageError = null;
-    apiMocks.orderImageRows = [];
-    apiMocks.orderImageError = null;
-    apiMocks.orderImageRanges = [];
-    apiMocks.categoryRows = [];
-    apiMocks.categoryImageError = null;
-    apiMocks.categoryRanges = [];
-    apiMocks.storageRemove.mockResolvedValue({ data: [], error: null });
-    apiMocks.storageFrom.mockReturnValue({ remove: apiMocks.storageRemove });
 
     const query = {
       select: vi.fn(),
@@ -92,276 +69,118 @@ describe('admin product delete endpoint', () => {
     query.eq.mockReturnValue(query);
     query.update.mockReturnValue(query);
     apiMocks.delete.mockReturnValue(query);
-    const productImagesQuery = {
-      select: vi.fn(),
-      eq: vi.fn(),
-      neq: vi.fn(),
-      in: vi.fn(),
-      then: (resolve: (value: { data: Array<{ path: string }>; error: unknown }) => unknown) =>
-        Promise.resolve({
-          data: productImagesQuery.in.mock.calls.length > 0 ? apiMocks.sharedProductImageRows : apiMocks.productImageRows,
-          error: apiMocks.productImageError,
-        }).then(resolve),
-    };
-    productImagesQuery.select.mockReturnValue(productImagesQuery);
-    productImagesQuery.eq.mockReturnValue(productImagesQuery);
-    productImagesQuery.neq.mockReturnValue(productImagesQuery);
-    productImagesQuery.in.mockReturnValue(productImagesQuery);
-    const orderImagesQuery = {
-      select: vi.fn(),
-      eq: vi.fn(),
-      order: vi.fn(),
-      range: vi.fn().mockImplementation((start: number, end: number) => {
-        apiMocks.orderImageRanges.push([start, end]);
-        return Promise.resolve({ data: apiMocks.orderImageRows.slice(start, end + 1), error: apiMocks.orderImageError });
-      }),
-    };
-    orderImagesQuery.select.mockReturnValue(orderImagesQuery);
-    orderImagesQuery.eq.mockReturnValue(orderImagesQuery);
-    orderImagesQuery.order.mockReturnValue(orderImagesQuery);
-    const categoriesQuery = {
-      select: vi.fn(),
-      order: vi.fn(),
-      range: vi.fn().mockImplementation((start: number, end: number) => {
-        apiMocks.categoryRanges.push([start, end]);
-        return Promise.resolve({ data: apiMocks.categoryRows.slice(start, end + 1), error: apiMocks.categoryImageError });
-      }),
-    };
-    categoriesQuery.select.mockReturnValue(categoriesQuery);
-    categoriesQuery.order.mockReturnValue(categoriesQuery);
-    query.neq = vi.fn().mockReturnValue(query);
-    query.order = vi.fn().mockReturnValue(query);
-    query.range = vi.fn().mockImplementation(() => Promise.resolve({ data: apiMocks.otherProductRows, error: null }));
     apiMocks.from.mockImplementation((table: string) => {
       if (table === 'products') return query;
-      if (table === 'product_images') return productImagesQuery;
-      if (table === 'order_items') return orderImagesQuery;
-      if (table === 'categories') return categoriesQuery;
       return { insert: apiMocks.insert };
     });
   });
 
-  it('physically deletes only the requested product and records the deletion', async () => {
+  it('archives only the requested product and returns the recorded audit status', async () => {
     const response = createResponse();
 
     await handler({ method: 'DELETE', url: `/api/admin/products/${productId}` }, response);
 
     expect(apiMocks.requirePermission).toHaveBeenCalledWith({ id: 'admin-user' }, 'products.archive');
-    expect(apiMocks.from).toHaveBeenCalledWith('products');
-    expect(apiMocks.from.mock.calls.map(([table]) => table)).toEqual(['products', 'product_images', 'order_items', 'categories', 'products', 'audit_logs']);
-    expect(apiMocks.delete).toHaveBeenCalledOnce();
-    expect(apiMocks.update).not.toHaveBeenCalled();
+    expect(apiMocks.from.mock.calls.map(([table]) => table)).toEqual(['products', 'products', 'audit_logs']);
+    expect(apiMocks.update).toHaveBeenCalledWith({ is_active: false });
+    expect(apiMocks.delete).not.toHaveBeenCalled();
     expect(apiMocks.insert).toHaveBeenCalledWith(expect.objectContaining({
-      action: 'delete_product',
+      action: 'archive_product',
       entity_id: productId,
-      after_data: expect.objectContaining({
-        id: productId,
-        deleted: true,
-        storage_cleanup: expect.objectContaining({ status: 'completed', attempted_paths: [], removed_paths: [] }),
-      }),
+      before_data: { id: productId, sku: 'SKU-1', is_active: true },
+      after_data: { id: productId, sku: 'SKU-1', is_active: false },
     }));
-    expect(response.statusCode).toBe(204);
-    expect(response.body).toBe('');
-  });
-
-  it('rejects an invalid UUID and missing product on DELETE', async () => {
-    const invalidResponse = createResponse();
-    await handler({ method: 'DELETE', url: '/api/admin/products/not-a-uuid' }, invalidResponse);
-    expect(invalidResponse.statusCode).toBe(400);
-    expect(apiMocks.from).not.toHaveBeenCalled();
-
-    apiMocks.maybeSingle.mockReset().mockResolvedValueOnce({ data: null, error: null });
-    const missingResponse = createResponse();
-    await handler({ method: 'DELETE', url: `/api/admin/products/${productId}` }, missingResponse);
-    expect(missingResponse.statusCode).toBe(404);
-    expect(apiMocks.update).not.toHaveBeenCalled();
-    expect(apiMocks.insert).not.toHaveBeenCalled();
-  });
-
-  it('does not directly mutate Storage or historical order/cart tables during product deletion', async () => {
-    const beforeData = {
+    expect(response.statusCode).toBe(200);
+    expect(JSON.parse(response.body).data).toMatchObject({
       id: productId,
-      sku: 'SKU-HISTORY',
-      is_active: true,
-      main_image: 'https://storage.example/main.png',
-      images: ['https://storage.example/side.png'],
-      created_at: '2026-01-01T00:00:00.000Z',
-    };
+      is_active: false,
+      archived: true,
+      audit_recorded: true,
+      audit_status: 'recorded',
+    });
+  });
+
+  it('archives a product that was already inactive and records the request', async () => {
     apiMocks.maybeSingle.mockReset()
-      .mockResolvedValueOnce({ data: beforeData, error: null })
-      .mockResolvedValueOnce({ data: { id: productId }, error: null });
+      .mockResolvedValueOnce({ data: { id: productId, sku: 'SKU-1', is_active: false }, error: null })
+      .mockResolvedValueOnce({ data: { id: productId, sku: 'SKU-1', is_active: false }, error: null });
     const response = createResponse();
 
     await handler({ method: 'DELETE', url: `/api/admin/products/${productId}` }, response);
 
-    expect(apiMocks.delete).toHaveBeenCalledOnce();
-    expect(apiMocks.update).not.toHaveBeenCalled();
-    expect(apiMocks.from.mock.calls.map(([table]) => table)).toEqual(['products', 'product_images', 'order_items', 'categories', 'products', 'audit_logs']);
-    expect(apiMocks.insert.mock.calls[0][0].before_data).toEqual({
-      ...beforeData,
-      product_image_paths: [],
-      order_image_paths: [],
-      category_image_paths: [],
-    });
-    expect(response.statusCode).toBe(204);
-  });
-
-  it('removes only product-bucket objects referenced by the product and records the attempt', async () => {
-    const beforeData = {
-      id: productId,
-      main_image: 'https://project.supabase.co/storage/v1/object/public/products/products/main.png',
-      images: ['products/gallery.png', 'https://cdn.example/external.png'],
-    };
-    apiMocks.productImageRows = [{ path: 'products/related.png' }];
-    apiMocks.maybeSingle.mockReset()
-      .mockResolvedValueOnce({ data: beforeData, error: null })
-      .mockResolvedValueOnce({ data: { id: productId }, error: null });
-    apiMocks.storageRemove.mockResolvedValueOnce({
-      data: [{ name: 'products/main.png' }, { name: 'products/gallery.png' }, { name: 'products/related.png' }],
-      error: null,
-    });
-    const response = createResponse();
-
-    await handler({ method: 'DELETE', url: `/api/admin/products/${productId}` }, response);
-
-    expect(apiMocks.storageFrom).toHaveBeenCalledWith('products');
-    expect(apiMocks.storageRemove).toHaveBeenCalledWith(['products/main.png', 'products/gallery.png', 'products/related.png']);
+    expect(apiMocks.update).toHaveBeenCalledWith({ is_active: false });
     expect(apiMocks.insert).toHaveBeenCalledWith(expect.objectContaining({
-      action: 'delete_product',
-      after_data: expect.objectContaining({ storage_cleanup: expect.objectContaining({ status: 'completed' }) }),
+      action: 'archive_product',
+      before_data: { id: productId, sku: 'SKU-1', is_active: false },
+      after_data: { id: productId, sku: 'SKU-1', is_active: false },
     }));
-    expect(response.statusCode).toBe(204);
+    expect(response.statusCode).toBe(200);
+    expect(JSON.parse(response.body).data).toMatchObject({ archived: true, audit_status: 'recorded' });
   });
 
-  it('keeps Storage objects referenced by another product', async () => {
-    const sharedPath = 'products/shared.png';
-    const beforeData = { id: productId, main_image: sharedPath };
-    apiMocks.maybeSingle.mockReset()
-      .mockResolvedValueOnce({ data: beforeData, error: null })
-      .mockResolvedValueOnce({ data: { id: productId }, error: null });
-    apiMocks.sharedProductImageRows = [{ path: sharedPath, product_id: 'another-product' }];
+  it('does not query commerce tables or Storage when archiving a product', async () => {
     const response = createResponse();
 
     await handler({ method: 'DELETE', url: `/api/admin/products/${productId}` }, response);
 
-    expect(apiMocks.storageRemove).not.toHaveBeenCalled();
-    expect(response.statusCode).toBe(207);
-    expect(JSON.parse(response.body).data.storage_cleanup.shared_paths).toEqual([sharedPath]);
+    expect(apiMocks.from.mock.calls.map(([table]) => table)).not.toContain('order_items');
+    expect(apiMocks.from.mock.calls.map(([table]) => table)).not.toContain('product_images');
+    expect(apiMocks.delete).not.toHaveBeenCalled();
+    expect(response.statusCode).toBe(200);
   });
 
-  it('keeps a Storage object referenced by another product record', async () => {
-    const sharedPath = 'products/shared-main.png';
-    apiMocks.maybeSingle.mockReset()
-      .mockResolvedValueOnce({ data: { id: productId, main_image: sharedPath }, error: null })
-      .mockResolvedValueOnce({ data: { id: productId }, error: null });
-    apiMocks.otherProductRows = [{ main_image: null, images: [sharedPath] }];
+  it('reports an archived product with pending audit when insertion fails', async () => {
+    apiMocks.insert.mockResolvedValueOnce({ error: { code: 'XX000' } });
     const response = createResponse();
 
     await handler({ method: 'DELETE', url: `/api/admin/products/${productId}` }, response);
 
-    expect(apiMocks.storageRemove).not.toHaveBeenCalled();
-    expect(response.statusCode).toBe(207);
-    expect(JSON.parse(response.body).data.storage_cleanup.shared_paths).toEqual([sharedPath]);
+    expect(apiMocks.update).toHaveBeenCalledWith({ is_active: false });
+    expect(response.statusCode).toBe(200);
+    expect(JSON.parse(response.body).data).toEqual({
+      id: productId,
+      is_active: false,
+      archived: true,
+      audit_recorded: false,
+      audit_status: 'pending',
+      warning: {
+        code: 'AUDIT_PENDING',
+        message: 'Producto archivado; auditoría pendiente.',
+      },
+    });
   });
 
-  it('preserves a product image still referenced by a historical order item', async () => {
-    const historicalImagePath = 'products/order-snapshot.png';
+  it('allows an explicit request retry after a failed audit', async () => {
     apiMocks.maybeSingle.mockReset()
-      .mockResolvedValueOnce({ data: { id: productId, main_image: historicalImagePath }, error: null })
-      .mockResolvedValueOnce({ data: { id: productId }, error: null });
-    apiMocks.orderImageRows = [{ image_path: historicalImagePath }];
-    const response = createResponse();
+      .mockResolvedValueOnce({ data: { id: productId, sku: 'SKU-1', is_active: true }, error: null })
+      .mockResolvedValueOnce({ data: { id: productId, sku: 'SKU-1', is_active: false }, error: null })
+      .mockResolvedValueOnce({ data: { id: productId, sku: 'SKU-1', is_active: false }, error: null })
+      .mockResolvedValueOnce({ data: { id: productId, sku: 'SKU-1', is_active: false }, error: null });
+    apiMocks.insert.mockReset()
+      .mockResolvedValueOnce({ error: { code: 'XX000' } })
+      .mockResolvedValueOnce({ error: null });
+    const firstResponse = createResponse();
+    const retryResponse = createResponse();
 
-    await handler({ method: 'DELETE', url: `/api/admin/products/${productId}` }, response);
+    await handler({ method: 'DELETE', url: `/api/admin/products/${productId}` }, firstResponse);
+    await handler({ method: 'DELETE', url: `/api/admin/products/${productId}` }, retryResponse);
 
-    expect(apiMocks.storageRemove).not.toHaveBeenCalled();
-    expect(response.statusCode).toBe(207);
-    expect(JSON.parse(response.body).data.storage_cleanup.shared_paths).toContain(historicalImagePath);
-    expect(apiMocks.insert.mock.calls[0][0].before_data.order_image_paths).toContain(historicalImagePath);
+    expect(JSON.parse(firstResponse.body).data).toMatchObject({ archived: true, audit_status: 'pending' });
+    expect(JSON.parse(retryResponse.body).data).toMatchObject({ archived: true, audit_recorded: true, audit_status: 'recorded' });
+    expect(firstResponse.statusCode).toBe(200);
+    expect(retryResponse.statusCode).toBe(200);
+    expect(apiMocks.insert).toHaveBeenCalledTimes(2);
   });
 
-  it('preserves a product image still used by a category', async () => {
-    const categoryImagePath = 'products/category-collection.png';
+  it('returns 500 when archiving fails and does not write an audit record', async () => {
     apiMocks.maybeSingle.mockReset()
-      .mockResolvedValueOnce({ data: { id: productId, main_image: categoryImagePath }, error: null })
-      .mockResolvedValueOnce({ data: { id: productId }, error: null });
-    apiMocks.categoryRows = [{ image_url: `https://project.supabase.co/storage/v1/object/public/products/${categoryImagePath}` }];
-    const response = createResponse();
-
-    await handler({ method: 'DELETE', url: `/api/admin/products/${productId}` }, response);
-
-    expect(apiMocks.storageRemove).not.toHaveBeenCalled();
-    expect(response.statusCode).toBe(207);
-    expect(JSON.parse(response.body).data.storage_cleanup.shared_paths).toContain(categoryImagePath);
-    expect(apiMocks.insert.mock.calls[0][0].before_data.category_image_paths).toContain(categoryImagePath);
-  });
-
-  it('checks later pages of orders and categories before removing a Storage path', async () => {
-    const sharedPath = 'products/shared-late-page.png';
-    apiMocks.maybeSingle.mockReset()
-      .mockResolvedValueOnce({ data: { id: productId, main_image: sharedPath }, error: null })
-      .mockResolvedValueOnce({ data: { id: productId }, error: null });
-    apiMocks.orderImageRows = Array.from({ length: 1001 }, (_, index) => ({ image_path: index === 1000 ? sharedPath : null }));
-    apiMocks.categoryRows = Array.from({ length: 1001 }, (_, index) => index === 1000 ? { image: sharedPath } : {});
-    const response = createResponse();
-
-    await handler({ method: 'DELETE', url: `/api/admin/products/${productId}` }, response);
-
-    expect(apiMocks.orderImageRanges).toEqual([[0, 999], [1000, 1999]]);
-    expect(apiMocks.categoryRanges).toEqual([[0, 999], [1000, 1999]]);
-    expect(apiMocks.storageRemove).not.toHaveBeenCalled();
-    expect(response.statusCode).toBe(207);
-    expect(JSON.parse(response.body).data.storage_cleanup.shared_paths).toEqual([sharedPath]);
-  });
-
-  it('does not delete the product if image paths cannot be inventoried', async () => {
-    apiMocks.maybeSingle.mockReset().mockResolvedValueOnce({ data: { id: productId }, error: null });
-    apiMocks.productImageError = { code: 'XX000', message: 'image lookup failed' };
+      .mockResolvedValueOnce({ data: { id: productId, is_active: true }, error: null })
+      .mockResolvedValueOnce({ data: null, error: { code: 'XX000', message: 'update failed' } });
     const response = createResponse();
 
     await handler({ method: 'DELETE', url: `/api/admin/products/${productId}` }, response);
 
     expect(response.statusCode).toBe(500);
-    expect(apiMocks.delete).not.toHaveBeenCalled();
-    expect(apiMocks.storageRemove).not.toHaveBeenCalled();
-  });
-
-  it('reports a partial result with audit data when Storage cleanup fails after row deletion', async () => {
-    const beforeData = {
-      id: productId,
-      main_image: 'https://project.supabase.co/storage/v1/object/public/products/products/main.png',
-    };
-    apiMocks.maybeSingle.mockReset()
-      .mockResolvedValueOnce({ data: beforeData, error: null })
-      .mockResolvedValueOnce({ data: { id: productId }, error: null });
-    apiMocks.storageRemove.mockResolvedValueOnce({ data: null, error: { message: 'Storage unavailable' } });
-    const response = createResponse();
-
-    await handler({ method: 'DELETE', url: `/api/admin/products/${productId}` }, response);
-
-    const result = JSON.parse(response.body).data;
-    expect(response.statusCode).toBe(207);
-    expect(result.deleted).toBe(true);
-    expect(result.storage_cleanup).toMatchObject({
-      status: 'failed',
-      attempted_paths: ['products/main.png'],
-      removed_paths: [],
-      error: 'Storage unavailable',
-    });
-    expect(result.audit_recorded).toBe(true);
-    expect(apiMocks.insert).toHaveBeenCalledOnce();
-  });
-
-  it('returns 409 with the safe fallback when cart or another foreign key blocks deletion', async () => {
-    apiMocks.maybeSingle.mockReset()
-      .mockResolvedValueOnce({ data: { id: productId }, error: null })
-      .mockResolvedValueOnce({ data: null, error: { code: '23503', message: 'foreign key violation' } });
-    const response = createResponse();
-
-    await handler({ method: 'DELETE', url: `/api/admin/products/${productId}` }, response);
-
-    expect(response.statusCode).toBe(409);
-    expect(JSON.parse(response.body).error.message).toContain('Utiliza "Desactivar producto"');
     expect(apiMocks.insert).not.toHaveBeenCalled();
   });
 

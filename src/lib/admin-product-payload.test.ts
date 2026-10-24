@@ -16,6 +16,12 @@ const product = {
   description: 'Material resistente\nPara entrenamiento.',
   sizes: ['7.5', '40 EU'],
   specifications: [{ name: 'Material', value: 'Cuero sintético' }],
+  shippingWeightGrams: 1000,
+  shippingLengthCm: 20,
+  shippingWidthCm: 20,
+  shippingHeightCm: 10,
+  shippingDeclaredValueCop: 1000,
+  shippingUnitsPerGuide: 1,
   slug: 'tenis-rapidos-test-7',
 };
 
@@ -38,6 +44,12 @@ describe('admin product API payload', () => {
       description: 'Material resistente\nPara entrenamiento.',
       sizes: ['7.5', '40 EU'],
       specifications: [{ name: 'Material', value: 'Cuero sintético' }],
+      shipping_weight_grams: 1000,
+      shipping_length_cm: 20,
+      shipping_width_cm: 20,
+      shipping_height_cm: 10,
+      shipping_declared_value_cop: 1000,
+      shipping_units_per_guide: 1,
       is_active: true,
     });
     expect(Array.isArray(payload.images)).toBe(true);
