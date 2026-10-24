@@ -116,6 +116,7 @@ describe('POST /api/orders/:id/payment-session', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     claimedAmount = '120000';
+    vi.stubEnv('VERCEL_ENV', 'preview');
     vi.stubEnv('SUPABASE_URL', 'https://example.supabase.co');
     vi.stubEnv('SUPABASE_ANON_KEY', 'anon-test-key');
     vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'service-role-test-key');

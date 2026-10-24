@@ -2,19 +2,26 @@ import { createClient } from '@supabase/supabase-js';
 import { Buffer } from 'node:buffer';
 import { ApiError, jsonError, jsonResponse } from '../lib/api-helpers/response.ts';
 import { supabaseAdmin } from '../lib/api-helpers/supabase.ts';
+import { getSupabaseRuntimeConfig } from '../lib/api-helpers/runtime-config.ts';
 import { requireActiveProfile } from '../lib/api-helpers/admin.ts';
 import { getBearerToken } from '../lib/api-helpers/auth.ts';
 import { createOrderRequestSchema } from '../src/lib/commerce-validation.ts';
 
 const hasOrderRuntimeConfig = () => {
-  return Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.SUPABASE_ANON_KEY);
+  try {
+    const config = getSupabaseRuntimeConfig();
+    return Boolean(config.serviceRoleKey);
+  } catch {
+    return false;
+  }
 };
 
 const ORDER_SELECT = [
   'id', 'order_number', 'user_id', 'email', 'customer_name', 'phone', 'status',
   'expires_at',
   'currency', 'subtotal', 'discount_amount', 'shipping_amount', 'total',
-  'payment_provider', 'shipping_address', 'notes', 'created_at', 'updated_at',
+  'payment_provider', 'shipping_provider', 'shipping_quote_id', 'shipping_quote_snapshot',
+  'shipping_address', 'notes', 'created_at', 'updated_at',
   'order_items(id,order_id,product_id,product_name,sku,image_path,quantity,unit_price,total_price,created_at)',
 ].join(',');
 
@@ -40,6 +47,10 @@ export function serializeOrder(row: any) {
     shippingAmount: Number(row.shipping_amount),
     total: Number(row.total),
     paymentProvider: 'local',
+    shippingProvider: row.shipping_provider ?? null,
+    shippingMethod: row.shipping_provider === 'coordinadora' ? 'Coordinadora' : null,
+    shippingQuoteId: row.shipping_quote_id ?? null,
+    shippingQuoteSnapshot: row.shipping_quote_snapshot ?? null,
     shippingAddress: row.shipping_address,
     notes: row.notes,
     expiresAt: row.expires_at,
@@ -113,10 +124,8 @@ async function authenticateOrderRequest(req: any, res: any): Promise<{ id: strin
 }
 
 function createUserOrderClient(token: string) {
-  const url = process.env.SUPABASE_URL;
-  const anonKey = process.env.SUPABASE_ANON_KEY;
-  if (!url || !anonKey) return null;
-  return createClient(url, anonKey, {
+  const config = getSupabaseRuntimeConfig();
+  return createClient(config.url, config.anonKey, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
     global: { headers: { Authorization: `Bearer ${token}` } },
   });
@@ -171,7 +180,10 @@ function serializeCreatedOrder(order: Record<string, any>) {
     shippingAmount: order.shippingAmount,
     total: order.total,
     paymentProvider: order.paymentProvider,
-    shippingQuoteId: order.shippingQuoteId ?? null,
+  shippingProvider: order.shippingProvider,
+  shippingMethod: order.shippingMethod,
+  shippingQuoteId: order.shippingQuoteId ?? null,
+  shippingQuoteSnapshot: order.shippingQuoteSnapshot,
     shippingAddress: order.shippingAddress,
     notes: order.notes,
     reservationExpiresAt: order.reservationExpiresAt,

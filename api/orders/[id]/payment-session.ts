@@ -3,6 +3,11 @@ import { createClient } from '@supabase/supabase-js';
 import { jsonError, jsonResponse } from '../../../lib/api-helpers/response.ts';
 import { supabaseAdmin } from '../../../lib/api-helpers/supabase.ts';
 import {
+  getSupabaseRuntimeConfig,
+  getWompiReturnUrl,
+  getWompiRuntimeConfig,
+} from '../../../lib/api-helpers/runtime-config.ts';
+import {
   authenticateOrderRequest,
   respondWithOrderError,
 } from '../../orders.js';
@@ -11,91 +16,6 @@ const orderUuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const providerSessionIdPattern = /^[A-Za-z0-9_-]{1,128}$/;
 const MAX_PROVIDER_WAIT_MS = 12_000;
-
-interface WompiSandboxConfig {
-  apiUrl: string;
-  privateKey: string;
-}
-
-function getSandboxReturnUrl(): string | undefined {
-  if (process.env.WOMPI_ENVIRONMENT !== 'sandbox') return undefined;
-
-  const configuredUrl = process.env.WOMPI_SANDBOX_RETURN_URL;
-  const allowedOrigins = new Set(
-    (process.env.WOMPI_SANDBOX_RETURN_ORIGINS ?? '')
-      .split(',')
-      .map((origin) => origin.trim())
-      .filter(Boolean),
-  );
-  if (!configuredUrl || allowedOrigins.size === 0) return undefined;
-
-  try {
-    const url = new URL(configuredUrl);
-    if (
-      url.protocol !== 'https:'
-      || url.username
-      || url.password
-      || url.port
-      || url.search
-      || url.hash
-      || url.pathname !== '/checkout/return'
-    ) return undefined;
-
-    const originAllowed = [...allowedOrigins].some((origin) => {
-      try {
-        const allowlistedUrl = new URL(origin);
-        return allowlistedUrl.protocol === 'https:'
-          && allowlistedUrl.origin === origin
-          && url.origin === allowlistedUrl.origin;
-      } catch {
-        return false;
-      }
-    });
-
-    return originAllowed ? url.toString() : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-function getWompiSandboxConfig(): WompiSandboxConfig | null {
-  const environment = process.env.WOMPI_ENVIRONMENT;
-  const apiBaseUrl = process.env.WOMPI_API_BASE_URL;
-  const publicKey = process.env.WOMPI_PUBLIC_KEY;
-  const privateKey = process.env.WOMPI_PRIVATE_KEY;
-
-  if (
-    environment !== 'sandbox'
-    || !apiBaseUrl
-    || !publicKey?.startsWith('pub_test_')
-    || !privateKey?.startsWith('prv_test_')
-  ) {
-    return null;
-  }
-
-  try {
-    const parsed = new URL(apiBaseUrl);
-    const pathname = parsed.pathname.replace(/\/+$/, '');
-    if (
-      parsed.protocol !== 'https:'
-      || parsed.hostname !== 'sandbox.wompi.co'
-      || parsed.username
-      || parsed.password
-      || parsed.search
-      || parsed.hash
-      || (pathname !== '' && pathname !== '/v1')
-    ) {
-      return null;
-    }
-
-    const apiRoot = pathname === '/v1'
-      ? parsed.toString().replace(/\/+$/, '')
-      : `${parsed.origin}/v1`;
-    return { apiUrl: `${apiRoot}/payment_links`, privateKey };
-  } catch {
-    return null;
-  }
-}
 
 function checkoutUrlIsAllowed(value: unknown, expectedSessionId?: string): value is string {
   if (typeof value !== 'string' || value.length > 2048) return false;
@@ -230,11 +150,9 @@ function categorizeWompiProviderError(status: number): WompiProviderErrorCategor
 }
 
 function createUserOrderClient(token: string) {
-  const url = process.env.SUPABASE_URL;
-  const anonKey = process.env.SUPABASE_ANON_KEY;
-  if (!url || !anonKey) return null;
+  const config = getSupabaseRuntimeConfig();
 
-  return createClient(url, anonKey, {
+  return createClient(config.url, config.anonKey, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
     global: { headers: { Authorization: `Bearer ${token}` } },
   });
@@ -460,24 +378,25 @@ export default async function handler(req: any, res: any) {
   const providerExpiresAt = new Date(
     Math.min(orderExpiry.milliseconds, earliestReservationExpiry),
   ).toISOString();
-  const redirectUrl = getSandboxReturnUrl();
-
-  const wompiConfig = getWompiSandboxConfig();
-  if (!wompiConfig) {
+  let wompiConfig;
+  try {
+    wompiConfig = getWompiRuntimeConfig();
+  } catch {
     const { error } = await completeClaim(attemptId, rpcClaimToken, 'retryable');
     if (error) {
-      console.error('Release payment-session claim without Sandbox config failed', {
+      console.error('Release payment-session claim without Wompi config failed', {
         code: getSafeProviderErrorCode(error),
       });
     }
-    return jsonError(res, 503, 'El servicio de pago Sandbox no está configurado.');
+    return jsonError(res, 503, 'El servicio de pago no está configurado para el ambiente seleccionado.');
   }
+  const redirectUrl = getWompiReturnUrl(wompiConfig);
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), MAX_PROVIDER_WAIT_MS);
   let providerResponse: Response;
   try {
-    providerResponse = await fetch(wompiConfig.apiUrl, {
+    providerResponse = await fetch(`${wompiConfig.apiBaseUrl}/payment_links`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${wompiConfig.privateKey}`,
@@ -543,7 +462,7 @@ export default async function handler(req: any, res: any) {
         code: getSafeProviderErrorCode(error),
       });
     }
-    return jsonError(res, 502, 'Wompi Sandbox no pudo iniciar el enlace de pago.');
+    return jsonError(res, 502, 'Wompi no pudo iniciar el enlace de pago.');
   }
 
   let providerPayload: any;
@@ -556,7 +475,7 @@ export default async function handler(req: any, res: any) {
         code: getSafeProviderErrorCode(error),
       });
     }
-    return jsonError(res, 502, 'Wompi Sandbox devolvió una respuesta inválida.');
+    return jsonError(res, 502, 'Wompi devolvió una respuesta inválida.');
   }
 
   const providerSessionId = providerPayload?.data?.id;
@@ -595,7 +514,7 @@ export default async function handler(req: any, res: any) {
         code: getSafeProviderErrorCode(error),
       });
     }
-    return jsonError(res, 502, 'Wompi Sandbox devolvió una respuesta inválida.');
+    return jsonError(res, 502, 'Wompi devolvió una respuesta inválida.');
   }
 
   const { data: completion, error: completionError } = await completeClaim(
