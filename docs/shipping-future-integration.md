@@ -1,17 +1,21 @@
 # Integración futura de envíos
 
-**Estado:** no implementada ni cotizada. No hay transportadora, cobertura, costo, promesa de entrega ni tracking configurados. La UI muestra el envío como pendiente de confirmar.
+**Estado:** proveedor local `coordinadora` implementado; requiere aplicar la migración propuesta de staging para habilitarse. No hay llamadas a una API externa de Coordinadora.
 
 ## Contrato local
 
-`src/types/providers.ts` define `ShippingProvider`, `ShippingQuote` y `ShipmentStatusUpdater`. El provider configurado es `null`; no se simulan tarifas ni fechas.
+`POST /api/shipping/quotes` calcula con tarifas locales configuradas por administración. No existe tarifa predeterminada: sin cobertura, tarifa única vigente o metadatos del producto, no se emite cotización. La tarifa de staging confirmada es solo Bogotá → Bogotá, paquete de 1–2 kg, con vigencia 2026-10-13 a 2026-12-31; impuestos permanecen sin especificar.
+
+La migración de staging `20261013193319_staging_coordinadora_shipping_quotes.sql` está aplicada al proyecto autorizado. Su versión local coincide con el registro remoto. El fixture `STAGING-SYNTH-001` tiene los datos de empaque aprobados y la tarifa inicial está configurada; la auditoría seed ausente se insertó en una transacción separada y quedó verificada. El CTE usa `RETURNING *` para que futuras instalaciones puedan auditar la fila recién creada sin volver a leer la tabla objetivo.
+
+El checkout recibe la cotización, muestra subtotal + envío + total, y solo permite crear pedido con un UUID de cotización vigente. El backend vuelve a comprobar propietario, dirección, artículos, COP y vencimiento antes de la RPC de pedido/reserva. Wompi continúa leyendo el total final persistido.
 
 ## Requisitos de una implementación
 
-- Elegir proveedor o documentar una política propia de despacho.
-- Confirmar ciudades/cobertura, peso/dimensiones requeridas, tarifas, recargos, tiempos y devoluciones.
-- Calcular cotización server-side a partir de dirección/productos verificados.
-- Persistir método, costo y snapshot aceptado en el pedido; no confiar en campos enviados por el navegador.
+- Completar atributos de empaque y valor declarado en todos los productos que se quieran cotizar.
+- Mantener actualizadas rutas, bandas de peso, tarifas, manejo, impuestos y vigencia desde administración.
+- Si se integra una API externa en el futuro, revisar contrato, credenciales de staging y tratamiento de errores antes de activarla.
+- Preservar método, costo y snapshot de la tarifa en cada pedido; no confiar en campos enviados por el navegador.
 - Verificar webhooks/actualizaciones de tracking, idempotencia y transiciones permitidas.
 - No mostrar costo, “gratis”, fecha estimada o estado enviado hasta contar con respuesta real.
 - Probar escenarios de cobertura no disponible, dirección inválida, cambio de tarifa, cancelación y devolución en staging.
