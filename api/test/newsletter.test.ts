@@ -16,10 +16,8 @@ describe('newsletter endpoint', () => {
     insert.mockResolvedValue({ error: null });
   });
 
-  it('persists a validated signup through the server admin client', async () => {
-    const request = new EventEmitter() as EventEmitter & { method: string };
-    request.method = 'POST';
-    const response = {
+  function createResponse() {
+    return {
       statusCode: 0,
       headers: {} as Record<string, string>,
       body: '',
@@ -30,11 +28,21 @@ describe('newsletter endpoint', () => {
         this.body = body;
       },
     };
+  }
 
+  async function submitNewsletter(email: string) {
+    const request = new EventEmitter() as EventEmitter & { method: string };
+    request.method = 'POST';
+    const response = createResponse();
     const result = handler(request, response);
-    request.emit('data', JSON.stringify({ email: 'client@example.test', source: 'home' }));
+    request.emit('data', JSON.stringify({ email, source: 'home' }));
     request.emit('end');
     await result;
+    return response;
+  }
+
+  it('persists a validated signup through the server admin client', async () => {
+    const response = await submitNewsletter('client@example.test');
 
     expect(supabaseAdmin!.from).toHaveBeenCalledWith('newsletter_subscribers');
     expect(insert).toHaveBeenCalledWith({
@@ -43,5 +51,28 @@ describe('newsletter endpoint', () => {
       status: 'ACTIVE',
     });
     expect(response.statusCode).toBe(201);
+  });
+
+  it('returns 409 when the database reports a duplicate email', async () => {
+    insert.mockResolvedValueOnce({
+      error: { code: '23505', message: 'duplicate key value violates unique constraint' },
+    });
+
+    const response = await submitNewsletter('client@example.test');
+
+    expect(response.statusCode).toBe(409);
+    expect(JSON.parse(response.body).error.message).toBe('Este correo ya está suscrito.');
+  });
+
+  it('returns a generic 500 for other database errors', async () => {
+    insert.mockResolvedValueOnce({
+      error: { code: 'XX000', message: 'internal database detail' },
+    });
+
+    const response = await submitNewsletter('client@example.test');
+
+    expect(response.statusCode).toBe(500);
+    expect(JSON.parse(response.body).error.message).toBe('No fue posible completar la suscripción.');
+    expect(response.body).not.toContain('internal database detail');
   });
 });

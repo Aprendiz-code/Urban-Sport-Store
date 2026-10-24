@@ -19,7 +19,11 @@ export default async function handler(req: any, res: any) {
     const id = url.searchParams.get('id');
     const slug = url.searchParams.get('slug');
 
-    let query = supabasePublic.from('products').select('*').eq('is_active', true).order('created_at', { ascending: false });
+    let query = supabasePublic
+      .from('products')
+      .select('id,category_id,catalog_section,slug,name,brand,description,price,compare_at_price,sku,stock,main_image,images,sizes,specifications,is_active,created_at,updated_at')
+      .eq('is_active', true)
+      .order('created_at', { ascending: false });
 
     if (id) {
       query = query.eq('id', id);

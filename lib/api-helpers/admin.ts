@@ -1,6 +1,6 @@
-import { supabaseAdmin } from './supabase.js';
-import { ApiError } from './response.js';
-import { hasAdminPermission, resolveAdminRole, type AdminPermission } from './admin-rbac.js';
+import { supabaseAdmin } from './supabase.ts';
+import { ApiError } from './response.ts';
+import { hasAdminPermission, resolveAdminRole, type AdminPermission } from './admin-rbac.ts';
 
 export interface CurrentProfile {
   id: string;
@@ -71,3 +71,5 @@ export async function requirePermission(
 export async function requireAdmin(user: { id: string } | string): Promise<void> {
   await requirePermission(user, 'admin.access');
 }
+
+
