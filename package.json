@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "supabase:preflight": "node scripts/supabase-preflight.mjs",
+    "supabase:staging:preflight": "node scripts/supabase-staging-preflight.mjs",
     "e2e": "playwright test"
   },
   "dependencies": {

@@ -1,19 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
+import { getSupabaseRuntimeConfig } from './runtime-config.ts';
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!supabaseUrl) {
-  throw new Error('Missing SUPABASE_URL in environment.');
-}
-
-if (!supabaseAnonKey) {
-  throw new Error('Missing SUPABASE_ANON_KEY in environment.');
-}
+const config = getSupabaseRuntimeConfig();
 
 // Public client: uses anon key for RLS-protected public access
-export const supabasePublic = createClient(supabaseUrl, supabaseAnonKey, {
+export const supabasePublic = createClient(config.url, config.anonKey, {
   auth: {
     persistSession: false,
   },
@@ -21,8 +12,8 @@ export const supabasePublic = createClient(supabaseUrl, supabaseAnonKey, {
 
 // Admin client: uses service role key for admin operations
 let supabaseAdminClient: any = null;
-if (supabaseServiceRoleKey) {
-  supabaseAdminClient = createClient(supabaseUrl, supabaseServiceRoleKey, {
+if (config.serviceRoleKey) {
+  supabaseAdminClient = createClient(config.url, config.serviceRoleKey, {
     auth: {
       persistSession: false,
     },

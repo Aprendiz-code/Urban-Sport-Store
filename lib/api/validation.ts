@@ -1,4 +1,4 @@
-import { ApiError } from './errors.js';
+import { ApiError } from './errors.ts';
 
 export function requireEmail(body: any) {
   if (!body || typeof body.email !== 'string' || !body.email.trim()) {
@@ -6,3 +6,4 @@ export function requireEmail(body: any) {
   }
   return body.email.trim();
 }
+

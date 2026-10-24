@@ -1,5 +1,5 @@
-import { supabaseAdmin } from './supabase.js';
-import { ApiError } from './response.js';
+import { supabaseAdmin } from './supabase.ts';
+import { ApiError } from './response.ts';
 
 export interface AuthUser {
   id: string;
@@ -34,3 +34,4 @@ export async function requireAuthenticatedUser(req: any): Promise<AuthUser> {
 }
 
 export const validateSupabaseToken = requireAuthenticatedUser;
+
