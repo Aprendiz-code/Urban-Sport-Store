@@ -50,7 +50,6 @@ import {
   getMyOrder,
   listMyOrders,
   listShippingDestinations,
-  type ShippingDestination,
   type ShippingQuote,
   type ShippingQuoteRequest,
 } from '../lib/order-service';
@@ -69,7 +68,7 @@ import { normalizeProductImageList, resolveProductPublicImageUrl, uploadSelected
 import ProductGallery from './components/ProductGallery';
 import Toaster from './components/LazyToaster';
 import { toast } from '../lib/lazyToast';
-import type { Address as DomainAddress, GuestCartItem, Order, Product as DomainProduct } from '../types/domain';
+import type { Address as DomainAddress, GuestCartItem, Order, Product as DomainProduct, ShippingDestination } from '../types/domain';
 import paymentMethodsImage from "../../logo medios de pago/payment-methods-transparent.webp";
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
@@ -2006,7 +2005,7 @@ function CheckoutPage({ cart, catalogProducts, resumedOrder, onNavigate, address
   const selectedAddress = addresses.find((address) => address.id === selectedAddressId);
   const cartFingerprint = checkoutCart
     .map((item) => `${item.product.id}:${item.qty}`).sort().join('|');
-  const activeAddress = resumedOrder && useOrderAddress
+  const activeAddress: Order['shippingAddress'] | Address | null = resumedOrder && useOrderAddress
     ? resumedOrder.shippingAddress
     : selectedAddress
       ? {
@@ -2070,17 +2069,18 @@ function CheckoutPage({ cart, catalogProducts, resumedOrder, onNavigate, address
     return () => { active = false; };
   }, [resumedOrder?.id, selectedAddressId, destinations.length]);
 
+  const legacyAddress = activeAddress as (Order['shippingAddress'] & Pick<Address, 'line1'> & Partial<Pick<Address, 'line2'>>);
   const normalizedAddress = activeAddress && selectedDestination ? {
     recipientName: activeAddress.recipientName?.trim() ?? recipientName.trim(),
     addressLine1: 'addressLine1' in activeAddress
       ? activeAddress.addressLine1
-      : activeAddress.line1,
+      : legacyAddress.line1,
     ...(('addressLine2' in activeAddress
       ? activeAddress.addressLine2
-      : activeAddress.line2)
+      : legacyAddress.line2)
       ? { addressLine2: 'addressLine2' in activeAddress
           ? activeAddress.addressLine2
-          : activeAddress.line2 }
+          : legacyAddress.line2 }
       : {}),
     city: selectedDestination.municipality,
     state: selectedDestination.department,
@@ -2212,7 +2212,7 @@ function CheckoutPage({ cart, catalogProducts, resumedOrder, onNavigate, address
 
       if (result.status === 'confirmation_required') {
         setRequoteProposal({
-          quoteKey: currentQuoteKey,
+          quoteKey: currentQuoteKey as string,
           quoteId: shippingQuote.id,
           previousTotal: result.proposal.previousTotal,
           subtotal: result.proposal.subtotal,

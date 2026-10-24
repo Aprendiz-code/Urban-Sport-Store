@@ -5,6 +5,7 @@ import {
   getShippingQuoteRequestKey,
   runSingleFlight,
   submitCheckoutPayment,
+  type CheckoutPaymentDependencies,
   type ShippingQuoteRequest,
 } from '../checkout-quote-flow';
 import type { ShippingQuote } from '../order-service';
@@ -61,7 +62,7 @@ const order = {
 function makeDependencies() {
   return {
     createOrder: vi.fn(async () => order),
-    requoteOrder: vi.fn(async ({ order: existing }: { order: Order }) => ({
+    requoteOrder: vi.fn<CheckoutPaymentDependencies['requoteOrder']>(async ({ order: existing }) => ({
       status: 'updated' as const,
       order: existing,
     })),

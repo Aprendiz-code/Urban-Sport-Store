@@ -9,7 +9,9 @@ const checkoutSource = appSource.slice(checkoutStart, checkoutEnd);
 describe('CheckoutPage UI source contract (static; not component integration)', () => {
   it('requests quotes for the current address and cart and guards stale responses', () => {
     expect(checkoutSource).toContain('createShippingQuote(requestInput)');
-    expect(checkoutSource).toContain('getShippingQuoteRequestKey(quoteRequestInput, selectedAddressId)');
+    expect(checkoutSource).toContain(
+      'getShippingQuoteRequestKey(quoteRequestInput, quoteAddressId)',
+    );
     expect(checkoutSource).toContain('currentQuoteKeyRef.current !== requestKey');
   });
 
@@ -17,7 +19,7 @@ describe('CheckoutPage UI source contract (static; not component integration)', 
     expect(checkoutSource).toContain('fmt(shippingQuote.amountCop)');
     expect(checkoutSource).toContain('quoteSummary.totalCop');
     expect(checkoutSource).toContain('shippingQuote.estimatedDelivery.minBusinessDays');
-    expect(checkoutSource).toContain('disabled={paymentStarting || !quoteCanProceed');
+    expect(checkoutSource).toMatch(/disabled=\{checkoutBlocked\b/);
     expect(checkoutSource).toContain('submitCheckoutPayment({');
     expect(checkoutSource).toContain('runSingleFlight(paymentRequestLock');
   });
