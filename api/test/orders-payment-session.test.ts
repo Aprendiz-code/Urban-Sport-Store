@@ -15,7 +15,7 @@ vi.mock('@supabase/supabase-js', () => ({
 }));
 
 import { supabaseAdmin } from '../../lib/api-helpers/supabase.js';
-import handler from '../orders/[id]/payment-session.js';
+import handler from '../orders/[id].js';
 
 const orderId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const userId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
@@ -177,7 +177,7 @@ describe('POST /api/orders/:id/payment-session', () => {
     await handler({
       method: 'POST',
       headers: { authorization: 'Bearer user-access-token' },
-      query: { id: orderId },
+      query: { id: orderId, action: 'payment-session' },
       body: {
         amount: 1,
         currency: 'USD',

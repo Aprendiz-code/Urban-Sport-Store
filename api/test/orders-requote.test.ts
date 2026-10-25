@@ -15,7 +15,7 @@ vi.mock('../orders.js', () => ({
   respondWithOrderError: mocks.respondWithOrderError,
 }));
 
-import handler from '../orders/[id]/requote.js';
+import handler from '../orders/[id].js';
 
 const orderId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const quoteId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
@@ -52,7 +52,7 @@ async function invoke(payload: unknown = body) {
   await handler({
     method: 'POST',
     headers: { authorization: 'Bearer synthetic-session' },
-    query: { id: orderId },
+    query: { id: orderId, action: 'requote' },
     body: payload,
   }, res);
   return res;
@@ -169,7 +169,7 @@ describe('POST /api/orders/:id/requote', () => {
     await handler({
       method: 'POST',
       headers: { authorization: 'Bearer synthetic-session' },
-      query: { id: 'not-a-uuid' },
+      query: { id: 'not-a-uuid', action: 'requote' },
       body,
     }, invalidId);
     expect(invalidId.statusCode).toBe(400);

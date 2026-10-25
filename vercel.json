@@ -3,6 +3,8 @@
     { "source": "/api/admin/product-images", "destination": "/api/admin/products?resource=product-image" },
     { "source": "/api/health", "destination": "/api/products?resource=health" },
     { "source": "/api/orders/:id/cancel", "destination": "/api/orders/:id?action=cancel" },
+    { "source": "/api/orders/:id/payment-session", "destination": "/api/orders/:id?action=payment-session" },
+    { "source": "/api/orders/:id/requote", "destination": "/api/orders/:id?action=requote" },
     { "source": "/((?!api).*)", "destination": "/index.html" }
   ]
 }

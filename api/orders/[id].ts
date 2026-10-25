@@ -1,5 +1,6 @@
 import { jsonError, jsonResponse } from '../../lib/api-helpers/response.ts';
 import { supabaseAdmin } from '../../lib/api-helpers/supabase.ts';
+import { handleOrderRequote, handlePaymentSession } from '../../lib/api-helpers/order-actions.ts';
 import {
   authenticateOrderRequest,
   createUserOrderClient,
@@ -13,6 +14,12 @@ const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}
 
 export default async function handler(req: any, res: any) {
   const action = req.query?.action;
+  if (action === 'payment-session') {
+    return handlePaymentSession(req, res);
+  }
+  if (action === 'requote') {
+    return handleOrderRequote(req, res);
+  }
   if ((action === 'cancel' && req.method !== 'POST') || (action !== 'cancel' && req.method !== 'GET')) {
     return jsonError(res, 405, 'Método no permitido.');
   }
