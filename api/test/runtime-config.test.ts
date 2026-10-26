@@ -6,6 +6,7 @@ import {
   getDeploymentEnvironment,
   getSupabaseRuntimeConfig,
   getWompiEventsSecret,
+  getWompiPaymentSessionsEnabled,
   getWompiReturnUrl,
   getWompiRuntimeConfig,
   RuntimeConfigurationError,
@@ -107,6 +108,21 @@ describe('server runtime configuration', () => {
     expect(() => getWompiRuntimeConfig(missingSandboxKey)).toThrow('WOMPI_PUBLIC_KEY is missing');
     expect(() => getWompiRuntimeConfig(missingProductionKey))
       .toThrow('WOMPI_PUBLIC_KEY_PRODUCTION is missing');
+  });
+
+  it('enables payment sessions only for an explicit true value and fails closed otherwise', () => {
+    expect(getWompiPaymentSessionsEnabled(sandboxEnvironment({
+      WOMPI_PAYMENT_SESSIONS_ENABLED: 'true',
+    }))).toBe(true);
+    expect(getWompiPaymentSessionsEnabled(sandboxEnvironment({
+      WOMPI_PAYMENT_SESSIONS_ENABLED: undefined,
+    }))).toBe(false);
+    expect(getWompiPaymentSessionsEnabled(sandboxEnvironment({
+      WOMPI_PAYMENT_SESSIONS_ENABLED: 'false',
+    }))).toBe(false);
+    expect(getWompiPaymentSessionsEnabled(sandboxEnvironment({
+      WOMPI_PAYMENT_SESSIONS_ENABLED: 'yes',
+    }))).toBe(false);
   });
 
   it('preserves Sandbox event-secret priority and rejects a defined-but-empty preferred value', () => {

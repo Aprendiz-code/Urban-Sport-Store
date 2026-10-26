@@ -5,6 +5,7 @@ import { jsonError, jsonResponse } from './response.ts';
 import { supabaseAdmin } from './supabase.ts';
 import {
   getSupabaseRuntimeConfig,
+  getWompiPaymentSessionsEnabled,
   getWompiReturnUrl,
   getWompiRuntimeConfig,
 } from './runtime-config.ts';
@@ -196,6 +197,9 @@ function respondWithTemporaryPaymentError(res: any) {
 export async function handlePaymentSession(req: any, res: any) {
   if (req.method !== 'POST') {
     return jsonError(res, 405, 'Método no permitido.');
+  }
+  if (!getWompiPaymentSessionsEnabled()) {
+    return jsonError(res, 503, 'La creación de sesiones de pago está deshabilitada temporalmente.');
   }
 
   const user = await authenticateOrderRequest(req, res);

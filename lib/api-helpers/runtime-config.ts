@@ -157,6 +157,13 @@ export function getWompiRuntimeConfig(
   };
 }
 
+export function getWompiPaymentSessionsEnabled(
+  environment: RuntimeEnvironment = process.env,
+): boolean {
+  const value = environment.WOMPI_PAYMENT_SESSIONS_ENABLED;
+  return typeof value === 'string' && value.trim().toLowerCase() === 'true';
+}
+
 export function getWompiEventsSecret(
   mode: WompiMode,
   environment: RuntimeEnvironment = process.env,

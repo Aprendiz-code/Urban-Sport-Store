@@ -99,6 +99,7 @@ describe('Wompi transaction webhook', () => {
     vi.stubEnv('WOMPI_API_BASE_URL', 'https://sandbox.wompi.co/v1');
     vi.stubEnv('WOMPI_PUBLIC_KEY', 'pub_test_unit_test');
     vi.stubEnv('WOMPI_PRIVATE_KEY', 'prv_test_unit_test');
+    vi.stubEnv('WOMPI_PAYMENT_SESSIONS_ENABLED', 'false');
     officialTransaction = null;
     fetchMock.mockReset();
     fetchMock.mockImplementation(async () => new Response(
