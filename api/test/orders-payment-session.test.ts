@@ -125,6 +125,7 @@ describe('POST /api/orders/:id/payment-session', () => {
     vi.stubEnv('WOMPI_PUBLIC_KEY', 'pub_test_unit_test');
     vi.stubEnv('WOMPI_PRIVATE_KEY', 'prv_test_unit_test');
     vi.stubEnv('WOMPI_PAYMENT_SESSIONS_ENABLED', 'true');
+    vi.stubEnv('WOMPI_PAYMENT_SESSIONS_ALLOWED_USER_ID', userId);
     vi.stubEnv('WOMPI_SANDBOX_RETURN_URL', '');
     vi.stubEnv('WOMPI_SANDBOX_RETURN_ORIGINS', '');
     linkExpiresAt = futureDate(10);
@@ -188,6 +189,48 @@ describe('POST /api/orders/:id/payment-session', () => {
 
     expect(res.statusCode).toBe(503);
     expect(supabaseAdmin!.auth.getUser).not.toHaveBeenCalled();
+    expect(supabaseAdmin!.rpc).not.toHaveBeenCalled();
+    expect(providerFetch).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['absent', undefined],
+    ['empty', ''],
+    ['wildcard', '*'],
+    ['malformed', 'not-a-user-id'],
+  ])('blocks all users when the allowlist is %s', async (_caseName, allowedUserId) => {
+    vi.stubEnv('WOMPI_PAYMENT_SESSIONS_ALLOWED_USER_ID', allowedUserId);
+    const res = makeResponse();
+
+    await handler({
+      method: 'POST',
+      headers: { authorization: 'Bearer user-access-token' },
+      query: { id: orderId, action: 'payment-session' },
+    }, res);
+
+    expect(res.statusCode).toBe(403);
+    expect(res.body).not.toContain(userId);
+    expect(supabaseAdmin!.rpc).not.toHaveBeenCalled();
+    expect(providerFetch).not.toHaveBeenCalled();
+  });
+
+  it('does not let a client-supplied user ID impersonate the allowed account', async () => {
+    const otherUserId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+    (supabaseAdmin!.auth.getUser as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { user: { id: otherUserId } },
+      error: null,
+    });
+    const res = makeResponse();
+
+    await handler({
+      method: 'POST',
+      headers: { authorization: 'Bearer user-access-token' },
+      query: { id: orderId, action: 'payment-session', user_id: userId },
+      body: { user_id: userId },
+    }, res);
+
+    expect(res.statusCode).toBe(403);
+    expect(res.body).not.toContain(userId);
     expect(supabaseAdmin!.rpc).not.toHaveBeenCalled();
     expect(providerFetch).not.toHaveBeenCalled();
   });

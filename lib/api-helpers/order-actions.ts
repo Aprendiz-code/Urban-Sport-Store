@@ -8,6 +8,7 @@ import {
   getWompiPaymentSessionsEnabled,
   getWompiReturnUrl,
   getWompiRuntimeConfig,
+  isWompiPaymentSessionUserAllowed,
 } from './runtime-config.ts';
 import {
   authenticateOrderRequest,
@@ -204,6 +205,9 @@ export async function handlePaymentSession(req: any, res: any) {
 
   const user = await authenticateOrderRequest(req, res);
   if (!user) return;
+  if (!isWompiPaymentSessionUserAllowed(user.id)) {
+    return jsonError(res, 403, 'No autorizado para iniciar pagos.');
+  }
 
   const orderId = req.query?.id;
   if (typeof orderId !== 'string' || !orderUuidPattern.test(orderId)) {
