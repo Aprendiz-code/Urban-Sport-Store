@@ -3,10 +3,6 @@ import { mergeRouteIdQuery, type RequestQuery } from '../lib/api-helpers/route-q
 
 type RoutedRequest = http.IncomingMessage & { query?: RequestQuery };
 
-type RoutedRequest = http.IncomingMessage & {
-  query?: Record<string, string | string[] | undefined>;
-};
-
 const CORS_ORIGINS = new Set([
   'http://localhost:3000',
   'http://127.0.0.1:3000',
@@ -35,7 +31,7 @@ function jsonError(res: http.ServerResponse, status: number, message: string) {
   res.end(JSON.stringify({ ok: false, error: { code: status, message } }));
 }
 
-async function resolveRoute(req: RoutedRequest, res: http.ServerResponse) {
+export async function resolveRoute(req: RoutedRequest, res: http.ServerResponse) {
   const url = new URL(req.url ?? '/', 'http://127.0.0.1:3000');
   const pathname = url.pathname.replace(/\/+$/, '') || '/';
 
@@ -73,8 +69,9 @@ async function resolveRoute(req: RoutedRequest, res: http.ServerResponse) {
 
   const orderRequoteMatch = pathname.match(/^\/api\/orders\/([^/]+)\/requote$/);
   if (orderRequoteMatch) {
-    const module = await import('./orders/[id]/requote.ts');
-    req.query = { ...(req.query ?? {}), id: orderRequoteMatch[1] };
+    const module = await import('./orders/[id].ts');
+    req.query = mergeRouteIdQuery(req.query, orderRequoteMatch[1]);
+    req.query.action = 'requote';
     return module.default(req, res);
   }
 
@@ -84,8 +81,9 @@ async function resolveRoute(req: RoutedRequest, res: http.ServerResponse) {
       return jsonError(res, 405, 'Método no permitido.');
     }
 
-    const module = await import('./orders/[id]/payment-session.ts');
+    const module = await import('./orders/[id].ts');
     req.query = mergeRouteIdQuery(req.query, paymentSessionMatch[1]);
+    req.query.action = 'payment-session';
     return module.default(req, res);
   }
 
@@ -133,6 +131,8 @@ const server = http.createServer(async (req, res) => {
 });
 
 const port = Number(process.env.PORT ?? 3000);
-server.listen(port, '127.0.0.1', () => {
-  console.log(`Local API running at http://127.0.0.1:${port}`);
-});
+if (process.env.VITEST !== 'true') {
+  server.listen(port, '127.0.0.1', () => {
+    console.log(`Local API running at http://127.0.0.1:${port}`);
+  });
+}

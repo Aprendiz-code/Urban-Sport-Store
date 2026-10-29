@@ -157,6 +157,26 @@ export function getWompiRuntimeConfig(
   };
 }
 
+export function getWompiPaymentSessionsEnabled(
+  environment: RuntimeEnvironment = process.env,
+): boolean {
+  const value = environment.WOMPI_PAYMENT_SESSIONS_ENABLED;
+  return typeof value === 'string' && value.trim().toLowerCase() === 'true';
+}
+
+export function isWompiPaymentSessionUserAllowed(
+  userId: unknown,
+  environment: RuntimeEnvironment = process.env,
+): boolean {
+  const allowedUserId = environment.WOMPI_PAYMENT_SESSIONS_ALLOWED_USER_ID?.trim();
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return typeof allowedUserId === 'string'
+    && uuidPattern.test(allowedUserId)
+    && typeof userId === 'string'
+    && uuidPattern.test(userId)
+    && userId.toLowerCase() === allowedUserId.toLowerCase();
+}
+
 export function getWompiEventsSecret(
   mode: WompiMode,
   environment: RuntimeEnvironment = process.env,

@@ -8,7 +8,7 @@ on:
 
 jobs:
   build-and-test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -25,6 +25,8 @@ jobs:
         run: pnpm typecheck
       - name: Run frontend tests
         run: pnpm test
+        env:
+          VITE_API_URL: http://localhost:5173
       - name: Build frontend
         run: pnpm build
       - name: Run E2E (Playwright)

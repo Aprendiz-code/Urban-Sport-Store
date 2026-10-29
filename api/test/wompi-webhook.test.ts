@@ -99,6 +99,7 @@ describe('Wompi transaction webhook', () => {
     vi.stubEnv('WOMPI_API_BASE_URL', 'https://sandbox.wompi.co/v1');
     vi.stubEnv('WOMPI_PUBLIC_KEY', 'pub_test_unit_test');
     vi.stubEnv('WOMPI_PRIVATE_KEY', 'prv_test_unit_test');
+    vi.stubEnv('WOMPI_PAYMENT_SESSIONS_ENABLED', 'false');
     officialTransaction = null;
     fetchMock.mockReset();
     fetchMock.mockImplementation(async () => new Response(
@@ -601,18 +602,45 @@ describe('Wompi transaction webhook', () => {
   });
 
   it.each([
-    ['expired', Math.floor(Date.now() / 1000) - 48 * 60 * 60 - 1],
-    ['too far in the future', Math.floor(Date.now() / 1000) + 5 * 60 + 1],
-  ] as const)('rejects a %s signed timestamp before any database call', async (_case, timestamp) => {
-    const event = signedEvent('APPROVED');
-    event.timestamp = timestamp;
-    signEvent(event);
-    const res = makeResponse();
+    ['clearly inside', 4 * 60, 200],
+    ['exactly at the boundary', 5 * 60, 200],
+    ['clearly outside', 5 * 60 + 1, 400],
+  ] as const)('handles a %s future signed timestamp', async (_case, futureSeconds, expectedStatus) => {
+    const fixedNow = Date.parse('2026-10-26T12:00:00.000Z');
+    const dateNowSpy = vi.spyOn(Date, 'now').mockReturnValue(fixedNow);
+    try {
+      const event = signedEvent('APPROVED');
+      event.timestamp = Math.floor(fixedNow / 1000) + futureSeconds;
+      signEvent(event);
+      const res = makeResponse();
 
-    await handler({ method: 'POST', headers: {}, body: event }, res);
+      await handler({ method: 'POST', headers: {}, body: event }, res);
 
-    expect(res.statusCode).toBe(400);
-    expect(supabaseAdmin!.rpc).not.toHaveBeenCalled();
+      expect(res.statusCode).toBe(expectedStatus);
+      if (expectedStatus === 400) {
+        expect(supabaseAdmin!.rpc).not.toHaveBeenCalled();
+      }
+    } finally {
+      dateNowSpy.mockRestore();
+    }
+  });
+
+  it('rejects an expired signed timestamp before any database call', async () => {
+    const fixedNow = Date.parse('2026-10-26T12:00:00.000Z');
+    const dateNowSpy = vi.spyOn(Date, 'now').mockReturnValue(fixedNow);
+    try {
+      const event = signedEvent('APPROVED');
+      event.timestamp = Math.floor(fixedNow / 1000) - 48 * 60 * 60 - 1;
+      signEvent(event);
+      const res = makeResponse();
+
+      await handler({ method: 'POST', headers: {}, body: event }, res);
+
+      expect(res.statusCode).toBe(400);
+      expect(supabaseAdmin!.rpc).not.toHaveBeenCalled();
+    } finally {
+      dateNowSpy.mockRestore();
+    }
   });
 
   it.each(['duplicate', 'stale', 'review_required'] as const)(

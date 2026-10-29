@@ -17,7 +17,7 @@ const hasOrderRuntimeConfig = () => {
 };
 
 const ORDER_SELECT = [
-  'id', 'order_number', 'user_id', 'email', 'customer_name', 'phone', 'status',
+  'id', 'order_number', 'user_id', 'email', 'customer_name', 'phone', 'status', 'payment_status',
   'expires_at',
   'currency', 'subtotal', 'discount_amount', 'shipping_amount', 'total',
   'payment_provider', 'shipping_provider', 'shipping_quote_id', 'shipping_quote_snapshot',
@@ -29,6 +29,7 @@ const uuidV4Pattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[
 const orderUuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const DEFAULT_PAGE_SIZE = 25;
 const MAX_PAGE_SIZE = 100;
+const paymentStatusValues = new Set(['pending', 'paid', 'failed', 'refunded', 'cancelled']);
 
 export function serializeOrder(row: any) {
   return {
@@ -39,7 +40,7 @@ export function serializeOrder(row: any) {
     customerName: row.customer_name,
     phone: row.phone,
     status: row.status,
-    paymentStatus: 'pending',
+    paymentStatus: paymentStatusValues.has(row.payment_status) ? row.payment_status : 'pending',
     shipmentStatus: 'pending',
     currency: row.currency,
     subtotal: Number(row.subtotal),

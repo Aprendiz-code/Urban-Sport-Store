@@ -5,8 +5,10 @@ import { jsonError, jsonResponse } from './response.ts';
 import { supabaseAdmin } from './supabase.ts';
 import {
   getSupabaseRuntimeConfig,
+  getWompiPaymentSessionsEnabled,
   getWompiReturnUrl,
   getWompiRuntimeConfig,
+  isWompiPaymentSessionUserAllowed,
 } from './runtime-config.ts';
 import {
   authenticateOrderRequest,
@@ -197,9 +199,15 @@ export async function handlePaymentSession(req: any, res: any) {
   if (req.method !== 'POST') {
     return jsonError(res, 405, 'Método no permitido.');
   }
+  if (!getWompiPaymentSessionsEnabled()) {
+    return jsonError(res, 503, 'La creación de sesiones de pago está deshabilitada temporalmente.');
+  }
 
   const user = await authenticateOrderRequest(req, res);
   if (!user) return;
+  if (!isWompiPaymentSessionUserAllowed(user.id)) {
+    return jsonError(res, 403, 'No autorizado para iniciar pagos.');
+  }
 
   const orderId = req.query?.id;
   if (typeof orderId !== 'string' || !orderUuidPattern.test(orderId)) {

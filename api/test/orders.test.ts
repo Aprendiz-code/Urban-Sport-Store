@@ -64,6 +64,7 @@ function orderRow(overrides: Record<string, unknown> = {}) {
     customer_name: 'Ana Gómez',
     phone: address.phone,
     status: 'pending_payment',
+    payment_status: 'pending',
     expires_at: '2026-10-11T12:00:00.000Z',
     currency: 'COP',
     subtotal: '120000',
@@ -259,8 +260,35 @@ describe('secure orders endpoints', () => {
     expect(JSON.parse(res.body).data.orders[0]).not.toHaveProperty('request_hash');
   });
 
+  it.each(['paid', 'failed', 'refunded', 'cancelled'] as const)(
+    'returns the reconciled %s payment status in the order list',
+    async (paymentStatus) => {
+      ordersQuery = createQuery({ data: [orderRow({ payment_status: paymentStatus })], error: null });
+      (supabaseAdmin as any).from = vi.fn((table: string) => table === 'profiles' ? profileQuery : ordersQuery);
+      const res = makeResponse();
+
+      await handler({ method: 'GET', headers: { authorization: 'Bearer test-access-token' } }, res);
+
+      expect(ordersQuery.select).toHaveBeenCalledWith(expect.stringContaining('payment_status'));
+      expect(JSON.parse(res.body).data.orders[0].paymentStatus).toBe(paymentStatus);
+    },
+  );
+
+  it.each([
+    ['missing', undefined],
+    ['unknown', 'processing'],
+  ] as const)('falls back to pending when payment status is %s', async (_caseName, paymentStatus) => {
+    ordersQuery = createQuery({ data: [orderRow({ payment_status: paymentStatus })], error: null });
+    (supabaseAdmin as any).from = vi.fn((table: string) => table === 'profiles' ? profileQuery : ordersQuery);
+    const res = makeResponse();
+
+    await handler({ method: 'GET', headers: { authorization: 'Bearer test-access-token' } }, res);
+
+    expect(JSON.parse(res.body).data.orders[0].paymentStatus).toBe('pending');
+  });
+
   it('returns an order detail only when it belongs to the authenticated user', async () => {
-    ordersQuery = createQuery({ data: orderRow(), error: null });
+    ordersQuery = createQuery({ data: orderRow({ payment_status: 'paid' }), error: null });
     (supabaseAdmin as any).from = vi.fn((table: string) => table === 'profiles' ? profileQuery : ordersQuery);
     const res = makeResponse();
 
@@ -272,6 +300,7 @@ describe('secure orders endpoints', () => {
 
     expect(ordersQuery.eq).toHaveBeenCalledWith('id', orderId);
     expect(JSON.parse(res.body).data.order.items[0].productId).toBe(productId);
+    expect(JSON.parse(res.body).data.order.paymentStatus).toBe('paid');
   });
 
   it('does not reveal missing or another user’s order', async () => {
