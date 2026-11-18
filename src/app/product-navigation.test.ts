@@ -38,6 +38,14 @@ describe('storefront product navigation', () => {
     expect(appSource).not.toContain('dangerouslySetInnerHTML');
   });
 
+  it('does not require shipping data in the product form while carrier integration is pending', () => {
+    expect(appSource).not.toContain('Datos de envío');
+    expect(appSource).not.toContain('Peso real (g)');
+    expect(appSource).not.toContain('Largo del empaque (cm)');
+    expect(appSource).not.toContain('Valor declarado (COP)');
+    expect(appSource).not.toContain('Unidades por guía');
+  });
+
   it('renders a bounded product-detail layout with labeled gallery and product information', () => {
     expect(appSource).toContain('lg:grid-cols-[minmax(0,1.08fr)_minmax(20rem,0.92fr)]');
     expect(appSource).toContain('aria-label={`Galería de ${product.name}`}');

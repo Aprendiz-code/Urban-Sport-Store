@@ -57,17 +57,12 @@ describe('admin product information', () => {
       .toHaveProperty('specifications');
   });
 
-  it('accepts complete shipping data and rejects partial or invalid package metadata', () => {
-    const shippingData = {
+  it('does not require shipping data to save a product while carrier integration is pending', () => {
+    const partialShippingData = {
       shippingWeightGrams: 1000,
-      shippingLengthCm: 20,
-      shippingWidthCm: 20,
-      shippingHeightCm: 10,
-      shippingDeclaredValueCop: 1000,
-      shippingUnitsPerGuide: 1,
     };
-    expect(validateProductForm({ ...validForm, ...shippingData })).not.toHaveProperty('shipping');
-    expect(validateProductForm({ ...validForm, shippingWeightGrams: 1000 })).toHaveProperty('shipping');
-    expect(validateProductForm({ ...validForm, ...shippingData, shippingUnitsPerGuide: 2 })).toHaveProperty('shipping');
+
+    expect(validateProductForm(validForm)).not.toHaveProperty('shipping');
+    expect(validateProductForm({ ...validForm, ...partialShippingData })).not.toHaveProperty('shipping');
   });
 });

@@ -59,7 +59,7 @@ describe('admin product validation', () => {
     expect(validateProductForm({ ...validProduct, images: Array.from({ length: 11 }, (_, index) => `image-${index}`) })).toHaveProperty('gallery');
   });
 
-  it('requires the complete shipping package on create and rejects partial shipping edits', () => {
+  it('allows product creation without shipping data while carrier integration is pending', () => {
     const product = {
       name: 'Zapatilla Test',
       brand: 'Marca Test',
@@ -71,18 +71,8 @@ describe('admin product validation', () => {
       image: 'https://example.test/image.jpg',
       images: [],
     };
-    const shipping = {
-      shippingWeightGrams: 1000,
-      shippingLengthCm: 20,
-      shippingWidthCm: 20,
-      shippingHeightCm: 10,
-      shippingDeclaredValueCop: 120000,
-      shippingUnitsPerGuide: 1,
-    };
-
-    expect(validateProductForm(product, { requireShipping: true })).toHaveProperty('shipping');
-    expect(validateProductForm({ ...product, ...shipping }, { requireShipping: true })).not.toHaveProperty('shipping');
-    expect(validateProductForm({ ...product, shippingWeightGrams: 1000 })).toHaveProperty('shipping');
+    expect(validateProductForm(product)).toEqual({});
+    expect(validateProductForm({ ...product, shippingWeightGrams: 1000 })).toEqual({});
   });
 
   it('requires a non-empty brand and accepts a valid brand value', () => {
