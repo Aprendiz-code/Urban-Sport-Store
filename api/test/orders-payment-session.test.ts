@@ -242,7 +242,7 @@ describe('POST /api/orders/:id/payment-session', () => {
     await handler({
       method: 'POST',
       headers: { authorization: 'Bearer user-access-token' },
-      query: { id: orderId },
+      query: { id: orderId, action: 'payment-session' },
     }, res);
 
     expect(res.statusCode).toBe(200);
@@ -268,7 +268,7 @@ describe('POST /api/orders/:id/payment-session', () => {
     await handler({
       method: 'POST',
       headers: { authorization: 'Bearer user-access-token' },
-      query: { id: orderId },
+      query: { id: orderId, action: 'payment-session' },
     }, res);
 
     expect(res.statusCode).toBe(502);
@@ -286,7 +286,7 @@ describe('POST /api/orders/:id/payment-session', () => {
     await handler({
       method: 'POST',
       headers: { authorization: 'Bearer user-access-token' },
-      query: { id: orderId },
+      query: { id: orderId, action: 'payment-session' },
     }, res);
 
     const providerRequest = JSON.parse(providerFetch.mock.calls[0][1].body);
@@ -303,7 +303,7 @@ describe('POST /api/orders/:id/payment-session', () => {
     await handler({
       method: 'POST',
       headers: { authorization: 'Bearer user-access-token' },
-      query: { id: orderId },
+      query: { id: orderId, action: 'payment-session' },
     }, res);
 
     const providerRequest = JSON.parse(providerFetch.mock.calls[0][1].body);
@@ -326,7 +326,7 @@ describe('POST /api/orders/:id/payment-session', () => {
     await handler({
       method: 'POST',
       headers: { authorization: 'Bearer user-access-token' },
-      query: { id: orderId },
+      query: { id: orderId, action: 'payment-session' },
     }, res);
 
     const providerRequest = JSON.parse(providerFetch.mock.calls[0][1].body);
@@ -352,7 +352,7 @@ describe('POST /api/orders/:id/payment-session', () => {
     await handler({
       method: 'POST',
       headers: { authorization: 'Bearer user-access-token' },
-      query: { id: orderId },
+      query: { id: orderId, action: 'payment-session' },
     }, res);
 
     const providerRequest = JSON.parse(providerFetch.mock.calls[0][1].body);
@@ -372,7 +372,7 @@ describe('POST /api/orders/:id/payment-session', () => {
     await handler({
       method: 'POST',
       headers: { authorization: 'Bearer user-access-token' },
-      query: { id: orderId },
+      query: { id: orderId, action: 'payment-session' },
     }, res);
 
     expect(res.statusCode).toBe(404);
@@ -394,7 +394,7 @@ describe('POST /api/orders/:id/payment-session', () => {
     await handler({
       method: 'POST',
       headers: { authorization: 'Bearer user-access-token' },
-      query: { id: orderId },
+      query: { id: orderId, action: 'payment-session' },
     }, res);
 
     expect(res.statusCode).toBe(409);
@@ -422,7 +422,7 @@ describe('POST /api/orders/:id/payment-session', () => {
     await handler({
       method: 'POST',
       headers: { authorization: 'Bearer user-access-token' },
-      query: { id: orderId },
+      query: { id: orderId, action: 'payment-session' },
     }, res);
 
     expect(res.statusCode).toBe(409);
@@ -439,7 +439,7 @@ describe('POST /api/orders/:id/payment-session', () => {
     await handler({
       method: 'POST',
       headers: { authorization: 'Bearer user-access-token' },
-      query: { id: orderId },
+      query: { id: orderId, action: 'payment-session' },
     }, res);
 
     expect(res.statusCode).toBe(202);
@@ -457,7 +457,7 @@ describe('POST /api/orders/:id/payment-session', () => {
     await handler({
       method: 'POST',
       headers: { authorization: 'Bearer user-access-token' },
-      query: { id: orderId },
+      query: { id: orderId, action: 'payment-session' },
     }, res);
 
     expect(res.statusCode).toBe(503);
@@ -495,7 +495,7 @@ describe('POST /api/orders/:id/payment-session', () => {
     await handler({
       method: 'POST',
       headers: { authorization: 'Bearer user-access-token' },
-      query: { id: orderId },
+      query: { id: orderId, action: 'payment-session' },
     }, res);
 
     expect(res.statusCode).toBe(502);
@@ -530,7 +530,7 @@ describe('POST /api/orders/:id/payment-session', () => {
     await handler({
       method: 'POST',
       headers: { authorization: 'Bearer user-access-token' },
-      query: { id: orderId },
+      query: { id: orderId, action: 'payment-session' },
     }, res);
 
     const diagnosticCall = errorSpy.mock.calls.find(([message]) => message === 'Wompi payment-link rejected');
@@ -557,7 +557,7 @@ describe('POST /api/orders/:id/payment-session', () => {
     await handler({
       method: 'POST',
       headers: { authorization: 'Bearer user-access-token' },
-      query: { id: orderId },
+      query: { id: orderId, action: 'payment-session' },
     }, res);
 
     expect(res.statusCode).toBe(502);
@@ -590,7 +590,7 @@ describe('POST /api/orders/:id/payment-session', () => {
     await handler({
       method: 'POST',
       headers: { authorization: 'Bearer user-access-token' },
-      query: { id: orderId },
+      query: { id: orderId, action: 'payment-session' },
     }, res);
 
     expect(res.statusCode).toBe(200);
