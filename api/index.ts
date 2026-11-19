@@ -3,10 +3,6 @@ import { mergeRouteIdQuery, type RequestQuery } from '../lib/api-helpers/route-q
 
 type RoutedRequest = http.IncomingMessage & { query?: RequestQuery };
 
-type RoutedRequest = http.IncomingMessage & {
-  query?: Record<string, string | string[] | undefined>;
-};
-
 const CORS_ORIGINS = new Set([
   'http://localhost:3000',
   'http://127.0.0.1:3000',

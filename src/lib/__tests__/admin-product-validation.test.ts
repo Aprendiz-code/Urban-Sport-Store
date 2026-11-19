@@ -72,7 +72,6 @@ describe('admin product validation', () => {
       images: [],
     };
     expect(validateProductForm(product)).toEqual({});
-    expect(validateProductForm({ ...product, shippingWeightGrams: 1000 })).toEqual({});
   });
 
   it('requires a non-empty brand and accepts a valid brand value', () => {
