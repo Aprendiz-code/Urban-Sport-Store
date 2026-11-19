@@ -69,8 +69,8 @@ async function resolveRoute(req: RoutedRequest, res: http.ServerResponse) {
 
   const orderRequoteMatch = pathname.match(/^\/api\/orders\/([^/]+)\/requote$/);
   if (orderRequoteMatch) {
-    const module = await import('./orders/[id]/requote.ts');
-    req.query = { ...(req.query ?? {}), id: orderRequoteMatch[1] };
+    const module = await import('./orders/[id].ts');
+    req.query = { ...(req.query ?? {}), id: orderRequoteMatch[1], action: 'requote' };
     return module.default(req, res);
   }
 
@@ -80,8 +80,8 @@ async function resolveRoute(req: RoutedRequest, res: http.ServerResponse) {
       return jsonError(res, 405, 'Método no permitido.');
     }
 
-    const module = await import('./orders/[id]/payment-session.ts');
-    req.query = mergeRouteIdQuery(req.query, paymentSessionMatch[1]);
+    const module = await import('./orders/[id].ts');
+    req.query = { ...(req.query ?? {}), id: paymentSessionMatch[1], action: 'payment-session' };
     return module.default(req, res);
   }
 
