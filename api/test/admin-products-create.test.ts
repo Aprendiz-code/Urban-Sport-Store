@@ -141,7 +141,31 @@ describe('admin product create endpoint', () => {
     expect(apiMocks.insert).not.toHaveBeenCalled();
   });
 
-  it('rejects creation before Supabase insert when required shipping fields are missing', async () => {
+  it('creates a product without shipping metadata', async () => {
+    const body: Record<string, unknown> = createBody();
+    const shippingFields = [
+      'shipping_weight_grams',
+      'shipping_length_cm',
+      'shipping_width_cm',
+      'shipping_height_cm',
+      'shipping_declared_value_cop',
+      'shipping_units_per_guide',
+    ];
+    for (const field of shippingFields) delete body[field];
+
+    const response = createResponse();
+
+    await handler(createRequest(body), response);
+
+    expect(response.statusCode).toBe(201);
+    expect(apiMocks.insert).toHaveBeenCalledOnce();
+    const insertedPayload = apiMocks.insert.mock.calls[0][0][0] as Record<string, unknown>;
+    for (const field of shippingFields) {
+      expect(insertedPayload).not.toHaveProperty(field);
+    }
+  });
+
+  it('rejects partially provided shipping metadata before inserting', async () => {
     const body = createBody();
     delete (body as Partial<typeof body>).shipping_height_cm;
     const response = createResponse();
