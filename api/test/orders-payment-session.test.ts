@@ -1,13 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const scopedClientMocks = vi.hoisted(() => ({ createClient: vi.fn() }));
-
-vi.mock('../../lib/api-helpers/supabase.js', () => ({
+const scopedClientMocks = vi.hoisted(() => ({
+  createClient: vi.fn(),
   supabaseAdmin: {
     auth: { getUser: vi.fn() },
     from: vi.fn(),
     rpc: vi.fn(),
   },
+}));
+
+vi.mock('../../lib/api-helpers/supabase.js', () => ({
+  supabaseAdmin: scopedClientMocks.supabaseAdmin,
+}));
+vi.mock('../../lib/api-helpers/supabase.ts', () => ({
+  supabaseAdmin: scopedClientMocks.supabaseAdmin,
 }));
 
 vi.mock('@supabase/supabase-js', () => ({
