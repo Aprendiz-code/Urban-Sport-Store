@@ -10,7 +10,7 @@ vi.mock('../admin-api', () => ({
 }));
 
 import { getSupabaseClient } from '../supabase-client';
-import { deleteProductImage, resolveStorageBucket, STORAGE_BUCKET, uploadProductImage } from '../supabase-store';
+import { buildProductImagePath, deleteProductImage, resolveStorageBucket, STORAGE_BUCKET, uploadProductImage } from '../supabase-store';
 
 describe('browser image storage writes', () => {
   it('defaults to the existing products bucket but respects an explicit setting', () => {
@@ -28,5 +28,9 @@ describe('browser image storage writes', () => {
     expect(adminApiMocks.uploadProductImageApi).toHaveBeenCalledWith(file);
     await expect(deleteProductImage('products/image.png')).rejects.toThrow('endpoint server-side');
     expect(getSupabaseClient).not.toHaveBeenCalled();
+  });
+
+  it('keeps the AVIF extension when generating a product image path', () => {
+    expect(buildProductImagePath({ name: 'image.avif', type: 'image/avif' } as File)).toMatch(/\.avif$/);
   });
 });

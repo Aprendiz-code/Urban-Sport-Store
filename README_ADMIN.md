@@ -23,7 +23,7 @@ La arquitectura que existe es React/TypeScript + Vite en el cliente, Supabase Au
 - Contenido de la home: lectura/actualización de campos soportados por `home_content`.
 - Auditoría: lectura de hasta 200 registros. Algunas escrituras existentes registran cambios de productos y contenido.
 - Inventario: la vista muestra stock de productos; no hay endpoint funcional de movimientos ni historial.
-- Imágenes: el formulario valida JPG/JPEG/PNG/WebP hasta 5 MB y sube a Supabase Storage. Esto sigue usando acceso desde cliente y depende de las políticas efectivas del bucket, que no se pudieron revisar remotamente.
+- Imágenes: el formulario valida JPG/JPEG/PNG/WebP/AVIF hasta 5 MB y sube a Supabase Storage mediante el endpoint autenticado. La carga de AVIF también requiere que `image/avif` esté permitido en la configuración efectiva del bucket.
 
 ## Funciones pendientes
 

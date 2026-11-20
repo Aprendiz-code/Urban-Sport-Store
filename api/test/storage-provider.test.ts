@@ -6,6 +6,13 @@ import { LocalStorageProvider, StorageProviderNotConfiguredError, SupabaseStorag
 
 const temporaryDirectories: string[] = [];
 const pngHeader = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]);
+const avifHeader = new Uint8Array([
+  0x00, 0x00, 0x00, 0x14,
+  0x66, 0x74, 0x79, 0x70,
+  0x6d, 0x69, 0x66, 0x31,
+  0x00, 0x00, 0x00, 0x00,
+  0x61, 0x76, 0x69, 0x66,
+]);
 
 async function createTemporaryRoot() {
   const directory = await mkdtemp(join(tmpdir(), 'urban-sport-storage-'));
@@ -30,6 +37,20 @@ describe('local storage provider', () => {
     expect(asset.storageKey).toMatch(/^products\/[0-9a-f-]{36}\.png$/);
     expect(asset.publicPath).toBeNull();
     expect(await readFile(join((temporaryDirectories[0] as string), ...asset.storageKey.split('/')))).toEqual(Buffer.from(pngHeader));
+  });
+
+  it('accepts AVIF files when an AVIF brand appears in the file type box', async () => {
+    const provider = new LocalStorageProvider(await createTemporaryRoot());
+    const asset = await provider.upload({
+      area: 'products',
+      bytes: avifHeader,
+      originalName: 'product.avif',
+      declaredMimeType: 'image/avif',
+    });
+
+    expect(asset.storageKey).toMatch(/^products\/[0-9a-f-]{36}\.avif$/);
+    expect(asset.mimeType).toBe('image/avif');
+    expect(await readFile(join((temporaryDirectories[0] as string), ...asset.storageKey.split('/')))).toEqual(Buffer.from(avifHeader));
   });
 
   it('rejects mismatched MIME types, oversized files, and traversal keys', async () => {

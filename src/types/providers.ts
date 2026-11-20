@@ -10,7 +10,7 @@ export interface StorageUploadRequest {
 export interface StoredAsset {
   storageKey: string;
   publicPath: string;
-  mimeType: 'image/jpeg' | 'image/png' | 'image/webp';
+  mimeType: 'image/jpeg' | 'image/png' | 'image/webp' | 'image/avif';
   sizeBytes: number;
 }
 

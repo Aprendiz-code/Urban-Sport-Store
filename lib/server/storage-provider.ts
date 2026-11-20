@@ -2,9 +2,10 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, unlink, writeFile } from 'node:fs/promises';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import type { StorageProvider, StorageUploadRequest, StoredAsset } from '../../src/types/providers.ts';
+import { hasAvifSignature } from '../api-helpers/image-signatures.ts';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
-const STORAGE_KEY_PATTERN = /^(products|categories|banners)\/[0-9a-f-]{36}\.(jpg|png|webp)$/;
+const STORAGE_KEY_PATTERN = /^(products|categories|banners)\/[0-9a-f-]{36}\.(jpg|png|webp|avif)$/;
 
 export class StorageProviderNotConfiguredError extends Error {
   constructor() {
@@ -36,13 +37,17 @@ function imageMimeFromBytes(bytes: Uint8Array): StoredAsset['mimeType'] | null {
   ) {
     return 'image/webp';
   }
+  if (hasAvifSignature(bytes)) {
+    return 'image/avif';
+  }
   return null;
 }
 
 function extensionForMime(mimeType: StoredAsset['mimeType']): string {
   if (mimeType === 'image/jpeg') return 'jpg';
   if (mimeType === 'image/png') return 'png';
-  return 'webp';
+  if (mimeType === 'image/webp') return 'webp';
+  return 'avif';
 }
 
 function resolveInsideRoot(rootDirectory: string, storageKey: string): string {

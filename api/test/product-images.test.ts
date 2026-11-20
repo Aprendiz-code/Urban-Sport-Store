@@ -70,6 +70,41 @@ describe('admin product image upload', () => {
     expect(() => resolveProductStorageBucket('product-images')).toThrow('debe ser products');
   });
 
+  it('accepts AVIF uploads only when the file signature declares an AVIF brand', async () => {
+    const bytes = Buffer.from([
+      0x00, 0x00, 0x00, 0x14,
+      0x66, 0x74, 0x79, 0x70,
+      0x6d, 0x69, 0x66, 0x31,
+      0x00, 0x00, 0x00, 0x00,
+      0x61, 0x76, 0x69, 0x66,
+    ]);
+    const response = createResponse();
+
+    await handler(createRequest('image/avif', bytes), response);
+
+    expect(apiMocks.upload).toHaveBeenCalledWith(
+      expect.stringMatching(/^products\/[0-9a-f-]+\.avif$/),
+      bytes,
+      expect.objectContaining({ contentType: 'image/avif', upsert: false }),
+    );
+    expect(response.statusCode).toBe(201);
+  });
+
+  it('rejects AVIF MIME types when the file signature has no AVIF brand', async () => {
+    const bytes = Buffer.from([
+      0x00, 0x00, 0x00, 0x10,
+      0x66, 0x74, 0x79, 0x70,
+      0x6d, 0x69, 0x66, 0x31,
+      0x00, 0x00, 0x00, 0x00,
+    ]);
+    const response = createResponse();
+
+    await handler(createRequest('image/avif', bytes), response);
+
+    expect(response.statusCode).toBe(415);
+    expect(apiMocks.upload).not.toHaveBeenCalled();
+  });
+
   it('rejects unsupported content types without writing to Storage', async () => {
     const response = createResponse();
 

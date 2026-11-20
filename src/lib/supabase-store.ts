@@ -51,7 +51,7 @@ export function resolveStorageBucket(configuredBucket?: string): string {
 }
 
 export const STORAGE_BUCKET = resolveStorageBucket(import.meta.env.VITE_SUPABASE_STORAGE_BUCKET);
-const SUPPORTED_IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp'];
+const SUPPORTED_IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'avif'];
 
 const getFileExtension = (file: File) => {
   const fileName = file.name.toLowerCase();
@@ -63,6 +63,7 @@ const getFileExtension = (file: File) => {
   if (file.type === 'image/jpeg') return 'jpg';
   if (file.type === 'image/png') return 'png';
   if (file.type === 'image/webp') return 'webp';
+  if (file.type === 'image/avif') return 'avif';
 
   return 'png';
 };

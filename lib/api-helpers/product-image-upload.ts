@@ -3,12 +3,14 @@ import { jsonError, jsonResponse, jsonSupabaseError, ApiError } from './response
 import { supabaseAdmin } from './supabase.ts';
 import { requirePermission } from './admin.ts';
 import { requireAuthenticatedUser } from './auth.ts';
+import { hasAvifSignature } from './image-signatures.ts';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const IMAGE_TYPES = new Map([
   ['image/jpeg', { extension: 'jpg', signature: (bytes: Buffer) => bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff }],
   ['image/png', { extension: 'png', signature: (bytes: Buffer) => bytes.length >= 8 && bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) }],
   ['image/webp', { extension: 'webp', signature: (bytes: Buffer) => bytes.length >= 12 && bytes.toString('ascii', 0, 4) === 'RIFF' && bytes.toString('ascii', 8, 12) === 'WEBP' }],
+  ['image/avif', { extension: 'avif', signature: hasAvifSignature }],
 ]);
 
 export function resolveProductStorageBucket(configuredBucket = process.env.SUPABASE_STORAGE_BUCKET): string {
@@ -56,7 +58,7 @@ export async function handleProductImageUpload(req: any, res: any) {
 
     const contentType = String(req.headers?.['content-type'] ?? '').split(';')[0].trim().toLowerCase();
     const imageType = IMAGE_TYPES.get(contentType);
-    if (!imageType) throw new ApiError(415, 'Formato no permitido. Usa JPG, PNG o WebP.');
+    if (!imageType) throw new ApiError(415, 'Formato no permitido. Usa JPG, PNG, WebP o AVIF.');
 
     const bytes = await readImageBody(req);
     if (!imageType.signature(bytes)) throw new ApiError(415, 'El contenido no coincide con el formato de imagen indicado.');

@@ -4876,11 +4876,11 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
 
                   <label className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-slate-300 bg-white px-4 py-4 text-center hover:border-blue-500 hover:bg-blue-50/40">
                     <span className="text-sm font-semibold text-slate-700">Seleccionar imágenes</span>
-                    <span className="text-xs text-slate-500">JPG, PNG o WebP · máximo 5 MB cada una</span>
+                    <span className="text-xs text-slate-500">JPG, PNG, WebP o AVIF · máximo 5 MB cada una</span>
                     <input
                       type="file"
                       aria-label="Seleccionar imágenes del producto"
-                      accept="image/jpeg,image/png,image/webp"
+                      accept="image/jpeg,image/png,image/webp,image/avif"
                       multiple
                       onChange={handleProductImageFilesChange}
                       disabled={isSubmitting || productImageSelections.length >= MAX_PRODUCT_TOTAL_IMAGES}
@@ -5312,10 +5312,10 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
   };
 
   const validateImageFile = (file: File) => {
-    const supportedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    const supportedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
     const maxSizeBytes = 5 * 1024 * 1024;
 
-    if (!supportedTypes.includes(file.type)) return 'Formato no válido. Usa JPG, PNG o WebP.';
+    if (!supportedTypes.includes(file.type)) return 'Formato no válido. Usa JPG, PNG, WebP o AVIF.';
     if (file.size === 0) return 'El archivo está vacío.';
     if (file.size > maxSizeBytes) return 'El archivo excede el límite de 5 MB.';
     return null;
