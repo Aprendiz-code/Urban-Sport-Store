@@ -159,6 +159,7 @@ async function installCheckoutHarness(page: Page, options: CheckoutHarnessOption
         const destination = body.destinationCode === '05001000'
           ? { code: '05001000', department: 'Antioquia', municipality: 'Medellín' }
           : { code: '11001000', department: 'Cundinamarca', municipality: 'Bogotá' };
+        const quantity = body.items.reduce((total, item) => total + item.quantity, 0);
         await fulfillJson(route, 201, {
           ok: true,
           data: {
@@ -167,8 +168,8 @@ async function installCheckoutHarness(page: Page, options: CheckoutHarnessOption
               provider: 'coordinadora',
               currency: 'COP',
               calculatedBy: 'urban_sport_store',
-              amountCop: 9010 + quoteRequests.length - 1,
-              subtotalCop: 1000 * body.items.reduce((total, item) => total + item.quantity, 0),
+              amountCop: 9010 + (body.destinationCode === '05001000' ? 1 : 0) + Math.max(0, quantity - 1),
+              subtotalCop: 1000 * quantity,
               coverage: { covered: true, originCode: '11001000', destinationCode: destination.code },
               destination,
               estimatedDelivery: { minBusinessDays: 2, maxBusinessDays: 4 },
@@ -342,15 +343,25 @@ test('invalidates the prior quote when the address and cart quantity change', as
 
   await page.getByRole('radio', { name: /Oficina/ }).check();
   await expect(page.getByText('Calculando envío con tarifas configuradas…', { exact: true })).toBeVisible();
+  await expect(page.getByText('Envío: $9.010 COP', { exact: true })).not.toBeVisible();
   await expect(page.getByText('Envío: $9.011 COP', { exact: true })).toBeVisible();
-  expect(harness.quoteRequests[1].address.city).toBe('Medellín');
+  expect(harness.quoteRequests[harness.quoteRequests.length - 1]).toMatchObject({
+    destinationCode: '05001000',
+    address: { city: 'Medellín' },
+    items: [{ productId, quantity: 1 }],
+  });
 
   await page.getByRole('button', { name: /Abrir carrito, 1 artículos/ }).click();
   await page.getByRole('button', { name: 'Aumentar cantidad de Tenis E2E' }).click();
   await expect(page.getByText('Calculando envío con tarifas configuradas…', { exact: true })).toBeVisible();
+  await expect(page.getByText('Envío: $9.011 COP', { exact: true })).not.toBeVisible();
   await page.getByRole('button', { name: 'Cerrar carrito' }).click();
   await expect(page.getByText('Envío: $9.012 COP', { exact: true })).toBeVisible();
-  expect(harness.quoteRequests[2].items).toEqual([{ productId, quantity: 2 }]);
+  expect(harness.quoteRequests[harness.quoteRequests.length - 1]).toMatchObject({
+    destinationCode: '05001000',
+    address: { city: 'Medellín' },
+    items: [{ productId, quantity: 2 }],
+  });
   await expectNoExternalRequests(harness);
 });
 
@@ -361,7 +372,7 @@ test('renews a quote after it expires from the address step', async ({ page }) =
   await expect(page.getByRole('alert')).toContainText('La cotización venció.');
   await expect(page.getByRole('button', { name: 'Volver a cotizar' })).toBeVisible();
   await page.getByRole('button', { name: 'Volver a cotizar' }).click();
-  await expect(page.getByText('Envío: $9.011 COP', { exact: true })).toBeVisible();
+  await expect(page.getByText('Envío: $9.010 COP', { exact: true })).toBeVisible();
   expect(harness.quoteRequests).toHaveLength(2);
   expect(harness.orders).toHaveLength(0);
   expect(harness.sessions).toHaveLength(0);
