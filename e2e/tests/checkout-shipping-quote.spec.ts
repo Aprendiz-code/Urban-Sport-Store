@@ -1,6 +1,6 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
 
-const localOrigin = process.env.E2E_BASE_URL ?? 'http://localhost:5173';
+const localOrigin = process.env.E2E_BASE_URL ?? 'http://127.0.0.1:5173';
 const productId = '11111111-1111-4111-8111-111111111111';
 const userId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const orderId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
