@@ -32,7 +32,4 @@ jobs:
           pnpm exec playwright install --with-deps
           pnpm e2e
         env:
-          E2E_BASE_URL: http://localhost:5173
-          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
-          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
-          E2E_SECRET: ${{ secrets.E2E_SECRET }}
+          CI: true

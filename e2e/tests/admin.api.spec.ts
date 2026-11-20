@@ -1,17 +1,19 @@
 import { test, expect } from '@playwright/test';
 
-const configuredApiBase = process.env.E2E_API_BASE ?? 'http://127.0.0.1:3000/api';
-const API_BASE = /\/api\/?$/i.test(configuredApiBase)
-  ? configuredApiBase.replace(/\/$/, '')
-  : `${configuredApiBase.replace(/\/$/, '')}/api`;
+const configuredApiBase = process.env.E2E_API_BASE;
+const apiBase = configuredApiBase ?? 'http://127.0.0.1:3000/api';
+const API_BASE = /\/api\/?$/i.test(apiBase)
+  ? apiBase.replace(/\/$/, '')
+  : `${apiBase.replace(/\/$/, '')}/api`;
 const ADMIN_ACCESS_TOKEN = process.env.E2E_ADMIN_ACCESS_TOKEN ?? '';
 const NON_ADMIN_ACCESS_TOKEN = process.env.E2E_NON_ADMIN_ACCESS_TOKEN ?? '';
 const E2E_SUPABASE_REF = process.env.E2E_SUPABASE_REF ?? '';
-const isLocalApi = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/api$/i.test(API_BASE);
+const isLocalApi = Boolean(configuredApiBase)
+  && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/api$/i.test(API_BASE);
 const isDedicatedE2EProject = Boolean(E2E_SUPABASE_REF) && E2E_SUPABASE_REF !== 'geapxdyyfmygqrqfnier';
 
 function requireLocalApi() {
-  test.skip(!isLocalApi, 'Admin API E2E tests are restricted to local environments.');
+  test.skip(!isLocalApi, 'Admin API E2E tests require an explicitly configured local API server.');
 }
 
 test('API: returns 401 for admin products without auth', async ({ request }) => {

@@ -117,6 +117,7 @@ describe('POST /api/orders/:id/payment-session', () => {
   let ownedOrderQuery: ReturnType<typeof createQuery>;
   let serviceOrderQuery: ReturnType<typeof createQuery>;
   let providerFetch: ReturnType<typeof vi.fn>;
+  let visibleOrder: { id: string } | null;
   let linkExpiresAt: string;
 
   beforeEach(() => {
@@ -135,6 +136,7 @@ describe('POST /api/orders/:id/payment-session', () => {
     linkExpiresAt = futureDate(10);
 
     ownedOrderQuery = createQuery({ data: { id: orderId }, error: null });
+    visibleOrder = { id: orderId };
     serviceOrderQuery = createQuery({ data: orderRow(), error: null });
     const profileQuery = createQuery({
       data: { id: userId, role: 'CUSTOMER', is_active: true },
@@ -174,7 +176,17 @@ describe('POST /api/orders/:id/payment-session', () => {
         },
       }),
     });
-    vi.stubGlobal('fetch', providerFetch);
+    vi.stubGlobal('fetch', (input: RequestInfo | URL, init?: RequestInit) => {
+      const requestUrl = input instanceof Request ? input.url : input.toString();
+      const url = new URL(requestUrl);
+      if (url.origin === 'https://example.supabase.co' && url.pathname === '/rest/v1/orders') {
+        return Promise.resolve(new Response(JSON.stringify(visibleOrder ? [visibleOrder] : []), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }));
+      }
+      return providerFetch(input, init);
+    });
   });
 
   it('creates a sandbox link for the authenticated owner and returns only checkout details', async () => {
@@ -369,6 +381,7 @@ describe('POST /api/orders/:id/payment-session', () => {
   });
 
   it('uses a uniform 404 for an order that is not visible to the Bearer user', async () => {
+    visibleOrder = null;
     ownedOrderQuery = createQuery({ data: null, error: null });
     scopedClientMocks.createClient.mockReturnValue({
       from: vi.fn(() => ownedOrderQuery),
