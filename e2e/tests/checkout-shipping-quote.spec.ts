@@ -72,7 +72,7 @@ interface CheckoutHarnessOptions {
 }
 
 interface CheckoutHarness {
-  quoteRequests: Array<{ address: { city: string }; items: Array<{ productId: string; quantity: number }> }>;
+  quoteRequests: Array<{ destinationCode: string; address: { city: string }; items: Array<{ productId: string; quantity: number }> }>;
   orders: Array<Record<string, unknown>>;
   sessions: string[];
   blockedRequests: string[];
@@ -156,6 +156,9 @@ async function installCheckoutHarness(page: Page, options: CheckoutHarnessOption
           ? options.firstQuoteLifetimeMs ?? 300_000
           : 300_000;
         const quoteId = `${quoteBaseId}${String(quoteRequests.length).padStart(12, '0')}`;
+        const destination = body.destinationCode === '05001000'
+          ? { code: '05001000', department: 'Antioquia', municipality: 'Medellín' }
+          : { code: '11001000', department: 'Cundinamarca', municipality: 'Bogotá' };
         await fulfillJson(route, 201, {
           ok: true,
           data: {
@@ -163,9 +166,11 @@ async function installCheckoutHarness(page: Page, options: CheckoutHarnessOption
               id: quoteId,
               provider: 'coordinadora',
               currency: 'COP',
+              calculatedBy: 'urban_sport_store',
               amountCop: 9010 + quoteRequests.length - 1,
               subtotalCop: 1000 * body.items.reduce((total, item) => total + item.quantity, 0),
-              coverage: { covered: true, originCode: '11001000', destinationCode: '05001000' },
+              coverage: { covered: true, originCode: '11001000', destinationCode: destination.code },
+              destination,
               estimatedDelivery: { minBusinessDays: 2, maxBusinessDays: 4 },
               expiresAt: new Date(Date.now() + expiresIn).toISOString(),
             },
