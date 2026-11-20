@@ -342,14 +342,14 @@ test('invalidates the prior quote when the address and cart quantity change', as
 
   await page.getByRole('radio', { name: /Oficina/ }).check();
   await expect(page.getByText('Calculando envío con tarifas configuradas…', { exact: true })).toBeVisible();
-  await expect(page.getByText('$9.011 COP', { exact: true })).toBeVisible();
+  await expect(page.getByText('Envío: $9.011 COP', { exact: true })).toBeVisible();
   expect(harness.quoteRequests[1].address.city).toBe('Medellín');
 
   await page.getByRole('button', { name: /Abrir carrito, 1 artículos/ }).click();
   await page.getByRole('button', { name: 'Aumentar cantidad de Tenis E2E' }).click();
   await expect(page.getByText('Calculando envío con tarifas configuradas…', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Cerrar carrito' }).click();
-  await expect(page.getByText('$9.012 COP', { exact: true })).toBeVisible();
+  await expect(page.getByText('Envío: $9.012 COP', { exact: true })).toBeVisible();
   expect(harness.quoteRequests[2].items).toEqual([{ productId, quantity: 2 }]);
   await expectNoExternalRequests(harness);
 });
