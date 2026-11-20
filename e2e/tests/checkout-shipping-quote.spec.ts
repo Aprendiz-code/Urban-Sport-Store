@@ -132,6 +132,18 @@ async function installCheckoutHarness(page: Page, options: CheckoutHarnessOption
         await fulfillJson(route, 200, { ok: true, data: {} });
         return;
       }
+      if (pathname === '/api/shipping/destinations' && route.request().method() === 'GET') {
+        await fulfillJson(route, 200, {
+          ok: true,
+          data: {
+            destinations: [
+              { code: '11001000', department: 'Cundinamarca', municipality: 'Bogotá' },
+              { code: '05001000', department: 'Antioquia', municipality: 'Medellín' },
+            ],
+          },
+        });
+        return;
+      }
       if (pathname === '/api/shipping/quotes' && route.request().method() === 'POST') {
         const body = route.request().postDataJSON() as CheckoutHarness['quoteRequests'][number];
         quoteRequests.push(body);
