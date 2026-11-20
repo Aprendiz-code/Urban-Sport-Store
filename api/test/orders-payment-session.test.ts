@@ -176,7 +176,8 @@ describe('POST /api/orders/:id/payment-session', () => {
         },
       }),
     });
-    vi.stubGlobal('fetch', (input: RequestInfo | URL, init?: RequestInit) => {
+    vi.stubGlobal('fetch', (...args: Parameters<typeof fetch>) => {
+      const [input, init] = args;
       const requestUrl = input instanceof Request ? input.url : input.toString();
       const url = new URL(requestUrl);
       if (url.origin === 'https://example.supabase.co' && url.pathname === '/rest/v1/orders') {
