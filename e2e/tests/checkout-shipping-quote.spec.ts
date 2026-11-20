@@ -316,9 +316,11 @@ test('shows the quote returned by the backend before payment and sends its exact
   const harness = await installCheckoutHarness(page);
   await harness.openCheckout();
 
-  await expect(page.getByText(/Envío Coordinadora cotizado: \$9\.010 COP/)).toBeVisible();
-  await expect(page.getByText(/entrega estimada en 2 día/)).toBeVisible();
-  await expect(page.getByText(/\$10\.010 COP/)).toBeVisible();
+  await expect(page.getByText('Envío calculado por Urban Sport Store', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText('Cundinamarca, Bogotá · cobertura configurada')).toBeVisible();
+  await expect(page.getByText('Envío: $9.010 COP', { exact: true })).toBeVisible();
+  await expect(page.getByText('Total: $10.010 COP', { exact: true })).toBeVisible();
+  await expect(page.getByText('Entrega estimada: 2 día(s) hábil(es).', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Continuar' }).click();
   await expect(page.getByText(/Entrega estimada: 2–4 días hábiles/)).toBeVisible();
   await page.getByRole('button', { name: 'Continuar' }).click();
@@ -336,16 +338,16 @@ test('shows the quote returned by the backend before payment and sends its exact
 test('invalidates the prior quote when the address and cart quantity change', async ({ page }) => {
   const harness = await installCheckoutHarness(page, { quoteDelayMs: 250 });
   await harness.openCheckout();
-  await expect(page.getByText(/Envío Coordinadora cotizado/)).toBeVisible();
+  await expect(page.getByText('Envío calculado por Urban Sport Store', { exact: true }).first()).toBeVisible();
 
   await page.getByRole('radio', { name: /Oficina/ }).check();
-  await expect(page.getByText('Cotizando envío Coordinadora…', { exact: true })).toBeVisible();
+  await expect(page.getByText('Calculando envío con tarifas configuradas…', { exact: true })).toBeVisible();
   await expect(page.getByText('$9.011 COP', { exact: true })).toBeVisible();
   expect(harness.quoteRequests[1].address.city).toBe('Medellín');
 
   await page.getByRole('button', { name: /Abrir carrito, 1 artículos/ }).click();
   await page.getByRole('button', { name: 'Aumentar cantidad de Tenis E2E' }).click();
-  await expect(page.getByText('Cotizando envío Coordinadora…', { exact: true })).toBeVisible();
+  await expect(page.getByText('Calculando envío con tarifas configuradas…', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Cerrar carrito' }).click();
   await expect(page.getByText('$9.012 COP', { exact: true })).toBeVisible();
   expect(harness.quoteRequests[2].items).toEqual([{ productId, quantity: 2 }]);
@@ -359,7 +361,7 @@ test('renews a quote after it expires from the address step', async ({ page }) =
   await expect(page.getByRole('alert')).toContainText('La cotización venció.');
   await expect(page.getByRole('button', { name: 'Volver a cotizar' })).toBeVisible();
   await page.getByRole('button', { name: 'Volver a cotizar' }).click();
-  await expect(page.getByText(/Envío Coordinadora cotizado: \$9\.011 COP/)).toBeVisible();
+  await expect(page.getByText('Envío: $9.011 COP', { exact: true })).toBeVisible();
   expect(harness.quoteRequests).toHaveLength(2);
   expect(harness.orders).toHaveLength(0);
   expect(harness.sessions).toHaveLength(0);
@@ -369,7 +371,7 @@ test('renews a quote after it expires from the address step', async ({ page }) =
 test('a rapid double click creates one order and one payment session', async ({ page }) => {
   const harness = await installCheckoutHarness(page, { orderDelayMs: 250 });
   await harness.openCheckout();
-  await expect(page.getByText(/Envío Coordinadora cotizado/)).toBeVisible();
+  await expect(page.getByText('Envío calculado por Urban Sport Store', { exact: true }).first()).toBeVisible();
   await page.getByRole('button', { name: 'Continuar' }).click();
   await page.getByRole('button', { name: 'Continuar' }).click();
 
