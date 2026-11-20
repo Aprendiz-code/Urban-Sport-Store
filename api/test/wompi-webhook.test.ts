@@ -600,20 +600,24 @@ describe('Wompi transaction webhook', () => {
     );
   });
 
-  it.each([
-    ['expired', Math.floor(Date.now() / 1000) - 48 * 60 * 60 - 1],
-    ['too far in the future', Math.floor(Date.now() / 1000) + 5 * 60 + 1],
-  ] as const)('rejects a %s signed timestamp before any database call', async (_case, timestamp) => {
-    const event = signedEvent('APPROVED');
-    event.timestamp = timestamp;
-    signEvent(event);
-    const res = makeResponse();
+  it.each(['expired', 'too far in the future'] as const)(
+    'rejects a %s signed timestamp before any database call',
+    async (_case) => {
+      const nowSeconds = Math.floor(Date.now() / 1000);
+      const timestamp = _case === 'expired'
+        ? nowSeconds - 48 * 60 * 60 - 1
+        : nowSeconds + 10 * 60;
+      const event = signedEvent('APPROVED');
+      event.timestamp = timestamp;
+      signEvent(event);
+      const res = makeResponse();
 
-    await handler({ method: 'POST', headers: {}, body: event }, res);
+      await handler({ method: 'POST', headers: {}, body: event }, res);
 
-    expect(res.statusCode).toBe(400);
-    expect(supabaseAdmin!.rpc).not.toHaveBeenCalled();
-  });
+      expect(res.statusCode).toBe(400);
+      expect(supabaseAdmin!.rpc).not.toHaveBeenCalled();
+    },
+  );
 
   it.each(['duplicate', 'stale', 'review_required'] as const)(
     'propagates the processor result for %s events unchanged',
