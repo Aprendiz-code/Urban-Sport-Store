@@ -11,6 +11,7 @@ import {
   getPolicyAnswer,
   sanitizeContext,
   sanitizeText,
+  getSiteKnowledgeAnswer,
   type AssistantResponse,
 } from './shopping-assistant.ts';
 
@@ -78,6 +79,17 @@ export default async function handler(req: any, res: any) {
       } satisfies AssistantResponse);
     }
 
+    const siteKnowledge = getSiteKnowledgeAnswer(message);
+    if (siteKnowledge) {
+      return jsonResponse(res, {
+        ok: true,
+        message: siteKnowledge.message,
+        source: 'policy',
+        products: [],
+        needsWhatsApp: siteKnowledge.needsWhatsApp,
+      } satisfies AssistantResponse);
+    }
+
     const general = getGeneralAnswer(message);
     if (general) {
       return jsonResponse(res, {
@@ -112,6 +124,29 @@ export default async function handler(req: any, res: any) {
         needsWhatsApp: true,
       };
       return jsonResponse(res, fallback);
+    }
+
+    const normalizedCatalogQuestion = message.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+    if (/cuantos productos|cuántos productos|total.*productos|numero.*productos|número.*productos/.test(normalizedCatalogQuestion)) {
+      return jsonResponse(res, {
+        ok: true,
+        message: `El catálogo activo contiene ${products.length} productos cargados. Puedo ayudarte a filtrarlos por categoría, marca, talla o presupuesto.`,
+        source: 'catalog',
+        products: products.slice(0, 3),
+        needsWhatsApp: false,
+      } satisfies AssistantResponse);
+    }
+
+    if (/mas economico|más económico|mas barato|más barato|menor precio|los mas baratos|los más baratos/.test(normalizedCatalogQuestion)) {
+      const cheapest = [...products].sort((left, right) => left.price - right.price).slice(0, 3);
+      return jsonResponse(res, {
+        ok: true,
+        message: buildCatalogMessage(cheapest, 'presupuesto'),
+        source: 'catalog',
+        products: cheapest,
+        needsWhatsApp: false,
+      } satisfies AssistantResponse);
     }
 
     const intent = detectStructuredIntent(message);

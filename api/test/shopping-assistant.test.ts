@@ -6,6 +6,7 @@ import {
   filterProducts,
   getGeneralAnswer,
   getPolicyAnswer,
+  getSiteKnowledgeAnswer,
   resolveGroqModel,
   type AssistantProduct,
 } from '../../lib/shopping-assistant.js';
@@ -18,6 +19,11 @@ const products: AssistantProduct[] = [
 afterEach(() => vi.restoreAllMocks());
 
 describe('shopping assistant deterministic logic', () => {
+  it('answers questions about the website sections', () => {
+    expect(getSiteKnowledgeAnswer('¿Qué contiene la página?')?.message).toContain('inicio');
+    expect(getSiteKnowledgeAnswer('¿Cuáles medios de pago hay?')?.message).toContain('PSE');
+  });
+
   it('answers general questions without WhatsApp or Groq', () => {
     expect(getGeneralAnswer('Hola')?.needsWhatsApp).toBe(false);
     expect(getGeneralAnswer('Qué puedes hacer')?.message).toContain('catálogo');

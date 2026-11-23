@@ -153,6 +153,54 @@ export function filterProducts(products: AssistantProduct[], message: string) {
   }).sort((left, right) => left.price - right.price).slice(0, 3);
 }
 
+export function getSiteKnowledgeAnswer(message: string): { message: string; needsWhatsApp: boolean } | null {
+  const normalized = normalize(message);
+
+  if (/que tiene la pagina|qué tiene la página|que contiene|secciones|navegacion|navegación|menu|menú/.test(normalized)) {
+    return {
+      message: 'La página incluye inicio, búsqueda, categorías de Tenis Hombre y Mujer, Ropa Hombre y Mujer, Perfumes, Relojes y Gafas, fichas de producto, carrito, cuenta, políticas de envío y cambios, newsletter y el asistente. Desde la tienda puedes explorar productos y conservar un carrito de invitado en el dispositivo.',
+      needsWhatsApp: false,
+    };
+  }
+
+  if (/carrito|lista de compras|guardar.*carrito|cantidad/.test(normalized)) {
+    return {
+      message: 'El carrito muestra las opciones agregadas y permite cambiar cantidades o retirarlas. Se conserva localmente en el dispositivo. No puedo tomar pagos ni confirmar compras desde el chat.',
+      needsWhatsApp: false,
+    };
+  }
+
+  if (/checkout|pasarela|pago seguro|wompi|contra entrega|medios? de pago|metodos? de pago|colegio|tarjeta|pse|nequi|daviplata|bancolombia/.test(normalized)) {
+    return {
+      message: 'La página muestra métodos como tarjetas Visa, Mastercard y American Express, PSE, Nequi, Daviplata, transferencia Bancolombia y pago contra entrega. El sitio puede mostrar opciones oficiales antes de pagar, pero no puedo solicitar datos de tarjeta ni confirmar una compra desde el chat.',
+      needsWhatsApp: true,
+    };
+  }
+
+  if (/horario|atencion|atención|contacto|correo|redes sociales|donde escribo|dónde escribo/.test(normalized)) {
+    return {
+      message: 'Puedes escribir por el canal oficial de WhatsApp o consultar el correo Urbansportstore@outlook.com. Para pedidos, reclamos, garantías o seguimiento, conviene usar WhatsApp porque el chat no tiene acceso autorizado al estado de pedidos.',
+      needsWhatsApp: true,
+    };
+  }
+
+  if (/politica|política|terminos|términos|privacidad|datos personales/.test(normalized)) {
+    return {
+      message: 'La tienda ofrece páginas de Política de privacidad, Términos y condiciones, Envíos y Cambios y devoluciones. Puedes consultarlas desde el pie de página. No puedo inventar excepciones ni confirmar datos privados desde el chat.',
+      needsWhatsApp: false,
+    };
+  }
+
+  if (/inicio|home|ofertas|productos destacados|novedades|destacados|promocion|promoción/.test(normalized)) {
+    return {
+      message: 'El inicio presenta promociones, categorías, productos destacados, nuevas llegadas, ofertas y descuentos visibles desde la tienda. Las promociones válidas son las que aparecen activas en el sitio; no puedo inventar porcentajes o cupones.',
+      needsWhatsApp: false,
+    };
+  }
+
+  return null;
+}
+
 export function getGeneralAnswer(message: string): { message: string; needsWhatsApp: boolean } | null {
   const normalized = normalize(message);
 
@@ -328,7 +376,7 @@ export async function callGroq(params: {
         messages: [
           {
             role: 'system',
-            content: 'Eres el asistente de Urban Sport Store. Responde en español colombiano, claro y breve. Usa únicamente el catálogo JSON adjunto. No inventes marca, precio, talla disponible, inventario, envíos, plazos, pagos ni promociones. Las tallas son solo listadas: no digas disponible. Si no puedes confirmar un dato, derivar a WhatsApp. Nunca solicites datos personales ni números de tarjeta. No modifiques carrito ni checkout.',
+            content: 'Eres el asistente de Urban Sport Store. Responde en español colombiano, claro y breve. Usa únicamente el catálogo JSON adjunto y estos datos públicos verificables: la página tiene inicio, búsqueda, categorías Tenis Hombre, Tenis Mujer, Ropa Hombre, Ropa Mujer, Perfumes, Relojes y Gafas, fichas de producto, carrito local, cuenta, envíos, pagos, cambios y devoluciones. Realiza envíos a Colombia; tarifa y plazo se confirman con la cotización vigente. Cambios o devoluciones: hasta 30 días desde la entrega, producto y empaque en condición acordada. Medios visibles: tarjetas, PSE, Nequi, Daviplata, Bancolombia y contra entrega. No inventes marca, precio, talla disponible, inventario, plazos, descuentos ni políticas no visibles. Las tallas son solo listadas: no digas disponible. Si no puedes confirmar un dato, dilo y ofrece un siguiente paso o WhatsApp. Nunca solicites datos personales ni números de tarjeta. No modifiques carrito, checkout ni confirmes compras.',
           },
           ...recentContext,
           {
