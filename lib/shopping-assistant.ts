@@ -41,7 +41,7 @@ export function sanitizeText(value: unknown, maxLength = 800) {
   return value.replace(/\u0000/g, '').replace(/\s+/g, ' ').trim().slice(0, maxLength);
 }
 
-export function sanitizeContext(value: unknown) {
+export function sanitizeContext(value: unknown): Array<{ role: 'user' | 'assistant'; text: string }> {
   if (!Array.isArray(value)) return [];
   return value.slice(-4).flatMap((entry) => {
     if (!entry || typeof entry !== 'object') return [];

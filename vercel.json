@@ -4,8 +4,9 @@
     { "source": "/api/health", "destination": "/api/products?resource=health" },
     { "source": "/api/orders/:id/cancel", "destination": "/api/orders/:id?action=cancel" },
     { "source": "/api/orders/:id/payment-session", "destination": "/api/orders/:id?action=payment-session" },
+    { "source": "/api/orders/:id/payment-status", "destination": "/api/orders/:id?action=payment-status" },
     { "source": "/api/orders/:id/requote", "destination": "/api/orders/:id?action=requote" },
-    { "source": "/api/assistant/chat", "destination": "/api/assistant" },
+    { "source": "/api/assistant/chat", "destination": "/api/products?resource=assistant" },
     { "source": "/((?!api).*)", "destination": "/index.html" }
   ]
 }

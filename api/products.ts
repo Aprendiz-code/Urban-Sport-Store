@@ -3,6 +3,10 @@ import { supabasePublic } from '../lib/api-helpers/supabase.ts';
 
 export default async function handler(req: any, res: any) {
   const requestUrl = new URL(req.url ?? '', 'http://localhost');
+  if (requestUrl.searchParams.get('resource') === 'assistant') {
+    const { default: assistantHandler } = await import('../lib/assistant-handler.ts');
+    return assistantHandler(req, res);
+  }
   if (requestUrl.searchParams.get('resource') === 'health') {
     return jsonResponse(res, {
       ok: true,

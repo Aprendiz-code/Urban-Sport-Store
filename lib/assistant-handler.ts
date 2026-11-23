@@ -1,4 +1,4 @@
-import { jsonError, jsonResponse, ApiError } from '../lib/api-helpers/response.ts';
+import { jsonError, jsonResponse, ApiError } from './api-helpers/response.ts';
 import {
   buildCatalogMessage,
   callGroq,
@@ -12,7 +12,7 @@ import {
   sanitizeContext,
   sanitizeText,
   type AssistantResponse,
-} from '../lib/shopping-assistant.ts';
+} from './shopping-assistant.ts';
 
 const MAX_BODY_BYTES = 20_000;
 const MAX_REQUESTS_PER_MINUTE = 12;
