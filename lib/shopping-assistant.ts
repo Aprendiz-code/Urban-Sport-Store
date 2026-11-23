@@ -232,7 +232,7 @@ export function getGeneralAnswer(message: string): { message: string; needsWhats
     };
   }
 
-  if (/categoria|categoría|tenis hombre|tenis mujer|ropa hombre|ropa mujer|perfumes|relojes|gafas|catalogo|catálogo/.test(normalized)) {
+  if (/categoria|categoría|tenis hombre|tenis mujer|ropa hombre|ropa mujer|perfumes|relojes|gafas/.test(normalized)) {
     return {
       message: 'Puedes explorar las categorías de Tenis Hombre, Tenis Mujer, Ropa Hombre, Ropa Mujer, Perfumes, Relojes y Gafas. También puedes decirme presupuesto, talla, marca o uso para filtrar opciones.',
       needsWhatsApp: false,
