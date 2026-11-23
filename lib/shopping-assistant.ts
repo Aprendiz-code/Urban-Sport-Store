@@ -206,14 +206,14 @@ export function getGeneralAnswer(message: string): { message: string; needsWhats
 
   if (/^(hola|buenos dias|buenas tardes|buenas noches|hey|que tal|qué tal)[!?. ]*$/.test(normalized)) {
     return {
-      message: 'Hola. Puedo ayudarte a buscar tenis, ropa, perfumes, relojes y gafas, comparar opciones o explicar envíos y cambios. ¿Qué estás buscando?',
+      message: '¡Hola! Qué gusto atenderte. Puedo ayudarte a buscar tenis, ropa, perfumes, relojes o gafas, comparar opciones y resolver dudas sobre envíos y cambios. ¿Qué te gustaría encontrar hoy?',
       needsWhatsApp: false,
     };
   }
 
   if (/que puedes hacer|qué puedes hacer|como ayudas|cómo ayudas|para que sirves|para qué sirves|ayuda en linea|ayuda en línea/.test(normalized)) {
     return {
-      message: 'Puedo buscar productos del catálogo, filtrar por talla, presupuesto, marca y categoría, explicar envíos y pagos conocidos, y orientar cambios o devoluciones. También puedo derivar casos de pedidos, reclamos o garantías a WhatsApp.',
+      message: 'Con gusto te ayudo. Puedo buscar productos por presupuesto, talla, marca o categoría, comparar opciones y explicarte envíos, pagos y cambios. Si tu consulta necesita seguimiento de pedido, reclamo o garantía, te conecto con un asesor por WhatsApp.',
       needsWhatsApp: false,
     };
   }
@@ -254,14 +254,14 @@ export function getPolicyAnswer(message: string): { message: string; needsWhatsA
 
   if (/^consultar tallas$|\btallas?\b/.test(normalized) && !/\b[0-9]{1,2}(?:[.,][0-9])?\b/.test(normalized)) {
     return {
-      message: 'Dime la talla que buscas y el tipo de producto. Las tallas listadas no confirman inventario por variante.',
+      message: 'Claro, con gusto te apoyo. Dime la talla que buscas y qué tipo de producto necesitas. Las tallas listadas no confirman inventario por variante.',
       needsWhatsApp: false,
     };
   }
 
   if (/seguimiento|pedido|rastreo|garantia|garantía|reclamo|dañado|dañado/.test(normalized)) {
     return {
-      message: 'El estado de pedidos, reclamos y garantías necesita un asesor. Escríbenos por WhatsApp para revisarlo con los datos de tu compra.',
+      message: 'Entiendo. El estado de pedidos, reclamos y garantías debe revisarlo un asesor con los datos de tu compra. Escríbenos por WhatsApp y te acompañaremos en el siguiente paso.',
       needsWhatsApp: true,
     };
   }
@@ -282,7 +282,7 @@ export function getPolicyAnswer(message: string): { message: string; needsWhatsA
 
   if (/cambio|devolucion|devolución|devolver|reembolso/.test(normalized)) {
     return {
-      message: 'Puedes solicitar cambios o devoluciones dentro de los primeros 30 días calendario desde la entrega, con el producto en las condiciones acordadas y el empaque original. Si el motivo es preferencia o talla, el envío de regreso puede quedar a cargo del cliente. Para validar tu caso, escríbenos por WhatsApp.',
+      message: 'Claro, podemos orientarte. Los cambios o devoluciones pueden solicitarse dentro de los primeros 30 días calendario desde la entrega, con el producto y el empaque en las condiciones acordadas. Si eliges cambiar por preferencia o talla, el envío de regreso puede quedar a tu cargo. Para validar tu caso, escríbenos por WhatsApp.',
       needsWhatsApp: true,
     };
   }
@@ -292,12 +292,12 @@ export function getPolicyAnswer(message: string): { message: string; needsWhatsA
 
 export function buildCatalogMessage(products: AssistantProduct[], message: string) {
   if (products.length === 0) {
-    return 'No encontré una coincidencia exacta con esos datos en el catálogo activo. Puedes ampliar el presupuesto o probar otra talla, o un asesor puede ayudarte por WhatsApp.';
+    return 'Entiendo. No encontré una coincidencia exacta con esos datos en el catálogo activo, pero podemos ajustar el presupuesto o probar otra talla. Si prefieres, un asesor puede ayudarte por WhatsApp.';
   }
 
   const intent = detectStructuredIntent(message);
   const prefix = intent.size
-    ? `Encontré estas opciones que incluyen talla ${intent.size} en su lista de tallas:`
+    ? `Con gusto te muestro estas opciones que incluyen talla ${intent.size} en su lista de tallas:`
     : intent.budget
       ? `Estas opciones están dentro de ${formatCop(intent.budget)}:`
       : 'Estas son las opciones más relevantes del catálogo:';
@@ -376,7 +376,7 @@ export async function callGroq(params: {
         messages: [
           {
             role: 'system',
-            content: 'Eres el asistente de Urban Sport Store. Responde en español colombiano, claro y breve. Usa únicamente el catálogo JSON adjunto y estos datos públicos verificables: la página tiene inicio, búsqueda, categorías Tenis Hombre, Tenis Mujer, Ropa Hombre, Ropa Mujer, Perfumes, Relojes y Gafas, fichas de producto, carrito local, cuenta, envíos, pagos, cambios y devoluciones. Realiza envíos a Colombia; tarifa y plazo se confirman con la cotización vigente. Cambios o devoluciones: hasta 30 días desde la entrega, producto y empaque en condición acordada. Medios visibles: tarjetas, PSE, Nequi, Daviplata, Bancolombia y contra entrega. No inventes marca, precio, talla disponible, inventario, plazos, descuentos ni políticas no visibles. Las tallas son solo listadas: no digas disponible. Si no puedes confirmar un dato, dilo y ofrece un siguiente paso o WhatsApp. Nunca solicites datos personales ni números de tarjeta. No modifiques carrito, checkout ni confirmes compras.',
+            content: 'Eres el asesor amable de Urban Sport Store. Habla en español colombiano, con calidez, cercanía y lenguaje claro como un vendedor atento. Usa “con gusto”, “podemos revisar” o “te recomiendo” cuando sea natural, sin presión comercial. Responde claro y breve. Usa únicamente el catálogo JSON adjunto y estos datos públicos verificables: la página tiene inicio, búsqueda, categorías Tenis Hombre, Tenis Mujer, Ropa Hombre, Ropa Mujer, Perfumes, Relojes y Gafas, fichas de producto, carrito local, cuenta, envíos, pagos, cambios y devoluciones. Realiza envíos a Colombia; tarifa y plazo se confirman con la cotización vigente. Cambios o devoluciones: hasta 30 días desde la entrega, producto y empaque en condición acordada. Medios visibles: tarjetas, PSE, Nequi, Daviplata, Bancolombia y contra entrega. No inventes marca, precio, talla disponible, inventario, plazos, descuentos ni políticas no visibles. Las tallas son solo listadas: no digas disponible. Si no puedes confirmar un dato, dilo y ofrece un siguiente paso o WhatsApp. Nunca solicites datos personales ni números de tarjeta. No modifiques carrito, checkout ni confirmes compras.',
           },
           ...recentContext,
           {

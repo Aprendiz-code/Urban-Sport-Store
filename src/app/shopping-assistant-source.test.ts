@@ -28,6 +28,10 @@ describe('shopping assistant UI contract', () => {
     expect(assistantSource).toContain('triggerRef.current?.focus()');
   });
 
+  it('uses a warm assistant greeting', () => {
+    expect(assistantSource).toContain('¡Hola! Qué gusto atenderte');
+  });
+
   it('expires conversation history after seven minutes of inactivity', () => {
     expect(assistantSource).toContain('const INACTIVITY_LIMIT_MS = 7 * 60 * 1000');
     expect(assistantSource).toContain('resetInactivityTimer');

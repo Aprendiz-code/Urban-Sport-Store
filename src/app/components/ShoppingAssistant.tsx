@@ -4,7 +4,7 @@ import { resolveApiBaseUrl } from '../../lib/api-config';
 
 const WHATSAPP_URL = 'https://wa.me/573157760273?text=Hola%2C%20vengo%20de%20Urban%20Sport%20Store%20y%20necesito%20ayuda%20con%20una%20compra.';
 const INACTIVITY_LIMIT_MS = 7 * 60 * 1000;
-const INITIAL_ASSISTANT_MESSAGE = 'Hola, soy el asistente de Urban Sport. ¿Qué producto estás buscando?';
+const INITIAL_ASSISTANT_MESSAGE = '¡Hola! Qué gusto atenderte. Cuéntame qué estás buscando y te ayudo a encontrar una opción ideal.';
 
 type AssistantSource = 'groq' | 'catalog' | 'policy' | 'fallback';
 type ChatProduct = {
@@ -115,14 +115,14 @@ export default function ShoppingAssistant() {
         role: 'assistant',
         text: typeof payload.message === 'string'
           ? payload.message.slice(0, 1800)
-          : 'No pude procesar la consulta. Puedes buscar en el catálogo o hablar con un asesor por WhatsApp.',
+          : 'Uy, no pude procesar esa consulta. Pero podemos intentarlo de nuevo o buscar otra opción en el catálogo; también puedes hablar con un asesor por WhatsApp.',
         source: payload.source,
         products: Array.isArray(payload.products) ? payload.products.slice(0, 3) : [],
       }]);
     } catch {
       setMessages((current) => [...current, {
         role: 'assistant',
-        text: 'El asistente no está disponible temporalmente. Puedes seguir buscando en el catálogo o hablar con un asesor por WhatsApp.',
+        text: 'Ahora no puedo procesar tu consulta, pero con gusto puedes seguir buscando en el catálogo o hablar con un asesor por WhatsApp.',
         source: 'fallback',
         products: [],
       }]);

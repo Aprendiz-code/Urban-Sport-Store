@@ -26,7 +26,7 @@ describe('shopping assistant deterministic logic', () => {
 
   it('answers general questions without WhatsApp or Groq', () => {
     expect(getGeneralAnswer('Hola')?.needsWhatsApp).toBe(false);
-    expect(getGeneralAnswer('Qué puedes hacer')?.message).toContain('catálogo');
+    expect(getGeneralAnswer('Qué puedes hacer')?.message).toContain('Con gusto te ayudo');
     expect(getGeneralAnswer('Qué categorías tienen')?.message).toContain('Tenis Hombre');
   });
 
