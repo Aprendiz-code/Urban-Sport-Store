@@ -38,6 +38,18 @@ describe('shopping assistant UI contract', () => {
     expect(assistantSource).toContain('setMessages([{ role: \'assistant\', text: INITIAL_ASSISTANT_MESSAGE }])');
   });
 
+  it('does not expose provider or source labels in conversations', () => {
+    expect(assistantSource).not.toContain("groq: 'Groq'");
+    expect(assistantSource).not.toContain('Groq",');
+    expect(assistantSource).not.toContain('Política verificable');
+    expect(assistantSource).not.toContain('Respuesta de respaldo');
+  });
+
+  it('moves the conversation viewport to the newest message', () => {
+    expect(assistantSource).toContain('messagesRef.current');
+    expect(assistantSource).toContain('container.scrollTop = container.scrollHeight');
+  });
+
   it('does not expose Groq secrets in frontend code', () => {
     expect(assistantSource).not.toContain('GROQ_API_KEY');
     expect(assistantSource).not.toContain('gsk_');

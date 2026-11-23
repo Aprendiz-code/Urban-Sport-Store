@@ -78,7 +78,7 @@ export function detectStructuredIntent(message: string) {
   const budget = extractBudget(normalized);
   const asksTennis = /tenis|zapatilla|zapato|calzado/.test(normalized);
   const asksCategory = /(ropa|camiseta|pantalon|buzo|perfume|reloj|gafa|accesorio)/.test(normalized);
-  const brands = [...normalized.matchAll(/\b(nike|adidas|puma|reebok|new balance|saucony|jordan|asics)\b/g)].map((match) => match[1]);
+  const brands = [...normalized.matchAll(/\b(nike|puma|reebok|new balance|saucony|jordan|asics)\b/g)].map((match) => match[1]);
   return {
     size,
     budget,

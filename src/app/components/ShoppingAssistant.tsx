@@ -49,6 +49,7 @@ export default function ShoppingAssistant() {
   const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const messagesRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const resetInactivityTimer = () => {
@@ -76,6 +77,15 @@ export default function ShoppingAssistant() {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const frame = requestAnimationFrame(() => {
+      const container = messagesRef.current;
+      if (container) container.scrollTop = container.scrollHeight;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [messages, loading, open]);
 
   useEffect(() => () => {
     if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
@@ -136,13 +146,6 @@ export default function ShoppingAssistant() {
     void send(message);
   };
 
-  const sourceLabel: Record<AssistantSource, string> = {
-    groq: 'Groq',
-    catalog: 'Catálogo',
-    policy: 'Política verificable',
-    fallback: 'Respuesta de respaldo',
-  };
-
   return (
     <>
       {!open && (
@@ -188,7 +191,7 @@ export default function ShoppingAssistant() {
             </button>
           </header>
 
-          <div className="flex-1 overflow-y-auto px-3 py-3" aria-live="polite">
+          <div ref={messagesRef} className="flex-1 overflow-y-auto px-3 py-3" aria-live="polite">
             {messages.length === 1 && (
               <div className="mb-3 grid grid-cols-2 gap-2">
                 {QUICK_ACTIONS.map((action) => (
@@ -210,9 +213,6 @@ export default function ShoppingAssistant() {
                   <div className={`max-w-[88%] rounded-lg px-3 py-2 text-sm leading-relaxed ${item.role === 'user' ? 'ml-auto bg-[#1e3a8a] text-white' : 'bg-slate-100 text-slate-800'}`}>
                     {item.text}
                   </div>
-                  {item.role === 'assistant' && item.source && (
-                    <p className="mt-1 text-[11px] font-semibold text-slate-500">{sourceLabel[item.source]}</p>
-                  )}
                   {item.products && item.products.length > 0 && (
                     <div className="mt-2 space-y-2">
                       {item.products.map((product) => (

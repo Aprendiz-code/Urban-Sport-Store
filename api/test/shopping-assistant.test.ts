@@ -37,6 +37,10 @@ describe('shopping assistant deterministic logic', () => {
     expect(filterProducts(products, 'Tenis talla 39 por menos de $200.000').map((product) => product.id)).toEqual(['1']);
   });
 
+  it('does not recognize adidas as an assistant brand filter', () => {
+    expect(detectStructuredIntent('Tenis de adidas talla 39').brand).toBeNull();
+  });
+
   it('marks listed sizes without claiming variant stock', () => {
     const message = buildCatalogMessage([products[1]!], 'talla 40');
     expect(message).toContain('tallas listadas');
