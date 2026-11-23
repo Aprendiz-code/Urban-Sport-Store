@@ -66,6 +66,7 @@ import { buildAdminProductPayload } from '../lib/admin-product-payload';
 import { filterAdminProducts, type AdminProductStatusFilter } from '../lib/admin-product-list';
 import { normalizeProductImageList, resolveProductPublicImageUrl, uploadSelectedProductImages } from '../lib/admin-product-images';
 import ProductGallery from './components/ProductGallery';
+import ShoppingAssistant from './components/ShoppingAssistant';
 import Toaster from './components/LazyToaster';
 import { toast } from '../lib/lazyToast';
 import type { Address as DomainAddress, GuestCartItem, Order, Product as DomainProduct, ShippingDestination } from '../types/domain';
@@ -6410,6 +6411,7 @@ export default function App() {
         />
       )}
 
+      <ShoppingAssistant />
       <Toaster />
       {/* Mobile bottom nav removed for web-style layout */}
     </div>

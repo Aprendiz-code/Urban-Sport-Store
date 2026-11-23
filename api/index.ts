@@ -41,6 +41,7 @@ async function resolveRoute(req: RoutedRequest, res: http.ServerResponse) {
     '/api/products': () => import('./products.ts'),
     '/api/home': () => import('./home.ts'),
     '/api/newsletter': () => import('./newsletter.ts'),
+    '/api/assistant/chat': () => import('./assistant.ts'),
     '/api/orders': () => import('./orders.ts'),
     '/api/shipping/destinations': () => import('./shipping/destinations.ts'),
     '/api/shipping/quotes': () => import('./shipping/quotes.ts'),
