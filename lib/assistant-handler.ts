@@ -129,7 +129,10 @@ export default async function handler(req: any, res: any) {
       return jsonResponse(res, fallback);
     }
 
-    const relevantProducts = filterProducts(products, message).slice(0, 3);
+    const normalizedForUsage = message.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const relevantProducts = /caminar|caminata|senderismo|correr|running|entrenar/.test(normalizedForUsage)
+      ? products.filter((product) => /tenis|zapatilla|zapato|calzado/.test(`${product.name} ${product.category ?? ''}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase())).slice(0, 3)
+      : filterProducts(products, message).slice(0, 3);
     const apiKey = typeof process.env.GROQ_API_KEY === 'string' ? process.env.GROQ_API_KEY.trim() : '';
     const configuredModel = typeof process.env.GROQ_MODEL === 'string' ? process.env.GROQ_MODEL.trim() : '';
     const model = configuredModel || await resolveGroqModel(apiKey, GROQ_TIMEOUT_MS);
