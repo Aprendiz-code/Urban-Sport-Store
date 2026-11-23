@@ -28,14 +28,20 @@ describe('shopping assistant UI contract', () => {
     expect(assistantSource).toContain('triggerRef.current?.focus()');
   });
 
-  it('uses a warm assistant greeting', () => {
-    expect(assistantSource).toContain('¡Hola! Qué gusto atenderte');
+  it('uses a warm Urban Sport Store greeting', () => {
+    expect(assistantSource).toContain('Soy del equipo comercial de Urban Sport Store');
+    expect(assistantSource).toContain('opción ideal');
   });
 
   it('expires conversation history after seven minutes of inactivity', () => {
     expect(assistantSource).toContain('const INACTIVITY_LIMIT_MS = 7 * 60 * 1000');
     expect(assistantSource).toContain('resetInactivityTimer');
     expect(assistantSource).toContain('setMessages([{ role: \'assistant\', text: INITIAL_ASSISTANT_MESSAGE }])');
+  });
+
+  it('does not use robotic provider identity in the chat UI', () => {
+    expect(assistantSource).not.toContain('Powered by');
+    expect(assistantSource).not.toContain('El asistente con IA');
   });
 
   it('does not expose provider or source labels in conversations', () => {
@@ -45,9 +51,10 @@ describe('shopping assistant UI contract', () => {
     expect(assistantSource).not.toContain('Respuesta de respaldo');
   });
 
-  it('moves the conversation viewport to the newest message', () => {
+  it('moves the conversation viewport only when a new message is added', () => {
     expect(assistantSource).toContain('messagesRef.current');
-    expect(assistantSource).toContain('container.scrollTop = container.scrollHeight');
+    expect(assistantSource).toContain('container.scrollTo({ top: container.scrollHeight, behavior: \'smooth\' })');
+    expect(assistantSource).toMatch(/\}, \[messages\]\);/);
   });
 
   it('does not expose Groq secrets in frontend code', () => {

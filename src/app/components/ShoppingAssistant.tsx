@@ -4,7 +4,7 @@ import { resolveApiBaseUrl } from '../../lib/api-config';
 
 const WHATSAPP_URL = 'https://wa.me/573157760273?text=Hola%2C%20vengo%20de%20Urban%20Sport%20Store%20y%20necesito%20ayuda%20con%20una%20compra.';
 const INACTIVITY_LIMIT_MS = 7 * 60 * 1000;
-const INITIAL_ASSISTANT_MESSAGE = '¡Hola! Qué gusto atenderte. Cuéntame qué estás buscando y te ayudo a encontrar una opción ideal.';
+const INITIAL_ASSISTANT_MESSAGE = '¡Hola! Soy del equipo comercial de Urban Sport Store y qué gusto acompañarte. Cuéntame qué estás buscando y encontramos juntos una opción ideal.';
 
 type AssistantSource = 'groq' | 'catalog' | 'policy' | 'fallback';
 type ChatProduct = {
@@ -16,6 +16,9 @@ type ChatProduct = {
   slug: string | null;
   category: string | null;
   sizes: string[];
+  colors?: string[];
+  description?: string;
+  specifications?: Array<{ name: string; value: string }>;
   stock: number | null;
   url: string;
 };
@@ -79,13 +82,14 @@ export default function ShoppingAssistant() {
   }, [open]);
 
   useEffect(() => {
-    if (!open) return;
     const frame = requestAnimationFrame(() => {
       const container = messagesRef.current;
-      if (container) container.scrollTop = container.scrollHeight;
+      if (container) {
+        container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+      }
     });
     return () => cancelAnimationFrame(frame);
-  }, [messages, loading, open]);
+  }, [messages]);
 
   useEffect(() => () => {
     if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
@@ -125,14 +129,14 @@ export default function ShoppingAssistant() {
         role: 'assistant',
         text: typeof payload.message === 'string'
           ? payload.message.slice(0, 1800)
-          : 'Uy, no pude procesar esa consulta. Pero podemos intentarlo de nuevo o buscar otra opción en el catálogo; también puedes hablar con un asesor por WhatsApp.',
+          : 'No pude revisar esa consulta ahora mismo, pero estamos aquí para ayudarte. Probemos otra pregunta o exploremos una opción del catálogo; también puedes hablar con el equipo por WhatsApp.',
         source: payload.source,
-        products: Array.isArray(payload.products) ? payload.products.slice(0, 3) : [],
+        products: Array.isArray(payload.products) ? payload.products.slice(0, 10) : [],
       }]);
     } catch {
       setMessages((current) => [...current, {
         role: 'assistant',
-        text: 'Ahora no puedo procesar tu consulta, pero con gusto puedes seguir buscando en el catálogo o hablar con un asesor por WhatsApp.',
+        text: 'Ahora no puedo terminar esa búsqueda, pero el equipo de Urban Sport Store te acompaña. Probemos otra opción o continúa por WhatsApp.',
         source: 'fallback',
         products: [],
       }]);
@@ -249,7 +253,7 @@ export default function ShoppingAssistant() {
                   )}
                 </div>
               ))}
-              {loading && <p className="text-xs font-semibold text-slate-500">Revisando tu consulta…</p>}
+              {loading && <p className="text-xs font-semibold text-slate-500">Estamos buscando la mejor opción para ti…</p>}
             </div>
           </div>
 

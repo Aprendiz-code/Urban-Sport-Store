@@ -12,8 +12,8 @@ import {
 } from '../../lib/shopping-assistant.js';
 
 const products: AssistantProduct[] = [
-  { id: '1', name: 'Runner 39', brand: 'Nike', price: 180_000, image: null, slug: 'runner-39', category: 'Tenis Hombre', sizes: ['39', '40'], stock: 5, url: '/catalog?product=runner-39' },
-  { id: '2', name: 'Urban Walk', brand: 'Puma', price: 220_000, image: null, slug: 'urban-walk', category: 'Tenis Mujer', sizes: ['40'], stock: null, url: '/catalog?product=urban-walk' },
+  { id: '1', name: 'Runner 39', brand: 'Nike', price: 180_000, image: null, slug: 'runner-39', category: 'Tenis Hombre', description: 'Tenis liviano para correr', sizes: ['39', '40'], colors: ['Negro', 'Azul'], specifications: [{ name: 'Uso', value: 'Running' }], stock: 5, url: '/catalog?product=runner-39' },
+  { id: '2', name: 'Urban Walk', brand: 'Puma', price: 220_000, image: null, slug: 'urban-walk', category: 'Tenis Mujer', description: 'Tenis cómodo para caminar', sizes: ['40'], colors: ['Blanco'], specifications: [{ name: 'Uso', value: 'Urbano' }], stock: null, url: '/catalog?product=urban-walk' },
 ];
 
 afterEach(() => vi.restoreAllMocks());
@@ -24,9 +24,10 @@ describe('shopping assistant deterministic logic', () => {
     expect(getSiteKnowledgeAnswer('¿Cuáles medios de pago hay?')?.message).toContain('PSE');
   });
 
-  it('answers general questions without WhatsApp or Groq', () => {
+  it('answers general questions with the Urban Sport seller voice', () => {
     expect(getGeneralAnswer('Hola')?.needsWhatsApp).toBe(false);
-    expect(getGeneralAnswer('Qué puedes hacer')?.message).toContain('Con gusto te ayudo');
+    expect(getGeneralAnswer('Hola')?.message).toContain('equipo comercial de Urban Sport Store');
+    expect(getGeneralAnswer('Qué puedes hacer')?.message).toContain('Soy del equipo comercial');
     expect(getGeneralAnswer('Qué categorías tienen')?.message).toContain('Tenis Hombre');
   });
 
@@ -39,6 +40,12 @@ describe('shopping assistant deterministic logic', () => {
 
   it('does not recognize adidas as an assistant brand filter', () => {
     expect(detectStructuredIntent('Tenis de adidas talla 39').brand).toBeNull();
+  });
+
+  it('filters and describes products by real color data', () => {
+    const matches = filterProducts(products, 'Busco tenis negros talla 39');
+    expect(matches.map((product) => product.id)).toEqual(['1']);
+    expect(buildCatalogMessage(matches, 'Busco tenis negros talla 39')).toContain('Negro');
   });
 
   it('marks listed sizes without claiming variant stock', () => {
