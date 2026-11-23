@@ -15,6 +15,7 @@ const ALLOWED_PRODUCT_COLUMNS = new Set([
   'main_image',
   'images',
   'sizes',
+  'colors',
   'specifications',
   'is_active',
   'shipping_weight_grams',
@@ -97,6 +98,48 @@ function normalizeProductSizes(value: unknown): string[] {
   }
 
   return sizes;
+}
+
+function normalizeProductColors(value: unknown): Array<{ name: string; hex: string; hex2?: string; image?: string; isDefault?: boolean; sortOrder?: number }> {
+  if (!Array.isArray(value)) throw new ApiError(400, 'Los colores deben ser una lista válida.');
+
+  const colors: Array<{ name: string; hex: string; hex2?: string; image?: string; isDefault?: boolean; sortOrder?: number }> = [];
+  const seenNames = new Set<string>();
+  let defaultCount = 0;
+
+  for (const [index, item] of value.entries()) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) {
+      throw new ApiError(400, 'Cada variante de color debe contener nombre y valores HEX.');
+    }
+    const name = typeof item.name === 'string' ? item.name.trim() : '';
+    const hex = typeof item.hex === 'string' ? item.hex.trim().toUpperCase() : '';
+    const hex2 = typeof item.hex2 === 'string' ? item.hex2.trim().toUpperCase() : '';
+    const image = typeof item.image === 'string' ? item.image.trim() : '';
+    const isDefault = item.isDefault === true;
+
+    if (!name) throw new ApiError(400, 'Cada variante de color requiere un nombre comercial.');
+    if (!/^#[0-9A-F]{6}$/.test(hex)) throw new ApiError(400, `El primer HEX de ${name} no es válido.`);
+    if (hex2 && !/^#[0-9A-F]{6}$/.test(hex2)) throw new ApiError(400, `El segundo HEX de ${name} no es válido.`);
+
+    const normalizedName = name.toLowerCase();
+    if (seenNames.has(normalizedName)) throw new ApiError(400, 'No se permiten variantes de color duplicadas dentro del producto.');
+    seenNames.add(normalizedName);
+
+    if (image) parsePermanentImageUrl(image, `La foto de ${name}`);
+    if (isDefault) defaultCount += 1;
+
+    colors.push({
+      name,
+      hex,
+      ...(hex2 ? { hex2 } : {}),
+      ...(image ? { image } : {}),
+      ...(isDefault ? { isDefault: true } : {}),
+      sortOrder: index,
+    });
+  }
+
+  if (defaultCount > 1) throw new ApiError(400, 'Solo una variante de color puede ser predeterminada.');
+  return colors;
 }
 
 function normalizeProductSpecifications(value: unknown): Array<{ name: string; value: string }> {
@@ -210,6 +253,7 @@ function setProductFields(payload: Record<string, unknown>, body: any) {
     payload.images = images;
   }
   if (body.sizes !== undefined) payload.sizes = normalizeProductSizes(body.sizes);
+  if (body.colors !== undefined) payload.colors = normalizeProductColors(body.colors);
   if (body.specifications !== undefined) payload.specifications = normalizeProductSpecifications(body.specifications);
   if (typeof body.is_active === 'boolean') payload.is_active = body.is_active;
 }

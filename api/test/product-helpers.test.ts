@@ -65,6 +65,38 @@ describe('product payload normalization', () => {
     expect(supabaseMocks.from).not.toHaveBeenCalled();
   });
 
+  it('preserves ordered rich color variants for create and update payloads', async () => {
+    const colors = [
+      { name: 'Gris / Plata', hex: '#A7ADB4', hex2: '#D6DADE', image: 'https://storage.test/gris.png', isDefault: true },
+      { name: 'Negro', hex: '#111827', image: 'https://storage.test/negro.png' },
+    ];
+
+    await expect(normalizeProductPayload({ name: 'Modelo', colors })).resolves.toMatchObject({
+      colors: [
+        { name: 'Gris / Plata', hex: '#A7ADB4', hex2: '#D6DADE', image: 'https://storage.test/gris.png', isDefault: true, sortOrder: 0 },
+        { name: 'Negro', hex: '#111827', image: 'https://storage.test/negro.png', sortOrder: 1 },
+      ],
+    });
+  });
+
+  it('rejects duplicate color names and multiple defaults', async () => {
+    await expect(normalizeProductPayload({
+      name: 'Modelo',
+      colors: [
+        { name: 'Negro', hex: '#111827', isDefault: true },
+        { name: ' negro ', hex: '#000000' },
+      ],
+    })).rejects.toThrow('duplicadas');
+
+    await expect(normalizeProductPayload({
+      name: 'Modelo',
+      colors: [
+        { name: 'Negro', hex: '#111827', isDefault: true },
+        { name: 'Blanco', hex: '#FFFFFF', isDefault: true },
+      ],
+    })).rejects.toThrow('Solo una');
+  });
+
   it('maps edits to the same database columns, including empty galleries', async () => {
     await expect(normalizeProductUpdates({
       brand: 'Nike Sportswear',

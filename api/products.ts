@@ -25,7 +25,7 @@ export default async function handler(req: any, res: any) {
 
     let query = supabasePublic
       .from('products')
-      .select('id,category_id,catalog_section,slug,name,brand,description,price,compare_at_price,sku,stock,main_image,images,sizes,specifications,is_active,created_at,updated_at')
+      .select('id,category_id,catalog_section,slug,name,brand,description,price,compare_at_price,sku,stock,main_image,images,sizes,colors,specifications,is_active,created_at,updated_at')
       .eq('is_active', true)
       .order('created_at', { ascending: false });
 

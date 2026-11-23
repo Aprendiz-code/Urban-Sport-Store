@@ -50,6 +50,7 @@ import {
   getMyOrder,
   listMyOrders,
   listShippingDestinations,
+  verifyWompiPaymentReturn,
   type ShippingQuote,
   type ShippingQuoteRequest,
 } from '../lib/order-service';
@@ -61,10 +62,12 @@ import {
   submitCheckoutPayment,
 } from '../lib/checkout-quote-flow';
 import { getPaymentReturnDestination, isPaymentReturnPath } from '../lib/payment-return';
+import { getPaymentStatusMessage } from '../lib/payment-status-display';
 import { MAX_PRODUCT_GALLERY_IMAGES, MAX_PRODUCT_TOTAL_IMAGES, normalizeProductSizes, normalizeProductSpecifications, submitAdminProductForm, validateProductForm } from '../lib/admin-product-form';
 import { buildAdminProductPayload } from '../lib/admin-product-payload';
 import { filterAdminProducts, type AdminProductStatusFilter } from '../lib/admin-product-list';
 import { normalizeProductImageList, resolveProductPublicImageUrl, uploadSelectedProductImages } from '../lib/admin-product-images';
+import { suggestImageColors } from '../lib/color-suggestion';
 import ProductGallery from './components/ProductGallery';
 import ShoppingAssistant from './components/ShoppingAssistant';
 import Toaster from './components/LazyToaster';
@@ -342,6 +345,7 @@ const STATUS_STYLE: Record<string, string> = {
 };
 
 const ORDER_STATUS_LABELS: Record<string, string> = {
+  pending_payment: "Pendiente de pago",
   pending: "Pendiente",
   confirmed: "Confirmado",
   processing: "En preparación",
@@ -349,6 +353,8 @@ const ORDER_STATUS_LABELS: Record<string, string> = {
   delivered: "Entregado",
   cancelled: "Cancelado",
   refunded: "Reembolsado",
+  paid: "Pagado",
+  payment_review: "Revisión de pago",
 };
 
 // ─── SHARED UI ────────────────────────────────────────────────────────────────
@@ -420,20 +426,31 @@ function Btn({
 }
 
 function ColorSelector({ colors, selected, onSelect }: {
-  colors: { name: string; hex: string }[]; selected: string; onSelect: (color: string) => void;
+  colors: Product["colors"]; selected: string; onSelect: (color: string) => void;
 }) {
   if (!colors.length) return null;
   return (
     <div className="flex items-center gap-2">
-      {colors.map((color) => (
-        <button
-          key={color.name} onClick={() => onSelect(color.name)} title={color.name}
-          className={`w-7 h-7 rounded-full border-2 transition-transform ${
-            selected === color.name ? "border-[#bfdbfe] scale-110" : "border-transparent hover:scale-105"
-          }`}
-          style={{ backgroundColor: color.hex, boxShadow: "0 0 0 1px rgba(0,0,0,0.12)" }}
-        />
-      ))}
+      {colors.map((color) => {
+        const isSelected = selected === color.name;
+        const swatchStyle = color.hex2
+          ? { background: `linear-gradient(90deg, ${color.hex} 0 50%, ${color.hex2} 50% 100%)` }
+          : { backgroundColor: color.hex };
+        return (
+          <button
+            key={color.name}
+            type="button"
+            onClick={() => onSelect(color.name)}
+            title={color.name}
+            aria-label={`Ver color ${color.name}`}
+            aria-pressed={isSelected}
+            className={`h-8 w-8 rounded-full border-2 transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${
+              isSelected ? "scale-110 border-slate-900 ring-2 ring-white" : "border-slate-300 hover:scale-105"
+            }`}
+            style={{ ...swatchStyle, boxShadow: "0 0 0 1px rgba(15,23,42,0.16)" }}
+          />
+        );
+      })}
       {selected && <span className="text-xs text-slate-500 ml-1">{selected}</span>}
     </div>
   );
@@ -584,6 +601,10 @@ function ProductCarousel({ children }: { children: React.ReactNode }) {
 
 // ─── PRODUCT CARD ─────────────────────────────────────────────────────────────
 
+function getProductColorImage(product: Product, colorName: string): string {
+  return product.colors.find((color) => color.name === colorName)?.image || product.image;
+}
+
 function ProductCard({ product, onSelect, onAddToCart }: {
   product: Product; onSelect: (p: Product) => void; onAddToCart: (p: Product, size: string, color: string) => void;
 }) {
@@ -591,7 +612,11 @@ function ProductCard({ product, onSelect, onAddToCart }: {
   const requiresSize = hasSelectableSizes(product.sizes);
   const [selectedSize, setSelectedSize] = useState('');
   const cartSize = requiresSize ? selectedSize : product.sizes[0] ?? '';
-  const defaultColor = product.colors[0]?.name ?? "";
+  const orderedColors = [...product.colors].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  const defaultColor = orderedColors.find((color) => color.isDefault)?.name ?? orderedColors[0]?.name ?? "";
+  const [selectedColor, setSelectedColor] = useState(defaultColor);
+  const selectedColorData = orderedColors.find((color) => color.name === selectedColor);
+  const selectedImage = selectedColorData?.image || product.image;
   const originalPrice = product.originalPrice;
   const hasRealDiscount = typeof originalPrice === "number" && originalPrice > product.price;
   const savings = hasRealDiscount ? (originalPrice ?? 0) - product.price : 0;
@@ -601,7 +626,7 @@ function ProductCard({ product, onSelect, onAddToCart }: {
       {/* Image */}
       <div className="relative aspect-square w-full overflow-hidden bg-slate-100 sm:aspect-[4/3]">
         <a href={`/?product=${encodeURIComponent(product.slug ?? product.id)}`} onClick={(event) => { event.preventDefault(); onSelect(product); }} aria-label={`Ver ${product.name}`} className="block h-full w-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-blue-600">
-          <img src={product.image} alt={product.name} onError={(event) => { event.currentTarget.style.display = "none"; }}
+          <img src={selectedImage} alt={`${product.name}${selectedColor ? ` en ${selectedColor}` : ''}`} onError={(event) => { event.currentTarget.style.display = "none"; }}
             loading="lazy" decoding="async"
             className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
           />
@@ -635,12 +660,29 @@ function ProductCard({ product, onSelect, onAddToCart }: {
         </div>
         {product.reviews > 0 && product.rating > 0 && <div className="hidden sm:block"><StarRating rating={product.rating} reviews={product.reviews} /></div>}
 
-        {product.colors.length > 0 && (
-          <div className="flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2">
-            {product.colors.slice(0, 4).map((c) => (
-              <div key={c.name} className="h-3 w-3 rounded-full border border-slate-200 sm:h-4 sm:w-4" style={{ backgroundColor: c.hex }} title={c.name} />
-            ))}
-            {product.colors.length > 4 && <span className="text-xs text-slate-400">+{product.colors.length - 4}</span>}
+        {orderedColors.length > 0 && (
+          <div className="space-y-1.5" role="group" aria-label={`Colores de ${product.name}`}>
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              {orderedColors.map((color) => {
+                const isSelected = selectedColor === color.name;
+                const swatchStyle = color.hex2
+                  ? { background: `linear-gradient(90deg, ${color.hex} 0 50%, ${color.hex2} 50% 100%)` }
+                  : { backgroundColor: color.hex };
+                return (
+                  <button
+                    key={color.name}
+                    type="button"
+                    aria-label={`Ver color ${color.name}`}
+                    aria-pressed={isSelected}
+                    title={color.name}
+                    onClick={() => setSelectedColor(color.name)}
+                    className={`h-8 w-8 shrink-0 rounded-full border-2 transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 sm:h-9 sm:w-9 ${isSelected ? "scale-110 border-slate-900 ring-2 ring-white" : "border-slate-300 hover:scale-105"}`}
+                    style={{ ...swatchStyle, boxShadow: "0 0 0 1px rgba(15,23,42,0.16)" }}
+                  />
+                );
+              })}
+            </div>
+            <p className="text-xs font-semibold text-slate-600">Color: {selectedColor}</p>
           </div>
         )}
 
@@ -671,7 +713,7 @@ function ProductCard({ product, onSelect, onAddToCart }: {
           type="button"
           aria-label={product.stock <= 0 ? `Agotado: ${product.name}` : `Agregar ${product.name} al carrito`}
           disabled={product.stock <= 0 || (requiresSize && !selectedSize)}
-          onClick={() => onAddToCart(product, cartSize, defaultColor)}
+          onClick={() => onAddToCart(product, cartSize, selectedColor)}
           className="mt-auto flex min-h-11 w-full min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-black px-1.5 py-2 text-[11px] font-bold text-white shadow-sm shadow-slate-200 transition-all duration-200 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600 sm:gap-2 sm:rounded-full sm:px-3 sm:py-3 sm:text-sm"
         >
           {product.stock <= 0 ? "Agotado" : <><ShoppingCart size={14} /><span className="sm:hidden">Agregar</span><span className="hidden sm:inline">Agregar al carrito</span></>}
@@ -1122,7 +1164,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
             cart.map((item) => (
               <div key={`${item.product.id}-${item.selectedSize}-${item.selectedColor}`}
                 className="flex gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
-                <img src={item.product.image} alt={item.product.name} onError={(event) => { event.currentTarget.style.display = "none"; }}
+                <img src={getProductColorImage(item.product, item.selectedColor)} alt={`${item.product.name}${item.selectedColor ? ` en ${item.selectedColor}` : ''}`} onError={(event) => { event.currentTarget.style.display = "none"; }}
                   className="w-16 h-16 object-cover rounded-lg bg-white shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-[11px] font-bold text-[#1e3a8a] uppercase">{item.product.brand}</p>
@@ -1753,7 +1795,10 @@ function ProductDetailPage({ product, products, onBack, onAddToCart, onNavigate,
 }) {
   const requiresSize = hasSelectableSizes(product.sizes);
   const [selectedSize, setSelectedSize] = useState(requiresSize ? "" : product.sizes[0] ?? "");
-  const [selectedColor, setSelectedColor] = useState(product.colors[0]?.name ?? "");
+  const orderedDetailColors = [...product.colors].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  const defaultDetailColor = orderedDetailColors.find((color) => color.isDefault)?.name ?? orderedDetailColors[0]?.name ?? "";
+  const [selectedColor, setSelectedColor] = useState(defaultDetailColor);
+  const selectedDetailColor = orderedDetailColors.find((color) => color.name === selectedColor);
   const [qty, setQty] = useState(1);
   const [tab, setTab] = useState<"specs" | "reviews">("specs");
   const [added, setAdded] = useState(false);
@@ -1785,7 +1830,7 @@ function ProductDetailPage({ product, products, onBack, onAddToCart, onNavigate,
 
       <div className="mb-14 grid min-w-0 grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1.08fr)_minmax(20rem,0.92fr)] lg:gap-10">
         <section aria-label={`Galería de ${product.name}`} className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
-          <ProductGallery key={product.id} main_image={product.image} images={product.images} productName={product.name} />
+          <ProductGallery key={`${product.id}-${selectedColor}`} main_image={selectedDetailColor?.image || product.image} images={selectedDetailColor?.image ? [selectedDetailColor.image, ...(product.images ?? []).filter((image) => image !== selectedDetailColor.image)] : product.images} productName={`${product.name}${selectedColor ? ` en ${selectedColor}` : ''}`} />
         </section>
 
         <section aria-label={`Información de ${product.name}`} className="min-w-0 space-y-6 py-1 sm:py-2">
@@ -2503,7 +2548,7 @@ function CheckoutPage({ cart, catalogProducts, resumedOrder, onNavigate, address
               {checkoutCart.map((item) => (
                     <div key={`${item.product.id}-${item.selectedSize}-${item.selectedColor}`} className="flex gap-2 sm:gap-3">
                   <div className="relative shrink-0">
-                    <img src={item.product.image} alt="" onError={(event) => { event.currentTarget.style.display = "none"; }} className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-cover bg-slate-100" />
+                    <img src={getProductColorImage(item.product, item.selectedColor)} alt={`${item.product.name}${item.selectedColor ? ` en ${item.selectedColor}` : ''}`} onError={(event) => { event.currentTarget.style.display = "none"; }} className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-cover bg-slate-100" />
                     <span className="absolute -top-1.5 -right-1.5 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-[#bfdbfe] text-[#0b1220] text-[8px] sm:text-[9px] font-bold flex items-center justify-center">{item.qty}</span>
                   </div>
                   <div className="flex-1 min-w-0">
@@ -3204,12 +3249,12 @@ function AccountPage({ onNavigate, onLogout, authUser, addresses, onCreateAddres
                         {new Date(order.createdAt).toLocaleString("es-CO")}
                       </p>
                     </div>
-                    <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${order.status === "cancelled" ? "border-red-200 bg-red-50 text-red-700" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
-                      {order.status === "pending_payment" ? "Pendiente de pago" : ORDER_STATUS_LABELS[order.status] ?? order.status}
+                    <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${order.status === "cancelled" ? "border-red-200 bg-red-50 text-red-700" : order.status === "paid" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
+                      {ORDER_STATUS_LABELS[order.status] ?? order.status}
                     </span>
                   </div>
                   <p className="mt-3 text-sm text-slate-600">
-                    Pedido registrado; no se ha iniciado ni cobrado ningún pago.
+                    {getPaymentStatusMessage(order.paymentStatus, order.status)}
                   </p>
                   <p className="mt-1 text-sm font-semibold text-slate-800">
                     {order.shippingQuoteId
@@ -4083,7 +4128,11 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       stock: product.stock,
       sku: product.sku,
       description: product.description,
-      colors: product.colors,
+      colors: product.colors.map((color) => ({
+        ...color,
+        hexConfirmed: true,
+        hex2Confirmed: Boolean(color.hex2),
+      })),
       sizes: product.sizes,
       specifications: product.specifications ?? [],
       shippingWeightGrams: product.shippingWeightGrams,
@@ -4112,7 +4161,14 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       categoryId: normalizedCategoryId,
       catalogSection: productForm.catalogSection,
       category: productForm.category || selectedCategoryOption?.name || '',
-      colors: productForm.colors.map((color) => ({ name: color.name, hex: color.hex })),
+      colors: productForm.colors.map((color, sortOrder) => ({
+        name: color.name,
+        hex: color.hex,
+        ...(color.hex2 ? { hex2: color.hex2 } : {}),
+        ...(color.image ? { image: color.image } : {}),
+        ...(color.isDefault ? { isDefault: true } : {}),
+        sortOrder,
+      })),
       sizes: normalizedSizes,
       specifications: normalizedSpecifications,
       shippingWeightGrams: productForm.shippingWeightGrams,
@@ -4144,6 +4200,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       pendingImageCount: productImageSelections.filter((entry) => Boolean(entry.file)).length,
       sizes: normalizedSizes,
       specifications: normalizedSpecifications,
+      colors: productForm.colors,
     });
 
     if (productImageSelections.length > MAX_PRODUCT_TOTAL_IMAGES) {
@@ -4861,6 +4918,109 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                   </div>
                 </section>
 
+                <section aria-labelledby="product-colors-heading" className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h4 id="product-colors-heading" className="text-sm font-bold text-slate-800">Colores del producto</h4>
+                      <p className="mt-1 text-xs text-slate-500">Cada color se guarda solo en este producto. La foto permite sugerir el HEX, pero tú confirmas el resultado.</p>
+                    </div>
+                    <button type="button" onClick={addProductColor} className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700">Agregar</button>
+                  </div>
+
+                  {(productForm.colors ?? []).length === 0 && (
+                    <p className="rounded-lg border border-dashed border-slate-300 p-4 text-sm text-slate-500">Este producto no tiene variantes de color registradas.</p>
+                  )}
+
+                  <div className="space-y-3">
+                    {(productForm.colors ?? []).map((color, index) => {
+                      const swatchStyle = color.hex2
+                        ? { background: `linear-gradient(90deg, ${color.hex} 0 50%, ${color.hex2} 50% 100%)` }
+                        : { backgroundColor: color.hex };
+                      return (
+                        <div key={`${index}-${color.name}`} className="grid gap-3 rounded-lg border border-slate-200 p-3 md:grid-cols-[auto_minmax(0,1fr)_auto]">
+                          <div className="flex items-start gap-3">
+                            <div className="h-12 w-12 shrink-0 rounded-full border-2 border-slate-300 shadow-sm" style={swatchStyle} aria-label={`Vista previa de ${color.name || 'nuevo color'}`} />
+                            {color.image && <img src={color.image} alt={`Foto de ${color.name || 'nuevo color'}`} className="h-12 w-12 rounded-lg border border-slate-200 object-contain bg-slate-50" />}
+                          </div>
+                          <div className="grid min-w-0 gap-2 sm:grid-cols-2">
+                            <input
+                              aria-label={`Nombre comercial del color ${index + 1}`}
+                              value={color.name}
+                              onChange={(event) => updateProductColor(index, 'name', event.target.value)}
+                              placeholder="Ej: Gris / Plata"
+                              className="min-w-0 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20"
+                            />
+                            <div className="grid grid-cols-2 gap-2">
+                              <label className="text-xs font-semibold text-slate-600">
+                                HEX principal
+                                <div className="mt-1 flex gap-1">
+                                  <input
+                                    type="color"
+                                    aria-label={`Selector principal del color ${index + 1}`}
+                                    value={/^#[0-9A-F]{6}$/i.test(color.hex) ? color.hex : '#000000'}
+                                    onChange={(event) => updateProductColor(index, 'hex', event.target.value.toUpperCase())}
+                                    className="h-9 w-10 shrink-0 cursor-pointer rounded border border-slate-300 bg-white p-1"
+                                  />
+                                  <input
+                                    value={color.hex}
+                                    aria-label={`HEX principal del color ${index + 1}`}
+                                    onChange={(event) => updateProductColor(index, 'hex', event.target.value.toUpperCase())}
+                                    placeholder="#000000"
+                                    className="min-w-0 flex-1 rounded border border-slate-300 px-2 text-xs uppercase focus:border-blue-600 focus:outline-none"
+                                  />
+                                </div>
+                              </label>
+                              <label className="text-xs font-semibold text-slate-600">
+                                HEX secundario
+                                <div className="mt-1 flex gap-1">
+                                  <input
+                                    type="color"
+                                    aria-label={`Selector secundario del color ${index + 1}`}
+                                    value={/^#[0-9A-F]{6}$/i.test(color.hex2 ?? '') ? color.hex2 : '#FFFFFF'}
+                                    onChange={(event) => updateProductColor(index, 'hex2', event.target.value.toUpperCase())}
+                                    className="h-9 w-10 shrink-0 cursor-pointer rounded border border-slate-300 bg-white p-1"
+                                  />
+                                  <input
+                                    value={color.hex2 ?? ''}
+                                    aria-label={`HEX secundario del color ${index + 1}`}
+                                    onChange={(event) => updateProductColor(index, 'hex2', event.target.value.toUpperCase())}
+                                    placeholder="Opcional"
+                                    className="min-w-0 flex-1 rounded border border-slate-300 px-2 text-xs uppercase focus:border-blue-600 focus:outline-none"
+                                  />
+                                </div>
+                              </label>
+                            </div>
+                            <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 sm:col-span-2">
+                              <input type="checkbox" checked={Boolean(color.isDefault)} onChange={(event) => updateProductColor(index, 'isDefault', event.target.checked)} className="h-4 w-4" />
+                              Usar como color predeterminado
+                            </label>
+                            <label className="sm:col-span-2">
+                              <span className="block text-xs font-semibold text-slate-600">Foto de esta variante</span>
+                              <input
+                                type="file"
+                                accept="image/jpeg,image/png,image/webp,image/avif"
+                                aria-label={`Foto del color ${color.name || index + 1}`}
+                                onChange={(event) => {
+                                  const file = event.target.files?.[0];
+                                  if (file) void handleProductColorImage(index, file);
+                                  event.currentTarget.value = '';
+                                }}
+                                className="mt-1 block w-full text-xs text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-xs file:font-semibold hover:file:bg-slate-200"
+                              />
+                            </label>
+                          </div>
+                          <div className="flex items-start gap-1">
+                            <button type="button" aria-label={`Subir color ${index + 1}`} title="Subir color" disabled={index === 0} onClick={() => moveProductColor(index, -1)} className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40"><ChevronUp size={16} /></button>
+                            <button type="button" aria-label={`Bajar color ${index + 1}`} title="Bajar color" disabled={index === (productForm.colors?.length ?? 0) - 1} onClick={() => moveProductColor(index, 1)} className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 disabled:opacity-40"><ChevronDown size={16} /></button>
+                            <button type="button" aria-label={`Eliminar color ${index + 1}`} onClick={() => removeProductColor(index)} className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:border-red-200 hover:text-red-700"><X size={16} /></button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {formErrors.colors && <p role="alert" className="text-xs text-red-600">{formErrors.colors}</p>}
+                </section>
+
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-4">
                   <div>
                     <div className="flex items-center justify-between gap-3">
@@ -4877,11 +5037,11 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
 
                   <label className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-slate-300 bg-white px-4 py-4 text-center hover:border-blue-500 hover:bg-blue-50/40">
                     <span className="text-sm font-semibold text-slate-700">Seleccionar imágenes</span>
-                    <span className="text-xs text-slate-500">JPG, PNG o WebP · máximo 5 MB cada una</span>
+                    <span className="text-xs text-slate-500">JPG, PNG, WebP o AVIF · máximo 5 MB cada una</span>
                     <input
                       type="file"
                       aria-label="Seleccionar imágenes del producto"
-                      accept="image/jpeg,image/png,image/webp"
+                      accept="image/jpeg,image/png,image/webp,image/avif"
                       multiple
                       onChange={handleProductImageFilesChange}
                       disabled={isSubmitting || productImageSelections.length >= MAX_PRODUCT_TOTAL_IMAGES}
@@ -5289,6 +5449,67 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     updateField('sizes', productForm.sizes.filter((_, currentIndex) => currentIndex !== index));
   };
 
+  const addProductColor = () => {
+    updateField('colors', [
+      ...(productForm.colors ?? []),
+      { name: '', hex: '#000000', hex2: '', image: '', isDefault: (productForm.colors?.length ?? 0) === 0, sortOrder: productForm.colors?.length ?? 0, hexConfirmed: false, hex2Confirmed: false },
+    ]);
+  };
+
+  const updateProductColor = (index: number, field: 'name' | 'hex' | 'hex2' | 'image' | 'isDefault', value: string | boolean) => {
+    const colors = (productForm.colors ?? []).map((color, currentIndex) => {
+      if (currentIndex !== index) {
+        return field === 'isDefault' && value === true ? { ...color, isDefault: false } : color;
+      }
+      return {
+        ...color,
+        [field]: value,
+        ...(field === 'hex' ? { hexConfirmed: true } : {}),
+        ...(field === 'hex2' ? { hex2Confirmed: true } : {}),
+        sortOrder: currentIndex,
+      };
+    });
+    updateField('colors', colors);
+  };
+
+  const moveProductColor = (index: number, direction: -1 | 1) => {
+    const nextIndex = index + direction;
+    const colors = [...(productForm.colors ?? [])];
+    if (nextIndex < 0 || nextIndex >= colors.length) return;
+    [colors[index], colors[nextIndex]] = [colors[nextIndex], colors[index]];
+    updateField('colors', colors.map((color, sortOrder) => ({ ...color, sortOrder })));
+  };
+
+  const removeProductColor = (index: number) => {
+    const colors = (productForm.colors ?? []).filter((_, currentIndex) => currentIndex !== index)
+      .map((color, sortOrder) => ({ ...color, sortOrder }));
+    updateField('colors', colors);
+  };
+
+  const handleProductColorImage = async (index: number, file: File) => {
+    try {
+      const uploaded = await uploadProductImage(file);
+      const image = getPublicUrl(STORAGE_BUCKET, uploaded.path);
+      const suggestion = await suggestImageColors(file);
+      const colors = (productForm.colors ?? []).map((color, currentIndex) => {
+        if (currentIndex !== index) return color;
+        const hexWasConfirmed = color.hexConfirmed === true;
+        const hex2WasConfirmed = color.hex2Confirmed === true;
+        return {
+          ...color,
+          image,
+          hex: !hexWasConfirmed && suggestion?.primary ? suggestion.primary : color.hex,
+          hex2: !hex2WasConfirmed ? suggestion?.secondary ?? '' : color.hex2,
+          sortOrder: currentIndex,
+        };
+      });
+      updateField('colors', colors);
+      toast.success('Foto agregada y sugerencia de color aplicada. Puedes editarla.');
+    } catch (error) {
+      toast.error(formatAdminApiError(error, 'No se pudo cargar la foto del color.'));
+    };
+  };
+
   const updateProductSpecification = (index: number, field: 'name' | 'value', value: string) => {
     const specifications = productForm.specifications ?? [];
     updateField('specifications', specifications.map((specification, currentIndex) => (
@@ -5313,10 +5534,10 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
   };
 
   const validateImageFile = (file: File) => {
-    const supportedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    const supportedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
     const maxSizeBytes = 5 * 1024 * 1024;
 
-    if (!supportedTypes.includes(file.type)) return 'Formato no válido. Usa JPG, PNG o WebP.';
+    if (!supportedTypes.includes(file.type)) return 'Formato no válido. Usa JPG, PNG, WebP o AVIF.';
     if (file.size === 0) return 'El archivo está vacío.';
     if (file.size > maxSizeBytes) return 'El archivo excede el límite de 5 MB.';
     return null;
@@ -5740,6 +5961,11 @@ export default function App() {
   const [profileRole, setProfileRole] = useState<string | null>(null);
   const [profileAccessError, setProfileAccessError] = useState(false);
   const [authReady, setAuthReady] = useState(false);
+  const [paymentReturnAttempt, setPaymentReturnAttempt] = useState(0);
+  const [paymentReturnResult, setPaymentReturnResult] = useState<
+    | { state: 'idle' | 'loading' | 'login_required' | 'error'; message: string }
+    | { state: 'verified'; paymentStatus: string; orderStatus: string }
+  >({ state: 'idle', message: '' });
   const [homeContent, setHomeContent] = useState<HomePageContent>({
     heroTitle: DEFAULT_HERO_TITLE,
     heroSubtitle: DEFAULT_HERO_SUBTITLE,
@@ -5899,6 +6125,47 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (view !== 'payment-return' || !authReady) return;
+    const query = new URLSearchParams(window.location.search);
+    const orderId = query.get('order_id');
+    const transactionId = query.get('id');
+    if (!orderId || !transactionId) {
+      setPaymentReturnResult({
+        state: 'error',
+        message: 'No se recibió la referencia necesaria para verificar el pago. Consulta tus pedidos.',
+      });
+      return;
+    }
+    if (!authUser) {
+      setPaymentReturnResult({
+        state: 'login_required',
+        message: 'Inicia sesión con la cuenta del pedido para consultar el estado real del pago.',
+      });
+      return;
+    }
+
+    let active = true;
+    setPaymentReturnResult({ state: 'loading', message: 'Consultando el estado del pago con Wompi…' });
+    void verifyWompiPaymentReturn(orderId, transactionId)
+      .then((result) => {
+        if (!active) return;
+        setPaymentReturnResult({
+          state: 'verified',
+          paymentStatus: result.paymentStatus,
+          orderStatus: result.orderStatus,
+        });
+      })
+      .catch(() => {
+        if (!active) return;
+        setPaymentReturnResult({
+          state: 'error',
+          message: 'No fue posible verificar el pago. Puedes reintentar o revisar tus pedidos.',
+        });
+      });
+    return () => { active = false; };
+  }, [authReady, authUser?.id, paymentReturnAttempt, view]);
+
+  useEffect(() => {
     if (!authReady) return;
     if (!isAdmin && view === "admin") {
       logAuthDiagnostic("route-guard.redirect", { userId: authUser?.id, email: authUser?.email, sessionPresent: Boolean(authUser), isAdmin: false, redirectTo: "admin-login" });
@@ -5967,6 +6234,12 @@ export default function App() {
     setIsAdmin(adminStatus);
     setProfileRole(role);
     setProfileAccessError(false);
+  };
+
+  const handleLoginNavigation = (destination: View) => {
+    const query = new URLSearchParams(window.location.search);
+    const hasPaymentReturn = query.has('order_id') && query.has('id');
+    navigate(destination === 'home' && hasPaymentReturn ? 'payment-return' : destination);
   };
 
   const handleLogout = async () => {
@@ -6341,19 +6614,37 @@ export default function App() {
       {view === "payment-return" && (
         <main className="mx-auto max-w-3xl px-4 py-12">
           <h1 className="text-2xl font-bold">Regreso del checkout</h1>
-          <p className="mt-3 text-slate-600">
-            El retorno no confirma el pago. Consulta tus pedidos desde tu cuenta.
+          <p className="mt-3 text-slate-600" role="status" aria-live="polite">
+            {!authReady
+              ? 'Verificando tu sesión…'
+              : paymentReturnResult.state === 'verified'
+                ? getPaymentStatusMessage(
+                  paymentReturnResult.paymentStatus,
+                  paymentReturnResult.orderStatus as Order['status'],
+                )
+                : paymentReturnResult.message}
           </p>
-          <button
-            type="button"
-            onClick={() => navigate(getPaymentReturnDestination(Boolean(authUser)))}
-          >
-            {authUser ? "Ir a Mi cuenta" : "Inicia sesión para consultar tus pedidos"}
-          </button>
+          <div className="mt-5 flex flex-wrap gap-3">
+            {authReady && paymentReturnResult.state === 'login_required' && (
+              <button type="button" onClick={() => navigate('login')}>
+                Iniciar sesión para verificar
+              </button>
+            )}
+            {paymentReturnResult.state === 'error' && authUser && (
+              <button type="button" onClick={() => setPaymentReturnAttempt((attempt) => attempt + 1)}>
+                Reintentar verificación
+              </button>
+            )}
+            {authReady && authUser && (
+              <button type="button" onClick={() => navigate(getPaymentReturnDestination(true))}>
+                Ir a Mi cuenta
+              </button>
+            )}
+          </div>
         </main>
       )}
-      {view === "login" && <LoginPage isRegister={false} onNavigate={navigate} onLogin={handleAuthSuccess} headerOffset={headerOffset} />}
-      {view === "register" && <LoginPage isRegister={true} onNavigate={navigate} onLogin={handleAuthSuccess} headerOffset={headerOffset} />}
+      {view === "login" && <LoginPage isRegister={false} onNavigate={handleLoginNavigation} onLogin={handleAuthSuccess} headerOffset={headerOffset} />}
+      {view === "register" && <LoginPage isRegister={true} onNavigate={handleLoginNavigation} onLogin={handleAuthSuccess} headerOffset={headerOffset} />}
       {view === "admin-login" && <LoginPage isRegister={false} onNavigate={navigate} onLogin={handleAuthSuccess} headerOffset={headerOffset} />}
       {view === "password-reset" && <PasswordRecoveryPage onNavigate={navigate} />}
       {view === "account" && (

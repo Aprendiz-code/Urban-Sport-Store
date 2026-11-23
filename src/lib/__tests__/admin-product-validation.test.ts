@@ -59,6 +59,28 @@ describe('admin product validation', () => {
     expect(validateProductForm({ ...validProduct, images: Array.from({ length: 11 }, (_, index) => `image-${index}`) })).toHaveProperty('gallery');
   });
 
+  it('validates and accepts rich color variants without inventing variants', () => {
+    const product = {
+      name: 'Zapatilla Test',
+      brand: 'Marca Test',
+      sku: 'SKU-1',
+      price: 120000,
+      stock: 10,
+      categoryId: '123e4567-e89b-12d3-a456-426614174000',
+      catalogSection: 'Tenis Hombre',
+      image: 'https://example.test/image.jpg',
+      images: [],
+      colors: [
+        { name: 'Gris / Plata', hex: '#A7ADB4', hex2: '#D6DADE', image: 'https://example.test/gris.jpg', isDefault: true },
+        { name: 'Negro', hex: '#111827', image: 'https://example.test/negro.jpg' },
+      ],
+    };
+
+    expect(validateProductForm(product)).toEqual({});
+    expect(validateProductForm({ ...product, colors: [product.colors[0], product.colors[0]] })).toHaveProperty('colors');
+    expect(validateProductForm({ ...product, colors: [{ ...product.colors[0], hex: 'bad' }] })).toHaveProperty('colors');
+  });
+
   it('allows product creation without shipping data while carrier integration is pending', () => {
     const product = {
       name: 'Zapatilla Test',

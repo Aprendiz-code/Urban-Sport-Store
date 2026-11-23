@@ -1,6 +1,6 @@
 import { getSupabaseClient } from './supabase-client';
 import { uploadProductImageApi } from './admin-api';
-import type { ProductSpecification } from '../types/domain';
+import type { ProductColor, ProductSpecification } from '../types/domain';
 
 export interface ProductRecord {
   id: string;
@@ -22,7 +22,7 @@ export interface ProductRecord {
   stock?: number | null;
   sku?: string | null;
   description?: string | null;
-  colors?: Array<{ name: string; hex: string }> | null;
+  colors?: ProductColor[] | null;
   sizes?: string[] | null;
   images?: string[] | null;
   gender?: string | null;
@@ -51,7 +51,7 @@ export function resolveStorageBucket(configuredBucket?: string): string {
 }
 
 export const STORAGE_BUCKET = resolveStorageBucket(import.meta.env.VITE_SUPABASE_STORAGE_BUCKET);
-const SUPPORTED_IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp'];
+const SUPPORTED_IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'avif'];
 
 const getFileExtension = (file: File) => {
   const fileName = file.name.toLowerCase();
@@ -63,6 +63,7 @@ const getFileExtension = (file: File) => {
   if (file.type === 'image/jpeg') return 'jpg';
   if (file.type === 'image/png') return 'png';
   if (file.type === 'image/webp') return 'webp';
+  if (file.type === 'image/avif') return 'avif';
 
   return 'png';
 };

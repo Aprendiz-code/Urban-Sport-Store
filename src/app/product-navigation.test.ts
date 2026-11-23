@@ -17,14 +17,15 @@ describe('storefront product navigation', () => {
 
   it('keeps favorites and add-to-cart as separate actions', () => {
     expect(productCardSource).toContain('onClick={() => setWished((value) => !value)}');
-    expect(productCardSource).toContain('onClick={() => onAddToCart(product, cartSize, defaultColor)}');
+    expect(productCardSource).toContain('onClick={() => onAddToCart(product, cartSize, selectedColor)}');
     expect(productCardSource).not.toContain('onClick={() => { onSelect(product); onAddToCart');
     expect(productCardSource).toContain('<span className="sm:hidden">Agregar</span>');
     expect(productCardSource).toContain('aria-label={product.stock <= 0 ? `Agotado: ${product.name}` : `Agregar ${product.name} al carrito`}');
   });
 
   it('resets the existing gallery component for the opened product and preserves catalog state', () => {
-    expect(appSource).toContain('<ProductGallery key={product.id} main_image={product.image} images={product.images}');
+    expect(appSource).toContain('key={`${product.id}-${selectedColor}`}');
+    expect(appSource).toContain('main_image={selectedDetailColor?.image || product.image}');
     expect(appSource).toContain('selectedBrand={catalogBrand}');
     expect(appSource).toContain('sortBy={catalogSort}');
     expect(appSource).toContain('onClick={onBack} className="mb-4 inline-flex');

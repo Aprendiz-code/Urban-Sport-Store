@@ -1,5 +1,5 @@
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded' | 'cancelled';
-export type OrderStatus = 'pending_payment' | 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded';
+export type OrderStatus = 'pending_payment' | 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded' | 'paid' | 'payment_review';
 export type ShipmentStatus = 'pending' | 'preparing' | 'shipped' | 'delivered' | 'returned' | 'cancelled';
 export type UserRole = 'CUSTOMER' | 'OWNER' | 'ADMIN' | 'CATALOG_MANAGER' | 'LOGISTICS' | 'ACCOUNTANT';
 
@@ -42,6 +42,17 @@ export type ProductCatalogSection =
   | 'Relojes'
   | 'Gafas';
 
+export interface ProductColor {
+  name: string;
+  hex: string;
+  hex2?: string;
+  image?: string;
+  isDefault?: boolean;
+  sortOrder?: number;
+  hexConfirmed?: boolean;
+  hex2Confirmed?: boolean;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -60,7 +71,7 @@ export interface Product {
   stock: number;
   sku: string;
   description: string;
-  colors: Array<{ name: string; hex: string }>;
+  colors: ProductColor[];
   sizes: string[];
   images?: string[];
   gender?: 'Hombre' | 'Mujer' | 'Unisex';

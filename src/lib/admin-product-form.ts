@@ -62,6 +62,13 @@ export function validateProductForm(form: {
   pendingImageCount?: number;
   sizes?: readonly string[];
   specifications?: readonly ProductSpecification[];
+  colors?: readonly {
+    name?: string;
+    hex?: string;
+    hex2?: string;
+    image?: string;
+    isDefault?: boolean;
+  }[];
 }): Record<string, string> {
   const errors: Record<string, string> = {};
 
@@ -100,6 +107,34 @@ export function validateProductForm(form: {
   if (uniqueSizes.size !== normalizedSizes.filter(Boolean).length) {
     errors.sizes = 'No se permiten tallas duplicadas.';
   }
+
+  const seenColorNames = new Set<string>();
+  let defaultColorCount = 0;
+  for (const color of form.colors ?? []) {
+    const name = String(color.name ?? '').trim();
+    const hex = String(color.hex ?? '').trim();
+    const hex2 = String(color.hex2 ?? '').trim();
+    if (!name) {
+      errors.colors = 'Completa el nombre comercial de cada color.';
+      break;
+    }
+    const normalizedName = name.toLowerCase();
+    if (seenColorNames.has(normalizedName)) {
+      errors.colors = 'No se permiten variantes de color duplicadas dentro del producto.';
+      break;
+    }
+    seenColorNames.add(normalizedName);
+    if (!/^#[0-9A-F]{6}$/i.test(hex)) {
+      errors.colors = `El primer HEX de ${name} no es válido.`;
+      break;
+    }
+    if (hex2 && !/^#[0-9A-F]{6}$/i.test(hex2)) {
+      errors.colors = `El segundo HEX de ${name} no es válido.`;
+      break;
+    }
+    if (color.isDefault) defaultColorCount += 1;
+  }
+  if (defaultColorCount > 1) errors.colors = 'Solo una variante de color puede ser predeterminada.';
 
   const seenSpecificationNames = new Set<string>();
   for (const specification of form.specifications ?? []) {
