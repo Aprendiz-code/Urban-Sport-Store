@@ -3,6 +3,8 @@ import { MessageCircle, Send, X, ExternalLink, Headset, PackageSearch } from 'lu
 import { resolveApiBaseUrl } from '../../lib/api-config';
 
 const WHATSAPP_URL = 'https://wa.me/573157760273?text=Hola%2C%20vengo%20de%20Urban%20Sport%20Store%20y%20necesito%20ayuda%20con%20una%20compra.';
+const INACTIVITY_LIMIT_MS = 7 * 60 * 1000;
+const INITIAL_ASSISTANT_MESSAGE = 'Hola, soy el asistente de Urban Sport. ¿Qué producto estás buscando?';
 
 type AssistantSource = 'groq' | 'catalog' | 'policy' | 'fallback';
 type ChatProduct = {
@@ -43,13 +45,27 @@ export default function ShoppingAssistant() {
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([{ role: 'assistant', text: 'Hola, soy el asistente de Urban Sport. ¿Qué producto estás buscando?' }]);
+  const [messages, setMessages] = useState<ChatMessage[]>([{ role: 'assistant', text: INITIAL_ASSISTANT_MESSAGE }]);
+  const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const resetInactivityTimer = () => {
+    if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
+    inactivityTimerRef.current = setTimeout(() => {
+      setMessages([{ role: 'assistant', text: INITIAL_ASSISTANT_MESSAGE }]);
+      setMessage('');
+      setLoading(false);
+      setOpen(false);
+      inactivityTimerRef.current = null;
+      requestAnimationFrame(() => triggerRef.current?.focus());
+    }, INACTIVITY_LIMIT_MS);
+  };
+
   useEffect(() => {
     if (!open) return;
+    resetInactivityTimer();
     inputRef.current?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -61,12 +77,17 @@ export default function ShoppingAssistant() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [open]);
 
+  useEffect(() => () => {
+    if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
+  }, []);
+
   const close = () => {
     setOpen(false);
     requestAnimationFrame(() => triggerRef.current?.focus());
   };
 
   const send = async (text: string) => {
+    resetInactivityTimer();
     const clean = text.replace(/\u0000/g, '').replace(/\s+/g, ' ').trim().slice(0, 800);
     if (!clean || loading) return;
 
@@ -128,7 +149,10 @@ export default function ShoppingAssistant() {
         <button
           ref={triggerRef}
           type="button"
-          onClick={() => setOpen(true)}
+          onClick={() => {
+            setOpen(true);
+            resetInactivityTimer();
+          }}
           aria-label="¿Te ayudamos? Abrir asistente"
           aria-expanded="false"
           aria-controls="urban-sport-assistant"
@@ -236,7 +260,10 @@ export default function ShoppingAssistant() {
                 ref={inputRef}
                 id="assistant-message"
                 value={message}
-                onChange={(event) => setMessage(event.target.value)}
+                onChange={(event) => {
+                  setMessage(event.target.value);
+                  resetInactivityTimer();
+                }}
                 maxLength={800}
                 placeholder="Ej. Tenis talla 40 por menos de $300.000"
                 className="min-h-11 min-w-0 flex-1 rounded-md border border-slate-300 px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#1e3a8a] focus:outline-none focus:ring-2 focus:ring-[#bfdbfe]"

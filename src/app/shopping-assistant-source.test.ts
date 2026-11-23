@@ -28,6 +28,12 @@ describe('shopping assistant UI contract', () => {
     expect(assistantSource).toContain('triggerRef.current?.focus()');
   });
 
+  it('expires conversation history after seven minutes of inactivity', () => {
+    expect(assistantSource).toContain('const INACTIVITY_LIMIT_MS = 7 * 60 * 1000');
+    expect(assistantSource).toContain('resetInactivityTimer');
+    expect(assistantSource).toContain('setMessages([{ role: \'assistant\', text: INITIAL_ASSISTANT_MESSAGE }])');
+  });
+
   it('does not expose Groq secrets in frontend code', () => {
     expect(assistantSource).not.toContain('GROQ_API_KEY');
     expect(assistantSource).not.toContain('gsk_');
