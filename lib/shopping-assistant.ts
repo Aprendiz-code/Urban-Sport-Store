@@ -98,7 +98,7 @@ export async function fetchAssistantProducts() {
 
   const { data, error } = await supabasePublic
     .from('products')
-    .select('id,slug,name,brand,description,price,main_image,images,stock,sizes,category,catalog_section,is_active')
+    .select('id,slug,name,brand,description,price,main_image,images,stock,sizes,catalog_section,is_active')
     .eq('is_active', true)
     .order('created_at', { ascending: false });
 
