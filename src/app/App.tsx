@@ -5643,7 +5643,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       description: model.description,
       sizes: [...model.sizes],
       stock: 0,
-      sku: '',
+      sku: model.sku || '',
       image: '',
       images: [],
       colors: [],

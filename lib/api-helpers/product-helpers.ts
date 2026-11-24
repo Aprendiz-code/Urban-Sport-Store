@@ -71,8 +71,12 @@ function parsePermanentImageUrl(value: unknown, fieldName: string): string | und
   throw new ApiError(400, `${fieldName} debe ser una URL HTTP o HTTPS permanente.`);
 }
 
-function createProductSlug(name: string, sku: string | undefined): string {
-  const base = `${name}-${sku ?? ''}`
+function createProductSlug(name: string, sku: string | undefined, colorName?: string | null, isVariant = false): string {
+  const baseParts = [name];
+  if (sku && sku.trim() && sku.trim().toLowerCase() !== name.trim().toLowerCase()) baseParts.push(sku);
+  if (isVariant && colorName) baseParts.push(colorName);
+  const base = baseParts
+    .join('-')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
@@ -145,7 +149,9 @@ function setProductFields(payload: Record<string, unknown>, body: any) {
   const name = parseString(body.name);
   const sku = parseString(body.sku);
   const slug = parseString(body.slug);
-  if (slug || name) payload.slug = slug ?? createProductSlug(name as string, sku);
+  const colorName = parseString(body.color_name);
+  const isVariant = Boolean(parseString(body.model_id));
+  if (slug || name) payload.slug = slug ?? createProductSlug(name as string, sku, colorName, isVariant);
   if (name) payload.name = name;
   for (const column of ['brand', 'sku'] as const) {
     const value = parseString(body[column]);

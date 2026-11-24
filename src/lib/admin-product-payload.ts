@@ -1,15 +1,22 @@
 import type { Product } from '../types/domain';
 
-export function buildAdminProductPayload(product: Partial<Product>, isCreating = false): Record<string, unknown> {
-  const name = product.name ?? '';
-  const sku = product.sku ?? '';
-  const generatedSlug = `${name}-${sku}`
+function slugifyProductValue(value: string): string {
+  return value
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 180);
+    .replace(/^-|-$/g, '');
+}
+
+export function buildAdminProductPayload(product: Partial<Product>, isCreating = false): Record<string, unknown> {
+  const name = (product.name ?? '').trim();
+  const sku = (product.sku ?? '').trim();
+  const colorName = (product.colorName ?? '').trim();
+  const slugParts = [name];
+  if (sku && sku.toLowerCase() !== name.toLowerCase()) slugParts.push(sku);
+  if (product.modelId && colorName) slugParts.push(colorName);
+  const generatedSlug = slugifyProductValue(slugParts.filter(Boolean).join('-')).slice(0, 180);
   const images = Array.isArray(product.images)
     ? product.images.filter((image): image is string => typeof image === 'string')
     : [];
