@@ -40,17 +40,35 @@ export function suggestNamedColorHex(name: string): ColorSuggestion | null {
   };
 }
 
-const toHex = (red: number, green: number, blue: number) =>
-  `#${[red, green, blue].map((value) => value.toString(16).padStart(2, '0')).join('').toUpperCase()}`;
+function rgbToHex(red: number, green: number, blue: number) {
+  return `#${[red, green, blue].map((value) => Math.max(0, Math.min(255, Math.round(value))).toString(16).padStart(2, '0')).join('').toUpperCase()}`;
+}
 
-const colorDistance = (a: number[], b: number[]) =>
-  Math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2);
+function colorDistance(a: number[], b: number[]) {
+  return Math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2);
+}
+
+function rgbToHsl(red: number, green: number, blue: number) {
+  const r = red / 255;
+  const g = green / 255;
+  const b = blue / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const delta = max - min;
+  let hue = 0;
+  if (delta !== 0) {
+    if (max === r) hue = ((g - b) / delta) % 6;
+    else if (max === g) hue = (b - r) / delta + 2;
+    else hue = (r - g) / delta + 4;
+    hue *= 60;
+    if (hue < 0) hue += 360;
+  }
+  const lightness = (max + min) / 2;
+  const saturation = delta === 0 ? 0 : delta / (1 - Math.abs(2 * lightness - 1));
+  return { hue, saturation, lightness };
+}
 
 type ImageColorSource = File | Blob | string;
-
-function isNamedColorSource(name: string): boolean {
-  return Boolean(suggestNamedColorHex(name));
-}
 
 export async function suggestImageColors(source: ImageColorSource, knownColorName = ''): Promise<ColorSuggestion | null> {
   const namedSuggestion = suggestNamedColorHex(knownColorName);
@@ -71,61 +89,92 @@ export async function suggestImageColors(source: ImageColorSource, knownColorNam
     const context = canvas.getContext('2d', { willReadFrequently: true });
     if (!context) return namedSuggestion;
 
-    const cropSize = Math.min(image.naturalWidth || image.width, image.naturalHeight || image.height);
-    if (!cropSize) return namedSuggestion;
-    const cropX = ((image.naturalWidth || image.width) - cropSize) / 2;
-    const cropY = ((image.naturalHeight || image.height) - cropSize) / 2;
+    const sourceWidth = image.naturalWidth || image.width;
+    const sourceHeight = image.naturalHeight || image.height;
+    if (!sourceWidth || !sourceHeight) return namedSuggestion;
+
+    // Center-crop to focus on the product and reduce background influence.
+    const cropSize = Math.min(sourceWidth, sourceHeight);
+    const cropX = (sourceWidth - cropSize) / 2;
+    const cropY = (sourceHeight - cropSize) / 2;
     context.drawImage(image, cropX, cropY, cropSize, cropSize, 0, 0, canvas.width, canvas.height);
 
-    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
-    const buckets = new Map<string, { count: number; rgb: number[] }>();
+    const { data: pixels } = context.getImageData(0, 0, canvas.width, canvas.height);
+    const buckets = new Map<string, { count: number; r: number; g: number; b: number; saturationSum: number }>();
 
-    for (let pixelIndex = 0; pixelIndex < pixels.length / 4; pixelIndex += 4) {
-      const x = pixelIndex % canvas.width;
-      const y = Math.floor(pixelIndex / canvas.width);
-      if (x < 10 || x >= canvas.width - 10 || y < 8 || y >= 72) continue;
-      const index = pixelIndex * 4;
-      const red = pixels[index];
-      const green = pixels[index + 1];
-      const blue = pixels[index + 2];
-      const alpha = pixels[index + 3];
-      if (alpha < 200) continue;
+    const marginX = 14;
+    const marginTop = 10;
+    const marginBottom = 10;
 
-      const saturation = Math.max(red, green, blue) - Math.min(red, green, blue);
-      const brightness = (red + green + blue) / 3;
-      if (saturation < 14 && (brightness > 246 || brightness < 24)) continue;
+    for (let y = marginTop; y < canvas.height - marginBottom; y += 1) {
+      for (let x = marginX; x < canvas.width - marginX; x += 1) {
+        const index = (y * canvas.width + x) * 4;
+        const red = pixels[index];
+        const green = pixels[index + 1];
+        const blue = pixels[index + 2];
+        const alpha = pixels[index + 3];
+        if (alpha < 220) continue;
 
-      const quantized = [
-        Math.round(red / 24) * 24,
-        Math.round(green / 24) * 24,
-        Math.round(blue / 24) * 24,
-      ].map((value) => Math.min(255, value));
-      const key = quantized.join(',');
-      const bucket = buckets.get(key);
-      if (bucket) {
-        bucket.count += 1;
-        bucket.rgb = bucket.rgb.map((value, position) => (value + quantized[position]) / 2);
-      } else {
-        buckets.set(key, { count: 1, rgb: quantized });
+        const { saturation, lightness } = rgbToHsl(red, green, blue);
+        const maxChannel = Math.max(red, green, blue);
+        const minChannel = Math.min(red, green, blue);
+        const channelSpread = maxChannel - minChannel;
+
+        // Ignore likely background/border neutrals (white studio bg, black edges, gray shadows).
+        const nearWhite = lightness > 0.9 && saturation < 0.18;
+        const nearBlack = lightness < 0.12 && saturation < 0.2;
+        const nearGray = channelSpread < 18 && saturation < 0.16;
+        if (nearWhite || nearBlack || nearGray) continue;
+
+        // Prefer chromatic/product pixels, but keep muted tones if needed.
+        const chromaWeight = saturation < 0.12 && (lightness > 0.82 || lightness < 0.18) ? 0 : 1;
+        if (chromaWeight === 0) continue;
+
+        const step = saturation > 0.35 ? 16 : 24;
+        const qr = Math.round(red / step) * step;
+        const qg = Math.round(green / step) * step;
+        const qb = Math.round(blue / step) * step;
+        const key = `${qr},${qg},${qb}`;
+        const bucket = buckets.get(key);
+        if (bucket) {
+          bucket.count += 1;
+          bucket.r += red;
+          bucket.g += green;
+          bucket.b += blue;
+          bucket.saturationSum += saturation;
+        } else {
+          buckets.set(key, { count: 1, r: red, g: green, b: blue, saturationSum: saturation });
+        }
       }
     }
 
-    const ranked = [...buckets.values()].sort((a, b) => b.count - a.count);
+    const ranked = [...buckets.values()]
+      .map((bucket) => {
+        const avgR = bucket.r / bucket.count;
+        const avgG = bucket.g / bucket.count;
+        const avgB = bucket.b / bucket.count;
+        const avgSaturation = bucket.saturationSum / bucket.count;
+        const { lightness } = rgbToHsl(avgR, avgG, avgB);
+        // Favor frequent, reasonably saturated colors near product midtones.
+        const lightnessPenalty = lightness > 0.92 || lightness < 0.08 ? 0.5 : 1;
+        const score = bucket.count * (0.55 + avgSaturation) * lightnessPenalty;
+        return { avgR, avgG, avgB, avgSaturation, count: bucket.count, score };
+      })
+      .sort((a, b) => b.score - a.score);
+
     const primary = ranked[0];
     if (!primary) return namedSuggestion;
 
-    const primaryHex = toHex(...(primary.rgb.map(Math.round) as [number, number, number]));
-    const secondaryBucket = ranked.find((bucket) => bucket !== primary
-      && colorDistance(bucket.rgb, primary.rgb) > 70
-      && bucket.count >= primary.count * 0.2);
-    const secondaryHex = secondaryBucket
-      ? toHex(...(secondaryBucket.rgb.map(Math.round) as [number, number, number]))
-      : namedSuggestion?.secondary;
+    const primaryHex = rgbToHex(primary.avgR, primary.avgG, primary.avgB);
+    const secondary = ranked.find((bucket) => bucket !== primary
+      && colorDistance([bucket.avgR, bucket.avgG, bucket.avgB], [primary.avgR, primary.avgG, primary.avgB]) > 55
+      && bucket.count >= Math.max(8, primary.count * 0.18)
+      && bucket.avgSaturation >= 0.12);
 
     return {
       primary: primaryHex,
-      ...(secondaryHex && secondaryHex !== primaryHex ? { secondary: secondaryHex } : {}),
-      confidence: 'low',
+      ...(secondary ? { secondary: rgbToHex(secondary.avgR, secondary.avgG, secondary.avgB) } : {}),
+      confidence: primary.avgSaturation >= 0.22 ? 'high' : 'low',
       source: 'image',
     };
   } catch {
@@ -136,5 +185,5 @@ export async function suggestImageColors(source: ImageColorSource, knownColorNam
 }
 
 export function isKnownColorName(name: string): boolean {
-  return isNamedColorSource(name);
+  return Boolean(suggestNamedColorHex(name));
 }
