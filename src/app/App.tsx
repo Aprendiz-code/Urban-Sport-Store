@@ -647,10 +647,14 @@ function ProductCard({ product, onSelect, onAddToCart }: {
   const cartSize = requiresSize ? selectedSize : selectedVariantProduct.sizes[0] ?? '';
   const selectedColor = selectedColorData?.name ?? '';
   const selectedImage = selectedVariantProduct.image || product.image;
+  const [showAllColors, setShowAllColors] = useState(false);
+  const collapsedColorLimit = 6;
+  const colorsToRender = showAllColors ? orderedColors : orderedColors.slice(0, collapsedColorLimit);
 
   useEffect(() => {
     setSelectedColorId(product.selectedColorVariantId ?? defaultColor?.productId ?? '');
     setSelectedSize('');
+    setShowAllColors(false);
   }, [product.id, product.selectedColorVariantId, defaultColor?.productId]);
 
   const selectColor = (colorId: string) => {
@@ -701,32 +705,6 @@ function ProductCard({ product, onSelect, onAddToCart }: {
         </div>
         {product.reviews > 0 && product.rating > 0 && <div className="hidden sm:block"><StarRating rating={product.rating} reviews={product.reviews} /></div>}
 
-        {orderedColors.length > 0 && (
-          <div className="space-y-1.5" role="group" aria-label={`Colores de ${product.name}`}>
-            <div className="flex min-w-0 flex-wrap items-center gap-2">
-              {orderedColors.map((color) => {
-                const isSelected = selectedColorId === color.productId;
-                const swatchStyle = color.hex2
-                  ? { background: `linear-gradient(90deg, ${color.hex} 0 50%, ${color.hex2} 50% 100%)` }
-                  : { backgroundColor: color.hex };
-                return (
-                  <button
-                    key={color.id}
-                    type="button"
-                    aria-label={`Ver color ${color.name}`}
-                    aria-pressed={isSelected}
-                    title={color.name}
-                    onClick={() => selectColor(color.productId)}
-                    className={`h-10 w-10 shrink-0 rounded-full border-2 transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${isSelected ? "scale-105 border-slate-900 ring-2 ring-white" : "border-slate-300 hover:scale-105"}`}
-                    style={{ ...swatchStyle, boxShadow: "0 0 0 1px rgba(15,23,42,0.16)" }}
-                  />
-                );
-              })}
-            </div>
-            <p className="text-xs font-semibold text-slate-600">Color: {selectedColor}</p>
-          </div>
-        )}
-
         {requiresSize && (
           <label className="block text-xs font-semibold text-slate-600">
             Talla
@@ -740,6 +718,49 @@ function ProductCard({ product, onSelect, onAddToCart }: {
               {selectedVariantProduct.sizes.map((size) => <option key={size} value={size}>{size}</option>)}
             </select>
           </label>
+        )}
+
+        {orderedColors.length > 0 && (
+          <div className="space-y-1" role="group" aria-label={`Colores de ${product.name}`}>
+            <div className="flex min-w-0 flex-wrap items-center gap-1">
+              {colorsToRender.map((color) => {
+                const isSelected = selectedColorId === color.productId;
+                const swatchStyle = color.hex2
+                  ? { background: `linear-gradient(90deg, ${color.hex} 0 50%, ${color.hex2} 50% 100%)` }
+                  : { backgroundColor: color.hex };
+                return (
+                  <button
+                    key={color.id}
+                    type="button"
+                    aria-label={`Ver color ${color.name}`}
+                    aria-pressed={isSelected}
+                    title={color.name}
+                    onClick={() => selectColor(color.productId)}
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-700 ${isSelected ? "ring-2 ring-[#1e3a8a] ring-offset-1" : "hover:bg-slate-100"}`}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="h-6 w-6 rounded-full border border-slate-400"
+                      style={{ ...swatchStyle, boxShadow: "0 0 0 1px rgba(15,23,42,0.12)" }}
+                    />
+                  </button>
+                );
+              })}
+              {orderedColors.length > collapsedColorLimit && (
+                <button
+                  type="button"
+                  aria-expanded={showAllColors}
+                  aria-label={showAllColors ? `Mostrar menos colores de ${product.name}` : `Mostrar ${orderedColors.length - collapsedColorLimit} colores más de ${product.name}`}
+                  title={showAllColors ? 'Mostrar menos' : `Mostrar ${orderedColors.length - collapsedColorLimit} colores más`}
+                  onClick={() => setShowAllColors((expanded) => !expanded)}
+                  className="flex h-9 min-w-9 shrink-0 items-center justify-center rounded-md px-1 text-xs font-semibold text-[#1e3a8a] hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-700"
+                >
+                  {showAllColors ? '−' : `+${orderedColors.length - collapsedColorLimit}`}
+                </button>
+              )}
+            </div>
+            <p aria-live="polite" className="text-xs font-semibold text-slate-600">Color: {selectedColor}</p>
+          </div>
         )}
 
         <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5 sm:gap-3">

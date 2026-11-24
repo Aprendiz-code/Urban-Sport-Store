@@ -29,10 +29,16 @@ describe('storefront product navigation', () => {
   });
 
   it('shows saved color variants and offers explicit admin linking of another product', () => {
-    expect(productCardSource).toContain('orderedColors.map((color)');
+    expect(productCardSource).toContain('colorsToRender.map((color)');
     expect(productCardSource).toContain('aria-label={`Ver color ${color.name}`}');
     expect(productCardSource).toContain('aria-pressed={isSelected}');
     expect(productCardSource).toContain('setSelectedSize((currentSize) => nextVariant.sizes.includes(currentSize) ? currentSize : \'\')');
+    expect(productCardSource.indexOf('{requiresSize &&')).toBeLessThan(productCardSource.indexOf('{orderedColors.length > 0'));
+    expect(productCardSource.indexOf('{orderedColors.length > 0')).toBeLessThan(productCardSource.indexOf('<span className="price text-sm'));
+    expect(productCardSource).toContain('className="h-6 w-6 rounded-full border border-slate-400"');
+    expect(productCardSource).toContain('const collapsedColorLimit = 6;');
+    expect(productCardSource).toContain('`+${orderedColors.length - collapsedColorLimit}`');
+    expect(productCardSource).toContain('aria-live="polite"');
     expect(appSource).toContain('Vincular producto existente como color…');
     expect(appSource).toContain('await updateProduct(sourceProduct.id, {');
     expect(appSource).toContain('toast.success(\'Producto vinculado como color. Sus datos e imágenes se conservaron.\')');
