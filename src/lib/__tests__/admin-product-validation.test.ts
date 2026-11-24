@@ -79,6 +79,14 @@ describe('admin product validation', () => {
     expect(validateProductForm(product)).toEqual({});
     expect(validateProductForm({ ...product, colors: [product.colors[0], product.colors[0]] })).toHaveProperty('colors');
     expect(validateProductForm({ ...product, colors: [{ ...product.colors[0], hex: 'bad' }] })).toHaveProperty('colors');
+    expect(validateProductForm({
+      ...product,
+      colors: [{ name: 'Negro', hex: '#111827', isDefault: true, requiresImage: true }],
+    })).toHaveProperty('colors');
+    expect(validateProductForm({
+      ...product,
+      colors: [{ name: 'Negro', hex: '#111827', image: 'https://example.test/negro.jpg', isDefault: true, requiresImage: true }],
+    })).toEqual({});
   });
 
   it('allows product creation without shipping data while carrier integration is pending', () => {

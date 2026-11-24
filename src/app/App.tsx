@@ -615,6 +615,9 @@ function ProductCard({ product, onSelect, onAddToCart }: {
   const orderedColors = [...product.colors].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
   const defaultColor = orderedColors.find((color) => color.isDefault)?.name ?? orderedColors[0]?.name ?? "";
   const [selectedColor, setSelectedColor] = useState(defaultColor);
+  useEffect(() => {
+    setSelectedColor(defaultColor);
+  }, [product.id, defaultColor]);
   const selectedColorData = orderedColors.find((color) => color.name === selectedColor);
   const selectedImage = selectedColorData?.image || product.image;
   const originalPrice = product.originalPrice;
@@ -1798,6 +1801,10 @@ function ProductDetailPage({ product, products, onBack, onAddToCart, onNavigate,
   const orderedDetailColors = [...product.colors].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
   const defaultDetailColor = orderedDetailColors.find((color) => color.isDefault)?.name ?? orderedDetailColors[0]?.name ?? "";
   const [selectedColor, setSelectedColor] = useState(defaultDetailColor);
+  useEffect(() => {
+    setSelectedSize(requiresSize ? '' : product.sizes[0] ?? '');
+    setSelectedColor(defaultDetailColor);
+  }, [product.id, defaultDetailColor, requiresSize, product.sizes]);
   const selectedDetailColor = orderedDetailColors.find((color) => color.name === selectedColor);
   const [qty, setQty] = useState(1);
   const [tab, setTab] = useState<"specs" | "reviews">("specs");
@@ -3535,6 +3542,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     stock: 0, sku: "", description: "", colors: [], sizes: [], gender: "Unisex",
     isNew: false, isFeatured: false, specs: [], specifications: [],
   });
+  const [linkColorProductId, setLinkColorProductId] = useState('');
   const [newProductSize, setNewProductSize] = useState('');
 
   const selectedCategoryOption = useMemo(() => categories.find((option) => option.id === productForm.categoryId || option.name === productForm.category), [categories, productForm.category, productForm.categoryId]);
@@ -4001,6 +4009,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       stock: 0, sku: "", description: "", colors: [], sizes: [], gender: "Unisex",
       isNew: false, isFeatured: false, specs: [], specifications: [],
     });
+    setLinkColorProductId('');
   };
 
   const openNewProductForm = () => {
@@ -4130,8 +4139,8 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       description: product.description,
       colors: product.colors.map((color) => ({
         ...color,
-        hexConfirmed: true,
-        hex2Confirmed: Boolean(color.hex2),
+        hexConfirmed: color.hexConfirmed === true,
+        hex2Confirmed: color.hex2Confirmed === true,
       })),
       sizes: product.sizes,
       specifications: product.specifications ?? [],
@@ -4167,6 +4176,8 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
         ...(color.hex2 ? { hex2: color.hex2 } : {}),
         ...(color.image ? { image: color.image } : {}),
         ...(color.isDefault ? { isDefault: true } : {}),
+        ...(color.sourceProductId ? { sourceProductId: color.sourceProductId } : {}),
+        ...(color.sourceColorName ? { sourceColorName: color.sourceColorName } : {}),
         sortOrder,
       })),
       sizes: normalizedSizes,
@@ -4927,6 +4938,26 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                     <button type="button" onClick={addProductColor} className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700">Agregar</button>
                   </div>
 
+                  <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                    <select
+                      aria-label="Seleccionar producto existente para vincular como color"
+                      value={linkColorProductId}
+                      onChange={(event) => setLinkColorProductId(event.target.value)}
+                      className="min-h-10 min-w-0 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20"
+                    >
+                      <option value="">Vincular otro producto como color…</option>
+                      {products
+                        .filter((candidate) => candidate.id !== activeProduct?.id && candidate.isActive !== false)
+                        .filter((candidate) => !(productForm.colors ?? []).some((color) => color.sourceProductId === candidate.id))
+                        .filter((candidate) => !products.some((parent) => parent.id !== activeProduct?.id && parent.colors.some((color) => color.sourceProductId === candidate.id)))
+                        .map((candidate) => (
+                          <option key={candidate.id} value={candidate.id}>{candidate.name} · {candidate.sku}</option>
+                        ))}
+                    </select>
+                    <button type="button" onClick={addLinkedProductColor} disabled={!linkColorProductId} className="min-h-10 rounded-lg border border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">Añadir producto vinculado</button>
+                  </div>
+                  <p className="text-xs text-slate-500">Al vincularlo, su tarjeta individual dejará de mostrarse en el catálogo y aparecerá como círculo en este producto. El vínculo se deshace al quitar la variante.</p>
+
                   {(productForm.colors ?? []).length === 0 && (
                     <p className="rounded-lg border border-dashed border-slate-300 p-4 text-sm text-slate-500">Este producto no tiene variantes de color registradas.</p>
                   )}
@@ -5452,8 +5483,41 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
   const addProductColor = () => {
     updateField('colors', [
       ...(productForm.colors ?? []),
-      { name: '', hex: '#000000', hex2: '', image: '', isDefault: (productForm.colors?.length ?? 0) === 0, sortOrder: productForm.colors?.length ?? 0, hexConfirmed: false, hex2Confirmed: false },
+      { name: '', hex: '#000000', hex2: '', image: '', isDefault: (productForm.colors?.length ?? 0) === 0, sortOrder: productForm.colors?.length ?? 0, hexConfirmed: false, hex2Confirmed: false, requiresImage: true },
     ]);
+  };
+
+  const addLinkedProductColor = () => {
+    const sourceProduct = products.find((candidate) => candidate.id === linkColorProductId);
+    if (!sourceProduct) return;
+    if ((productForm.colors ?? []).some((color) => color.sourceProductId === sourceProduct.id)) {
+      toast.error('Ese producto ya está vinculado como color.');
+      return;
+    }
+    const sourceColors = sourceProduct.colors.length > 0 ? sourceProduct.colors : [null];
+    const sourceDefaultIndex = sourceColors.findIndex((color) => color?.isDefault === true);
+    const defaultSourceIndex = sourceDefaultIndex >= 0 ? sourceDefaultIndex : 0;
+    const linkedColors = sourceColors.map((sourceColor, sourceIndex) => {
+      const sortOrder = (productForm.colors?.length ?? 0) + sourceIndex;
+      return {
+        name: sourceColor?.name ?? '',
+        hex: sourceColor?.hex ?? '#000000',
+        ...(sourceColor?.hex2 ? { hex2: sourceColor.hex2 } : {}),
+        image: sourceColor?.image || sourceProduct.image || '',
+        sourceProductId: sourceProduct.id,
+        ...(sourceColor?.name ? { sourceColorName: sourceColor.name } : {}),
+        isDefault: (productForm.colors?.length ?? 0) === 0 && sourceIndex === defaultSourceIndex,
+        sortOrder,
+        hexConfirmed: Boolean(sourceColor),
+        hex2Confirmed: Boolean(sourceColor?.hex2),
+        requiresImage: !sourceColor?.image && !sourceProduct.image,
+      };
+    });
+    updateField('colors', [...(productForm.colors ?? []), ...linkedColors]);
+    setLinkColorProductId('');
+    toast.success(linkedColors.length > 1
+      ? 'Producto y colores vinculados. Revisa las fotos y nombres antes de guardar.'
+      : 'Variante vinculada. Completa el nombre o HEX si la fuente no tenía color registrado.');
   };
 
   const updateProductColor = (index: number, field: 'name' | 'hex' | 'hex2' | 'image' | 'isDefault', value: string | boolean) => {
@@ -5481,8 +5545,13 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
   };
 
   const removeProductColor = (index: number) => {
-    const colors = (productForm.colors ?? []).filter((_, currentIndex) => currentIndex !== index)
+    const currentColors = productForm.colors ?? [];
+    const removingDefault = currentColors[index]?.isDefault === true;
+    const colors = currentColors.filter((_, currentIndex) => currentIndex !== index)
       .map((color, sortOrder) => ({ ...color, sortOrder }));
+    if (removingDefault && colors.length > 0) {
+      colors[0] = { ...colors[0], isDefault: true };
+    }
     updateField('colors', colors);
   };
 

@@ -97,6 +97,35 @@ describe('product payload normalization', () => {
     })).rejects.toThrow('Solo una');
   });
 
+  it('accepts a valid explicit source product link and rejects invalid source IDs', async () => {
+    const sourceProductId = '123e4567-e89b-12d3-a456-426614174001';
+    await expect(normalizeProductPayload({
+      name: 'Modelo principal',
+      colors: [{ name: 'Azul', hex: '#123ABC', sourceProductId, sourceColorName: 'Azul claro' }],
+    })).resolves.toMatchObject({
+      colors: [{ name: 'Azul', sourceProductId, sourceColorName: 'Azul claro' }],
+    });
+
+    await expect(normalizeProductPayload({
+      name: 'Modelo principal',
+      colors: [{ name: 'Azul', hex: '#123ABC', sourceProductId: 'not-a-uuid' }],
+    })).rejects.toThrow('no es válido');
+  });
+
+  it('allows different source colors from one linked product but rejects duplicate source colors', async () => {
+    const sourceProductId = '123e4567-e89b-12d3-a456-426614174002';
+    const colors = [
+      { name: 'Plata', hex: '#A7ADB4', sourceProductId, sourceColorName: 'Plata' },
+      { name: 'Negro', hex: '#111827', sourceProductId, sourceColorName: 'Negro' },
+    ];
+    await expect(normalizeProductPayload({ name: 'Modelo principal', colors })).resolves.toMatchObject({ colors });
+    await expect(normalizeProductPayload({
+      name: 'Modelo principal',
+      colors: [...colors, { ...colors[0], name: 'Plata duplicada' }],
+    }))
+      .rejects.toThrow('ya está vinculado');
+  });
+
   it('maps edits to the same database columns, including empty galleries', async () => {
     await expect(normalizeProductUpdates({
       brand: 'Nike Sportswear',

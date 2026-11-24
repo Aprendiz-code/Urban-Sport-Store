@@ -44,7 +44,14 @@ export default async function handler(req: any, res: any) {
       return jsonError(res, 404, 'Product not found.');
     }
 
-    const payload = id || slug ? (Array.isArray(data) ? data[0] ?? null : data) : data;
+    const linkedSourceIds = new Set((data ?? []).flatMap((product: any) =>
+      (product.colors ?? [])
+        .map((color: any) => color?.sourceProductId)
+        .filter((sourceId: unknown): sourceId is string => typeof sourceId === 'string'),
+    ));
+    const payload = id || slug
+      ? (Array.isArray(data) ? data[0] ?? null : data)
+      : (data ?? []).filter((product: any) => !linkedSourceIds.has(product.id));
     return jsonResponse(res, { data: payload });
   } catch (error: any) {
     return jsonError(res, 500, error?.message ?? 'Unable to fetch products.');

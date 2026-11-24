@@ -68,6 +68,7 @@ export function validateProductForm(form: {
     hex2?: string;
     image?: string;
     isDefault?: boolean;
+    requiresImage?: boolean;
   }[];
 }): Record<string, string> {
   const errors: Record<string, string> = {};
@@ -116,6 +117,10 @@ export function validateProductForm(form: {
     const hex2 = String(color.hex2 ?? '').trim();
     if (!name) {
       errors.colors = 'Completa el nombre comercial de cada color.';
+      break;
+    }
+    if (color.requiresImage && !String(color.image ?? '').trim()) {
+      errors.colors = `Asigna una foto a la variante ${name || 'nueva'}.`;
       break;
     }
     const normalizedName = name.toLowerCase();

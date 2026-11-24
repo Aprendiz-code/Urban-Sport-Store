@@ -8,6 +8,11 @@ const detailStart = appSource.indexOf('// ─── CATALOG PAGE', cardStart);
 const productCardSource = appSource.slice(cardStart, detailStart);
 
 describe('storefront product navigation', () => {
+  it('resets the selected color when a different product is rendered', () => {
+    expect(appSource).toContain('setSelectedColor(defaultColor)');
+    expect(appSource).toContain('setSelectedColor(defaultDetailColor)');
+  });
+
   it('links the image and name to the selected product slug or ID', () => {
     expect(productCardSource.match(/\/\?product=\$\{encodeURIComponent\(product\.slug \?\? product\.id\)\}/g)).toHaveLength(2);
     expect(productCardSource.match(/event\.preventDefault\(\); onSelect\(product\);/g)).toHaveLength(2);
@@ -21,6 +26,14 @@ describe('storefront product navigation', () => {
     expect(productCardSource).not.toContain('onClick={() => { onSelect(product); onAddToCart');
     expect(productCardSource).toContain('<span className="sm:hidden">Agregar</span>');
     expect(productCardSource).toContain('aria-label={product.stock <= 0 ? `Agotado: ${product.name}` : `Agregar ${product.name} al carrito`}');
+  });
+
+  it('shows saved color variants and offers explicit admin linking of another product', () => {
+    expect(productCardSource).toContain('orderedColors.map((color)');
+    expect(productCardSource).toContain('aria-label={`Ver color ${color.name}`}');
+    expect(appSource).toContain('Vincular otro producto como color…');
+    expect(appSource).toContain('Añadir producto vinculado');
+    expect(appSource).toContain('sourceProductId: sourceProduct.id');
   });
 
   it('resets the existing gallery component for the opened product and preserves catalog state', () => {

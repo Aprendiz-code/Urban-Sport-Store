@@ -51,6 +51,9 @@ export interface ProductColor {
   sortOrder?: number;
   hexConfirmed?: boolean;
   hex2Confirmed?: boolean;
+  requiresImage?: boolean;
+  sourceProductId?: string;
+  sourceColorName?: string;
 }
 
 export interface Product {

@@ -100,11 +100,12 @@ function normalizeProductSizes(value: unknown): string[] {
   return sizes;
 }
 
-function normalizeProductColors(value: unknown): Array<{ name: string; hex: string; hex2?: string; image?: string; isDefault?: boolean; sortOrder?: number }> {
+function normalizeProductColors(value: unknown): Array<{ name: string; hex: string; hex2?: string; image?: string; isDefault?: boolean; sortOrder?: number; sourceProductId?: string; sourceColorName?: string }> {
   if (!Array.isArray(value)) throw new ApiError(400, 'Los colores deben ser una lista válida.');
 
-  const colors: Array<{ name: string; hex: string; hex2?: string; image?: string; isDefault?: boolean; sortOrder?: number }> = [];
+  const colors: Array<{ name: string; hex: string; hex2?: string; image?: string; isDefault?: boolean; sortOrder?: number; sourceProductId?: string; sourceColorName?: string }> = [];
   const seenNames = new Set<string>();
+  const seenSourceProducts = new Set<string>();
   let defaultCount = 0;
 
   for (const [index, item] of value.entries()) {
@@ -115,6 +116,8 @@ function normalizeProductColors(value: unknown): Array<{ name: string; hex: stri
     const hex = typeof item.hex === 'string' ? item.hex.trim().toUpperCase() : '';
     const hex2 = typeof item.hex2 === 'string' ? item.hex2.trim().toUpperCase() : '';
     const image = typeof item.image === 'string' ? item.image.trim() : '';
+    const sourceProductId = typeof item.sourceProductId === 'string' ? item.sourceProductId.trim() : '';
+    const sourceColorName = typeof item.sourceColorName === 'string' ? item.sourceColorName.trim() : '';
     const isDefault = item.isDefault === true;
 
     if (!name) throw new ApiError(400, 'Cada variante de color requiere un nombre comercial.');
@@ -125,6 +128,13 @@ function normalizeProductColors(value: unknown): Array<{ name: string; hex: stri
     if (seenNames.has(normalizedName)) throw new ApiError(400, 'No se permiten variantes de color duplicadas dentro del producto.');
     seenNames.add(normalizedName);
 
+    if (sourceProductId) {
+      if (!UUID_PATTERN.test(sourceProductId)) throw new ApiError(400, `El producto vinculado a ${name} no es válido.`);
+      const sourceKey = `${sourceProductId}:${sourceColorName.toLocaleLowerCase()}`;
+      if (seenSourceProducts.has(sourceKey)) throw new ApiError(400, 'El mismo color del producto fuente ya está vinculado.');
+      seenSourceProducts.add(sourceKey);
+    }
+
     if (image) parsePermanentImageUrl(image, `La foto de ${name}`);
     if (isDefault) defaultCount += 1;
 
@@ -134,6 +144,7 @@ function normalizeProductColors(value: unknown): Array<{ name: string; hex: stri
       ...(hex2 ? { hex2 } : {}),
       ...(image ? { image } : {}),
       ...(isDefault ? { isDefault: true } : {}),
+      ...(sourceProductId ? { sourceProductId, ...(sourceColorName ? { sourceColorName } : {}) } : {}),
       sortOrder: index,
     });
   }
