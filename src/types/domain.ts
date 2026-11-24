@@ -43,17 +43,22 @@ export type ProductCatalogSection =
   | 'Gafas';
 
 export interface ProductColor {
+  id: string;
+  productId: string;
   name: string;
   hex: string;
   hex2?: string;
   image?: string;
+  images?: string[];
   isDefault?: boolean;
   sortOrder?: number;
-  hexConfirmed?: boolean;
-  hex2Confirmed?: boolean;
-  requiresImage?: boolean;
-  sourceProductId?: string;
-  sourceColorName?: string;
+  price: number;
+  originalPrice?: number;
+  discount?: number;
+  stock: number;
+  sku: string;
+  sizes: string[];
+  isActive: boolean;
 }
 
 export interface Product {
@@ -75,6 +80,13 @@ export interface Product {
   sku: string;
   description: string;
   colors: ProductColor[];
+  modelId?: string | null;
+  colorName?: string | null;
+  colorHex?: string | null;
+  colorHex2?: string | null;
+  modelSortOrder?: number;
+  isDefaultColor?: boolean;
+  selectedColorVariantId?: string;
   sizes: string[];
   images?: string[];
   gender?: 'Hombre' | 'Mujer' | 'Unisex';
@@ -162,6 +174,7 @@ export interface CheckoutItem {
 export interface GuestCartItem {
   productId: string;
   quantity: number;
+  selectedVariantId?: string;
   selectedSize?: string;
   selectedColor?: string;
 }
@@ -185,6 +198,8 @@ export interface CheckoutRequest {
 export interface OrderRequestItem {
   productId: string;
   quantity: number;
+  size?: string;
+  color?: string;
 }
 
 export interface OrderAddressSnapshot {
@@ -209,6 +224,8 @@ export interface OrderItem {
   quantity: number;
   unitPrice: number;
   totalPrice: number;
+  size?: string | null;
+  color?: string | null;
   createdAt?: string;
 }
 

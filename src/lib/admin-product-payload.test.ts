@@ -27,7 +27,15 @@ const product = {
 
 describe('admin product API payload', () => {
   it('maps form values to database API columns without double-encoding the gallery', () => {
-    const payload = buildAdminProductPayload(product, true);
+    const payload = buildAdminProductPayload({
+      ...product,
+      modelId: '22222222-2222-2222-2222-222222222222',
+      colorName: 'Gris / Plata',
+      colorHex: '#A7ADB4',
+      colorHex2: '#D6DADE',
+      modelSortOrder: 2,
+      isDefaultColor: true,
+    }, true);
 
     expect(payload).toMatchObject({
       slug: 'tenis-rapidos-test-7',
@@ -37,6 +45,12 @@ describe('admin product API payload', () => {
       compare_at_price: 150000,
       stock: 7,
       sku: 'TEST-7',
+      model_id: '22222222-2222-2222-2222-222222222222',
+      color_name: 'Gris / Plata',
+      color_hex: '#A7ADB4',
+      color_hex2: '#D6DADE',
+      model_sort_order: 2,
+      is_default_color: true,
       category_id: '11111111-1111-1111-1111-111111111111',
       catalog_section: 'Tenis Hombre',
       main_image: 'https://images.example/main.jpg',
@@ -77,6 +91,10 @@ describe('admin product API payload', () => {
     expect(untouched).not.toHaveProperty('sizes');
     expect(untouched).not.toHaveProperty('specifications');
     expect(untouched).not.toHaveProperty('images');
+    expect(untouched).not.toHaveProperty('model_id');
+    expect(untouched).not.toHaveProperty('color_name');
+    expect(untouched).not.toHaveProperty('color_hex');
+    expect(untouched).not.toHaveProperty('is_default_color');
 
     const clears = buildAdminProductPayload({ description: '', sizes: [], specifications: [], images: [] });
     expect(clears).toMatchObject({ description: '', sizes: [], specifications: [], images: [] });

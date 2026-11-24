@@ -59,7 +59,7 @@ describe('admin product validation', () => {
     expect(validateProductForm({ ...validProduct, images: Array.from({ length: 11 }, (_, index) => `image-${index}`) })).toHaveProperty('gallery');
   });
 
-  it('validates and accepts rich color variants without inventing variants', () => {
+  it('validates one color per product record independently of its photo gallery', () => {
     const product = {
       name: 'Zapatilla Test',
       brand: 'Marca Test',
@@ -70,23 +70,17 @@ describe('admin product validation', () => {
       catalogSection: 'Tenis Hombre',
       image: 'https://example.test/image.jpg',
       images: [],
-      colors: [
-        { name: 'Gris / Plata', hex: '#A7ADB4', hex2: '#D6DADE', image: 'https://example.test/gris.jpg', isDefault: true },
-        { name: 'Negro', hex: '#111827', image: 'https://example.test/negro.jpg' },
-      ],
+      colorName: 'Gris / Plata',
+      colorHex: '#A7ADB4',
+      colorHex2: '#D6DADE',
+      modelId: null,
     };
 
     expect(validateProductForm(product)).toEqual({});
-    expect(validateProductForm({ ...product, colors: [product.colors[0], product.colors[0]] })).toHaveProperty('colors');
-    expect(validateProductForm({ ...product, colors: [{ ...product.colors[0], hex: 'bad' }] })).toHaveProperty('colors');
-    expect(validateProductForm({
-      ...product,
-      colors: [{ name: 'Negro', hex: '#111827', isDefault: true, requiresImage: true }],
-    })).toHaveProperty('colors');
-    expect(validateProductForm({
-      ...product,
-      colors: [{ name: 'Negro', hex: '#111827', image: 'https://example.test/negro.jpg', isDefault: true, requiresImage: true }],
-    })).toEqual({});
+    expect(validateProductForm({ ...product, colorHex: 'bad' })).toHaveProperty('colors');
+    expect(validateProductForm({ ...product, modelId: '123e4567-e89b-12d3-a456-426614174001', colorName: '' })).toHaveProperty('colors');
+    expect(validateProductForm({ ...product, modelId: '123e4567-e89b-12d3-a456-426614174001', colorHex: '' })).toHaveProperty('colors');
+    expect(validateProductForm({ ...product, images: Array.from({ length: 4 }, (_, index) => `https://example.test/angle-${index}.jpg`) })).toEqual({});
   });
 
   it('allows product creation without shipping data while carrier integration is pending', () => {

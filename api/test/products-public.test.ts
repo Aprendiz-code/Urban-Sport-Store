@@ -51,17 +51,17 @@ describe('public products endpoint', () => {
     expect(response.statusCode).toBe(200);
   });
 
-  it('hides a source product from the catalog only after an explicit color link', async () => {
+  it('returns explicitly linked color records for catalog grouping by model_id', async () => {
     apiMocks.data = [
-      { id: 'model', is_active: true, colors: [{ name: 'Negro', sourceProductId: 'color-record' }] },
-      { id: 'color-record', is_active: true, colors: [] },
-      { id: 'unlinked-product', is_active: true, colors: [] },
+      { id: 'model', model_id: null, is_active: true, color_name: 'Gris / Plata' },
+      { id: 'color-record', model_id: 'model', is_active: true, color_name: 'Negro' },
+      { id: 'unlinked-product', model_id: null, is_active: true },
     ];
     const response = createResponse();
 
     await handler({ method: 'GET', url: '/api/products' }, response);
 
-    expect(JSON.parse(response.body).data.map((product: any) => product.id)).toEqual(['model', 'unlinked-product']);
+    expect(JSON.parse(response.body).data.map((product: any) => product.id)).toEqual(['model', 'color-record', 'unlinked-product']);
   });
 
   it('does not expose an inactive product by id', async () => {

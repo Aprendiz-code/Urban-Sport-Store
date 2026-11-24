@@ -8,6 +8,7 @@ import {
   profileUpdateSchema,
 } from '../commerce-validation';
 import { normalizeGuestCartEntries, resolveGuestCartEntries } from '../cart-service';
+import { groupProductsByModel } from '../product-models';
 
 describe('commerce validation', () => {
   it('accepts a valid address and customer order request', () => {
@@ -165,6 +166,32 @@ describe('commerce validation', () => {
 
     expect(result.restoredItems.map((item) => item.product.id)).toEqual(['active']);
     expect(result.unavailableItems).toEqual([entries[1], entries[2]]);
+  });
+
+  it('restores same-size cart lines by stable color variant ID', () => {
+    const [model] = groupProductsByModel([
+      {
+        id: 'model-gray', name: 'Tenis modelo', brand: 'Marca', price: 100, rating: 0, reviews: 0,
+        image: 'gray.jpg', category: '', subcategory: '', stock: 3, sku: 'GRAY', description: '',
+        colors: [], sizes: ['M'], isActive: true, colorName: 'Gris', colorHex: '#808080', isDefaultColor: true,
+      },
+      {
+        id: 'variant-black', modelId: 'model-gray', name: 'Tenis modelo', brand: 'Marca', price: 110, rating: 0, reviews: 0,
+        image: 'black.jpg', category: '', subcategory: '', stock: 2, sku: 'BLACK', description: '',
+        colors: [], sizes: ['M'], isActive: true, colorName: 'Negro', colorHex: '#111827',
+      },
+    ]);
+    const result = resolveGuestCartEntries([
+      { productId: 'model-gray', quantity: 1, selectedSize: 'M', selectedColor: 'Gris' },
+      { productId: 'variant-black', quantity: 1, selectedSize: 'M', selectedColor: 'Negro' },
+    ], [model]);
+
+    expect(result.unavailableItems).toEqual([]);
+    expect(result.restoredItems.map((item) => [item.product.id, item.selectedSize, item.selectedColor])).toEqual([
+      ['model-gray', 'M', 'Gris'],
+      ['variant-black', 'M', 'Negro'],
+    ]);
+    expect(result.restoredItems.map((item) => item.product.price)).toEqual([100, 110]);
   });
 
   it('accepts only personal profile fields', () => {

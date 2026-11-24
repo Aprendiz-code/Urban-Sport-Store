@@ -62,14 +62,10 @@ export function validateProductForm(form: {
   pendingImageCount?: number;
   sizes?: readonly string[];
   specifications?: readonly ProductSpecification[];
-  colors?: readonly {
-    name?: string;
-    hex?: string;
-    hex2?: string;
-    image?: string;
-    isDefault?: boolean;
-    requiresImage?: boolean;
-  }[];
+  modelId?: string | null;
+  colorName?: string | null;
+  colorHex?: string | null;
+  colorHex2?: string | null;
 }): Record<string, string> {
   const errors: Record<string, string> = {};
 
@@ -109,37 +105,16 @@ export function validateProductForm(form: {
     errors.sizes = 'No se permiten tallas duplicadas.';
   }
 
-  const seenColorNames = new Set<string>();
-  let defaultColorCount = 0;
-  for (const color of form.colors ?? []) {
-    const name = String(color.name ?? '').trim();
-    const hex = String(color.hex ?? '').trim();
-    const hex2 = String(color.hex2 ?? '').trim();
-    if (!name) {
-      errors.colors = 'Completa el nombre comercial de cada color.';
-      break;
-    }
-    if (color.requiresImage && !String(color.image ?? '').trim()) {
-      errors.colors = `Asigna una foto a la variante ${name || 'nueva'}.`;
-      break;
-    }
-    const normalizedName = name.toLowerCase();
-    if (seenColorNames.has(normalizedName)) {
-      errors.colors = 'No se permiten variantes de color duplicadas dentro del producto.';
-      break;
-    }
-    seenColorNames.add(normalizedName);
-    if (!/^#[0-9A-F]{6}$/i.test(hex)) {
-      errors.colors = `El primer HEX de ${name} no es válido.`;
-      break;
-    }
-    if (hex2 && !/^#[0-9A-F]{6}$/i.test(hex2)) {
-      errors.colors = `El segundo HEX de ${name} no es válido.`;
-      break;
-    }
-    if (color.isDefault) defaultColorCount += 1;
+  const colorName = String(form.colorName ?? '').trim();
+  const colorHex = String(form.colorHex ?? '').trim();
+  const colorHex2 = String(form.colorHex2 ?? '').trim();
+  if (form.modelId && !colorName) errors.colors = 'Un color vinculado requiere un nombre comercial.';
+  if ((colorName || form.modelId) && !/^#[0-9A-F]{6}$/i.test(colorHex)) {
+    errors.colors = 'Confirma un HEX principal válido para este color.';
   }
-  if (defaultColorCount > 1) errors.colors = 'Solo una variante de color puede ser predeterminada.';
+  if (colorHex2 && !/^#[0-9A-F]{6}$/i.test(colorHex2)) {
+    errors.colors = 'El HEX secundario no es válido.';
+  }
 
   const seenSpecificationNames = new Set<string>();
   for (const specification of form.specifications ?? []) {

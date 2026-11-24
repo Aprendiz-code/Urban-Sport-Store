@@ -65,65 +65,40 @@ describe('product payload normalization', () => {
     expect(supabaseMocks.from).not.toHaveBeenCalled();
   });
 
-  it('preserves ordered rich color variants for create and update payloads', async () => {
-    const colors = [
-      { name: 'Gris / Plata', hex: '#A7ADB4', hex2: '#D6DADE', image: 'https://storage.test/gris.png', isDefault: true },
-      { name: 'Negro', hex: '#111827', image: 'https://storage.test/negro.png' },
-    ];
-
-    await expect(normalizeProductPayload({ name: 'Modelo', colors })).resolves.toMatchObject({
-      colors: [
-        { name: 'Gris / Plata', hex: '#A7ADB4', hex2: '#D6DADE', image: 'https://storage.test/gris.png', isDefault: true, sortOrder: 0 },
-        { name: 'Negro', hex: '#111827', image: 'https://storage.test/negro.png', sortOrder: 1 },
-      ],
-    });
-  });
-
-  it('rejects duplicate color names and multiple defaults', async () => {
+  it('persists color metadata on one product row without conflating its gallery images', async () => {
     await expect(normalizeProductPayload({
-      name: 'Modelo',
-      colors: [
-        { name: 'Negro', hex: '#111827', isDefault: true },
-        { name: ' negro ', hex: '#000000' },
-      ],
-    })).rejects.toThrow('duplicadas');
-
-    await expect(normalizeProductPayload({
-      name: 'Modelo',
-      colors: [
-        { name: 'Negro', hex: '#111827', isDefault: true },
-        { name: 'Blanco', hex: '#FFFFFF', isDefault: true },
-      ],
-    })).rejects.toThrow('Solo una');
-  });
-
-  it('accepts a valid explicit source product link and rejects invalid source IDs', async () => {
-    const sourceProductId = '123e4567-e89b-12d3-a456-426614174001';
-    await expect(normalizeProductPayload({
-      name: 'Modelo principal',
-      colors: [{ name: 'Azul', hex: '#123ABC', sourceProductId, sourceColorName: 'Azul claro' }],
+      name: 'New Balance 410',
+      color_name: 'Gris / Plata',
+      color_hex: '#A7ADB4',
+      color_hex2: '#D6DADE',
+      model_sort_order: '0',
+      is_default_color: true,
+      images: ['https://storage.test/angle-1.png', 'https://storage.test/angle-2.png'],
     })).resolves.toMatchObject({
-      colors: [{ name: 'Azul', sourceProductId, sourceColorName: 'Azul claro' }],
+      color_name: 'Gris / Plata',
+      color_hex: '#A7ADB4',
+      color_hex2: '#D6DADE',
+      model_sort_order: 0,
+      is_default_color: true,
+      images: ['https://storage.test/angle-1.png', 'https://storage.test/angle-2.png'],
     });
-
-    await expect(normalizeProductPayload({
-      name: 'Modelo principal',
-      colors: [{ name: 'Azul', hex: '#123ABC', sourceProductId: 'not-a-uuid' }],
-    })).rejects.toThrow('no es válido');
   });
 
-  it('allows different source colors from one linked product but rejects duplicate source colors', async () => {
-    const sourceProductId = '123e4567-e89b-12d3-a456-426614174002';
-    const colors = [
-      { name: 'Plata', hex: '#A7ADB4', sourceProductId, sourceColorName: 'Plata' },
-      { name: 'Negro', hex: '#111827', sourceProductId, sourceColorName: 'Negro' },
-    ];
-    await expect(normalizeProductPayload({ name: 'Modelo principal', colors })).resolves.toMatchObject({ colors });
+  it('validates HEX values, sort order, and model UUIDs', async () => {
+    await expect(normalizeProductPayload({ name: 'Modelo', color_hex: '#GGGGGG' }))
+      .rejects.toThrow('HEX principal');
+    await expect(normalizeProductPayload({ name: 'Modelo', model_sort_order: -1 }))
+      .rejects.toThrow('entero no negativo');
+    await expect(normalizeProductPayload({ name: 'Modelo', model_id: 'not-a-uuid' }))
+      .rejects.toThrow('modelo seleccionado');
+  });
+
+  it('requires explicit name and HEX when assigning a model_id', async () => {
     await expect(normalizeProductPayload({
-      name: 'Modelo principal',
-      colors: [...colors, { ...colors[0], name: 'Plata duplicada' }],
-    }))
-      .rejects.toThrow('ya está vinculado');
+      name: 'Modelo',
+      model_id: '123e4567-e89b-12d3-a456-426614174001',
+      color_name: 'Negro',
+    })).rejects.toThrow('nombre comercial y HEX');
   });
 
   it('maps edits to the same database columns, including empty galleries', async () => {

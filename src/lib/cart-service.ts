@@ -1,4 +1,5 @@
 import type { Address, CartItem, CheckoutItem, GuestCartItem, Product, ProductVariant } from '../types/domain';
+import { productForColor } from './product-models';
 
 export const CART_STORAGE_KEY = 'urbansport_cart_v1';
 
@@ -41,7 +42,11 @@ export const resolveGuestCartEntries = (entries: GuestCartItem[], products: Prod
   const unavailableItems: GuestCartItem[] = [];
 
   for (const entry of entries) {
-    const product = productsById.get(entry.productId);
+    const model = productsById.get(entry.productId)
+      ?? products.find((candidate) => candidate.colors.some((color) => color.productId === entry.productId));
+    const product = model?.colors.some((color) => color.productId === entry.productId)
+      ? productForColor(model, entry.productId)
+      : model;
     const sizeUnavailable = Boolean(entry.selectedSize && entry.selectedSize !== 'Talla única' && !product?.sizes.includes(entry.selectedSize));
     const colorUnavailable = Boolean(entry.selectedColor && !product?.colors.some((color) => color.name === entry.selectedColor));
 
