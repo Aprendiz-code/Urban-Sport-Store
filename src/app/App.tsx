@@ -4325,6 +4325,22 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       toast.error(String(message));
       return;
     }
+    if (formMode === 'create' && payload.modelId) {
+      const modelId = String(payload.modelId);
+      const members = getModelMembers(modelId);
+      const baseSku = String(payload.sku ?? '').trim();
+      const normalizedColor = String(payload.colorName ?? '').trim()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 24);
+      const memberSkus = new Set(members.map((member) => String(member.sku ?? '').trim().toLowerCase()).filter(Boolean));
+      if (!baseSku || memberSkus.has(baseSku.toLowerCase())) {
+        const skuBase = (baseSku || 'SKU').replace(/-+$/g, '').slice(0, 36);
+        payload.sku = `${skuBase}-${normalizedColor || 'COLOR'}-${Date.now().toString().slice(-4)}`.slice(0, 64);
+      }
+      if (!Number.isFinite(Number(payload.modelSortOrder)) || Number(payload.modelSortOrder) === 0) {
+        payload.modelSortOrder = members.length;
+      }
+      payload.isDefaultColor = false;
+    }
     if (!payload.sku) payload.sku = `SKU-${Date.now().toString().slice(-6)}`;
 
     setIsSubmitting(true);
