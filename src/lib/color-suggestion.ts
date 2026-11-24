@@ -46,14 +46,22 @@ const toHex = (red: number, green: number, blue: number) =>
 const colorDistance = (a: number[], b: number[]) =>
   Math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2);
 
-export async function suggestImageColors(file: File, knownColorName = ''): Promise<ColorSuggestion | null> {
-  const namedSuggestion = suggestNamedColorHex(knownColorName);
-  if (namedSuggestion) return namedSuggestion;
-  if (typeof document === 'undefined') return null;
+type ImageColorSource = File | Blob | string;
 
-  const imageUrl = URL.createObjectURL(file);
+function isNamedColorSource(name: string): boolean {
+  return Boolean(suggestNamedColorHex(name));
+}
+
+export async function suggestImageColors(source: ImageColorSource, knownColorName = ''): Promise<ColorSuggestion | null> {
+  const namedSuggestion = suggestNamedColorHex(knownColorName);
+  if (typeof document === 'undefined') return namedSuggestion;
+
+  const objectUrl = typeof source === 'string' ? null : URL.createObjectURL(source);
+  const imageUrl = typeof source === 'string' ? source : objectUrl!;
   try {
     const image = new Image();
+    if (typeof source === 'string') image.crossOrigin = 'anonymous';
+    image.decoding = 'async';
     image.src = imageUrl;
     await image.decode();
 
@@ -61,10 +69,12 @@ export async function suggestImageColors(file: File, knownColorName = ''): Promi
     canvas.width = 96;
     canvas.height = 96;
     const context = canvas.getContext('2d', { willReadFrequently: true });
-    if (!context) return null;
-    const cropSize = Math.min(image.naturalWidth, image.naturalHeight);
-    const cropX = (image.naturalWidth - cropSize) / 2;
-    const cropY = (image.naturalHeight - cropSize) / 2;
+    if (!context) return namedSuggestion;
+
+    const cropSize = Math.min(image.naturalWidth || image.width, image.naturalHeight || image.height);
+    if (!cropSize) return namedSuggestion;
+    const cropX = ((image.naturalWidth || image.width) - cropSize) / 2;
+    const cropY = ((image.naturalHeight || image.height) - cropSize) / 2;
     context.drawImage(image, cropX, cropY, cropSize, cropSize, 0, 0, canvas.width, canvas.height);
 
     const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
@@ -84,6 +94,7 @@ export async function suggestImageColors(file: File, knownColorName = ''): Promi
       const saturation = Math.max(red, green, blue) - Math.min(red, green, blue);
       const brightness = (red + green + blue) / 3;
       if (saturation < 14 && (brightness > 246 || brightness < 24)) continue;
+
       const quantized = [
         Math.round(red / 24) * 24,
         Math.round(green / 24) * 24,
@@ -101,21 +112,29 @@ export async function suggestImageColors(file: File, knownColorName = ''): Promi
 
     const ranked = [...buckets.values()].sort((a, b) => b.count - a.count);
     const primary = ranked[0];
-    if (!primary) return null;
+    if (!primary) return namedSuggestion;
 
-    const primaryHex = toHex(...primary.rgb.map(Math.round) as [number, number, number]);
-    const secondary = ranked.find((bucket) => bucket !== primary
+    const primaryHex = toHex(...(primary.rgb.map(Math.round) as [number, number, number]));
+    const secondaryBucket = ranked.find((bucket) => bucket !== primary
       && colorDistance(bucket.rgb, primary.rgb) > 70
       && bucket.count >= primary.count * 0.2);
+    const secondaryHex = secondaryBucket
+      ? toHex(...(secondaryBucket.rgb.map(Math.round) as [number, number, number]))
+      : namedSuggestion?.secondary;
+
     return {
       primary: primaryHex,
-      ...(secondary ? { secondary: toHex(...secondary.rgb.map(Math.round) as [number, number, number]) } : {}),
+      ...(secondaryHex && secondaryHex !== primaryHex ? { secondary: secondaryHex } : {}),
       confidence: 'low',
       source: 'image',
     };
   } catch {
-    return null;
+    return namedSuggestion;
   } finally {
-    URL.revokeObjectURL(imageUrl);
+    if (objectUrl) URL.revokeObjectURL(objectUrl);
   }
+}
+
+export function isKnownColorName(name: string): boolean {
+  return isNamedColorSource(name);
 }
