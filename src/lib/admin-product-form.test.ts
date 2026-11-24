@@ -13,13 +13,13 @@ const validForm = {
 };
 
 describe('admin product image limits', () => {
-  it('counts one main image plus up to ten additional gallery images', () => {
+  it('counts one main image plus up to nineteen additional gallery images', () => {
     const gallery = Array.from({ length: MAX_PRODUCT_GALLERY_IMAGES }, (_, index) => `https://storage.example/${index}.jpg`);
 
-    expect(MAX_PRODUCT_TOTAL_IMAGES).toBe(11);
+    expect(MAX_PRODUCT_TOTAL_IMAGES).toBe(20);
     expect(validateProductForm({ ...validForm, images: gallery })).not.toHaveProperty('gallery');
     expect(validateProductForm({ ...validForm, images: [...gallery, 'https://storage.example/extra.jpg'] }).gallery)
-      .toContain('hasta 10 imágenes');
+      .toContain('hasta 19 imágenes');
   });
 
   it('includes pending files in the gallery count without accepting temporary URLs', () => {

@@ -140,8 +140,26 @@ describe('product payload normalization', () => {
     await expect(normalizeProductPayload({ ...basePayload, stock: 1.5 })).rejects.toThrow('entero');
     await expect(normalizeProductPayload({ ...basePayload, category_id: 'not-a-uuid' })).rejects.toThrow('categoría');
     await expect(normalizeProductPayload({ ...basePayload, catalog_section: 'Infantil' })).rejects.toThrow('sección del catálogo');
-    await expect(normalizeProductPayload({ ...basePayload, images: Array.from({ length: 11 }, (_, index) => `image-${index}`) })).rejects.toThrow('hasta 10 imágenes');
+    await expect(normalizeProductPayload({ ...basePayload, images: Array.from({ length: 20 }, (_, index) => `image-${index}`) })).rejects.toThrow('hasta 19 imágenes');
     expect(supabaseMocks.from).not.toHaveBeenCalled();
+  });
+
+  it('accepts nineteen gallery images plus the main image', async () => {
+    const basePayload = {
+      name: 'Nike Air Force 1',
+      brand: 'Nike',
+      price: 199900,
+      stock: 12,
+      sku: 'NKE-AF1-001',
+      category_id: categoryId,
+      catalog_section: 'Tenis Hombre',
+      main_image: 'https://storage.test/main.png',
+    };
+    const images = Array.from({ length: 19 }, (_, index) => `https://storage.test/gallery-${index}.png`);
+    await expect(normalizeProductPayload({ ...basePayload, images })).resolves.toMatchObject({
+      main_image: 'https://storage.test/main.png',
+      images,
+    });
   });
 
   it.each(['blob:https://shop.example/id', 'data:image/png;base64,abc', 'images/local.png'])('rejects non-permanent image references: %s', async (image) => {

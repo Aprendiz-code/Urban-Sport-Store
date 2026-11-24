@@ -56,7 +56,7 @@ describe('admin product validation', () => {
     expect(validateProductForm(validProduct)).toEqual({});
     expect(validateProductForm({ ...validProduct, price: -1 })).toHaveProperty('price');
     expect(validateProductForm({ ...validProduct, stock: 1.5 })).toHaveProperty('stock');
-    expect(validateProductForm({ ...validProduct, images: Array.from({ length: 11 }, (_, index) => `image-${index}`) })).toHaveProperty('gallery');
+    expect(validateProductForm({ ...validProduct, images: Array.from({ length: 20 }, (_, index) => `image-${index}`) })).toHaveProperty('gallery');
   });
 
   it('validates one color per product record independently of its photo gallery', () => {
@@ -144,7 +144,7 @@ describe('admin product validation', () => {
     };
 
     expect(validateProductForm(localImageDraft)).toEqual({});
-    expect(validateProductForm({ ...localImageDraft, pendingImageCount: 12 })).toHaveProperty('gallery');
+    expect(validateProductForm({ ...localImageDraft, pendingImageCount: 21 })).toHaveProperty('gallery');
   });
 
   it('does not reset the product form when an admin save fails with 401', async () => {

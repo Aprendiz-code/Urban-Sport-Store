@@ -1,8 +1,10 @@
 # Almacenamiento de imágenes
 
-**Flujo de imágenes de productos:** el formulario administrativo selecciona y previsualiza archivos locales, y los envía al guardar mediante `POST /api/admin/product-images`. El endpoint existente exige sesión Bearer vigente y permiso `products.write`, valida MIME, firma y tamaño (5 MB), sube al bucket `products` y devuelve el path. La UI convierte ese path en URL pública con el cliente configurado y guarda `main_image` más `images` como un arreglo de URLs permanentes. La disponibilidad real depende de que el backend tenga Supabase Storage configurado y los permisos efectivos del bucket permitan la operación.
+**Flujo de imágenes de productos:** el formulario administrativo selecciona y previsualiza archivos locales, y los envía al guardar mediante `POST /api/admin/product-images`. El endpoint exige sesión Bearer vigente y permiso `products.write`, valida MIME, firma y tamaño (5 MB), sube al bucket `products` y devuelve el path. Se aceptan JPEG, PNG, WebP y AVIF; AVIF se valida por sus marcas ISO-BMFF (`avif`/`avis`), no solo por el MIME declarado. La UI convierte ese path en URL pública con el cliente configurado y guarda `main_image` más `images` como un arreglo de URLs permanentes. La disponibilidad real depende de que el backend tenga Supabase Storage configurado y los permisos efectivos del bucket permitan la operación.
 
-El límite es de **10 imágenes adicionales** en `images`, además de una imagen principal en `main_image` (11 fotos totales como máximo). Quitar una foto en el formulario solo elimina su referencia del producto; no borra objetos de Storage.
+El bucket `products` debe permitir `image/avif` en `allowed_mime_types` (además de los formatos ya usados). Este cambio de código no modifica el bucket remoto ni crea/aplica una migración; si el bucket restringe los MIME, AVIF será rechazado por Storage hasta habilitarlo allí.
+
+El límite es de **19 imágenes adicionales** en `images`, además de una imagen principal en `main_image` (20 fotos totales como máximo). Quitar una foto en el formulario solo elimina su referencia del producto; no borra objetos de Storage.
 
 Si el upload termina pero falla el guardado de metadata, el archivo queda huérfano en Storage. El formulario conserva las URLs ya subidas para permitir reintentar sin repetir esos uploads. No se ejecuta limpieza automática: identificar referencias sin uso requiere auditar productos y archivos compartidos, disponer de backup y revisar manualmente antes de cualquier eliminación.
 
@@ -12,7 +14,7 @@ Las pruebas locales no verifican una creación autorizada real, persistencia tra
 
 `lib/server/storage-provider.ts` contiene `LocalStorageProvider` para un servidor con filesystem persistente. El adaptador:
 
-- acepta JPEG, PNG y WebP validando firmas básicas de bytes y MIME declarado;
+- acepta JPEG, PNG, WebP y AVIF validando firmas básicas de bytes y MIME declarado;
 - limita archivos a 5 MB;
 - genera nombres UUID sin reutilizar el nombre recibido;
 - restringe áreas a productos, categorías y banners;

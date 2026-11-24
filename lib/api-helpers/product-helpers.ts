@@ -31,7 +31,7 @@ const ALLOWED_PRODUCT_COLUMNS = new Set([
   'shipping_units_per_guide',
 ]);
 const UUID_PATTERN = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
-const MAX_PRODUCT_GALLERY_IMAGES = 10;
+const MAX_PRODUCT_GALLERY_IMAGES = 19;
 const PRODUCT_CATALOG_SECTIONS = new Set([
   'Tenis Hombre',
   'Tenis Mujer',

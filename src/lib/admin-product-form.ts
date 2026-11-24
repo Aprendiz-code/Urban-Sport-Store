@@ -4,7 +4,7 @@ export function isValidUuid(value?: string | null): boolean {
   return typeof value === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(value.trim());
 }
 
-export const MAX_PRODUCT_GALLERY_IMAGES = 10;
+export const MAX_PRODUCT_GALLERY_IMAGES = 19;
 export const MAX_PRODUCT_TOTAL_IMAGES = MAX_PRODUCT_GALLERY_IMAGES + 1;
 
 export function normalizeProductSizes(sizes: readonly string[]): string[] {
