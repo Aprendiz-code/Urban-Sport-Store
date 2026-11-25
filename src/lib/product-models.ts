@@ -64,7 +64,7 @@ export function productForColor(product: Product, colorId?: string): Product {
   const fallbackMainImage = ownImages[0] || product.image;
   const image = ownImage || fallbackMainImage;
   const images = ownImage
-    ? (ownImages.length ? ownImages : (product.images ?? []))
+    ? ownImages
     : (ownImages.length ? ownImages.slice(1) : (product.images ?? []));
 
   return {

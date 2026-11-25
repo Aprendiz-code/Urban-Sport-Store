@@ -757,7 +757,6 @@ function ProductCard({ product, onSelect, onAddToCart }: {
                 </button>
               )}
             </div>
-            <p aria-live="polite" className="text-xs font-semibold text-slate-600">Color seleccionado</p>
           </div>
         )}
 

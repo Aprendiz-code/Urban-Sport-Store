@@ -60,6 +60,29 @@ describe('product model grouping', () => {
     expect(blackVariant.colorName).toBe('');
   });
 
+  it('uses a variant main image without inheriting the root gallery when it has no own gallery', () => {
+    const root = product({
+      id: 'white-record',
+      image: 'https://images.test/white-main.jpg',
+      images: ['https://images.test/white-side.jpg', 'https://images.test/white-back.jpg'],
+      colorHex: '#FFFFFF',
+      isDefaultColor: true,
+    });
+    const green = product({
+      id: 'green-record',
+      modelId: 'white-record',
+      image: 'https://images.test/green-main.avif',
+      images: [],
+      colorHex: '#CBE2DC',
+    });
+
+    const [model] = groupProductsByModel([root, green]);
+    const greenVariant = productForColor(model, 'green-record');
+
+    expect(greenVariant.image).toBe('https://images.test/green-main.avif');
+    expect(greenVariant.images).toEqual([]);
+  });
+
   it('keeps legacy products without registered colors as standalone entries', () => {
     const [legacy] = groupProductsByModel([product({ id: 'legacy' })]);
     expect(legacy.id).toBe('legacy');
