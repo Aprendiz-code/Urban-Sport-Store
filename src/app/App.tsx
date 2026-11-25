@@ -1943,7 +1943,6 @@ function ProductDetailPage({ product, products, onBack, onAddToCart, onNavigate,
           {product.colors.length > 0 && (
             <div>
               <p className="text-sm font-bold text-slate-700 mb-2.5">Color</p>
-              {selectedDetailColor && <p className="mb-2 text-sm font-medium text-slate-500">{`Color ${orderedDetailColors.indexOf(selectedDetailColor) + 1}`}</p>}
               <ColorSelector colors={product.colors} selected={selectedColorId} onSelect={(colorId) => {
                 const nextVariant = productForColor(product, colorId);
                 setSelectedColorId(colorId);
@@ -5210,11 +5209,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
 
                   <label className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-slate-300 bg-white px-4 py-4 text-center hover:border-blue-500 hover:bg-blue-50/40">
                     <span className="text-sm font-semibold text-slate-700">Seleccionar imágenes</span>
-<<<<<<< HEAD
                     <span className="text-xs text-slate-500">JPG, PNG, WebP o AVIF · máximo 5 MB cada una</span>
-=======
-                    <span className="text-xs text-slate-500">JPG, PNG, WebP o AVIF · máM?ximo 5 MB cada una</span>
->>>>>>> origin/deploy/shopping-assistant-groq
                     <input
                       type="file"
                       aria-label="Seleccionar imágenes del producto"
