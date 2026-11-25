@@ -21,7 +21,7 @@ export function groupProductsByModel(products: Product[]): Product[] {
       return [{
         id: variant.id,
         productId: variant.id,
-        name: `Color ${index + 1}`,
+        name: variant.name || '',
         hex: variant.colorHex,
         ...(variant.colorHex2 ? { hex2: variant.colorHex2 } : {}),
         image: variant.image,
