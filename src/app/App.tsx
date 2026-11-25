@@ -1855,11 +1855,19 @@ function ProductDetailPage({ product, products, onBack, onAddToCart, onNavigate,
   const displayProduct = productForColor(product, selectedDetailColor?.productId);
   const requiresSize = hasSelectableSizes(displayProduct.sizes);
   const [selectedSize, setSelectedSize] = useState(requiresSize ? "" : displayProduct.sizes[0] ?? "");
-  useEffect(() => {
-    setSelectedColorId(product.selectedColorVariantId ?? defaultDetailColor?.productId ?? '');
-    setSelectedSize((currentSize) => displayProduct.sizes.includes(currentSize) ? currentSize : '');
-  }, [product.id, product.selectedColorVariantId, defaultDetailColor?.productId, displayProduct.sizes]);
   const [qty, setQty] = useState(1);
+
+  useEffect(() => {
+    const nextDefaultColorId = product.selectedColorVariantId ?? defaultDetailColor?.productId ?? '';
+    setSelectedColorId(nextDefaultColorId);
+    const nextDisplayProduct = productForColor(product, nextDefaultColorId);
+    setSelectedSize((currentSize) => nextDisplayProduct.sizes.includes(currentSize) ? currentSize : '');
+    setQty(1);
+  }, [product.id, product.selectedColorVariantId, defaultDetailColor?.productId]);
+
+  useEffect(() => {
+    setSelectedSize((currentSize) => displayProduct.sizes.includes(currentSize) ? currentSize : '');
+  }, [displayProduct.id]);
   const [tab, setTab] = useState<"specs" | "reviews">("specs");
   const [added, setAdded] = useState(false);
   const originalPrice = displayProduct.originalPrice;
