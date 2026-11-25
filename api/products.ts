@@ -3,6 +3,10 @@ import { supabasePublic } from '../lib/api-helpers/supabase.ts';
 
 export default async function handler(req: any, res: any) {
   const requestUrl = new URL(req.url ?? '', 'http://localhost');
+  if (requestUrl.searchParams.get('resource') === 'assistant') {
+    const { default: assistantHandler } = await import('../lib/assistant-handler.ts');
+    return assistantHandler(req, res);
+  }
   if (requestUrl.searchParams.get('resource') === 'health') {
     return jsonResponse(res, {
       ok: true,
@@ -21,7 +25,7 @@ export default async function handler(req: any, res: any) {
 
     let query = supabasePublic
       .from('products')
-      .select('id,category_id,catalog_section,slug,name,brand,description,price,compare_at_price,sku,stock,main_image,images,sizes,specifications,is_active,created_at,updated_at')
+      .select('id,model_id,color_name,color_hex,color_hex2,model_sort_order,is_default_color,category_id,catalog_section,slug,name,brand,description,price,compare_at_price,sku,stock,main_image,images,sizes,specifications,is_active,created_at,updated_at')
       .eq('is_active', true)
       .order('created_at', { ascending: false });
 
@@ -40,7 +44,9 @@ export default async function handler(req: any, res: any) {
       return jsonError(res, 404, 'Product not found.');
     }
 
-    const payload = id || slug ? (Array.isArray(data) ? data[0] ?? null : data) : data;
+    const payload = id || slug
+      ? (Array.isArray(data) ? data[0] ?? null : data)
+      : data;
     return jsonResponse(res, { data: payload });
   } catch (error: any) {
     return jsonError(res, 500, error?.message ?? 'Unable to fetch products.');

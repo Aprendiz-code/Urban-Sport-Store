@@ -50,6 +50,7 @@ import {
   getMyOrder,
   listMyOrders,
   listShippingDestinations,
+  verifyWompiPaymentReturn,
   type ShippingQuote,
   type ShippingQuoteRequest,
 } from '../lib/order-service';
@@ -61,17 +62,19 @@ import {
   submitCheckoutPayment,
 } from '../lib/checkout-quote-flow';
 import { getPaymentReturnDestination, isPaymentReturnPath } from '../lib/payment-return';
+import { getPaymentStatusMessage } from '../lib/payment-status-display';
 import { MAX_PRODUCT_GALLERY_IMAGES, MAX_PRODUCT_TOTAL_IMAGES, normalizeProductSizes, normalizeProductSpecifications, submitAdminProductForm, validateProductForm } from '../lib/admin-product-form';
 import { buildAdminProductPayload } from '../lib/admin-product-payload';
 import { filterAdminProducts, type AdminProductStatusFilter } from '../lib/admin-product-list';
 import { normalizeProductImageList, resolveProductPublicImageUrl, uploadSelectedProductImages } from '../lib/admin-product-images';
+import { suggestImageColors, type ColorSuggestion } from '../lib/color-suggestion';
+import { groupProductsByModel, productForColor } from '../lib/product-models';
 import ProductGallery from './components/ProductGallery';
+import ShoppingAssistant from './components/ShoppingAssistant';
 import Toaster from './components/LazyToaster';
 import { toast } from '../lib/lazyToast';
 import type { Address as DomainAddress, GuestCartItem, Order, Product as DomainProduct, ShippingDestination } from '../types/domain';
 import paymentMethodsImage from "../../logo medios de pago/payment-methods-transparent.webp";
-
-// ─── TYPES ───────────────────────────────────────────────────────────────────
 
 type View =
   | "home" | "catalog" | "product" | "checkout" | "payment-return"
@@ -79,6 +82,7 @@ type View =
   | "admin-login" | "admin" | "password-reset"
   | "privacy" | "terms" | "shipping" | "returns" | "contact";
 type ProductsStatus = "loading" | "ready" | "error";
+
 function getInitialView(): View {
   if (typeof window === "undefined") return "home";
   const { pathname, search } = window.location;
@@ -261,7 +265,29 @@ const mapProductRecordToAppProduct = (record: ProductRecord, categories: readonl
     stock: record.stock ?? 0,
     sku: record.sku ?? record.id,
     description: record.description ?? "",
-    colors: record.colors ?? [],
+    colors: record.color_hex ? [{
+      id: record.id,
+      productId: record.id,
+      name: '',
+      hex: record.color_hex,
+      ...(record.color_hex2 ? { hex2: record.color_hex2 } : {}),
+      image: productImages.mainImage,
+      images: productImages.gallery,
+      isDefault: record.is_default_color ?? false,
+      sortOrder: record.model_sort_order ?? 0,
+      price: record.price,
+      originalPrice: record.original_price ?? record.compare_at_price ?? undefined,
+      discount: record.discount ?? undefined,
+      stock: record.stock ?? 0,
+      sku: record.sku ?? record.id,
+      sizes: record.sizes ?? [],
+      isActive: record.is_active !== false,
+    }] : [],
+    modelId: record.model_id ?? null,
+    colorHex: record.color_hex ?? null,
+    colorHex2: record.color_hex2 ?? null,
+    modelSortOrder: record.model_sort_order ?? 0,
+    isDefaultColor: record.is_default_color ?? false,
     sizes: record.sizes ?? [],
     specifications: record.specifications ?? [],
     isActive: record.is_active !== false,
@@ -298,7 +324,11 @@ const mapAppProductToProductRecord = (product: Partial<Product> & { id?: string 
   stock: Number(product.stock ?? 0),
   sku: product.sku ?? "",
   description: product.description ?? "",
-  colors: product.colors ?? [],
+  model_id: product.modelId ?? null,
+  color_hex: product.colorHex ?? null,
+  color_hex2: product.colorHex2 ?? null,
+  model_sort_order: product.modelSortOrder ?? 0,
+  is_default_color: product.isDefaultColor ?? false,
   sizes: product.sizes ?? [],
   specifications: product.specifications ?? [],
   is_active: product.isActive ?? true,
@@ -341,6 +371,7 @@ const STATUS_STYLE: Record<string, string> = {
 };
 
 const ORDER_STATUS_LABELS: Record<string, string> = {
+  pending_payment: "Pendiente de pago",
   pending: "Pendiente",
   confirmed: "Confirmado",
   processing: "En preparación",
@@ -348,6 +379,8 @@ const ORDER_STATUS_LABELS: Record<string, string> = {
   delivered: "Entregado",
   cancelled: "Cancelado",
   refunded: "Reembolsado",
+  paid: "Pagado",
+  payment_review: "Revisión de pago",
 };
 
 // ─── SHARED UI ────────────────────────────────────────────────────────────────
@@ -419,21 +452,30 @@ function Btn({
 }
 
 function ColorSelector({ colors, selected, onSelect }: {
-  colors: { name: string; hex: string }[]; selected: string; onSelect: (color: string) => void;
+  colors: Product["colors"]; selected: string; onSelect: (color: string) => void;
 }) {
   if (!colors.length) return null;
   return (
-    <div className="flex items-center gap-2">
-      {colors.map((color) => (
-        <button
-          key={color.name} onClick={() => onSelect(color.name)} title={color.name}
-          className={`w-7 h-7 rounded-full border-2 transition-transform ${
-            selected === color.name ? "border-[#bfdbfe] scale-110" : "border-transparent hover:scale-105"
-          }`}
-          style={{ backgroundColor: color.hex, boxShadow: "0 0 0 1px rgba(0,0,0,0.12)" }}
-        />
-      ))}
-      {selected && <span className="text-xs text-slate-500 ml-1">{selected}</span>}
+    <div className="flex items-center gap-2 flex-wrap" role="group" aria-label="Colores disponibles">
+      {colors.map((color, index) => {
+        const isSelected = selected === color.productId;
+        const swatchStyle = color.hex2
+          ? { background: `linear-gradient(90deg, ${color.hex} 0 50%, ${color.hex2} 50% 100%)` }
+          : { backgroundColor: color.hex };
+        return (
+          <button
+            key={color.id}
+            type="button"
+            onClick={() => onSelect(color.productId)}
+            aria-label={`Ver Color ${index + 1}`}
+            aria-pressed={isSelected}
+            className={`h-8 w-8 rounded-full border-2 transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${
+              isSelected ? "scale-110 border-slate-900 ring-2 ring-white" : "border-slate-300 hover:scale-105"
+            }`}
+            style={{ ...swatchStyle, boxShadow: "0 0 0 1px rgba(15,23,42,0.16)" }}
+          />
+        );
+      })}
     </div>
   );
 }
@@ -583,33 +625,57 @@ function ProductCarousel({ children }: { children: React.ReactNode }) {
 
 // ─── PRODUCT CARD ─────────────────────────────────────────────────────────────
 
+function getProductColorImage(product: Product): string {
+  return product.image;
+}
+
 function ProductCard({ product, onSelect, onAddToCart }: {
   product: Product; onSelect: (p: Product) => void; onAddToCart: (p: Product, size: string, color: string) => void;
 }) {
   const [wished, setWished] = useState(false);
-  const requiresSize = hasSelectableSizes(product.sizes);
   const [selectedSize, setSelectedSize] = useState('');
-  const cartSize = requiresSize ? selectedSize : product.sizes[0] ?? '';
-  const defaultColor = product.colors[0]?.name ?? "";
-  const originalPrice = product.originalPrice;
-  const hasRealDiscount = typeof originalPrice === "number" && originalPrice > product.price;
-  const savings = hasRealDiscount ? (originalPrice ?? 0) - product.price : 0;
+  const orderedColors = [...product.colors].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  const defaultColor = orderedColors.find((color) => color.isDefault) ?? orderedColors[0];
+  const [selectedColorId, setSelectedColorId] = useState(product.selectedColorVariantId ?? defaultColor?.productId ?? '');
+  const selectedColorData = orderedColors.find((color) => color.productId === selectedColorId) ?? defaultColor;
+  const selectedVariantProduct = productForColor(product, selectedColorData?.productId);
+  const requiresSize = hasSelectableSizes(selectedVariantProduct.sizes);
+  const cartSize = requiresSize ? selectedSize : selectedVariantProduct.sizes[0] ?? '';
+  const selectedImage = selectedVariantProduct.image || product.image;
+  const [showAllColors, setShowAllColors] = useState(false);
+  const collapsedColorLimit = 6;
+  const colorsToRender = showAllColors ? orderedColors : orderedColors.slice(0, collapsedColorLimit);
+
+  useEffect(() => {
+    setSelectedColorId(product.selectedColorVariantId ?? defaultColor?.productId ?? '');
+    setSelectedSize('');
+    setShowAllColors(false);
+  }, [product.id, product.selectedColorVariantId, defaultColor?.productId]);
+
+  const selectColor = (colorId: string) => {
+    const nextVariant = productForColor(product, colorId);
+    setSelectedColorId(colorId);
+    setSelectedSize((currentSize) => nextVariant.sizes.includes(currentSize) ? currentSize : '');
+  };
+  const originalPrice = selectedVariantProduct.originalPrice;
+  const hasRealDiscount = typeof originalPrice === "number" && originalPrice > selectedVariantProduct.price;
+  const savings = hasRealDiscount ? (originalPrice ?? 0) - selectedVariantProduct.price : 0;
 
   return (
-        <article className="group relative flex h-full w-full min-w-0 max-w-full flex-col overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-[0_10px_26px_-20px_rgba(15,23,42,0.35)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_36px_-22px_rgba(15,23,42,0.4)] sm:rounded-2xl lg:rounded-3xl">
+        <article className="group relative flex h-full w-full min-w-0 max-w-full flex-col overflow-hidden rounded-lg border border-slate-200 bg-white transition-shadow duration-200 hover:shadow-md">
       {/* Image */}
-      <div className="relative aspect-square w-full overflow-hidden bg-slate-100 sm:aspect-[4/3]">
-        <a href={`/?product=${encodeURIComponent(product.slug ?? product.id)}`} onClick={(event) => { event.preventDefault(); onSelect(product); }} aria-label={`Ver ${product.name}`} className="block h-full w-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-blue-600">
-          <img src={product.image} alt={product.name} onError={(event) => { event.currentTarget.style.display = "none"; }}
+      <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100">
+        <a href={`/?product=${encodeURIComponent(product.slug ?? product.id)}`} onClick={(event) => { event.preventDefault(); onSelect(selectedVariantProduct); }} aria-label={`Ver ${product.name}`} className="block h-full w-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-blue-600">
+          <img src={selectedImage} alt={product.name} onError={(event) => { event.currentTarget.style.display = "none"; }}
             loading="lazy" decoding="async"
             className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
           />
         </a>
         {/* Badges */}
         <div className="absolute left-1.5 top-1.5 flex max-w-[70%] flex-col gap-1 sm:left-3 sm:top-3 sm:gap-1.5">
-          {hasRealDiscount && product.discount && <Badge variant="sale">-{product.discount}%</Badge>}
+          {hasRealDiscount && selectedVariantProduct.discount && <Badge variant="sale">-{selectedVariantProduct.discount}%</Badge>}
           {product.isNew && !hasRealDiscount && <Badge variant="new">Nuevo</Badge>}
-          {product.stock <= 10 && <Badge variant="low">Pocas</Badge>}
+              {selectedVariantProduct.stock <= 10 && <Badge variant="low">Pocas</Badge>}
         </div>
         {/* Wishlist */}
         <button
@@ -624,24 +690,15 @@ function ProductCard({ product, onSelect, onAddToCart }: {
       </div>
 
       {/* Info */}
-      <div className="flex min-w-0 flex-1 flex-col space-y-2 p-2.5 sm:space-y-3 sm:p-4 lg:space-y-4 lg:p-5">
+      <div className="flex min-w-0 flex-1 flex-col space-y-2 p-2.5 sm:space-y-3 sm:p-4">
         <div>
           <p className="mb-1.5 inline-flex max-w-full items-center gap-1 overflow-hidden rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-semibold uppercase text-[#1e3a8a] sm:mb-2 sm:gap-2 sm:px-3 sm:py-1 sm:text-xs sm:tracking-[0.12em]">{product.brand}</p>
-          <h3 className="line-clamp-2 break-words font-display text-sm leading-tight text-slate-900 sm:text-xl lg:text-2xl">
-            <a href={`/?product=${encodeURIComponent(product.slug ?? product.id)}`} onClick={(event) => { event.preventDefault(); onSelect(product); }} className="text-left font-display hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1e3a8a]">{product.name}</a>
+          <h3 className="line-clamp-2 break-words font-display text-sm leading-tight text-slate-900 sm:text-lg">
+            <a href={`/?product=${encodeURIComponent(product.slug ?? product.id)}`} onClick={(event) => { event.preventDefault(); onSelect(selectedVariantProduct); }} className="text-left font-display hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1e3a8a]">{product.name}</a>
           </h3>
           <p className="mt-1 hidden truncate text-xs text-slate-500 sm:block sm:text-sm">{product.subcategory}{product.gender ? ` · ${product.gender}` : ""}</p>
         </div>
         {product.reviews > 0 && product.rating > 0 && <div className="hidden sm:block"><StarRating rating={product.rating} reviews={product.reviews} /></div>}
-
-        {product.colors.length > 0 && (
-          <div className="flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2">
-            {product.colors.slice(0, 4).map((c) => (
-              <div key={c.name} className="h-3 w-3 rounded-full border border-slate-200 sm:h-4 sm:w-4" style={{ backgroundColor: c.hex }} title={c.name} />
-            ))}
-            {product.colors.length > 4 && <span className="text-xs text-slate-400">+{product.colors.length - 4}</span>}
-          </div>
-        )}
 
         {requiresSize && (
           <label className="block text-xs font-semibold text-slate-600">
@@ -653,13 +710,56 @@ function ProductCard({ product, onSelect, onAddToCart }: {
               className="mt-1 min-h-10 w-full min-w-0 rounded-lg border border-slate-300 bg-white px-2 text-xs text-slate-800 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20 sm:px-3 sm:text-sm"
             >
               <option value="" disabled>Elige talla</option>
-              {product.sizes.map((size) => <option key={size} value={size}>{size}</option>)}
+              {selectedVariantProduct.sizes.map((size) => <option key={size} value={size}>{size}</option>)}
             </select>
           </label>
         )}
 
+        {orderedColors.length > 0 && (
+          <div className="space-y-1" role="group" aria-label={`Colores de ${product.name}`}>
+            <div className="flex min-w-0 flex-wrap items-center gap-1">
+              {colorsToRender.map((color) => {
+                const isSelected = selectedColorId === color.productId;
+                const swatchStyle = color.hex2
+                  ? { background: `linear-gradient(90deg, ${color.hex} 0 50%, ${color.hex2} 50% 100%)` }
+                  : { backgroundColor: color.hex };
+                return (
+                  <button
+                    key={color.id}
+                    type="button"
+                    aria-label={`Ver color ${`Color ${orderedColors.indexOf(color) + 1}`}`}
+                    aria-pressed={isSelected}
+                    title={`Color ${orderedColors.indexOf(color) + 1}`}
+                    onClick={() => selectColor(color.productId)}
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-700 ${isSelected ? "ring-2 ring-[#1e3a8a] ring-offset-1" : "hover:bg-slate-100"}`}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="h-6 w-6 rounded-full border border-slate-400"
+                      style={{ ...swatchStyle, boxShadow: "0 0 0 1px rgba(15,23,42,0.12)" }}
+                    />
+                  </button>
+                );
+              })}
+              {orderedColors.length > collapsedColorLimit && (
+                <button
+                  type="button"
+                  aria-expanded={showAllColors}
+                  aria-label={showAllColors ? `Mostrar menos colores de ${product.name}` : `Mostrar ${orderedColors.length - collapsedColorLimit} colores más de ${product.name}`}
+                  title={showAllColors ? 'Mostrar menos' : `Mostrar ${orderedColors.length - collapsedColorLimit} colores más`}
+                  onClick={() => setShowAllColors((expanded) => !expanded)}
+                  className="flex h-9 min-w-9 shrink-0 items-center justify-center rounded-md px-1 text-xs font-semibold text-[#1e3a8a] hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-700"
+                >
+                  {showAllColors ? '−' : `+${orderedColors.length - collapsedColorLimit}`}
+                </button>
+              )}
+            </div>
+            <p aria-live="polite" className="text-xs font-semibold text-slate-600">Color seleccionado</p>
+          </div>
+        )}
+
         <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5 sm:gap-3">
-          <span className="price text-sm text-slate-900 sm:text-lg">{fmt(product.price)}</span>
+          <span className="price text-sm text-slate-900 sm:text-lg">{fmt(selectedVariantProduct.price)}</span>
           {hasRealDiscount && originalPrice !== undefined && (
             <span className="price text-[10px] text-slate-400 line-through sm:text-xs">{fmt(originalPrice)}</span>
           )}
@@ -668,12 +768,12 @@ function ProductCard({ product, onSelect, onAddToCart }: {
 
         <button
           type="button"
-          aria-label={product.stock <= 0 ? `Agotado: ${product.name}` : `Agregar ${product.name} al carrito`}
-          disabled={product.stock <= 0 || (requiresSize && !selectedSize)}
-          onClick={() => onAddToCart(product, cartSize, defaultColor)}
+          aria-label={selectedVariantProduct.stock <= 0 ? `Agotado: ${product.name}` : `Agregar ${product.name} al carrito`}
+          disabled={selectedVariantProduct.stock <= 0 || (requiresSize && !selectedSize)}
+          onClick={() => onAddToCart(selectedVariantProduct, cartSize, '')}
           className="mt-auto flex min-h-11 w-full min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-black px-1.5 py-2 text-[11px] font-bold text-white shadow-sm shadow-slate-200 transition-all duration-200 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600 sm:gap-2 sm:rounded-full sm:px-3 sm:py-3 sm:text-sm"
         >
-          {product.stock <= 0 ? "Agotado" : <><ShoppingCart size={14} /><span className="sm:hidden">Agregar</span><span className="hidden sm:inline">Agregar al carrito</span></>}
+          {selectedVariantProduct.stock <= 0 ? "Agotado" : <><ShoppingCart size={14} /><span className="sm:hidden">Agregar</span><span className="hidden sm:inline">Agregar al carrito</span></>}
         </button>
       </div>
     </article>
@@ -1121,7 +1221,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
             cart.map((item) => (
               <div key={`${item.product.id}-${item.selectedSize}-${item.selectedColor}`}
                 className="flex gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
-                <img src={item.product.image} alt={item.product.name} onError={(event) => { event.currentTarget.style.display = "none"; }}
+                <img src={getProductColorImage(item.product)} alt={item.product.name} onError={(event) => { event.currentTarget.style.display = "none"; }}
                   className="w-16 h-16 object-cover rounded-lg bg-white shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-[11px] font-bold text-[#1e3a8a] uppercase">{item.product.brand}</p>
@@ -1130,9 +1230,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
                     {item.selectedSize && item.selectedSize !== "Talla única" && (
                       <span className="text-xs text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded-md">T: {item.selectedSize}</span>
                     )}
-                    {item.selectedColor && (
-                      <span className="text-xs text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded-md">{item.selectedColor}</span>
-                    )}
+                    
                   </div>
                   <p className="price text-sm text-slate-900 mt-1">{fmt(item.product.price)}</p>
                   <div className="flex items-center gap-2 mt-1.5">
@@ -1750,19 +1848,35 @@ function ProductDetailPage({ product, products, onBack, onAddToCart, onNavigate,
   onSelectProduct: (product: Product) => void;
   headerOffset: number;
 }) {
-  const requiresSize = hasSelectableSizes(product.sizes);
-  const [selectedSize, setSelectedSize] = useState(requiresSize ? "" : product.sizes[0] ?? "");
-  const [selectedColor, setSelectedColor] = useState(product.colors[0]?.name ?? "");
+  const orderedDetailColors = [...product.colors].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  const defaultDetailColor = orderedDetailColors.find((color) => color.isDefault) ?? orderedDetailColors[0];
+  const [selectedColorId, setSelectedColorId] = useState(product.selectedColorVariantId ?? defaultDetailColor?.productId ?? '');
+  const selectedDetailColor = orderedDetailColors.find((color) => color.productId === selectedColorId) ?? defaultDetailColor;
+  const displayProduct = productForColor(product, selectedDetailColor?.productId);
+  const requiresSize = hasSelectableSizes(displayProduct.sizes);
+  const [selectedSize, setSelectedSize] = useState(requiresSize ? "" : displayProduct.sizes[0] ?? "");
   const [qty, setQty] = useState(1);
+
+  useEffect(() => {
+    const nextDefaultColorId = product.selectedColorVariantId ?? defaultDetailColor?.productId ?? '';
+    setSelectedColorId(nextDefaultColorId);
+    const nextDisplayProduct = productForColor(product, nextDefaultColorId);
+    setSelectedSize((currentSize) => nextDisplayProduct.sizes.includes(currentSize) ? currentSize : '');
+    setQty(1);
+  }, [product.id, product.selectedColorVariantId, defaultDetailColor?.productId]);
+
+  useEffect(() => {
+    setSelectedSize((currentSize) => displayProduct.sizes.includes(currentSize) ? currentSize : '');
+  }, [displayProduct.id]);
   const [tab, setTab] = useState<"specs" | "reviews">("specs");
   const [added, setAdded] = useState(false);
-  const originalPrice = product.originalPrice;
-  const hasRealDiscount = typeof originalPrice === "number" && originalPrice > product.price;
-  const savings = hasRealDiscount ? (originalPrice ?? 0) - product.price : 0;
+  const originalPrice = displayProduct.originalPrice;
+  const hasRealDiscount = typeof originalPrice === "number" && originalPrice > displayProduct.price;
+  const savings = hasRealDiscount ? (originalPrice ?? 0) - displayProduct.price : 0;
 
   const handleAdd = () => {
-    if (product.stock <= 0 || (requiresSize && !selectedSize)) return false;
-    for (let i = 0; i < qty; i++) onAddToCart(product, selectedSize, selectedColor);
+    if (displayProduct.stock <= 0 || (requiresSize && !selectedSize)) return false;
+    for (let i = 0; i < qty; i++) onAddToCart(displayProduct, selectedSize, '');
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
     return true;
@@ -1784,7 +1898,7 @@ function ProductDetailPage({ product, products, onBack, onAddToCart, onNavigate,
 
       <div className="mb-14 grid min-w-0 grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1.08fr)_minmax(20rem,0.92fr)] lg:gap-10">
         <section aria-label={`Galería de ${product.name}`} className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
-          <ProductGallery key={product.id} main_image={product.image} images={product.images} productName={product.name} />
+          <ProductGallery key={`${product.modelId ?? product.id}-${displayProduct.id}`} main_image={displayProduct.image} images={displayProduct.images} productName={product.name} />
         </section>
 
         <section aria-label={`Información de ${product.name}`} className="min-w-0 space-y-6 py-1 sm:py-2">
@@ -1792,7 +1906,7 @@ function ProductDetailPage({ product, products, onBack, onAddToCart, onNavigate,
             <div className="flex items-center gap-2 mb-2">
               <span className="text-sm font-extrabold text-[#1e3a8a]">{product.brand}</span>
               <span className="text-slate-300">|</span>
-              <span className="text-xs text-slate-400 font-mono">{product.sku}</span>
+              <span className="text-xs text-slate-400 font-mono">{displayProduct.sku}</span>
               {product.gender && <Badge>{product.gender}</Badge>}
             </div>
             <h1 className="font-display text-[32px] sm:text-[40px] text-slate-900 leading-[1.02] mb-3">{product.name}</h1>
@@ -1802,11 +1916,11 @@ function ProductDetailPage({ product, products, onBack, onAddToCart, onNavigate,
           {/* Price */}
           <div className="border-y border-slate-200 py-4">
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-              <span className="price text-3xl text-slate-900">{fmt(product.price)}</span>
+              <span className="price text-3xl text-slate-900">{fmt(displayProduct.price)}</span>
               {hasRealDiscount && originalPrice !== undefined && (
                 <span className="price text-lg text-slate-400 line-through">{fmt(originalPrice)}</span>
               )}
-              {hasRealDiscount && product.discount && <Badge variant="sale">-{product.discount}%</Badge>}
+              {hasRealDiscount && displayProduct.discount && <Badge variant="sale">-{displayProduct.discount}%</Badge>}
             </div>
             {savings > 0 && (
               <p className="price text-sm text-emerald-600 mt-1">Ahorras {fmt(savings)} COP</p>
@@ -1816,10 +1930,10 @@ function ProductDetailPage({ product, products, onBack, onAddToCart, onNavigate,
 
           {/* Stock */}
           <div className="flex items-center gap-2">
-            {product.stock > 15 ? (
-              <><div className="w-2 h-2 rounded-full bg-emerald-500" /><span className="text-sm text-emerald-700 font-semibold">En stock ({product.stock} disponibles)</span></>
-            ) : product.stock > 0 ? (
-              <><div className="w-2 h-2 rounded-full bg-amber-500" /><span className="text-sm text-amber-700 font-semibold">¡Solo {product.stock} unidades!</span></>
+            {displayProduct.stock > 15 ? (
+              <><div className="w-2 h-2 rounded-full bg-emerald-500" /><span className="text-sm text-emerald-700 font-semibold">En stock ({displayProduct.stock} disponibles)</span></>
+            ) : displayProduct.stock > 0 ? (
+              <><div className="w-2 h-2 rounded-full bg-amber-500" /><span className="text-sm text-amber-700 font-semibold">¡Solo {displayProduct.stock} unidades!</span></>
             ) : (
               <><div className="w-2 h-2 rounded-full bg-red-500" /><span className="text-sm text-red-600 font-semibold">Agotado</span></>
             )}
@@ -1829,16 +1943,21 @@ function ProductDetailPage({ product, products, onBack, onAddToCart, onNavigate,
           {product.colors.length > 0 && (
             <div>
               <p className="text-sm font-bold text-slate-700 mb-2.5">Color</p>
-              <ColorSelector colors={product.colors} selected={selectedColor} onSelect={setSelectedColor} />
+              {selectedDetailColor && <p className="mb-2 text-sm font-medium text-slate-500">{`Color ${orderedDetailColors.indexOf(selectedDetailColor) + 1}`}</p>}
+              <ColorSelector colors={product.colors} selected={selectedColorId} onSelect={(colorId) => {
+                const nextVariant = productForColor(product, colorId);
+                setSelectedColorId(colorId);
+                setSelectedSize((currentSize) => nextVariant.sizes.includes(currentSize) ? currentSize : '');
+              }} />
             </div>
           )}
 
-          {product.sizes.length > 0 && (
+          {displayProduct.sizes.length > 0 && (
             <div>
               <div className="flex justify-between items-center mb-2.5">
                 <p className="text-sm font-bold text-slate-700">Tallas disponibles</p>
               </div>
-              <SizeSelector sizes={product.sizes} selected={selectedSize} onSelect={setSelectedSize} />
+              <SizeSelector sizes={displayProduct.sizes} selected={selectedSize} onSelect={setSelectedSize} />
               {requiresSize && !selectedSize && <p role="status" className="mt-2 text-xs text-slate-500">Selecciona una talla para agregar este producto.</p>}
             </div>
           )}
@@ -1847,12 +1966,12 @@ function ProductDetailPage({ product, products, onBack, onAddToCart, onNavigate,
           <div className="flex items-center gap-4">
             <p className="text-sm font-bold text-slate-700">Cantidad:</p>
             <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden bg-white">
-              <button type="button" disabled={product.stock <= 0} aria-label="Reducir cantidad" onClick={() => setQty(Math.max(1, qty - 1))}
+              <button type="button" disabled={displayProduct.stock <= 0} aria-label="Reducir cantidad" onClick={() => setQty(Math.max(1, qty - 1))}
                 className="w-10 h-10 flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-colors">
                 <Minus size={14} />
               </button>
               <span className="w-10 text-center text-sm font-extrabold text-slate-800">{qty}</span>
-              <button type="button" disabled={product.stock <= 0 || qty >= product.stock} aria-label="Aumentar cantidad" onClick={() => setQty(Math.min(product.stock, qty + 1))}
+              <button type="button" disabled={displayProduct.stock <= 0 || qty >= displayProduct.stock} aria-label="Aumentar cantidad" onClick={() => setQty(Math.min(displayProduct.stock, qty + 1))}
                 className="w-10 h-10 flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-colors">
                 <Plus size={14} />
               </button>
@@ -1861,13 +1980,13 @@ function ProductDetailPage({ product, products, onBack, onAddToCart, onNavigate,
 
           {/* CTAs */}
           <div className="flex flex-col sm:flex-row gap-3">
-            <button type="button" disabled={product.stock <= 0 || (requiresSize && !selectedSize)} onClick={handleAdd}
+            <button type="button" disabled={displayProduct.stock <= 0 || (requiresSize && !selectedSize)} onClick={handleAdd}
               className={`flex-1 py-3.5 rounded-xl text-sm font-extrabold flex items-center justify-center gap-2 transition-all duration-300 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600 ${
                 added ? "bg-emerald-500 text-white shadow-lg shadow-emerald-200" : "bg-black text-white hover:bg-slate-900 shadow-lg shadow-slate-800"
               }`}>
-              {product.stock <= 0 ? "Agotado" : requiresSize && !selectedSize ? "Selecciona una talla" : added ? <><Check size={16} /> Agregado al carrito</> : <><ShoppingCart size={16} /> Agregar al carrito</>}
+              {displayProduct.stock <= 0 ? "Agotado" : requiresSize && !selectedSize ? "Selecciona una talla" : added ? <><Check size={16} /> Agregado al carrito</> : <><ShoppingCart size={16} /> Agregar al carrito</>}
             </button>
-            <button type="button" disabled={product.stock <= 0 || (requiresSize && !selectedSize)} onClick={() => { if (handleAdd()) onNavigate("checkout"); }}
+            <button type="button" disabled={displayProduct.stock <= 0 || (requiresSize && !selectedSize)} onClick={() => { if (handleAdd()) onNavigate("checkout"); }}
               className="flex-1 py-3.5 rounded-xl text-sm font-extrabold border-2 border-black text-black hover:bg-slate-100 disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-100 disabled:text-slate-500 flex items-center justify-center gap-2 transition-colors">
               Comprar ahora
             </button>
@@ -2502,7 +2621,7 @@ function CheckoutPage({ cart, catalogProducts, resumedOrder, onNavigate, address
               {checkoutCart.map((item) => (
                     <div key={`${item.product.id}-${item.selectedSize}-${item.selectedColor}`} className="flex gap-2 sm:gap-3">
                   <div className="relative shrink-0">
-                    <img src={item.product.image} alt="" onError={(event) => { event.currentTarget.style.display = "none"; }} className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-cover bg-slate-100" />
+                    <img src={getProductColorImage(item.product)} alt={`${item.product.name}${item.selectedColor ? ` en ${item.selectedColor}` : ''}`} onError={(event) => { event.currentTarget.style.display = "none"; }} className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-cover bg-slate-100" />
                     <span className="absolute -top-1.5 -right-1.5 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-[#bfdbfe] text-[#0b1220] text-[8px] sm:text-[9px] font-bold flex items-center justify-center">{item.qty}</span>
                   </div>
                   <div className="flex-1 min-w-0">
@@ -3203,12 +3322,12 @@ function AccountPage({ onNavigate, onLogout, authUser, addresses, onCreateAddres
                         {new Date(order.createdAt).toLocaleString("es-CO")}
                       </p>
                     </div>
-                    <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${order.status === "cancelled" ? "border-red-200 bg-red-50 text-red-700" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
-                      {order.status === "pending_payment" ? "Pendiente de pago" : ORDER_STATUS_LABELS[order.status] ?? order.status}
+                    <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${order.status === "cancelled" ? "border-red-200 bg-red-50 text-red-700" : order.status === "paid" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
+                      {ORDER_STATUS_LABELS[order.status] ?? order.status}
                     </span>
                   </div>
                   <p className="mt-3 text-sm text-slate-600">
-                    Pedido registrado; no se ha iniciado ni cobrado ningún pago.
+                    {getPaymentStatusMessage(order.paymentStatus, order.status)}
                   </p>
                   <p className="mt-1 text-sm font-semibold text-slate-800">
                     {order.shippingQuoteId
@@ -3482,13 +3601,21 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
   const [categoryChangeError, setCategoryChangeError] = useState<string | null>(null);
   const [categoryChangeSaving, setCategoryChangeSaving] = useState(false);
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
+  const [productCreateMode, setProductCreateMode] = useState<"new-model" | "existing-model">("new-model");
   const [activeProduct, setActiveProduct] = useState<Product | null>(null);
   const [productForm, setProductForm] = useState<Omit<Product, "id">>({
     name: "", brand: "", price: 0, originalPrice: undefined, discount: undefined,
     rating: 0, reviews: 0, image: "", images: [], category: "", categoryId: undefined, catalogSection: "", subcategory: "",
-    stock: 0, sku: "", description: "", colors: [], sizes: [], gender: "Unisex",
+    stock: 0, sku: "", description: "", colors: [], modelId: null, colorHex: "", colorHex2: "", modelSortOrder: 0, isDefaultColor: true, sizes: [], gender: "Unisex",
     isNew: false, isFeatured: false, specs: [], specifications: [],
   });
+  const [linkExistingProductId, setLinkExistingProductId] = useState('');
+  const [linkExistingColorDraft, setLinkExistingColorDraft] = useState({ hex: '', hex2: '' });
+  const [colorSuggestion, setColorSuggestion] = useState<ColorSuggestion | null>(null);
+  const [colorHexConfirmed, setColorHexConfirmed] = useState(false);
+  const [colorHex2Confirmed, setColorHex2Confirmed] = useState(false);
+  const colorHexConfirmedRef = useRef(false);
+  const colorHex2ConfirmedRef = useRef(false);
   const [newProductSize, setNewProductSize] = useState('');
 
   const selectedCategoryOption = useMemo(() => categories.find((option) => option.id === productForm.categoryId || option.name === productForm.category), [categories, productForm.category, productForm.categoryId]);
@@ -3952,14 +4079,30 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     setProductForm({
       name: "", brand: "", price: 0, originalPrice: undefined, discount: undefined,
       rating: 0, reviews: 0, image: "", images: [], category: "", categoryId: undefined, catalogSection: "", subcategory: "",
-      stock: 0, sku: "", description: "", colors: [], sizes: [], gender: "Unisex",
+      stock: 0, sku: "", description: "", colors: [], modelId: null, colorHex: "", colorHex2: "", modelSortOrder: 0, isDefaultColor: true, sizes: [], gender: "Unisex",
       isNew: false, isFeatured: false, specs: [], specifications: [],
     });
+    setProductCreateMode("new-model");
+    setLinkExistingProductId('');
+    setLinkExistingColorDraft({ hex: '', hex2: '' });
+    setColorHexConfirmed(false);
+    setColorHex2Confirmed(false);
+    setColorSuggestion(null);
+    colorHexConfirmedRef.current = false;
+    colorHex2ConfirmedRef.current = false;
   };
 
   const openNewProductForm = () => {
     resetForm();
     setFormMode("create");
+    setProductCreateMode('new-model');
+    setLinkExistingProductId('');
+    setLinkExistingColorDraft({ hex: '', hex2: '' });
+    colorHexConfirmedRef.current = false;
+    colorHex2ConfirmedRef.current = false;
+    setColorHexConfirmed(false);
+    setColorHex2Confirmed(false);
+    setColorSuggestion(null);
     setIsProductFormOpen(true);
   };
 
@@ -4061,6 +4204,12 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       .map((url, index) => ({ id: `existing-${product.id}-${index}`, src: url, permanentUrl: url }));
     setProductImageSelections(existingImages);
     setPrimaryImageSelectionId(existingImages[0]?.id ?? null);
+    setColorHexConfirmed(Boolean(product.colorHex));
+    setColorHex2Confirmed(Boolean(product.colorHex2));
+    setColorSuggestion(null);
+    colorHexConfirmedRef.current = Boolean(product.colorHex);
+    colorHex2ConfirmedRef.current = Boolean(product.colorHex2);
+    setColorHex2Confirmed(Boolean(product.colorHex2));
     setActiveProduct(product);
     setFormMode("edit");
     setIsProductFormDirty(false);
@@ -4083,6 +4232,11 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       sku: product.sku,
       description: product.description,
       colors: product.colors,
+      modelId: product.modelId ?? null,
+      colorHex: product.colorHex ?? "",
+      colorHex2: product.colorHex2 ?? "",
+      modelSortOrder: product.modelSortOrder ?? 0,
+      isDefaultColor: product.isDefaultColor ?? false,
       sizes: product.sizes,
       specifications: product.specifications ?? [],
       shippingWeightGrams: product.shippingWeightGrams,
@@ -4111,7 +4265,11 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       categoryId: normalizedCategoryId,
       catalogSection: productForm.catalogSection,
       category: productForm.category || selectedCategoryOption?.name || '',
-      colors: productForm.colors.map((color) => ({ name: color.name, hex: color.hex })),
+      modelId: formMode === "create" && productCreateMode === "new-model" ? null : productForm.modelId,
+      colorHex: productForm.colorHex?.trim().toUpperCase() || null,
+      colorHex2: productForm.colorHex2?.trim().toUpperCase() || null,
+      modelSortOrder: Number(productForm.modelSortOrder) || 0,
+      isDefaultColor: Boolean(productForm.isDefaultColor),
       sizes: normalizedSizes,
       specifications: normalizedSpecifications,
       shippingWeightGrams: productForm.shippingWeightGrams,
@@ -4143,10 +4301,17 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       pendingImageCount: productImageSelections.filter((entry) => Boolean(entry.file)).length,
       sizes: normalizedSizes,
       specifications: normalizedSpecifications,
+      modelId: payload.modelId,
+      colorHex: payload.colorHex,
+      colorHex2: payload.colorHex2,
     });
 
     if (productImageSelections.length > MAX_PRODUCT_TOTAL_IMAGES) {
-      errors.gallery = `Máximo ${MAX_PRODUCT_TOTAL_IMAGES} imágenes en total: 1 principal y hasta ${MAX_PRODUCT_GALLERY_IMAGES} adicionales.`;
+      errors.gallery = `MáM?ximo ${MAX_PRODUCT_TOTAL_IMAGES} imágenes en total: 1 principal y hasta ${MAX_PRODUCT_GALLERY_IMAGES} adicionales.`;
+    }
+
+    if (formMode === 'create' && productCreateMode === 'existing-model' && !payload.modelId) {
+      errors.colors = 'Selecciona el modelo al que pertenece este color.';
     }
 
     if (Object.keys(errors).length > 0) {
@@ -4164,6 +4329,29 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       setProductSaveError(String(message));
       toast.error(String(message));
       return;
+    }
+    if (formMode === 'create' && payload.modelId) {
+      const modelId = String(payload.modelId);
+      const members = getModelMembers(modelId);
+      const hexToken = String(payload.colorHex ?? '').trim().replace(/^#/, '').toUpperCase() || 'COLOR';
+      const baseSku = String(payload.sku ?? '').trim().replace(/-+$/g, '') || 'SKU';
+      const memberSkus = new Set(members.map((member) => String(member.sku ?? '').trim().toLowerCase()).filter(Boolean));
+      const baseSlug = String(productForm.name ?? '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'producto';
+      const memberSlugs = new Set(members.map((member) => String((member as any).slug ?? '').trim().toLowerCase()).filter(Boolean));
+      let skuCandidate = `${baseSku.slice(0, 36)}-${hexToken}`.slice(0, 64);
+      if (memberSkus.has(skuCandidate.toLowerCase())) {
+        skuCandidate = `${baseSku.slice(0, 28)}-${hexToken}-${Date.now().toString().slice(-4)}`.slice(0, 64);
+      }
+      payload.sku = skuCandidate;
+      let slugCandidate = `${baseSlug}-${hexToken.toLowerCase()}`;
+      if (memberSlugs.has(slugCandidate)) {
+        slugCandidate = `${baseSlug}-${hexToken.toLowerCase()}-${Date.now().toString().slice(-4)}`;
+      }
+      (payload as any).slug = slugCandidate;
+      if (!Number.isFinite(Number(payload.modelSortOrder)) || Number(payload.modelSortOrder) === 0) {
+        payload.modelSortOrder = members.length;
+      }
+      payload.isDefaultColor = false;
     }
     if (!payload.sku) payload.sku = `SKU-${Date.now().toString().slice(-6)}`;
 
@@ -4189,6 +4377,12 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
           image: imagePayload.mainImage,
           images: imagePayload.images,
         };
+
+        if (formMode === 'edit' && activeProduct && productPayload.isDefaultColor) {
+          const modelId = activeProduct.modelId ?? activeProduct.id;
+          const previousDefaults = getModelMembers(modelId).filter((variant) => variant.id !== activeProduct.id && variant.isDefaultColor);
+          for (const variant of previousDefaults) await updateProduct(variant.id, { isDefaultColor: false });
+        }
 
         const save = formMode === "edit" && activeProduct
           ? () => updateProduct(activeProduct.id, productPayload)
@@ -4635,6 +4829,35 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                     {productSaveError}
                   </p>
                 )}
+                {formMode === 'create' && (
+                  <section aria-label="Tipo de producto" className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                    <fieldset>
+                      <legend className="mb-2 text-sm font-bold text-slate-800">¿Qué vas a crear?</legend>
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border px-3 text-sm font-semibold ${productCreateMode === 'new-model' ? 'border-slate-900 bg-white text-slate-900' : 'border-slate-300 bg-transparent text-slate-600'}`}>
+                          <input type="radio" name="product-create-mode" value="new-model" checked={productCreateMode === 'new-model'} onChange={() => selectProductCreateMode('new-model')} />
+                          Nuevo modelo
+                        </label>
+                        <label className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border px-3 text-sm font-semibold ${productCreateMode === 'existing-model' ? 'border-slate-900 bg-white text-slate-900' : 'border-slate-300 bg-transparent text-slate-600'}`}>
+                          <input type="radio" name="product-create-mode" value="existing-model" checked={productCreateMode === 'existing-model'} onChange={() => selectProductCreateMode('existing-model')} />
+                          Agregar color a un modelo existente
+                        </label>
+                      </div>
+                    </fieldset>
+                    {productCreateMode === 'existing-model' && (
+                      <label className="block text-xs font-semibold text-slate-700">
+                        Buscar modelo
+                        <select aria-label="Seleccionar modelo existente" value={productForm.modelId ?? ''} onChange={(event) => selectExistingModelForColor(event.target.value)} className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm">
+                          <option value="">Selecciona un modelo</option>
+                          {products.filter((candidate) => !candidate.modelId && candidate.isActive !== false).map((candidate) => (
+                            <option key={candidate.id} value={candidate.id}>{candidate.name} · {candidate.brand}</option>
+                          ))}
+                        </select>
+                      </label>
+                    )}
+                  </section>
+                )}
+
                 {/* Nombre y Marca */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
@@ -4860,13 +5083,124 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                   </div>
                 </section>
 
+                <section aria-labelledby="product-colors-heading" className="space-y-3 rounded-lg border border-slate-200 bg-white p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="h-10 w-10 shrink-0 rounded-full border border-slate-400 shadow-sm" aria-label="Vista previa de muestra de color" style={{
+                      background: productForm.colorHex2 && /^#[0-9A-F]{6}$/i.test(productForm.colorHex2)
+                        ? `linear-gradient(90deg, ${productForm.colorHex || colorSuggestion?.primary || '#FFFFFF'} 0 50%, ${productForm.colorHex2} 50% 100%)`
+                        : productForm.colorHex || colorSuggestion?.primary || '#FFFFFF',
+                      boxShadow: '0 0 0 1px rgba(15,23,42,0.18)',
+                    }} />
+                    <div>
+                      <h4 id="product-colors-heading" className="text-sm font-bold text-slate-800">Color de esta variante</h4>
+                      <p className="mt-1 text-xs text-slate-500">Esta ficha representa un solo color. Todas las fotos de la galería pertenecen a esta variante.</p>
+                    </div>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="text-xs font-semibold text-slate-700">
+                      HEX principal
+                      <div className="mt-1 flex gap-2">
+                        <input type="color" aria-label="Selector HEX principal" value={/^#[0-9A-F]{6}$/i.test(productForm.colorHex ?? '') ? productForm.colorHex! : colorSuggestion?.primary ?? '#FFFFFF'} onChange={(event) => updateProductColorHex(event.target.value)} className="h-10 w-12 shrink-0 cursor-pointer rounded border border-slate-300 bg-white p-1" />
+                        <input aria-label="HEX principal" value={productForm.colorHex ?? ''} onChange={(event) => updateProductColorHex(event.target.value)} placeholder="#A7ADB4" className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 text-sm uppercase" />
+                      </div>
+                    </label>
+                    <label className="text-xs font-semibold text-slate-700">
+                      HEX secundario (opcional)
+                      <div className="mt-1 flex gap-2">
+                        <input type="color" aria-label="Selector HEX secundario" value={/^#[0-9A-F]{6}$/i.test(productForm.colorHex2 ?? '') ? productForm.colorHex2! : '#FFFFFF'} onChange={(event) => updateProductColorHex2(event.target.value)} className="h-10 w-12 shrink-0 cursor-pointer rounded border border-slate-300 bg-white p-1" />
+                        <input aria-label="HEX secundario" value={productForm.colorHex2 ?? ''} onChange={(event) => updateProductColorHex2(event.target.value)} placeholder="#D6DADE" className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 text-sm uppercase" />
+                      </div>
+                    </label>
+                  </div>
+                  {colorSuggestion && (
+                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-blue-100 bg-blue-50 p-3">
+                      <p className="text-xs text-blue-900">
+                        HEX sugerido por una lectura visual aproximada: {colorSuggestion.primary}{colorSuggestion.secondary ? ` / ${colorSuggestion.secondary}` : ''}.
+                        {colorSuggestion.confidence === 'low' ? ' Confianza baja; corrige o elige manualmente.' : ' Confirma que corresponda al producto.'}
+                      </p>
+                      <button type="button" onClick={applyColorSuggestion} className="min-h-10 rounded-md border border-blue-300 bg-white px-3 text-xs font-semibold text-blue-900 hover:bg-blue-100">Confirmar sugerencia</button>
+                    </div>
+                  )}
+                  <label className="flex min-h-10 items-center gap-2 text-xs font-semibold text-slate-700">
+                    <input type="checkbox" checked={Boolean(productForm.isDefaultColor)} onChange={(event) => updateField('isDefaultColor', event.target.checked)} className="h-4 w-4" />
+                    Usar como color predeterminado
+                  </label>
+                  {formErrors.colors && <p role="alert" className="text-xs text-red-600">{formErrors.colors}</p>}
+
+                  {formMode === 'edit' && activeProduct && (
+                    <div className="space-y-3 border-t border-slate-200 pt-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <h5 className="text-sm font-bold text-slate-800">Colores del producto</h5>
+                          <p className="text-xs text-slate-500">Cada fila conserva sus imágenes, tallas, precio, SKU e inventario.</p>
+                        </div>
+                        <button type="button" onClick={() => {
+                          if (isProductFormDirty && !window.confirm('Hay cambios sin guardar. ¿Descartarlos para crear otro color?')) return;
+                          const modelId = activeProduct.modelId ?? activeProduct.id;
+                          openNewProductForm();
+                          setProductCreateMode('existing-model');
+                          selectExistingModelForColor(modelId);
+                        }} className="min-h-10 rounded-md bg-slate-900 px-3 text-sm font-semibold text-white hover:bg-slate-700">Agregar color nuevo</button>
+                      </div>
+                      {(() => {
+                        const modelId = activeProduct.modelId ?? activeProduct.id;
+                        const members = getModelMembers(modelId);
+                        return (
+                          <div className="space-y-2">
+                            {members.map((variant, index) => {
+                              const label = `Color ${index + 1}`;
+                              return (
+                              <div key={variant.id} className="flex flex-wrap items-center gap-3 rounded-md border border-slate-200 p-2">
+                                <div className="h-8 w-8 shrink-0 rounded-full border border-slate-400" style={{ background: variant.colorHex2 ? `linear-gradient(90deg, ${variant.colorHex} 0 50%, ${variant.colorHex2} 50% 100%)` : variant.colorHex || '#FFFFFF', boxShadow: '0 0 0 1px rgba(15,23,42,0.16)' }} />
+                                <img src={variant.image} alt="" className="h-12 w-12 rounded border border-slate-200 bg-slate-50 object-contain" />
+                                <div className="min-w-[8rem] flex-1">
+                                  <p className="text-sm font-semibold text-slate-800">{label}{variant.isDefaultColor ? ' · Predeterminado' : ''}</p>
+                                  <p className="text-xs text-slate-500">{variant.sku} · {variant.stock} unidades</p>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <button type="button" aria-label={`Subir ${label}`} title="Subir" disabled={index === 0} onClick={() => void moveModelColor(variant, -1)} className="flex h-9 w-9 items-center justify-center rounded border border-slate-200 disabled:opacity-40"><ChevronUp size={16} /></button>
+                                  <button type="button" aria-label={`Bajar ${label}`} title="Bajar" disabled={index === members.length - 1} onClick={() => void moveModelColor(variant, 1)} className="flex h-9 w-9 items-center justify-center rounded border border-slate-200 disabled:opacity-40"><ChevronDown size={16} /></button>
+                                  {!variant.isDefaultColor && <button type="button" onClick={() => void setModelDefaultColor(variant)} className="min-h-9 rounded border border-slate-200 px-2 text-xs font-semibold">Predeterminar</button>}
+                                  {variant.id !== modelId && <button type="button" onClick={() => void unlinkModelColor(variant)} className="min-h-9 rounded border border-slate-200 px-2 text-xs font-semibold">Desvincular</button>}
+                                  {variant.id !== activeProduct.id && <button type="button" onClick={() => {
+                                    if (isProductFormDirty && !window.confirm('Hay cambios sin guardar. ¿Descartarlos para editar esta variante?')) return;
+                                    handleEditProduct(variant);
+                                  }} className="min-h-9 rounded border border-slate-200 px-2 text-xs font-semibold">Editar</button>}
+                                  {variant.isActive !== false && <button type="button" onClick={() => {
+                                    if (window.confirm(`Se desactivará ${label}. El producto y su historial de pedidos se conservarán.`)) {
+                                      void setProductActive(variant.id, false).then(() => toast.success('Variante desactivada; el historial se conserva.')).catch((error) => toast.error(formatAdminApiError(error, 'No se pudo desactivar la variante.')));
+                                    }
+                                  }} className="min-h-9 rounded border border-red-200 px-2 text-xs font-semibold text-red-700">Desactivar</button>}
+                                </div>
+                              </div>
+                            );})}
+                          </div>
+                        );
+                      })()}
+                      <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                        <select aria-label="Seleccionar producto independiente para vincular como color" value={linkExistingProductId} onChange={(event) => setLinkExistingProductId(event.target.value)} className="min-h-10 min-w-0 rounded-lg border border-slate-300 bg-white px-3 text-sm">
+                          <option value="">Vincular producto existente como color…</option>
+                          {products.filter((candidate) => candidate.id !== (activeProduct.modelId ?? activeProduct.id) && !candidate.modelId && candidate.isActive !== false).map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name} · {candidate.sku}</option>)}
+                        </select>
+                        <button type="button" onClick={() => void linkExistingProductAsColor()} disabled={!linkExistingProductId} className="min-h-10 rounded-md border border-slate-300 px-3 text-sm font-semibold disabled:opacity-50">Vincular sin perder datos</button>
+                      </div>
+                      {linkExistingProductId && (
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <input aria-label="HEX principal del producto vinculado" value={linkExistingColorDraft.hex} onChange={(event) => setLinkExistingColorDraft((draft) => ({ ...draft, hex: event.target.value.toUpperCase() }))} placeholder="#000000" className="min-h-10 rounded-lg border border-slate-300 px-3 text-sm uppercase" />
+                          <input aria-label="HEX secundario del producto vinculado" value={linkExistingColorDraft.hex2} onChange={(event) => setLinkExistingColorDraft((draft) => ({ ...draft, hex2: event.target.value.toUpperCase() }))} placeholder="HEX secundario opcional" className="min-h-10 rounded-lg border border-slate-300 px-3 text-sm uppercase" />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </section>
+
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-4">
                   <div>
                     <div className="flex items-center justify-between gap-3">
-                      <h3 className="text-sm font-bold text-slate-800">Imágenes del producto</h3>
+                      <h3 className="text-sm font-bold text-slate-800">Im?genes del producto</h3>
                       <span className="text-xs font-medium text-slate-500">{productImageSelections.length} seleccionadas</span>
                     </div>
-                    <p className="mt-1 text-xs text-slate-500">Máximo {MAX_PRODUCT_TOTAL_IMAGES} fotos: 1 principal y hasta {MAX_PRODUCT_GALLERY_IMAGES} adicionales.</p>
+                    <p className="mt-1 text-xs text-slate-500">MáM?ximo {MAX_PRODUCT_TOTAL_IMAGES} fotos: 1 principal y hasta {MAX_PRODUCT_GALLERY_IMAGES} adicionales.</p>
                     {imageUploadProgress && (
                       <p role="status" className="mt-2 text-xs font-semibold text-blue-700">
                         Subiendo imágenes: {imageUploadProgress.completed}/{imageUploadProgress.total}
@@ -4876,7 +5210,11 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
 
                   <label className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-slate-300 bg-white px-4 py-4 text-center hover:border-blue-500 hover:bg-blue-50/40">
                     <span className="text-sm font-semibold text-slate-700">Seleccionar imágenes</span>
+<<<<<<< HEAD
                     <span className="text-xs text-slate-500">JPG, PNG, WebP o AVIF · máximo 5 MB cada una</span>
+=======
+                    <span className="text-xs text-slate-500">JPG, PNG, WebP o AVIF · máM?ximo 5 MB cada una</span>
+>>>>>>> origin/deploy/shopping-assistant-groq
                     <input
                       type="file"
                       aria-label="Seleccionar imágenes del producto"
@@ -4903,7 +5241,12 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                             </div>
                             <div className="min-h-12 p-2">
                               {!isPrimary ? (
-                                <button type="button" onClick={() => { setPrimaryImageSelectionId(entry.id); setProductSaveError(null); setIsProductFormDirty(true); }} disabled={isSubmitting} className="text-left text-xs font-semibold text-blue-700 hover:underline disabled:opacity-50">Usar como principal</button>
+                                <button type="button" onClick={() => {
+                                  setPrimaryImageSelectionId(entry.id);
+                                  setProductSaveError(null);
+                                  setIsProductFormDirty(true);
+                                  if (entry.file) void suggestColorFromImage(entry.file);
+                                }} disabled={isSubmitting} className="text-left text-xs font-semibold text-blue-700 hover:underline disabled:opacity-50">Usar como principal</button>
                               ) : (
                                 <span className="text-xs font-medium text-slate-600">Imagen principal</span>
                               )}
@@ -5261,6 +5604,160 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     setIsProductFormDirty(true);
   };
 
+  const updateProductColorHex = (hex: string) => {
+    updateField('colorHex', hex.toUpperCase());
+    const confirmed = /^#[0-9A-F]{6}$/i.test(hex);
+    colorHexConfirmedRef.current = confirmed;
+    setColorHexConfirmed(confirmed);
+  };
+
+  const updateProductColorHex2 = (hex: string) => {
+    updateField('colorHex2', hex.toUpperCase());
+    const confirmed = !hex || /^#[0-9A-F]{6}$/i.test(hex);
+    colorHex2ConfirmedRef.current = confirmed;
+    setColorHex2Confirmed(confirmed);
+  };
+
+  const applyColorSuggestion = () => {
+    if (!colorSuggestion) return;
+    updateField('colorHex', colorSuggestion.primary);
+    updateField('colorHex2', colorSuggestion.secondary ?? '');
+    colorHexConfirmedRef.current = true;
+    colorHex2ConfirmedRef.current = true;
+    setColorHexConfirmed(true);
+    setColorHex2Confirmed(true);
+  };
+
+  const suggestColorFromImage = async (file: File) => {
+    if (colorHexConfirmedRef.current) return;
+    const suggestion = await suggestImageColors(file);
+    setColorSuggestion(suggestion);
+  };
+
+  const selectProductCreateMode = (mode: 'new-model' | 'existing-model') => {
+    setProductCreateMode(mode);
+    setLinkExistingProductId('');
+    if (mode === 'new-model') updateField('modelId', null);
+  };
+
+  const selectExistingModelForColor = (modelId: string) => {
+    if (!modelId) {
+      updateField('modelId', null);
+      return;
+    }
+    const model = products.find((candidate) => candidate.id === modelId && !candidate.modelId);
+    if (!model) return;
+    setProductForm((previous) => ({
+      ...previous,
+      modelId: model.id,
+      name: model.name,
+      brand: model.brand,
+      price: model.price,
+      originalPrice: model.originalPrice,
+      discount: model.discount,
+      rating: model.rating,
+      reviews: model.reviews,
+      category: model.category,
+      categoryId: model.categoryId,
+      catalogSection: model.catalogSection ?? '',
+      subcategory: model.subcategory,
+      gender: model.gender ?? 'Unisex',
+      description: model.description,
+      sizes: [...model.sizes],
+      stock: 0,
+      sku: model.sku || '',
+      image: '',
+      images: [],
+      colors: [],
+      colorHex: '',
+      colorHex2: '',
+      isDefaultColor: false,
+    }));
+    colorHexConfirmedRef.current = false;
+    colorHex2ConfirmedRef.current = false;
+    setColorHexConfirmed(false);
+    setColorHex2Confirmed(false);
+    setColorSuggestion(null);
+    productImageSelections.forEach((entry) => releaseImagePreview(entry.previewUrl));
+    setProductImageSelections([]);
+    setPrimaryImageSelectionId(null);
+    setIsProductFormDirty(true);
+  };
+
+  const getModelMembers = (modelId: string) => products
+    .filter((candidate) => candidate.id === modelId || candidate.modelId === modelId)
+    .sort((left, right) => (left.modelSortOrder ?? 0) - (right.modelSortOrder ?? 0));
+
+  const linkExistingProductAsColor = async () => {
+    const sourceProduct = products.find((candidate) => candidate.id === linkExistingProductId);
+    const modelId = activeProduct?.modelId ?? activeProduct?.id;
+    if (!sourceProduct || !modelId) return;
+    if (sourceProduct.id === modelId || sourceProduct.modelId) {
+      toast.error('Selecciona un producto independiente y activo.');
+      return;
+    }
+    if (!/^#[0-9A-F]{6}$/i.test(linkExistingColorDraft.hex)) {
+      toast.error('Confirma el HEX principal antes de vincular.');
+      return;
+    }
+    if (linkExistingColorDraft.hex2 && !/^#[0-9A-F]{6}$/i.test(linkExistingColorDraft.hex2)) {
+      toast.error('El HEX secundario no es válido.');
+      return;
+    }
+    try {
+      const members = getModelMembers(modelId);
+      await updateProduct(sourceProduct.id, {
+        modelId,
+        colorHex: linkExistingColorDraft.hex.toUpperCase(),
+        colorHex2: linkExistingColorDraft.hex2.toUpperCase() || null,
+        modelSortOrder: members.length,
+        isDefaultColor: members.length === 0,
+      });
+      setLinkExistingProductId('');
+      setLinkExistingColorDraft({ hex: '', hex2: '' });
+      toast.success('Producto vinculado como color. Sus datos e imágenes se conservaron.');
+    } catch (error) {
+      toast.error(formatAdminApiError(error, 'No se pudo vincular el producto.'));
+    }
+  };
+
+  const setModelDefaultColor = async (variant: Product) => {
+    const modelId = variant.modelId ?? variant.id;
+    try {
+      const currentDefault = getModelMembers(modelId).find((candidate) => candidate.isDefaultColor && candidate.id !== variant.id);
+      if (currentDefault) await updateProduct(currentDefault.id, { isDefaultColor: false });
+      await updateProduct(variant.id, { isDefaultColor: true, modelId: variant.modelId ?? null });
+    } catch (error) {
+      toast.error(formatAdminApiError(error, 'No se pudo cambiar el color predeterminado.'));
+    }
+  };
+
+  const moveModelColor = async (variant: Product, direction: -1 | 1) => {
+    const modelId = variant.modelId ?? variant.id;
+    const siblings = getModelMembers(modelId);
+    const index = siblings.findIndex((candidate) => candidate.id === variant.id);
+    const target = siblings[index + direction];
+    if (!target) return;
+    try {
+      await updateProduct(variant.id, { modelSortOrder: target.modelSortOrder ?? index + direction });
+      await updateProduct(target.id, { modelSortOrder: variant.modelSortOrder ?? index });
+    } catch (error) {
+      toast.error(formatAdminApiError(error, 'No se pudo ordenar el color.'));
+    }
+  };
+
+  const unlinkModelColor = async (variant: Product) => {
+    const modelId = variant.modelId ?? variant.id;
+    const siblings = getModelMembers(modelId);
+    const index = siblings.findIndex((candidate) => candidate.id === variant.id);
+    const label = index >= 0 ? `Color ${index + 1}` : 'esta variante';
+    if (!window.confirm(`Se quitará ${label} del modelo, pero el producto y sus pedidos se conservarán. ¿Continuar?`)) return;
+    try {
+      await updateProduct(variant.id, { modelId: null, modelSortOrder: 0, isDefaultColor: false });
+    } catch (error) {
+      toast.error(formatAdminApiError(error, 'No se pudo desvincular el color.'));
+    }
+  };
   const addProductSize = () => {
     const size = newProductSize.trim();
     if (!size) return;
@@ -5336,7 +5833,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
         continue;
       }
       if (remainingSlots <= 0) {
-        toast.error(`Máximo ${MAX_PRODUCT_TOTAL_IMAGES} imágenes en total: 1 principal y hasta ${MAX_PRODUCT_GALLERY_IMAGES} adicionales.`);
+        toast.error(`MáM?ximo ${MAX_PRODUCT_TOTAL_IMAGES} imágenes en total: 1 principal y hasta ${MAX_PRODUCT_GALLERY_IMAGES} adicionales.`);
         break;
       }
 
@@ -5349,6 +5846,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     if (!additions.length) return;
     setProductImageSelections((previous) => [...previous, ...additions]);
     setPrimaryImageSelectionId((previous) => previous ?? additions[0].id);
+    if (!primaryImageSelectionId && additions[0].file) void suggestColorFromImage(additions[0].file);
     setFormErrors((previous) => ({ ...previous, image: '', gallery: '' }));
     setProductSaveError(null);
     setIsProductFormDirty(true);
@@ -5582,7 +6080,7 @@ export default function App() {
           throw new Error('Public API returned invalid payload');
         }
 
-        setProducts(json.data.map((record: ProductRecord) => mapProductRecordToAppProduct(record, categories)));
+        setProducts(groupProductsByModel(json.data.map((record: ProductRecord) => mapProductRecordToAppProduct(record, categories))));
         setProductsStatus("ready");
       } catch (error) {
         if (!isActive) return;
@@ -5739,6 +6237,11 @@ export default function App() {
   const [profileRole, setProfileRole] = useState<string | null>(null);
   const [profileAccessError, setProfileAccessError] = useState(false);
   const [authReady, setAuthReady] = useState(false);
+  const [paymentReturnAttempt, setPaymentReturnAttempt] = useState(0);
+  const [paymentReturnResult, setPaymentReturnResult] = useState<
+    | { state: 'idle' | 'loading' | 'login_required' | 'error'; message: string }
+    | { state: 'verified'; paymentStatus: string; orderStatus: string }
+  >({ state: 'idle', message: '' });
   const [homeContent, setHomeContent] = useState<HomePageContent>({
     heroTitle: DEFAULT_HERO_TITLE,
     heroSubtitle: DEFAULT_HERO_SUBTITLE,
@@ -5898,6 +6401,47 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (view !== 'payment-return' || !authReady) return;
+    const query = new URLSearchParams(window.location.search);
+    const orderId = query.get('order_id');
+    const transactionId = query.get('id');
+    if (!orderId || !transactionId) {
+      setPaymentReturnResult({
+        state: 'error',
+        message: 'No se recibió la referencia necesaria para verificar el pago. Consulta tus pedidos.',
+      });
+      return;
+    }
+    if (!authUser) {
+      setPaymentReturnResult({
+        state: 'login_required',
+        message: 'Inicia sesión con la cuenta del pedido para consultar el estado real del pago.',
+      });
+      return;
+    }
+
+    let active = true;
+    setPaymentReturnResult({ state: 'loading', message: 'Consultando el estado del pago con Wompi…' });
+    void verifyWompiPaymentReturn(orderId, transactionId)
+      .then((result) => {
+        if (!active) return;
+        setPaymentReturnResult({
+          state: 'verified',
+          paymentStatus: result.paymentStatus,
+          orderStatus: result.orderStatus,
+        });
+      })
+      .catch(() => {
+        if (!active) return;
+        setPaymentReturnResult({
+          state: 'error',
+          message: 'No fue posible verificar el pago. Puedes reintentar o revisar tus pedidos.',
+        });
+      });
+    return () => { active = false; };
+  }, [authReady, authUser?.id, paymentReturnAttempt, view]);
+
+  useEffect(() => {
     if (!authReady) return;
     if (!isAdmin && view === "admin") {
       logAuthDiagnostic("route-guard.redirect", { userId: authUser?.id, email: authUser?.email, sessionPresent: Boolean(authUser), isAdmin: false, redirectTo: "admin-login" });
@@ -5966,6 +6510,12 @@ export default function App() {
     setIsAdmin(adminStatus);
     setProfileRole(role);
     setProfileAccessError(false);
+  };
+
+  const handleLoginNavigation = (destination: View) => {
+    const query = new URLSearchParams(window.location.search);
+    const hasPaymentReturn = query.has('order_id') && query.has('id');
+    navigate(destination === 'home' && hasPaymentReturn ? 'payment-return' : destination);
   };
 
   const handleLogout = async () => {
@@ -6340,19 +6890,37 @@ export default function App() {
       {view === "payment-return" && (
         <main className="mx-auto max-w-3xl px-4 py-12">
           <h1 className="text-2xl font-bold">Regreso del checkout</h1>
-          <p className="mt-3 text-slate-600">
-            El retorno no confirma el pago. Consulta tus pedidos desde tu cuenta.
+          <p className="mt-3 text-slate-600" role="status" aria-live="polite">
+            {!authReady
+              ? 'Verificando tu sesión…'
+              : paymentReturnResult.state === 'verified'
+                ? getPaymentStatusMessage(
+                  paymentReturnResult.paymentStatus,
+                  paymentReturnResult.orderStatus as Order['status'],
+                )
+                : paymentReturnResult.message}
           </p>
-          <button
-            type="button"
-            onClick={() => navigate(getPaymentReturnDestination(Boolean(authUser)))}
-          >
-            {authUser ? "Ir a Mi cuenta" : "Inicia sesión para consultar tus pedidos"}
-          </button>
+          <div className="mt-5 flex flex-wrap gap-3">
+            {authReady && paymentReturnResult.state === 'login_required' && (
+              <button type="button" onClick={() => navigate('login')}>
+                Iniciar sesión para verificar
+              </button>
+            )}
+            {paymentReturnResult.state === 'error' && authUser && (
+              <button type="button" onClick={() => setPaymentReturnAttempt((attempt) => attempt + 1)}>
+                Reintentar verificación
+              </button>
+            )}
+            {authReady && authUser && (
+              <button type="button" onClick={() => navigate(getPaymentReturnDestination(true))}>
+                Ir a Mi cuenta
+              </button>
+            )}
+          </div>
         </main>
       )}
-      {view === "login" && <LoginPage isRegister={false} onNavigate={navigate} onLogin={handleAuthSuccess} headerOffset={headerOffset} />}
-      {view === "register" && <LoginPage isRegister={true} onNavigate={navigate} onLogin={handleAuthSuccess} headerOffset={headerOffset} />}
+      {view === "login" && <LoginPage isRegister={false} onNavigate={handleLoginNavigation} onLogin={handleAuthSuccess} headerOffset={headerOffset} />}
+      {view === "register" && <LoginPage isRegister={true} onNavigate={handleLoginNavigation} onLogin={handleAuthSuccess} headerOffset={headerOffset} />}
       {view === "admin-login" && <LoginPage isRegister={false} onNavigate={navigate} onLogin={handleAuthSuccess} headerOffset={headerOffset} />}
       {view === "password-reset" && <PasswordRecoveryPage onNavigate={navigate} />}
       {view === "account" && (
@@ -6410,6 +6978,7 @@ export default function App() {
         />
       )}
 
+      <ShoppingAssistant />
       <Toaster />
       {/* Mobile bottom nav removed for web-style layout */}
     </div>

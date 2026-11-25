@@ -9,6 +9,11 @@ const ALLOWED_PRODUCT_COLUMNS = new Set([
   'price',
   'compare_at_price',
   'category_id',
+  'model_id',
+  'color_hex',
+  'color_hex2',
+  'model_sort_order',
+  'is_default_color',
   'catalog_section',
   'stock',
   'sku',
@@ -25,7 +30,7 @@ const ALLOWED_PRODUCT_COLUMNS = new Set([
   'shipping_units_per_guide',
 ]);
 const UUID_PATTERN = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
-const MAX_PRODUCT_GALLERY_IMAGES = 10;
+const MAX_PRODUCT_GALLERY_IMAGES = 19;
 const PRODUCT_CATALOG_SECTIONS = new Set([
   'Tenis Hombre',
   'Tenis Mujer',
@@ -65,8 +70,16 @@ function parsePermanentImageUrl(value: unknown, fieldName: string): string | und
   throw new ApiError(400, `${fieldName} debe ser una URL HTTP o HTTPS permanente.`);
 }
 
-function createProductSlug(name: string, sku: string | undefined): string {
-  const base = `${name}-${sku ?? ''}`
+function createProductSlug(name: string, sku: string | undefined, colorToken?: string | null, isVariant = false): string {
+  const baseParts = [name];
+  if (sku && sku.trim() && sku.trim().toLowerCase() !== name.trim().toLowerCase()) baseParts.push(sku);
+  if (isVariant) {
+    const normalizedColorToken = (colorToken ?? '').trim();
+    if (normalizedColorToken) baseParts.push(normalizedColorToken);
+    else baseParts.push('color');
+  }
+  const base = baseParts
+    .join('-')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
@@ -99,6 +112,19 @@ function normalizeProductSizes(value: unknown): string[] {
   return sizes;
 }
 
+async function validateModelRoot(modelId: string): Promise<void> {
+  if (!UUID_PATTERN.test(modelId)) throw new ApiError(400, 'El modelo seleccionado no es válido.');
+  const { data, error } = await supabaseAdmin
+    .from('products')
+    .select('id,model_id,is_active')
+    .eq('id', modelId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data || data.is_active !== true || data.model_id) {
+    throw new ApiError(400, 'Selecciona un modelo raíz activo.');
+  }
+}
+
 function normalizeProductSpecifications(value: unknown): Array<{ name: string; value: string }> {
   if (!Array.isArray(value)) throw new ApiError(400, 'Las especificaciones deben ser una lista de pares nombre/valor.');
 
@@ -126,7 +152,10 @@ function setProductFields(payload: Record<string, unknown>, body: any) {
   const name = parseString(body.name);
   const sku = parseString(body.sku);
   const slug = parseString(body.slug);
-  if (slug || name) payload.slug = slug ?? createProductSlug(name as string, sku);
+  const colorHex = parseString(body.color_hex);
+  const colorToken = colorHex ? `color-${colorHex.replace(/^#/, '').toLowerCase()}` : undefined;
+  const isVariant = Boolean(parseString(body.model_id));
+  if (slug || name) payload.slug = slug ?? createProductSlug(name as string, sku, colorToken, isVariant);
   if (name) payload.name = name;
   for (const column of ['brand', 'sku'] as const) {
     const value = parseString(body[column]);
@@ -135,6 +164,40 @@ function setProductFields(payload: Record<string, unknown>, body: any) {
   if (body.description !== undefined) {
     if (typeof body.description !== 'string') throw new ApiError(400, 'La descripción debe ser texto.');
     payload.description = body.description.trim();
+  }
+
+  if (body.model_id !== undefined) {
+    if (body.model_id === null || body.model_id === '') payload.model_id = null;
+    else {
+      const modelId = parseString(body.model_id);
+      if (!modelId || !UUID_PATTERN.test(modelId)) throw new ApiError(400, 'El modelo seleccionado no es válido.');
+      payload.model_id = modelId;
+    }
+  }
+  for (const [field, errorMessage] of [
+    ['color_hex', 'El HEX principal no es válido.'],
+    ['color_hex2', 'El HEX secundario no es válido.'],
+  ] as const) {
+    if (body[field] === undefined) continue;
+    if (body[field] === null || body[field] === '') {
+      payload[field] = null;
+      continue;
+    }
+    if (typeof body[field] !== 'string' || !/^#[0-9A-F]{6}$/i.test(body[field].trim())) {
+      throw new ApiError(400, errorMessage);
+    }
+    payload[field] = body[field].trim().toUpperCase();
+  }
+  if (body.model_sort_order !== undefined) {
+    const sortOrder = toNumber(body.model_sort_order);
+    if (sortOrder === undefined || !Number.isInteger(sortOrder) || sortOrder < 0) {
+      throw new ApiError(400, 'El orden de color debe ser un entero no negativo.');
+    }
+    payload.model_sort_order = sortOrder;
+  }
+  if (body.is_default_color !== undefined) {
+    if (typeof body.is_default_color !== 'boolean') throw new ApiError(400, 'El color predeterminado debe ser booleano.');
+    payload.is_default_color = body.is_default_color;
   }
 
   if (body.price !== undefined) {
@@ -260,6 +323,12 @@ function filterProductColumns(payload: Record<string, unknown>): Record<string, 
 export async function normalizeProductPayload(body: any) {
   const payload: Record<string, unknown> = {};
   setProductFields(payload, body);
+  if (typeof payload.model_id === 'string') {
+    if (!payload.color_hex) {
+      throw new ApiError(400, 'Un color vinculado requiere un HEX confirmado.');
+    }
+    await validateModelRoot(payload.model_id);
+  }
   const categoryId = await resolveCategoryId(body);
   if (categoryId) payload.category_id = categoryId;
 
@@ -269,6 +338,12 @@ export async function normalizeProductPayload(body: any) {
 export async function normalizeProductUpdates(body: any) {
   const updates: Record<string, unknown> = {};
   setProductFields(updates, body);
+  if (typeof updates.model_id === 'string') {
+    if (!updates.color_hex) {
+      throw new ApiError(400, 'Un color vinculado requiere un HEX confirmado.');
+    }
+    await validateModelRoot(updates.model_id);
+  }
   const shouldResolveCategory = body.category_id !== undefined || body.category !== undefined || body.category_name !== undefined || body.category_slug !== undefined;
   const categoryId = shouldResolveCategory ? await resolveCategoryId(body) : undefined;
   if (categoryId) updates.category_id = categoryId;

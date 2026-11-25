@@ -65,6 +65,39 @@ describe('product payload normalization', () => {
     expect(supabaseMocks.from).not.toHaveBeenCalled();
   });
 
+  it('persists HEX color metadata on one product row without conflating its gallery images', async () => {
+    await expect(normalizeProductPayload({
+      name: 'New Balance 410',
+      color_hex: '#A7ADB4',
+      color_hex2: '#D6DADE',
+      model_sort_order: '0',
+      is_default_color: true,
+      images: ['https://storage.test/angle-1.png', 'https://storage.test/angle-2.png'],
+    })).resolves.toMatchObject({
+      color_hex: '#A7ADB4',
+      color_hex2: '#D6DADE',
+      model_sort_order: 0,
+      is_default_color: true,
+      images: ['https://storage.test/angle-1.png', 'https://storage.test/angle-2.png'],
+    });
+  });
+
+  it('validates HEX values, sort order, and model UUIDs', async () => {
+    await expect(normalizeProductPayload({ name: 'Modelo', color_hex: '#GGGGGG' }))
+      .rejects.toThrow('HEX principal');
+    await expect(normalizeProductPayload({ name: 'Modelo', model_sort_order: -1 }))
+      .rejects.toThrow('entero no negativo');
+    await expect(normalizeProductPayload({ name: 'Modelo', model_id: 'not-a-uuid' }))
+      .rejects.toThrow('modelo seleccionado');
+  });
+
+  it('requires a confirmed HEX when assigning a model_id', async () => {
+    await expect(normalizeProductPayload({
+      name: 'Modelo',
+      model_id: '123e4567-e89b-12d3-a456-426614174001',
+    })).rejects.toThrow('HEX confirmado');
+  });
+
   it('maps edits to the same database columns, including empty galleries', async () => {
     await expect(normalizeProductUpdates({
       brand: 'Nike Sportswear',
@@ -104,8 +137,26 @@ describe('product payload normalization', () => {
     await expect(normalizeProductPayload({ ...basePayload, stock: 1.5 })).rejects.toThrow('entero');
     await expect(normalizeProductPayload({ ...basePayload, category_id: 'not-a-uuid' })).rejects.toThrow('categoría');
     await expect(normalizeProductPayload({ ...basePayload, catalog_section: 'Infantil' })).rejects.toThrow('sección del catálogo');
-    await expect(normalizeProductPayload({ ...basePayload, images: Array.from({ length: 11 }, (_, index) => `image-${index}`) })).rejects.toThrow('hasta 10 imágenes');
+    await expect(normalizeProductPayload({ ...basePayload, images: Array.from({ length: 20 }, (_, index) => `image-${index}`) })).rejects.toThrow('hasta 19 imágenes');
     expect(supabaseMocks.from).not.toHaveBeenCalled();
+  });
+
+  it('accepts nineteen gallery images plus the main image', async () => {
+    const basePayload = {
+      name: 'Nike Air Force 1',
+      brand: 'Nike',
+      price: 199900,
+      stock: 12,
+      sku: 'NKE-AF1-001',
+      category_id: categoryId,
+      catalog_section: 'Tenis Hombre',
+      main_image: 'https://storage.test/main.png',
+    };
+    const images = Array.from({ length: 19 }, (_, index) => `https://storage.test/gallery-${index}.png`);
+    await expect(normalizeProductPayload({ ...basePayload, images })).resolves.toMatchObject({
+      main_image: 'https://storage.test/main.png',
+      images,
+    });
   });
 
   it.each(['blob:https://shop.example/id', 'data:image/png;base64,abc', 'images/local.png'])('rejects non-permanent image references: %s', async (image) => {

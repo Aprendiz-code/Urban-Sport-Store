@@ -1,6 +1,6 @@
 import { getSupabaseClient } from './supabase-client';
 import { uploadProductImageApi } from './admin-api';
-import type { ProductSpecification } from '../types/domain';
+import type { ProductColor, ProductSpecification } from '../types/domain';
 
 export interface ProductRecord {
   id: string;
@@ -15,6 +15,11 @@ export interface ProductRecord {
   image: string;
   category: string;
   category_id?: string | null;
+  model_id?: string | null;
+  color_hex?: string | null;
+  color_hex2?: string | null;
+  model_sort_order?: number | null;
+  is_default_color?: boolean | null;
   catalog_section?: string | null;
   main_image?: string | null;
   slug?: string | null;
@@ -22,7 +27,6 @@ export interface ProductRecord {
   stock?: number | null;
   sku?: string | null;
   description?: string | null;
-  colors?: Array<{ name: string; hex: string }> | null;
   sizes?: string[] | null;
   images?: string[] | null;
   gender?: string | null;

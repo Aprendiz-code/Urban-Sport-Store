@@ -1,5 +1,5 @@
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded' | 'cancelled';
-export type OrderStatus = 'pending_payment' | 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded';
+export type OrderStatus = 'pending_payment' | 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded' | 'paid' | 'payment_review';
 export type ShipmentStatus = 'pending' | 'preparing' | 'shipped' | 'delivered' | 'returned' | 'cancelled';
 export type UserRole = 'CUSTOMER' | 'OWNER' | 'ADMIN' | 'CATALOG_MANAGER' | 'LOGISTICS' | 'ACCOUNTANT';
 
@@ -42,6 +42,25 @@ export type ProductCatalogSection =
   | 'Relojes'
   | 'Gafas';
 
+export interface ProductColor {
+  id: string;
+  productId: string;
+  name: string;
+  hex: string;
+  hex2?: string;
+  image?: string;
+  images?: string[];
+  isDefault?: boolean;
+  sortOrder?: number;
+  price: number;
+  originalPrice?: number;
+  discount?: number;
+  stock: number;
+  sku: string;
+  sizes: string[];
+  isActive: boolean;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -60,7 +79,13 @@ export interface Product {
   stock: number;
   sku: string;
   description: string;
-  colors: Array<{ name: string; hex: string }>;
+  colors: ProductColor[];
+  modelId?: string | null;
+  colorHex?: string | null;
+  colorHex2?: string | null;
+  modelSortOrder?: number;
+  isDefaultColor?: boolean;
+  selectedColorVariantId?: string;
   sizes: string[];
   images?: string[];
   gender?: 'Hombre' | 'Mujer' | 'Unisex';
@@ -148,6 +173,7 @@ export interface CheckoutItem {
 export interface GuestCartItem {
   productId: string;
   quantity: number;
+  selectedVariantId?: string;
   selectedSize?: string;
   selectedColor?: string;
 }
@@ -171,6 +197,8 @@ export interface CheckoutRequest {
 export interface OrderRequestItem {
   productId: string;
   quantity: number;
+  size?: string;
+  color?: string;
 }
 
 export interface OrderAddressSnapshot {
@@ -195,6 +223,8 @@ export interface OrderItem {
   quantity: number;
   unitPrice: number;
   totalPrice: number;
+  size?: string | null;
+  color?: string | null;
   createdAt?: string;
 }
 

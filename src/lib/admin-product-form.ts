@@ -4,7 +4,7 @@ export function isValidUuid(value?: string | null): boolean {
   return typeof value === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(value.trim());
 }
 
-export const MAX_PRODUCT_GALLERY_IMAGES = 10;
+export const MAX_PRODUCT_GALLERY_IMAGES = 19;
 export const MAX_PRODUCT_TOTAL_IMAGES = MAX_PRODUCT_GALLERY_IMAGES + 1;
 
 export function normalizeProductSizes(sizes: readonly string[]): string[] {
@@ -62,6 +62,9 @@ export function validateProductForm(form: {
   pendingImageCount?: number;
   sizes?: readonly string[];
   specifications?: readonly ProductSpecification[];
+  modelId?: string | null;
+  colorHex?: string | null;
+  colorHex2?: string | null;
 }): Record<string, string> {
   const errors: Record<string, string> = {};
 
@@ -99,6 +102,18 @@ export function validateProductForm(form: {
   const uniqueSizes = new Set(normalizedSizes.filter(Boolean).map((size) => size.toLowerCase()));
   if (uniqueSizes.size !== normalizedSizes.filter(Boolean).length) {
     errors.sizes = 'No se permiten tallas duplicadas.';
+  }
+
+  const colorHex = String(form.colorHex ?? '').trim();
+  const colorHex2 = String(form.colorHex2 ?? '').trim();
+  const linkedVariant = Boolean(form.modelId);
+  if (linkedVariant && !/^#[0-9A-F]{6}$/i.test(colorHex)) {
+    errors.colors = 'Confirma un HEX principal válido para este color.';
+  } else if (!linkedVariant && (colorHex || colorHex2) && !/^#[0-9A-F]{6}$/i.test(colorHex)) {
+    errors.colors = 'Confirma un HEX principal válido para este color.';
+  }
+  if (colorHex2 && !/^#[0-9A-F]{6}$/i.test(colorHex2)) {
+    errors.colors = 'El HEX secundario no es válido.';
   }
 
   const seenSpecificationNames = new Set<string>();

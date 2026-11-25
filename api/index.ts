@@ -41,6 +41,7 @@ async function resolveRoute(req: RoutedRequest, res: http.ServerResponse) {
     '/api/products': () => import('./products.ts'),
     '/api/home': () => import('./home.ts'),
     '/api/newsletter': () => import('./newsletter.ts'),
+    '/api/assistant/chat': () => import('../lib/assistant-handler.ts'),
     '/api/orders': () => import('./orders.ts'),
     '/api/shipping/destinations': () => import('./shipping/destinations.ts'),
     '/api/shipping/quotes': () => import('./shipping/quotes.ts'),
@@ -74,6 +75,13 @@ async function resolveRoute(req: RoutedRequest, res: http.ServerResponse) {
     return module.default(req, res);
   }
 
+  const paymentStatusMatch = pathname.match(/^\/api\/orders\/([^/]+)\/payment-status$/);
+  if (paymentStatusMatch) {
+    const module = await import('./orders/[id].ts');
+    req.query = { ...(req.query ?? {}), id: paymentStatusMatch[1], action: 'payment-status' };
+    return module.default(req, res);
+  }
+
   const paymentSessionMatch = pathname.match(/^\/api\/orders\/([^/]+)\/payment-session$/);
   if (paymentSessionMatch) {
     if (req.method !== 'POST') {
@@ -81,7 +89,7 @@ async function resolveRoute(req: RoutedRequest, res: http.ServerResponse) {
     }
 
     const module = await import('./orders/[id].ts');
-    req.query = { ...(req.query ?? {}), id: paymentSessionMatch[1], action: 'payment-session' };
+    req.query = mergeRouteIdQuery(req.query, paymentSessionMatch[1]);
     return module.default(req, res);
   }
 
@@ -122,9 +130,9 @@ const server = http.createServer(async (req, res) => {
 
   try {
     await resolveRoute(req, res);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    jsonError(res, 500, message);
+  } catch {
+    console.error('Unhandled API request error.');
+    jsonError(res, 500, 'Internal server error');
   }
 });
 

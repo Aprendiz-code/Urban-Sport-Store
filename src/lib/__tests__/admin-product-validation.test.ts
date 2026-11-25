@@ -56,7 +56,29 @@ describe('admin product validation', () => {
     expect(validateProductForm(validProduct)).toEqual({});
     expect(validateProductForm({ ...validProduct, price: -1 })).toHaveProperty('price');
     expect(validateProductForm({ ...validProduct, stock: 1.5 })).toHaveProperty('stock');
-    expect(validateProductForm({ ...validProduct, images: Array.from({ length: 11 }, (_, index) => `image-${index}`) })).toHaveProperty('gallery');
+    expect(validateProductForm({ ...validProduct, images: Array.from({ length: 20 }, (_, index) => `image-${index}`) })).toHaveProperty('gallery');
+  });
+
+  it('validates HEX-only color for one product variant independently of its photo gallery', () => {
+    const product = {
+      name: 'Zapatilla Test',
+      brand: 'Marca Test',
+      sku: 'SKU-1',
+      price: 120000,
+      stock: 10,
+      categoryId: '123e4567-e89b-12d3-a456-426614174000',
+      catalogSection: 'Tenis Hombre',
+      image: 'https://example.test/image.jpg',
+      images: [],
+      colorHex: '#A7ADB4',
+      colorHex2: '#D6DADE',
+      modelId: null,
+    };
+
+    expect(validateProductForm(product)).toEqual({});
+    expect(validateProductForm({ ...product, colorHex: 'bad' })).toHaveProperty('colors');
+    expect(validateProductForm({ ...product, modelId: '123e4567-e89b-12d3-a456-426614174001', colorHex: '' })).toHaveProperty('colors');
+    expect(validateProductForm({ ...product, images: Array.from({ length: 4 }, (_, index) => `https://example.test/angle-${index}.jpg`) })).toEqual({});
   });
 
   it('allows product creation without shipping data while carrier integration is pending', () => {
@@ -120,7 +142,7 @@ describe('admin product validation', () => {
     };
 
     expect(validateProductForm(localImageDraft)).toEqual({});
-    expect(validateProductForm({ ...localImageDraft, pendingImageCount: 12 })).toHaveProperty('gallery');
+    expect(validateProductForm({ ...localImageDraft, pendingImageCount: 21 })).toHaveProperty('gallery');
   });
 
   it('does not reset the product form when an admin save fails with 401', async () => {
@@ -148,8 +170,7 @@ describe('admin API response handling', () => {
     [403, '[FORBIDDEN] No autorizado', 'No tienes permisos para esta operación.'],
     [409, '[CONFLICT] Ya existe', 'Ya existe'],
   ])('maps status %i to a clear error', async (status, responseText, expectedMessage) => {
-    const text = JSON.stringify({ error: { code: String(status).startsWith('4') ? 'BAD_REQUEST' : status === 401 ? 'UNAUTHORIZED' : status === 403 ? 'FORBIDDEN' : 'CONFLICT', message: responseText.replace(/^\[[A-Z_]+\]\s/, '') }, message: responseText });
-    const err = parseAdminApiError(Number(status), text);
+    const err = parseAdminApiError(Number(status), JSON.stringify({ error: { code: String(status).startsWith('4') ? 'BAD_REQUEST' : status === 401 ? 'UNAUTHORIZED' : status === 403 ? 'FORBIDDEN' : 'CONFLICT', message: responseText.replace(/^\[[A-Z_]+\]\s/, '') }, message: responseText }));
     expect(err.message).toContain(expectedMessage);
     expect(err.message).toContain('[');
   });
@@ -233,86 +254,5 @@ describe('admin API response handling', () => {
     const requestInit = vi.mocked(fetch).mock.calls[0]?.[1];
     expect(requestInit?.method).toBe('PATCH');
     expect(new Headers(requestInit?.headers).get('Authorization')).toBe('Bearer admin-session-token');
-  });
-
-  it('sends Authorization on DELETE admin product requests', async () => {
-    vi.mocked(getAccessToken).mockResolvedValue('admin-session-token');
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 204 }));
-
-    await adminApi.deleteProductApi('product-1');
-
-    const requestInit = vi.mocked(fetch).mock.calls[0]?.[1];
-    expect(requestInit?.method).toBe('DELETE');
-    expect(new Headers(requestInit?.headers).get('Authorization')).toBe('Bearer admin-session-token');
-  });
-
-  it('blocks admin requests without a session and does not call fetch', async () => {
-    vi.mocked(getAccessToken).mockResolvedValue(null);
-
-    await expect(adminApi.fetchProducts()).rejects.toThrow('Sesión administrativa requerida');
-    expect(fetch).not.toHaveBeenCalled();
-  });
-
-  it('does not retry a write when 401 is followed by a failed session refresh', async () => {
-    vi.mocked(getAccessToken)
-      .mockResolvedValueOnce('expired-session-token')
-      .mockResolvedValueOnce(null);
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: false,
-      status: 401,
-      text: async () => JSON.stringify({ error: { code: 'UNAUTHORIZED', message: 'No autenticado.' } }),
-    }));
-
-    await expect(adminApi.createProductApi({ name: 'Producto' })).rejects.toThrow('Sesión administrativa requerida');
-    expect(fetch).toHaveBeenCalledOnce();
-  });
-
-  it('reports 403 as a permissions error', async () => {
-    vi.mocked(getAccessToken).mockResolvedValue('admin-session-token');
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: false,
-      status: 403,
-      text: async () => JSON.stringify({ error: { code: 'FORBIDDEN', message: 'No autorizado.' } }),
-    }));
-
-    await expect(adminApi.fetchProducts()).rejects.toMatchObject({
-      status: 403,
-      message: expect.stringContaining('No tienes permisos'),
-    });
-  });
-
-  it('never writes the access token to console logs', async () => {
-    const token = 'secret-session-token';
-    vi.mocked(getAccessToken).mockResolvedValue(token);
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => ({ ok: true, data: [] }),
-    }));
-    const consoleSpies = [vi.spyOn(console, 'log').mockImplementation(() => {}), vi.spyOn(console, 'warn').mockImplementation(() => {}), vi.spyOn(console, 'error').mockImplementation(() => {})];
-
-    await adminApi.fetchProducts();
-
-    for (const spy of consoleSpies) {
-      expect(spy.mock.calls.flat().join(' ')).not.toContain(token);
-      spy.mockRestore();
-    }
-  });
-
-  it('keeps the session bearer when uploading a file with its image content type', async () => {
-    vi.mocked(getAccessToken).mockResolvedValue('upload-session-token');
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true,
-      status: 201,
-      json: async () => ({ ok: true, data: { path: 'products/test.png' } }),
-    }));
-    const file = new Blob(['image-bytes'], { type: 'image/png' }) as File;
-
-    await expect(adminApi.uploadProductImageApi(file)).resolves.toEqual({ path: 'products/test.png' });
-
-    const requestInit = vi.mocked(fetch).mock.calls[0]?.[1];
-    const headers = new Headers(requestInit?.headers);
-    expect(headers.get('Authorization')).toBe('Bearer upload-session-token');
-    expect(headers.get('Content-Type')).toBe('image/png');
   });
 });

@@ -51,6 +51,19 @@ describe('public products endpoint', () => {
     expect(response.statusCode).toBe(200);
   });
 
+  it('returns explicitly linked color records for catalog grouping by model_id', async () => {
+    apiMocks.data = [
+      { id: 'model', model_id: null, is_active: true, color_hex: '#A7ADB4' },
+      { id: 'color-record', model_id: 'model', is_active: true, color_hex: '#111827' },
+      { id: 'unlinked-product', model_id: null, is_active: true },
+    ];
+    const response = createResponse();
+
+    await handler({ method: 'GET', url: '/api/products' }, response);
+
+    expect(JSON.parse(response.body).data.map((product: any) => product.id)).toEqual(['model', 'color-record', 'unlinked-product']);
+  });
+
   it('does not expose an inactive product by id', async () => {
     apiMocks.data = [];
     const response = createResponse();
