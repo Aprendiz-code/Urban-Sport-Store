@@ -467,7 +467,7 @@ function ColorSelector({ colors, selected, onSelect }: {
             key={color.id}
             type="button"
             onClick={() => onSelect(color.productId)}
-            aria-label={`Ver Color ${index + 1}`}
+            aria-label={`Ver opción de color ${index + 1}`}
             aria-pressed={isSelected}
             className={`h-8 w-8 rounded-full border-2 transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${
               isSelected ? "scale-110 border-slate-900 ring-2 ring-white" : "border-slate-300 hover:scale-105"
