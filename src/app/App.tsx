@@ -67,7 +67,7 @@ import { MAX_PRODUCT_GALLERY_IMAGES, MAX_PRODUCT_TOTAL_IMAGES, normalizeProductS
 import { buildAdminProductPayload } from '../lib/admin-product-payload';
 import { filterAdminProducts, type AdminProductStatusFilter } from '../lib/admin-product-list';
 import { normalizeProductImageList, resolveProductPublicImageUrl, uploadSelectedProductImages } from '../lib/admin-product-images';
-import { suggestImageColors, suggestNamedColorHex, type ColorSuggestion } from '../lib/color-suggestion';
+import { suggestImageColors, type ColorSuggestion } from '../lib/color-suggestion';
 import { groupProductsByModel, productForColor } from '../lib/product-models';
 import ProductGallery from './components/ProductGallery';
 import ShoppingAssistant from './components/ShoppingAssistant';
@@ -265,10 +265,10 @@ const mapProductRecordToAppProduct = (record: ProductRecord, categories: readonl
     stock: record.stock ?? 0,
     sku: record.sku ?? record.id,
     description: record.description ?? "",
-    colors: record.color_name && record.color_hex ? [{
+    colors: record.color_hex ? [{
       id: record.id,
       productId: record.id,
-      name: record.color_name,
+      name: '',
       hex: record.color_hex,
       ...(record.color_hex2 ? { hex2: record.color_hex2 } : {}),
       image: productImages.mainImage,
@@ -284,7 +284,6 @@ const mapProductRecordToAppProduct = (record: ProductRecord, categories: readonl
       isActive: record.is_active !== false,
     }] : [],
     modelId: record.model_id ?? null,
-    colorName: record.color_name ?? null,
     colorHex: record.color_hex ?? null,
     colorHex2: record.color_hex2 ?? null,
     modelSortOrder: record.model_sort_order ?? 0,
@@ -326,7 +325,6 @@ const mapAppProductToProductRecord = (product: Partial<Product> & { id?: string 
   sku: product.sku ?? "",
   description: product.description ?? "",
   model_id: product.modelId ?? null,
-  color_name: product.colorName ?? null,
   color_hex: product.colorHex ?? null,
   color_hex2: product.colorHex2 ?? null,
   model_sort_order: product.modelSortOrder ?? 0,
@@ -458,8 +456,8 @@ function ColorSelector({ colors, selected, onSelect }: {
 }) {
   if (!colors.length) return null;
   return (
-    <div className="flex items-center gap-2">
-      {colors.map((color) => {
+    <div className="flex items-center gap-2 flex-wrap" role="group" aria-label="Colores disponibles">
+      {colors.map((color, index) => {
         const isSelected = selected === color.productId;
         const swatchStyle = color.hex2
           ? { background: `linear-gradient(90deg, ${color.hex} 0 50%, ${color.hex2} 50% 100%)` }
@@ -469,8 +467,7 @@ function ColorSelector({ colors, selected, onSelect }: {
             key={color.id}
             type="button"
             onClick={() => onSelect(color.productId)}
-            title={color.name}
-            aria-label={`Ver color ${color.name}`}
+            aria-label={`Ver Color ${index + 1}`}
             aria-pressed={isSelected}
             className={`h-8 w-8 rounded-full border-2 transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${
               isSelected ? "scale-110 border-slate-900 ring-2 ring-white" : "border-slate-300 hover:scale-105"
@@ -479,7 +476,6 @@ function ColorSelector({ colors, selected, onSelect }: {
           />
         );
       })}
-      {selected && <span className="text-xs text-slate-500 ml-1">{selected}</span>}
     </div>
   );
 }
@@ -629,8 +625,8 @@ function ProductCarousel({ children }: { children: React.ReactNode }) {
 
 // ─── PRODUCT CARD ─────────────────────────────────────────────────────────────
 
-function getProductColorImage(product: Product, colorName: string): string {
-  return product.colors.find((color) => color.name === colorName)?.image || product.image;
+function getProductColorImage(product: Product): string {
+  return product.image;
 }
 
 function ProductCard({ product, onSelect, onAddToCart }: {
@@ -645,7 +641,6 @@ function ProductCard({ product, onSelect, onAddToCart }: {
   const selectedVariantProduct = productForColor(product, selectedColorData?.productId);
   const requiresSize = hasSelectableSizes(selectedVariantProduct.sizes);
   const cartSize = requiresSize ? selectedSize : selectedVariantProduct.sizes[0] ?? '';
-  const selectedColor = selectedColorData?.name ?? '';
   const selectedImage = selectedVariantProduct.image || product.image;
   const [showAllColors, setShowAllColors] = useState(false);
   const collapsedColorLimit = 6;
@@ -671,7 +666,7 @@ function ProductCard({ product, onSelect, onAddToCart }: {
       {/* Image */}
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100">
         <a href={`/?product=${encodeURIComponent(product.slug ?? product.id)}`} onClick={(event) => { event.preventDefault(); onSelect(selectedVariantProduct); }} aria-label={`Ver ${product.name}`} className="block h-full w-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-blue-600">
-          <img src={selectedImage} alt={`${product.name}${selectedColor ? ` en ${selectedColor}` : ''}`} onError={(event) => { event.currentTarget.style.display = "none"; }}
+          <img src={selectedImage} alt={product.name} onError={(event) => { event.currentTarget.style.display = "none"; }}
             loading="lazy" decoding="async"
             className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
           />
@@ -732,9 +727,9 @@ function ProductCard({ product, onSelect, onAddToCart }: {
                   <button
                     key={color.id}
                     type="button"
-                    aria-label={`Ver color ${color.name}`}
+                    aria-label={`Ver color ${`Color ${orderedColors.indexOf(color) + 1}`}`}
                     aria-pressed={isSelected}
-                    title={color.name}
+                    title={`Color ${orderedColors.indexOf(color) + 1}`}
                     onClick={() => selectColor(color.productId)}
                     className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-700 ${isSelected ? "ring-2 ring-[#1e3a8a] ring-offset-1" : "hover:bg-slate-100"}`}
                   >
@@ -759,7 +754,7 @@ function ProductCard({ product, onSelect, onAddToCart }: {
                 </button>
               )}
             </div>
-            <p aria-live="polite" className="text-xs font-semibold text-slate-600">Color: {selectedColor}</p>
+            <p aria-live="polite" className="text-xs font-semibold text-slate-600">Color seleccionado</p>
           </div>
         )}
 
@@ -775,7 +770,7 @@ function ProductCard({ product, onSelect, onAddToCart }: {
           type="button"
           aria-label={selectedVariantProduct.stock <= 0 ? `Agotado: ${product.name}` : `Agregar ${product.name} al carrito`}
           disabled={selectedVariantProduct.stock <= 0 || (requiresSize && !selectedSize)}
-          onClick={() => onAddToCart(selectedVariantProduct, cartSize, selectedColor)}
+          onClick={() => onAddToCart(selectedVariantProduct, cartSize, '')}
           className="mt-auto flex min-h-11 w-full min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-black px-1.5 py-2 text-[11px] font-bold text-white shadow-sm shadow-slate-200 transition-all duration-200 hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600 sm:gap-2 sm:rounded-full sm:px-3 sm:py-3 sm:text-sm"
         >
           {selectedVariantProduct.stock <= 0 ? "Agotado" : <><ShoppingCart size={14} /><span className="sm:hidden">Agregar</span><span className="hidden sm:inline">Agregar al carrito</span></>}
@@ -1226,7 +1221,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
             cart.map((item) => (
               <div key={`${item.product.id}-${item.selectedSize}-${item.selectedColor}`}
                 className="flex gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
-                <img src={getProductColorImage(item.product, item.selectedColor)} alt={`${item.product.name}${item.selectedColor ? ` en ${item.selectedColor}` : ''}`} onError={(event) => { event.currentTarget.style.display = "none"; }}
+                <img src={getProductColorImage(item.product)} alt={item.product.name} onError={(event) => { event.currentTarget.style.display = "none"; }}
                   className="w-16 h-16 object-cover rounded-lg bg-white shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-[11px] font-bold text-[#1e3a8a] uppercase">{item.product.brand}</p>
@@ -1235,9 +1230,7 @@ function CartDrawer({ cart, onClose, onUpdate, onRemove, onCheckout, unavailable
                     {item.selectedSize && item.selectedSize !== "Talla única" && (
                       <span className="text-xs text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded-md">T: {item.selectedSize}</span>
                     )}
-                    {item.selectedColor && (
-                      <span className="text-xs text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded-md">{item.selectedColor}</span>
-                    )}
+                    
                   </div>
                   <p className="price text-sm text-slate-900 mt-1">{fmt(item.product.price)}</p>
                   <div className="flex items-center gap-2 mt-1.5">
@@ -1862,7 +1855,6 @@ function ProductDetailPage({ product, products, onBack, onAddToCart, onNavigate,
   const displayProduct = productForColor(product, selectedDetailColor?.productId);
   const requiresSize = hasSelectableSizes(displayProduct.sizes);
   const [selectedSize, setSelectedSize] = useState(requiresSize ? "" : displayProduct.sizes[0] ?? "");
-  const selectedColor = selectedDetailColor?.name ?? '';
   useEffect(() => {
     setSelectedColorId(product.selectedColorVariantId ?? defaultDetailColor?.productId ?? '');
     setSelectedSize((currentSize) => displayProduct.sizes.includes(currentSize) ? currentSize : '');
@@ -1876,7 +1868,7 @@ function ProductDetailPage({ product, products, onBack, onAddToCart, onNavigate,
 
   const handleAdd = () => {
     if (displayProduct.stock <= 0 || (requiresSize && !selectedSize)) return false;
-    for (let i = 0; i < qty; i++) onAddToCart(displayProduct, selectedSize, selectedColor);
+    for (let i = 0; i < qty; i++) onAddToCart(displayProduct, selectedSize, '');
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
     return true;
@@ -1898,7 +1890,7 @@ function ProductDetailPage({ product, products, onBack, onAddToCart, onNavigate,
 
       <div className="mb-14 grid min-w-0 grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1.08fr)_minmax(20rem,0.92fr)] lg:gap-10">
         <section aria-label={`Galería de ${product.name}`} className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
-          <ProductGallery key={`${product.modelId ?? product.id}-${selectedColorId}`} main_image={displayProduct.image} images={displayProduct.images} productName={`${product.name}${selectedColor ? ` en ${selectedColor}` : ''}`} />
+          <ProductGallery key={`${product.modelId ?? product.id}-${displayProduct.id}`} main_image={displayProduct.image} images={displayProduct.images} productName={product.name} />
         </section>
 
         <section aria-label={`Información de ${product.name}`} className="min-w-0 space-y-6 py-1 sm:py-2">
@@ -1943,7 +1935,7 @@ function ProductDetailPage({ product, products, onBack, onAddToCart, onNavigate,
           {product.colors.length > 0 && (
             <div>
               <p className="text-sm font-bold text-slate-700 mb-2.5">Color</p>
-              <p className="mb-2 text-sm font-bold text-slate-700">Color: {selectedColor}</p>
+              {selectedDetailColor && <p className="mb-2 text-sm font-medium text-slate-500">{`Color ${orderedDetailColors.indexOf(selectedDetailColor) + 1}`}</p>}
               <ColorSelector colors={product.colors} selected={selectedColorId} onSelect={(colorId) => {
                 const nextVariant = productForColor(product, colorId);
                 setSelectedColorId(colorId);
@@ -2621,7 +2613,7 @@ function CheckoutPage({ cart, catalogProducts, resumedOrder, onNavigate, address
               {checkoutCart.map((item) => (
                     <div key={`${item.product.id}-${item.selectedSize}-${item.selectedColor}`} className="flex gap-2 sm:gap-3">
                   <div className="relative shrink-0">
-                    <img src={getProductColorImage(item.product, item.selectedColor)} alt={`${item.product.name}${item.selectedColor ? ` en ${item.selectedColor}` : ''}`} onError={(event) => { event.currentTarget.style.display = "none"; }} className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-cover bg-slate-100" />
+                    <img src={getProductColorImage(item.product)} alt={`${item.product.name}${item.selectedColor ? ` en ${item.selectedColor}` : ''}`} onError={(event) => { event.currentTarget.style.display = "none"; }} className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-cover bg-slate-100" />
                     <span className="absolute -top-1.5 -right-1.5 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-[#bfdbfe] text-[#0b1220] text-[8px] sm:text-[9px] font-bold flex items-center justify-center">{item.qty}</span>
                   </div>
                   <div className="flex-1 min-w-0">
@@ -3606,11 +3598,11 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
   const [productForm, setProductForm] = useState<Omit<Product, "id">>({
     name: "", brand: "", price: 0, originalPrice: undefined, discount: undefined,
     rating: 0, reviews: 0, image: "", images: [], category: "", categoryId: undefined, catalogSection: "", subcategory: "",
-    stock: 0, sku: "", description: "", colors: [], modelId: null, colorName: "", colorHex: "", colorHex2: "", modelSortOrder: 0, isDefaultColor: true, sizes: [], gender: "Unisex",
+    stock: 0, sku: "", description: "", colors: [], modelId: null, colorHex: "", colorHex2: "", modelSortOrder: 0, isDefaultColor: true, sizes: [], gender: "Unisex",
     isNew: false, isFeatured: false, specs: [], specifications: [],
   });
   const [linkExistingProductId, setLinkExistingProductId] = useState('');
-  const [linkExistingColorDraft, setLinkExistingColorDraft] = useState({ name: '', hex: '', hex2: '' });
+  const [linkExistingColorDraft, setLinkExistingColorDraft] = useState({ hex: '', hex2: '' });
   const [colorSuggestion, setColorSuggestion] = useState<ColorSuggestion | null>(null);
   const [colorHexConfirmed, setColorHexConfirmed] = useState(false);
   const [colorHex2Confirmed, setColorHex2Confirmed] = useState(false);
@@ -4079,12 +4071,12 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     setProductForm({
       name: "", brand: "", price: 0, originalPrice: undefined, discount: undefined,
       rating: 0, reviews: 0, image: "", images: [], category: "", categoryId: undefined, catalogSection: "", subcategory: "",
-      stock: 0, sku: "", description: "", colors: [], modelId: null, colorName: "", colorHex: "", colorHex2: "", modelSortOrder: 0, isDefaultColor: true, sizes: [], gender: "Unisex",
+      stock: 0, sku: "", description: "", colors: [], modelId: null, colorHex: "", colorHex2: "", modelSortOrder: 0, isDefaultColor: true, sizes: [], gender: "Unisex",
       isNew: false, isFeatured: false, specs: [], specifications: [],
     });
     setProductCreateMode("new-model");
     setLinkExistingProductId('');
-    setLinkExistingColorDraft({ name: '', hex: '', hex2: '' });
+    setLinkExistingColorDraft({ hex: '', hex2: '' });
     setColorHexConfirmed(false);
     setColorHex2Confirmed(false);
     setColorSuggestion(null);
@@ -4095,6 +4087,14 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
   const openNewProductForm = () => {
     resetForm();
     setFormMode("create");
+    setProductCreateMode('new-model');
+    setLinkExistingProductId('');
+    setLinkExistingColorDraft({ hex: '', hex2: '' });
+    colorHexConfirmedRef.current = false;
+    colorHex2ConfirmedRef.current = false;
+    setColorHexConfirmed(false);
+    setColorHex2Confirmed(false);
+    setColorSuggestion(null);
     setIsProductFormOpen(true);
   };
 
@@ -4225,7 +4225,6 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       description: product.description,
       colors: product.colors,
       modelId: product.modelId ?? null,
-      colorName: product.colorName ?? "",
       colorHex: product.colorHex ?? "",
       colorHex2: product.colorHex2 ?? "",
       modelSortOrder: product.modelSortOrder ?? 0,
@@ -4259,7 +4258,6 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       catalogSection: productForm.catalogSection,
       category: productForm.category || selectedCategoryOption?.name || '',
       modelId: formMode === "create" && productCreateMode === "new-model" ? null : productForm.modelId,
-      colorName: productForm.colorName?.trim() || null,
       colorHex: productForm.colorHex?.trim().toUpperCase() || null,
       colorHex2: productForm.colorHex2?.trim().toUpperCase() || null,
       modelSortOrder: Number(productForm.modelSortOrder) || 0,
@@ -4296,13 +4294,12 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       sizes: normalizedSizes,
       specifications: normalizedSpecifications,
       modelId: payload.modelId,
-      colorName: payload.colorName,
       colorHex: payload.colorHex,
       colorHex2: payload.colorHex2,
     });
 
     if (productImageSelections.length > MAX_PRODUCT_TOTAL_IMAGES) {
-      errors.gallery = `Máximo ${MAX_PRODUCT_TOTAL_IMAGES} imágenes en total: 1 principal y hasta ${MAX_PRODUCT_GALLERY_IMAGES} adicionales.`;
+      errors.gallery = `MáM?ximo ${MAX_PRODUCT_TOTAL_IMAGES} imágenes en total: 1 principal y hasta ${MAX_PRODUCT_GALLERY_IMAGES} adicionales.`;
     }
 
     if (formMode === 'create' && productCreateMode === 'existing-model' && !payload.modelId) {
@@ -4328,14 +4325,21 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     if (formMode === 'create' && payload.modelId) {
       const modelId = String(payload.modelId);
       const members = getModelMembers(modelId);
-      const baseSku = String(payload.sku ?? '').trim();
-      const normalizedColor = String(payload.colorName ?? '').trim()
-        .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 24);
+      const hexToken = String(payload.colorHex ?? '').trim().replace(/^#/, '').toUpperCase() || 'COLOR';
+      const baseSku = String(payload.sku ?? '').trim().replace(/-+$/g, '') || 'SKU';
       const memberSkus = new Set(members.map((member) => String(member.sku ?? '').trim().toLowerCase()).filter(Boolean));
-      if (!baseSku || memberSkus.has(baseSku.toLowerCase())) {
-        const skuBase = (baseSku || 'SKU').replace(/-+$/g, '').slice(0, 36);
-        payload.sku = `${skuBase}-${normalizedColor || 'COLOR'}-${Date.now().toString().slice(-4)}`.slice(0, 64);
+      const baseSlug = String(productForm.name ?? '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'producto';
+      const memberSlugs = new Set(members.map((member) => String((member as any).slug ?? '').trim().toLowerCase()).filter(Boolean));
+      let skuCandidate = `${baseSku.slice(0, 36)}-${hexToken}`.slice(0, 64);
+      if (memberSkus.has(skuCandidate.toLowerCase())) {
+        skuCandidate = `${baseSku.slice(0, 28)}-${hexToken}-${Date.now().toString().slice(-4)}`.slice(0, 64);
       }
+      payload.sku = skuCandidate;
+      let slugCandidate = `${baseSlug}-${hexToken.toLowerCase()}`;
+      if (memberSlugs.has(slugCandidate)) {
+        slugCandidate = `${baseSlug}-${hexToken.toLowerCase()}-${Date.now().toString().slice(-4)}`;
+      }
+      (payload as any).slug = slugCandidate;
       if (!Number.isFinite(Number(payload.modelSortOrder)) || Number(payload.modelSortOrder) === 0) {
         payload.modelSortOrder = members.length;
       }
@@ -5084,10 +5088,6 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                       <p className="mt-1 text-xs text-slate-500">Esta ficha representa un solo color. Todas las fotos de la galería pertenecen a esta variante.</p>
                     </div>
                   </div>
-                  <label className="block text-xs font-semibold text-slate-700">
-                    Nombre comercial
-                    <input value={productForm.colorName ?? ''} onChange={(event) => updateProductColorName(event.target.value)} placeholder="Ej: Gris / Plata" className="mt-1 min-h-10 w-full rounded-lg border border-slate-300 px-3 text-sm" />
-                  </label>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <label className="text-xs font-semibold text-slate-700">
                       HEX principal
@@ -5107,7 +5107,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                   {colorSuggestion && (
                     <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-blue-100 bg-blue-50 p-3">
                       <p className="text-xs text-blue-900">
-                        HEX sugerido {colorSuggestion.source === 'name' ? 'por el nombre' : 'por una lectura visual aproximada'}: {colorSuggestion.primary}{colorSuggestion.secondary ? ` / ${colorSuggestion.secondary}` : ''}.
+                        HEX sugerido por una lectura visual aproximada: {colorSuggestion.primary}{colorSuggestion.secondary ? ` / ${colorSuggestion.secondary}` : ''}.
                         {colorSuggestion.confidence === 'low' ? ' Confianza baja; corrige o elige manualmente.' : ' Confirma que corresponda al producto.'}
                       </p>
                       <button type="button" onClick={applyColorSuggestion} className="min-h-10 rounded-md border border-blue-300 bg-white px-3 text-xs font-semibold text-blue-900 hover:bg-blue-100">Confirmar sugerencia</button>
@@ -5139,17 +5139,19 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                         const members = getModelMembers(modelId);
                         return (
                           <div className="space-y-2">
-                            {members.map((variant, index) => (
+                            {members.map((variant, index) => {
+                              const label = `Color ${index + 1}`;
+                              return (
                               <div key={variant.id} className="flex flex-wrap items-center gap-3 rounded-md border border-slate-200 p-2">
                                 <div className="h-8 w-8 shrink-0 rounded-full border border-slate-400" style={{ background: variant.colorHex2 ? `linear-gradient(90deg, ${variant.colorHex} 0 50%, ${variant.colorHex2} 50% 100%)` : variant.colorHex || '#FFFFFF', boxShadow: '0 0 0 1px rgba(15,23,42,0.16)' }} />
                                 <img src={variant.image} alt="" className="h-12 w-12 rounded border border-slate-200 bg-slate-50 object-contain" />
                                 <div className="min-w-[8rem] flex-1">
-                                  <p className="text-sm font-semibold text-slate-800">{variant.colorName || variant.name}{variant.isDefaultColor ? ' · Predeterminado' : ''}</p>
+                                  <p className="text-sm font-semibold text-slate-800">{label}{variant.isDefaultColor ? ' · Predeterminado' : ''}</p>
                                   <p className="text-xs text-slate-500">{variant.sku} · {variant.stock} unidades</p>
                                 </div>
                                 <div className="flex items-center gap-1">
-                                  <button type="button" aria-label={`Subir color ${variant.colorName || index + 1}`} title="Subir" disabled={index === 0} onClick={() => void moveModelColor(variant, -1)} className="flex h-9 w-9 items-center justify-center rounded border border-slate-200 disabled:opacity-40"><ChevronUp size={16} /></button>
-                                  <button type="button" aria-label={`Bajar color ${variant.colorName || index + 1}`} title="Bajar" disabled={index === members.length - 1} onClick={() => void moveModelColor(variant, 1)} className="flex h-9 w-9 items-center justify-center rounded border border-slate-200 disabled:opacity-40"><ChevronDown size={16} /></button>
+                                  <button type="button" aria-label={`Subir ${label}`} title="Subir" disabled={index === 0} onClick={() => void moveModelColor(variant, -1)} className="flex h-9 w-9 items-center justify-center rounded border border-slate-200 disabled:opacity-40"><ChevronUp size={16} /></button>
+                                  <button type="button" aria-label={`Bajar ${label}`} title="Bajar" disabled={index === members.length - 1} onClick={() => void moveModelColor(variant, 1)} className="flex h-9 w-9 items-center justify-center rounded border border-slate-200 disabled:opacity-40"><ChevronDown size={16} /></button>
                                   {!variant.isDefaultColor && <button type="button" onClick={() => void setModelDefaultColor(variant)} className="min-h-9 rounded border border-slate-200 px-2 text-xs font-semibold">Predeterminar</button>}
                                   {variant.id !== modelId && <button type="button" onClick={() => void unlinkModelColor(variant)} className="min-h-9 rounded border border-slate-200 px-2 text-xs font-semibold">Desvincular</button>}
                                   {variant.id !== activeProduct.id && <button type="button" onClick={() => {
@@ -5157,13 +5159,13 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                                     handleEditProduct(variant);
                                   }} className="min-h-9 rounded border border-slate-200 px-2 text-xs font-semibold">Editar</button>}
                                   {variant.isActive !== false && <button type="button" onClick={() => {
-                                    if (window.confirm(`Se desactivará ${variant.colorName || variant.name}. El producto y su historial de pedidos se conservarán.`)) {
+                                    if (window.confirm(`Se desactivará ${label}. El producto y su historial de pedidos se conservarán.`)) {
                                       void setProductActive(variant.id, false).then(() => toast.success('Variante desactivada; el historial se conserva.')).catch((error) => toast.error(formatAdminApiError(error, 'No se pudo desactivar la variante.')));
                                     }
                                   }} className="min-h-9 rounded border border-red-200 px-2 text-xs font-semibold text-red-700">Desactivar</button>}
                                 </div>
                               </div>
-                            ))}
+                            );})}
                           </div>
                         );
                       })()}
@@ -5175,8 +5177,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                         <button type="button" onClick={() => void linkExistingProductAsColor()} disabled={!linkExistingProductId} className="min-h-10 rounded-md border border-slate-300 px-3 text-sm font-semibold disabled:opacity-50">Vincular sin perder datos</button>
                       </div>
                       {linkExistingProductId && (
-                        <div className="grid gap-2 sm:grid-cols-3">
-                          <input aria-label="Nombre comercial del producto vinculado" value={linkExistingColorDraft.name} onChange={(event) => setLinkExistingColorDraft((draft) => ({ ...draft, name: event.target.value }))} placeholder="Nombre del color" className="min-h-10 rounded-lg border border-slate-300 px-3 text-sm" />
+                        <div className="grid gap-2 sm:grid-cols-2">
                           <input aria-label="HEX principal del producto vinculado" value={linkExistingColorDraft.hex} onChange={(event) => setLinkExistingColorDraft((draft) => ({ ...draft, hex: event.target.value.toUpperCase() }))} placeholder="#000000" className="min-h-10 rounded-lg border border-slate-300 px-3 text-sm uppercase" />
                           <input aria-label="HEX secundario del producto vinculado" value={linkExistingColorDraft.hex2} onChange={(event) => setLinkExistingColorDraft((draft) => ({ ...draft, hex2: event.target.value.toUpperCase() }))} placeholder="HEX secundario opcional" className="min-h-10 rounded-lg border border-slate-300 px-3 text-sm uppercase" />
                         </div>
@@ -5188,10 +5189,10 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-4">
                   <div>
                     <div className="flex items-center justify-between gap-3">
-                      <h3 className="text-sm font-bold text-slate-800">Imágenes del producto</h3>
+                      <h3 className="text-sm font-bold text-slate-800">Im?genes del producto</h3>
                       <span className="text-xs font-medium text-slate-500">{productImageSelections.length} seleccionadas</span>
                     </div>
-                    <p className="mt-1 text-xs text-slate-500">Máximo {MAX_PRODUCT_TOTAL_IMAGES} fotos: 1 principal y hasta {MAX_PRODUCT_GALLERY_IMAGES} adicionales.</p>
+                    <p className="mt-1 text-xs text-slate-500">MáM?ximo {MAX_PRODUCT_TOTAL_IMAGES} fotos: 1 principal y hasta {MAX_PRODUCT_GALLERY_IMAGES} adicionales.</p>
                     {imageUploadProgress && (
                       <p role="status" className="mt-2 text-xs font-semibold text-blue-700">
                         Subiendo imágenes: {imageUploadProgress.completed}/{imageUploadProgress.total}
@@ -5201,7 +5202,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
 
                   <label className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-slate-300 bg-white px-4 py-4 text-center hover:border-blue-500 hover:bg-blue-50/40">
                     <span className="text-sm font-semibold text-slate-700">Seleccionar imágenes</span>
-                    <span className="text-xs text-slate-500">JPG, PNG, WebP o AVIF · máximo 5 MB cada una</span>
+                    <span className="text-xs text-slate-500">JPG, PNG, WebP o AVIF · máM?ximo 5 MB cada una</span>
                     <input
                       type="file"
                       aria-label="Seleccionar imágenes del producto"
@@ -5233,7 +5234,6 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                                   setProductSaveError(null);
                                   setIsProductFormDirty(true);
                                   if (entry.file) void suggestColorFromImage(entry.file);
-                                  else if (!colorHexConfirmedRef.current) setColorSuggestion(suggestNamedColorHex(productForm.colorName ?? ''));
                                 }} disabled={isSubmitting} className="text-left text-xs font-semibold text-blue-700 hover:underline disabled:opacity-50">Usar como principal</button>
                               ) : (
                                 <span className="text-xs font-medium text-slate-600">Imagen principal</span>
@@ -5592,12 +5592,6 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     setIsProductFormDirty(true);
   };
 
-  const updateProductColorName = (name: string) => {
-    updateField('colorName', name);
-    if (colorHexConfirmedRef.current) return;
-    setColorSuggestion(suggestNamedColorHex(name));
-  };
-
   const updateProductColorHex = (hex: string) => {
     updateField('colorHex', hex.toUpperCase());
     const confirmed = /^#[0-9A-F]{6}$/i.test(hex);
@@ -5624,7 +5618,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
 
   const suggestColorFromImage = async (file: File) => {
     if (colorHexConfirmedRef.current) return;
-    const suggestion = await suggestImageColors(file, productForm.colorName ?? '');
+    const suggestion = await suggestImageColors(file);
     setColorSuggestion(suggestion);
   };
 
@@ -5663,7 +5657,6 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       image: '',
       images: [],
       colors: [],
-      colorName: '',
       colorHex: '',
       colorHex2: '',
       isDefaultColor: false,
@@ -5686,14 +5679,13 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
   const linkExistingProductAsColor = async () => {
     const sourceProduct = products.find((candidate) => candidate.id === linkExistingProductId);
     const modelId = activeProduct?.modelId ?? activeProduct?.id;
-    const colorName = linkExistingColorDraft.name.trim();
     if (!sourceProduct || !modelId) return;
     if (sourceProduct.id === modelId || sourceProduct.modelId) {
       toast.error('Selecciona un producto independiente y activo.');
       return;
     }
-    if (!colorName || !/^#[0-9A-F]{6}$/i.test(linkExistingColorDraft.hex)) {
-      toast.error('Confirma el nombre y el HEX principal antes de vincular.');
+    if (!/^#[0-9A-F]{6}$/i.test(linkExistingColorDraft.hex)) {
+      toast.error('Confirma el HEX principal antes de vincular.');
       return;
     }
     if (linkExistingColorDraft.hex2 && !/^#[0-9A-F]{6}$/i.test(linkExistingColorDraft.hex2)) {
@@ -5704,14 +5696,13 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
       const members = getModelMembers(modelId);
       await updateProduct(sourceProduct.id, {
         modelId,
-        colorName,
         colorHex: linkExistingColorDraft.hex.toUpperCase(),
         colorHex2: linkExistingColorDraft.hex2.toUpperCase() || null,
         modelSortOrder: members.length,
         isDefaultColor: members.length === 0,
       });
       setLinkExistingProductId('');
-      setLinkExistingColorDraft({ name: '', hex: '', hex2: '' });
+      setLinkExistingColorDraft({ hex: '', hex2: '' });
       toast.success('Producto vinculado como color. Sus datos e imágenes se conservaron.');
     } catch (error) {
       toast.error(formatAdminApiError(error, 'No se pudo vincular el producto.'));
@@ -5744,14 +5735,17 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
   };
 
   const unlinkModelColor = async (variant: Product) => {
-    if (!window.confirm(`Se quitará ${variant.colorName || variant.name} del modelo, pero el producto y sus pedidos se conservarán. ¿Continuar?`)) return;
+    const modelId = variant.modelId ?? variant.id;
+    const siblings = getModelMembers(modelId);
+    const index = siblings.findIndex((candidate) => candidate.id === variant.id);
+    const label = index >= 0 ? `Color ${index + 1}` : 'esta variante';
+    if (!window.confirm(`Se quitará ${label} del modelo, pero el producto y sus pedidos se conservarán. ¿Continuar?`)) return;
     try {
       await updateProduct(variant.id, { modelId: null, modelSortOrder: 0, isDefaultColor: false });
     } catch (error) {
       toast.error(formatAdminApiError(error, 'No se pudo desvincular el color.'));
     }
   };
-
   const addProductSize = () => {
     const size = newProductSize.trim();
     if (!size) return;
@@ -5827,7 +5821,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
         continue;
       }
       if (remainingSlots <= 0) {
-        toast.error(`Máximo ${MAX_PRODUCT_TOTAL_IMAGES} imágenes en total: 1 principal y hasta ${MAX_PRODUCT_GALLERY_IMAGES} adicionales.`);
+        toast.error(`MáM?ximo ${MAX_PRODUCT_TOTAL_IMAGES} imágenes en total: 1 principal y hasta ${MAX_PRODUCT_GALLERY_IMAGES} adicionales.`);
         break;
       }
 

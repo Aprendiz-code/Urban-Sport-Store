@@ -16,7 +16,6 @@ export interface ProductRecord {
   category: string;
   category_id?: string | null;
   model_id?: string | null;
-  color_name?: string | null;
   color_hex?: string | null;
   color_hex2?: string | null;
   model_sort_order?: number | null;

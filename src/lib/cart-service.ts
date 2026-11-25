@@ -48,9 +48,8 @@ export const resolveGuestCartEntries = (entries: GuestCartItem[], products: Prod
       ? productForColor(model, entry.productId)
       : model;
     const sizeUnavailable = Boolean(entry.selectedSize && entry.selectedSize !== 'Talla única' && !product?.sizes.includes(entry.selectedSize));
-    const colorUnavailable = Boolean(entry.selectedColor && !product?.colors.some((color) => color.name === entry.selectedColor));
 
-    if (!product || product.isActive === false || sizeUnavailable || colorUnavailable) {
+    if (!product || product.isActive === false || sizeUnavailable) {
       unavailableItems.push(entry);
       continue;
     }
@@ -59,7 +58,7 @@ export const resolveGuestCartEntries = (entries: GuestCartItem[], products: Prod
       product,
       qty: entry.quantity,
       selectedSize: entry.selectedSize ?? 'Talla única',
-      selectedColor: entry.selectedColor ?? '',
+      selectedColor: '',
     });
   }
 

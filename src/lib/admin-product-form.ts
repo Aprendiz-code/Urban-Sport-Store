@@ -63,7 +63,6 @@ export function validateProductForm(form: {
   sizes?: readonly string[];
   specifications?: readonly ProductSpecification[];
   modelId?: string | null;
-  colorName?: string | null;
   colorHex?: string | null;
   colorHex2?: string | null;
 }): Record<string, string> {
@@ -105,11 +104,12 @@ export function validateProductForm(form: {
     errors.sizes = 'No se permiten tallas duplicadas.';
   }
 
-  const colorName = String(form.colorName ?? '').trim();
   const colorHex = String(form.colorHex ?? '').trim();
   const colorHex2 = String(form.colorHex2 ?? '').trim();
-  if (form.modelId && !colorName) errors.colors = 'Un color vinculado requiere un nombre comercial.';
-  if ((colorName || form.modelId) && !/^#[0-9A-F]{6}$/i.test(colorHex)) {
+  const linkedVariant = Boolean(form.modelId);
+  if (linkedVariant && !/^#[0-9A-F]{6}$/i.test(colorHex)) {
+    errors.colors = 'Confirma un HEX principal válido para este color.';
+  } else if (!linkedVariant && (colorHex || colorHex2) && !/^#[0-9A-F]{6}$/i.test(colorHex)) {
     errors.colors = 'Confirma un HEX principal válido para este color.';
   }
   if (colorHex2 && !/^#[0-9A-F]{6}$/i.test(colorHex2)) {

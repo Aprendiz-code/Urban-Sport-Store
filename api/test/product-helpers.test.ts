@@ -65,17 +65,15 @@ describe('product payload normalization', () => {
     expect(supabaseMocks.from).not.toHaveBeenCalled();
   });
 
-  it('persists color metadata on one product row without conflating its gallery images', async () => {
+  it('persists HEX color metadata on one product row without conflating its gallery images', async () => {
     await expect(normalizeProductPayload({
       name: 'New Balance 410',
-      color_name: 'Gris / Plata',
       color_hex: '#A7ADB4',
       color_hex2: '#D6DADE',
       model_sort_order: '0',
       is_default_color: true,
       images: ['https://storage.test/angle-1.png', 'https://storage.test/angle-2.png'],
     })).resolves.toMatchObject({
-      color_name: 'Gris / Plata',
       color_hex: '#A7ADB4',
       color_hex2: '#D6DADE',
       model_sort_order: 0,
@@ -93,12 +91,11 @@ describe('product payload normalization', () => {
       .rejects.toThrow('modelo seleccionado');
   });
 
-  it('requires explicit name and HEX when assigning a model_id', async () => {
+  it('requires a confirmed HEX when assigning a model_id', async () => {
     await expect(normalizeProductPayload({
       name: 'Modelo',
       model_id: '123e4567-e89b-12d3-a456-426614174001',
-      color_name: 'Negro',
-    })).rejects.toThrow('nombre comercial y HEX');
+    })).rejects.toThrow('HEX confirmado');
   });
 
   it('maps edits to the same database columns, including empty galleries', async () => {

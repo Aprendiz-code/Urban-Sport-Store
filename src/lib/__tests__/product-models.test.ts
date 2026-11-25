@@ -21,10 +21,9 @@ const product = (overrides: Partial<Product> & Pick<Product, 'id'>): Product => 
 });
 
 describe('product model grouping', () => {
-  it('creates one color sample for one product with four gallery angles', () => {
+  it('creates neutral color variants for linked products with HEX', () => {
     const grayProduct = product({
       id: 'gray-record',
-      colorName: 'Gris / Plata',
       colorHex: '#A7ADB4',
       colorHex2: '#D6DADE',
       isDefaultColor: true,
@@ -38,7 +37,6 @@ describe('product model grouping', () => {
     const blackProduct = product({
       id: 'black-record',
       modelId: 'gray-record',
-      colorName: 'Negro',
       colorHex: '#111827',
       price: 205000,
       stock: 2,
@@ -48,16 +46,18 @@ describe('product model grouping', () => {
     const [model] = groupProductsByModel([grayProduct, blackProduct]);
 
     expect(model.id).toBe('gray-record');
-    expect(model.colors.map((color) => color.name)).toEqual(['Gris / Plata', 'Negro']);
-    expect(model.colors).toHaveLength(2);
+    expect(model.colors.map((color) => color.hex)).toEqual(['#A7ADB4', '#111827']);
+    expect(model.colors.map((color) => color.name)).toEqual(['Color 1', 'Color 2']);
     expect(model.colors[0].images).toHaveLength(4);
-    expect(productForColor(model, 'black-record')).toMatchObject({
+    const blackVariant = productForColor(model, 'black-record');
+    expect(blackVariant).toMatchObject({
       id: 'black-record',
       price: 205000,
       stock: 2,
       sku: 'NB-410-BLK',
-      colorName: 'Negro',
+      colorHex: '#111827',
     });
+    expect('colorName' in blackVariant).toBe(false);
   });
 
   it('keeps legacy products without registered colors as standalone entries', () => {

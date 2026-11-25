@@ -16,12 +16,12 @@ export function groupProductsByModel(products: Product[]): Product[] {
       || left.id.localeCompare(right.id)
     ));
     const root = ordered.find((product) => product.id === modelId) ?? ordered[0];
-    const colors: ProductColor[] = ordered.flatMap((variant) => {
-      if (!variant.colorName || !variant.colorHex) return [];
+    const colors: ProductColor[] = ordered.flatMap((variant, index) => {
+      if (!variant.colorHex) return [];
       return [{
         id: variant.id,
         productId: variant.id,
-        name: variant.colorName,
+        name: `Color ${index + 1}`,
         hex: variant.colorHex,
         ...(variant.colorHex2 ? { hex2: variant.colorHex2 } : {}),
         image: variant.image,
@@ -60,7 +60,6 @@ export function productForColor(product: Product, colorId?: string): Product {
     id: color.productId,
     modelId: product.modelId ?? product.id,
     selectedColorVariantId: color.productId,
-    colorName: color.name,
     colorHex: color.hex,
     colorHex2: color.hex2 ?? null,
     isDefaultColor: color.isDefault ?? false,

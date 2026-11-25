@@ -10,7 +10,6 @@ const ALLOWED_PRODUCT_COLUMNS = new Set([
   'compare_at_price',
   'category_id',
   'model_id',
-  'color_name',
   'color_hex',
   'color_hex2',
   'model_sort_order',
@@ -71,10 +70,14 @@ function parsePermanentImageUrl(value: unknown, fieldName: string): string | und
   throw new ApiError(400, `${fieldName} debe ser una URL HTTP o HTTPS permanente.`);
 }
 
-function createProductSlug(name: string, sku: string | undefined, colorName?: string | null, isVariant = false): string {
+function createProductSlug(name: string, sku: string | undefined, colorToken?: string | null, isVariant = false): string {
   const baseParts = [name];
   if (sku && sku.trim() && sku.trim().toLowerCase() !== name.trim().toLowerCase()) baseParts.push(sku);
-  if (isVariant && colorName) baseParts.push(colorName);
+  if (isVariant) {
+    const normalizedColorToken = (colorToken ?? '').trim();
+    if (normalizedColorToken) baseParts.push(normalizedColorToken);
+    else baseParts.push('color');
+  }
   const base = baseParts
     .join('-')
     .normalize('NFD')
@@ -149,9 +152,10 @@ function setProductFields(payload: Record<string, unknown>, body: any) {
   const name = parseString(body.name);
   const sku = parseString(body.sku);
   const slug = parseString(body.slug);
-  const colorName = parseString(body.color_name);
+  const colorHex = parseString(body.color_hex);
+  const colorToken = colorHex ? `color-${colorHex.replace(/^#/, '').toLowerCase()}` : undefined;
   const isVariant = Boolean(parseString(body.model_id));
-  if (slug || name) payload.slug = slug ?? createProductSlug(name as string, sku, colorName, isVariant);
+  if (slug || name) payload.slug = slug ?? createProductSlug(name as string, sku, colorToken, isVariant);
   if (name) payload.name = name;
   for (const column of ['brand', 'sku'] as const) {
     const value = parseString(body[column]);
@@ -168,14 +172,6 @@ function setProductFields(payload: Record<string, unknown>, body: any) {
       const modelId = parseString(body.model_id);
       if (!modelId || !UUID_PATTERN.test(modelId)) throw new ApiError(400, 'El modelo seleccionado no es válido.');
       payload.model_id = modelId;
-    }
-  }
-  if (body.color_name !== undefined) {
-    if (body.color_name === null || body.color_name === '') payload.color_name = null;
-    else {
-      const colorName = parseString(body.color_name);
-      if (!colorName || colorName.length > 80) throw new ApiError(400, 'El nombre del color debe tener entre 1 y 80 caracteres.');
-      payload.color_name = colorName;
     }
   }
   for (const [field, errorMessage] of [
@@ -328,8 +324,8 @@ export async function normalizeProductPayload(body: any) {
   const payload: Record<string, unknown> = {};
   setProductFields(payload, body);
   if (typeof payload.model_id === 'string') {
-    if (!payload.color_name || !payload.color_hex) {
-      throw new ApiError(400, 'Un color vinculado requiere nombre comercial y HEX confirmado.');
+    if (!payload.color_hex) {
+      throw new ApiError(400, 'Un color vinculado requiere un HEX confirmado.');
     }
     await validateModelRoot(payload.model_id);
   }
@@ -343,8 +339,8 @@ export async function normalizeProductUpdates(body: any) {
   const updates: Record<string, unknown> = {};
   setProductFields(updates, body);
   if (typeof updates.model_id === 'string') {
-    if (!updates.color_name || !updates.color_hex) {
-      throw new ApiError(400, 'Un color vinculado requiere nombre comercial y HEX confirmado.');
+    if (!updates.color_hex) {
+      throw new ApiError(400, 'Un color vinculado requiere un HEX confirmado.');
     }
     await validateModelRoot(updates.model_id);
   }

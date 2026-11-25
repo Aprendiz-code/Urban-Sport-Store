@@ -1,18 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { suggestNamedColorHex } from '../color-suggestion';
+import { suggestImageColors } from '../color-suggestion';
 
-describe('named color suggestions', () => {
-  it('recognizes accented Spanish names and two-tone colors', () => {
-    expect(suggestNamedColorHex('Gris / Plata')).toMatchObject({
-      primary: '#808080',
-      secondary: '#C0C0C0',
-      confidence: 'high',
-      source: 'name',
-    });
-  });
+describe('image color suggestions', () => {
+  it('returns null or an image suggestion without relying on color names', async () => {
+    const result = await suggestImageColors('https://example.test/product.png');
 
-  it('recognizes white and returns null for names it cannot map', () => {
-    expect(suggestNamedColorHex('Blanco')).toMatchObject({ primary: '#FFFFFF', confidence: 'high' });
-    expect(suggestNamedColorHex('Niebla urbana')).toBeNull();
+    expect(
+      result === null
+      || (result.source === 'image' && /^#[0-9A-F]{6}$/i.test(result.primary) && (result.confidence === 'high' || result.confidence === 'low')),
+    ).toBe(true);
   });
 });

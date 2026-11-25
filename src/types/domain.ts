@@ -81,7 +81,6 @@ export interface Product {
   description: string;
   colors: ProductColor[];
   modelId?: string | null;
-  colorName?: string | null;
   colorHex?: string | null;
   colorHex2?: string | null;
   modelSortOrder?: number;

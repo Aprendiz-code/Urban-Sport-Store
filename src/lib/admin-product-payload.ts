@@ -12,10 +12,11 @@ function slugifyProductValue(value: string): string {
 export function buildAdminProductPayload(product: Partial<Product>, isCreating = false): Record<string, unknown> {
   const name = (product.name ?? '').trim();
   const sku = (product.sku ?? '').trim();
-  const colorName = (product.colorName ?? '').trim();
+  const colorHex = (product.colorHex ?? '').trim();
+  const colorHexToken = colorHex.replace(/^#/, '').toLowerCase();
   const slugParts = [name];
   if (sku && sku.toLowerCase() !== name.toLowerCase()) slugParts.push(sku);
-  if (product.modelId && colorName) slugParts.push(colorName);
+  if (product.modelId) slugParts.push(colorHexToken ? `color-${colorHexToken}` : 'color');
   const generatedSlug = slugifyProductValue(slugParts.filter(Boolean).join('-')).slice(0, 180);
   const images = Array.isArray(product.images)
     ? product.images.filter((image): image is string => typeof image === 'string')
@@ -39,9 +40,8 @@ export function buildAdminProductPayload(product: Partial<Product>, isCreating =
     stock: Number(product.stock ?? 0),
     sku,
     ...(product.modelId !== undefined ? { model_id: product.modelId } : {}),
-    ...(product.colorName !== undefined ? { color_name: product.colorName } : {}),
-    ...(product.colorHex !== undefined ? { color_hex: product.colorHex } : {}),
-    ...(product.colorHex2 !== undefined ? { color_hex2: product.colorHex2 } : {}),
+    ...(product.colorHex !== undefined ? { color_hex: colorHex || null } : {}),
+    ...(product.colorHex2 !== undefined ? { color_hex2: (product.colorHex2 ?? '').trim() || null } : {}),
     ...(product.modelSortOrder !== undefined ? { model_sort_order: Number(product.modelSortOrder) } : {}),
     ...(product.isDefaultColor !== undefined ? { is_default_color: Boolean(product.isDefaultColor) } : {}),
     category_id: product.categoryId ?? undefined,

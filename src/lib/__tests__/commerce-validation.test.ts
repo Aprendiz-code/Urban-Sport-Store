@@ -173,12 +173,12 @@ describe('commerce validation', () => {
       {
         id: 'model-gray', name: 'Tenis modelo', brand: 'Marca', price: 100, rating: 0, reviews: 0,
         image: 'gray.jpg', category: '', subcategory: '', stock: 3, sku: 'GRAY', description: '',
-        colors: [], sizes: ['M'], isActive: true, colorName: 'Gris', colorHex: '#808080', isDefaultColor: true,
+        colors: [], sizes: ['M'], isActive: true, colorHex: '#808080', isDefaultColor: true,
       },
       {
         id: 'variant-black', modelId: 'model-gray', name: 'Tenis modelo', brand: 'Marca', price: 110, rating: 0, reviews: 0,
         image: 'black.jpg', category: '', subcategory: '', stock: 2, sku: 'BLACK', description: '',
-        colors: [], sizes: ['M'], isActive: true, colorName: 'Negro', colorHex: '#111827',
+        colors: [], sizes: ['M'], isActive: true, colorHex: '#111827',
       },
     ]);
     const result = resolveGuestCartEntries([
@@ -188,8 +188,8 @@ describe('commerce validation', () => {
 
     expect(result.unavailableItems).toEqual([]);
     expect(result.restoredItems.map((item) => [item.product.id, item.selectedSize, item.selectedColor])).toEqual([
-      ['model-gray', 'M', 'Gris'],
-      ['variant-black', 'M', 'Negro'],
+      ['model-gray', 'M', ''],
+      ['variant-black', 'M', ''],
     ]);
     expect(result.restoredItems.map((item) => item.product.price)).toEqual([100, 110]);
   });

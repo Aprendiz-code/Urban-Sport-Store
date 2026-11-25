@@ -53,8 +53,8 @@ describe('public products endpoint', () => {
 
   it('returns explicitly linked color records for catalog grouping by model_id', async () => {
     apiMocks.data = [
-      { id: 'model', model_id: null, is_active: true, color_name: 'Gris / Plata' },
-      { id: 'color-record', model_id: 'model', is_active: true, color_name: 'Negro' },
+      { id: 'model', model_id: null, is_active: true, color_hex: '#A7ADB4' },
+      { id: 'color-record', model_id: 'model', is_active: true, color_hex: '#111827' },
       { id: 'unlinked-product', model_id: null, is_active: true },
     ];
     const response = createResponse();
