@@ -47,7 +47,7 @@ describe('product model grouping', () => {
 
     expect(model.id).toBe('gray-record');
     expect(model.colors.map((color) => color.hex)).toEqual(['#A7ADB4', '#111827']);
-    expect(model.colors.map((color) => color.name)).toEqual(['Color 1', 'Color 2']);
+    expect(model.colors.map((color) => color.name)).toEqual(['', '']);
     expect(model.colors[0].images).toHaveLength(4);
     const blackVariant = productForColor(model, 'black-record');
     expect(blackVariant).toMatchObject({
@@ -57,7 +57,7 @@ describe('product model grouping', () => {
       sku: 'NB-410-BLK',
       colorHex: '#111827',
     });
-    expect('colorName' in blackVariant).toBe(false);
+    expect(blackVariant.colorName).toBe('');
   });
 
   it('keeps legacy products without registered colors as standalone entries', () => {

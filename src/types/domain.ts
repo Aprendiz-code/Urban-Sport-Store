@@ -83,6 +83,7 @@ export interface Product {
   modelId?: string | null;
   colorHex?: string | null;
   colorHex2?: string | null;
+  colorName?: string | null;
   modelSortOrder?: number;
   isDefaultColor?: boolean;
   selectedColorVariantId?: string;
