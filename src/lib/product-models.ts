@@ -55,6 +55,12 @@ export function productForColor(product: Product, colorId?: string): Product {
     ?? product.colors[0];
   if (!color) return product;
 
+  const hasOwnImage = Boolean(color.image);
+  const image = color.image || product.image;
+  const images = hasOwnImage
+    ? (color.images ?? [])
+    : (color.images?.length ? color.images : (product.images ?? []));
+
   return {
     ...product,
     id: color.productId,
@@ -64,8 +70,8 @@ export function productForColor(product: Product, colorId?: string): Product {
     colorHex2: color.hex2 ?? null,
     isDefaultColor: color.isDefault ?? false,
     modelSortOrder: color.sortOrder ?? 0,
-    image: color.image ?? product.image,
-    images: color.images ?? product.images ?? [],
+    image,
+    images,
     price: color.price,
     originalPrice: color.originalPrice,
     discount: color.discount,

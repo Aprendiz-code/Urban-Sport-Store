@@ -10,7 +10,8 @@ const productCardSource = appSource.slice(cardStart, detailStart);
 describe('storefront product navigation', () => {
   it('resets the selected color when a different product is rendered', () => {
     expect(appSource).toContain("setSelectedColorId(product.selectedColorVariantId ?? defaultColor?.productId ?? '')");
-    expect(appSource).toContain("setSelectedColorId(product.selectedColorVariantId ?? defaultDetailColor?.productId ?? '')");
+    expect(appSource).toContain("const nextDefaultColorId = product.selectedColorVariantId ?? defaultDetailColor?.productId ?? '';");
+    expect(appSource).toContain("setSelectedColorId(nextDefaultColorId);");
   });
 
   it('links the image and name to the selected product slug or ID', () => {
