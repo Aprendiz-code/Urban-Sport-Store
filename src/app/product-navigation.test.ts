@@ -31,7 +31,7 @@ describe('storefront product navigation', () => {
 
   it('shows saved color variants with neutral labels and offers explicit admin linking', () => {
     expect(productCardSource).toContain('colorsToRender.map((color)');
-    expect(productCardSource).toContain('aria-label={`Ver color ${`Color ${orderedColors.indexOf(color) + 1}`}`}');
+    expect(productCardSource).toContain('aria-label={color.name ? `Seleccionar ${color.name}` : `Seleccionar variante ${orderedColors.indexOf(color) + 1}`}');
     expect(productCardSource).toContain('aria-pressed={isSelected}');
     expect(productCardSource).toContain("setSelectedSize((currentSize) => nextVariant.sizes.includes(currentSize) ? currentSize : '')");
     expect(productCardSource.indexOf('{requiresSize &&')).toBeLessThan(productCardSource.indexOf('{orderedColors.length > 0'));

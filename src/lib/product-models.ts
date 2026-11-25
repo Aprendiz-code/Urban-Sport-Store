@@ -21,7 +21,7 @@ export function groupProductsByModel(products: Product[]): Product[] {
       return [{
         id: variant.id,
         productId: variant.id,
-        name: variant.name || '',
+        name: variant.colorName?.trim() || '',
         hex: variant.colorHex,
         ...(variant.colorHex2 ? { hex2: variant.colorHex2 } : {}),
         image: variant.image,
@@ -55,11 +55,17 @@ export function productForColor(product: Product, colorId?: string): Product {
     ?? product.colors[0];
   if (!color) return product;
 
-  const hasOwnImage = Boolean(color.image);
-  const image = color.image || product.image;
-  const images = hasOwnImage
-    ? (color.images ?? [])
-    : (color.images?.length ? color.images : (product.images ?? []));
+  const ownImages = (color.images ?? []).filter((value, index, all) => (
+    typeof value === 'string'
+    && value.trim().length > 0
+    && all.findIndex((candidate) => candidate?.trim() === value.trim()) === index
+  ));
+  const ownImage = typeof color.image === 'string' ? color.image.trim() : '';
+  const fallbackMainImage = ownImages[0] || product.image;
+  const image = ownImage || fallbackMainImage;
+  const images = ownImage
+    ? (ownImages.length ? ownImages : (product.images ?? []))
+    : (ownImages.length ? ownImages.slice(1) : (product.images ?? []));
 
   return {
     ...product,
@@ -68,6 +74,7 @@ export function productForColor(product: Product, colorId?: string): Product {
     selectedColorVariantId: color.productId,
     colorHex: color.hex,
     colorHex2: color.hex2 ?? null,
+    colorName: color.name,
     isDefaultColor: color.isDefault ?? false,
     modelSortOrder: color.sortOrder ?? 0,
     image,

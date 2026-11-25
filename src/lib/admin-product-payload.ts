@@ -40,6 +40,7 @@ export function buildAdminProductPayload(product: Partial<Product>, isCreating =
     stock: Number(product.stock ?? 0),
     sku,
     ...(product.modelId !== undefined ? { model_id: product.modelId } : {}),
+    ...(product.colorName !== undefined ? { color_name: (product.colorName ?? '').trim() || null } : {}),
     ...(product.colorHex !== undefined ? { color_hex: colorHex || null } : {}),
     ...(product.colorHex2 !== undefined ? { color_hex2: (product.colorHex2 ?? '').trim() || null } : {}),
     ...(product.modelSortOrder !== undefined ? { model_sort_order: Number(product.modelSortOrder) } : {}),

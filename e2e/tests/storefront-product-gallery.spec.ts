@@ -14,9 +14,31 @@ const products = [
     image: 'https://images.example/uno-main.jpg',
     main_image: 'https://images.example/uno-main.jpg',
     images: ['https://images.example/uno-side.jpg', 'https://images.example/uno-back.jpg'],
-    colors: [],
+    color_name: 'Blanco',
+    color_hex: '#d9dee7',
+    is_default_color: true,
     sizes: ['38', '39'],
     is_featured: true,
+  },
+  {
+    id: 'product-a-green',
+    slug: 'uno-running',
+    name: 'Zapatilla Uno',
+    brand: 'Urban',
+    price: 125000,
+    stock: 4,
+    sku: 'URB-001-GRN',
+    category: 'Running',
+    description: 'Descripción real de la primera zapatilla.',
+    image: 'https://images.example/uno-green-main.jpg',
+    main_image: 'https://images.example/uno-green-main.jpg',
+    images: ['https://images.example/uno-green-side.jpg'],
+    model_id: 'product-a',
+    color_name: 'Verde claro',
+    color_hex: '#65a30d',
+    model_sort_order: 1,
+    is_default_color: false,
+    sizes: ['38', '39'],
   },
   {
     id: 'product-b',
@@ -46,19 +68,23 @@ test('product cards open the matching detail and its gallery actions stay indepe
       });
       return;
     }
-    if (pathname.endsWith('/products')) {
+    if (requestUrl.origin === 'http://localhost:5173' && pathname.endsWith('/products')) {
       await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, data: products }) });
       return;
     }
-    if (pathname.endsWith('/categories')) {
+    if (requestUrl.origin === 'http://localhost:5173' && pathname.endsWith('/categories')) {
       await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, data: [] }) });
       return;
     }
-    if (pathname.endsWith('/home')) {
+    if (requestUrl.origin === 'http://localhost:5173' && pathname.endsWith('/home')) {
       await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true, data: {} }) });
       return;
     }
-    await route.continue();
+    if (requestUrl.origin === 'http://localhost:5173') {
+      await route.continue();
+      return;
+    }
+    await route.abort();
   });
 
   await page.goto('/');
@@ -75,6 +101,11 @@ test('product cards open the matching detail and its gallery actions stay indepe
   expect(new URL(page.url()).searchParams.get('product')).toBe('uno-running');
   await expect(page.getByText('Descripción real de la primera zapatilla.')).toBeVisible();
   await expect(page.getByText('Las especificaciones técnicas aún no están disponibles.')).toBeVisible();
+  await expect(page.getByText(/^Color \d+$/)).toHaveCount(0);
+  await page.getByRole('button', { name: 'Seleccionar Verde claro' }).click();
+  await expect(page.getByRole('button', { name: 'Seleccionar Verde claro' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('img[alt="Zapatilla Uno - vista 1"]')).toHaveAttribute('src', 'https://images.example/uno-green-main.jpg');
+  await expect(page.getByRole('button', { name: 'Ver imagen 2' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Selecciona una talla' })).toBeDisabled();
   await page.getByRole('button', { name: '38', exact: true }).click();
   await expect(page.getByRole('main').first().getByRole('button', { name: 'Agregar al carrito' }).first()).toBeEnabled();

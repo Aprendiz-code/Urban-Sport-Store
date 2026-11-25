@@ -286,6 +286,7 @@ const mapProductRecordToAppProduct = (record: ProductRecord, categories: readonl
     modelId: record.model_id ?? null,
     colorHex: record.color_hex ?? null,
     colorHex2: record.color_hex2 ?? null,
+    colorName: record.color_name ?? null,
     modelSortOrder: record.model_sort_order ?? 0,
     isDefaultColor: record.is_default_color ?? false,
     sizes: record.sizes ?? [],
@@ -325,6 +326,7 @@ const mapAppProductToProductRecord = (product: Partial<Product> & { id?: string 
   sku: product.sku ?? "",
   description: product.description ?? "",
   model_id: product.modelId ?? null,
+  color_name: product.colorName ?? null,
   color_hex: product.colorHex ?? null,
   color_hex2: product.colorHex2 ?? null,
   model_sort_order: product.modelSortOrder ?? 0,
@@ -467,7 +469,8 @@ function ColorSelector({ colors, selected, onSelect }: {
             key={color.id}
             type="button"
             onClick={() => onSelect(color.productId)}
-            aria-label={`Ver opción de color ${index + 1}`}
+            aria-label={color.name ? `Seleccionar ${color.name}` : `Seleccionar variante ${index + 1}`}
+            title={color.name || undefined}
             aria-pressed={isSelected}
             className={`h-8 w-8 rounded-full border-2 transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${
               isSelected ? "scale-110 border-slate-900 ring-2 ring-white" : "border-slate-300 hover:scale-105"
@@ -727,9 +730,9 @@ function ProductCard({ product, onSelect, onAddToCart }: {
                   <button
                     key={color.id}
                     type="button"
-                    aria-label={`Ver color ${`Color ${orderedColors.indexOf(color) + 1}`}`}
+                    aria-label={color.name ? `Seleccionar ${color.name}` : `Seleccionar variante ${orderedColors.indexOf(color) + 1}`}
                     aria-pressed={isSelected}
-                    title={`Color ${orderedColors.indexOf(color) + 1}`}
+                    title={color.name || undefined}
                     onClick={() => selectColor(color.productId)}
                     className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-700 ${isSelected ? "ring-2 ring-[#1e3a8a] ring-offset-1" : "hover:bg-slate-100"}`}
                   >
@@ -1943,7 +1946,6 @@ function ProductDetailPage({ product, products, onBack, onAddToCart, onNavigate,
           {product.colors.length > 0 && (
             <div>
               <p className="text-sm font-bold text-slate-700 mb-2.5">Color</p>
-              {selectedDetailColor && <p className="mb-2 text-sm font-medium text-slate-500">{`Color ${orderedDetailColors.indexOf(selectedDetailColor) + 1}`}</p>}
               <ColorSelector colors={product.colors} selected={selectedColorId} onSelect={(colorId) => {
                 const nextVariant = productForColor(product, colorId);
                 setSelectedColorId(colorId);
@@ -5147,8 +5149,8 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                         const members = getModelMembers(modelId);
                         return (
                           <div className="space-y-2">
-                            {members.map((variant, index) => {
-                              const label = `Color ${index + 1}`;
+                            {members.map((variant) => {
+                              const label = variant.name || variant.sku || 'Variante';
                               return (
                               <div key={variant.id} className="flex flex-wrap items-center gap-3 rounded-md border border-slate-200 p-2">
                                 <div className="h-8 w-8 shrink-0 rounded-full border border-slate-400" style={{ background: variant.colorHex2 ? `linear-gradient(90deg, ${variant.colorHex} 0 50%, ${variant.colorHex2} 50% 100%)` : variant.colorHex || '#FFFFFF', boxShadow: '0 0 0 1px rgba(15,23,42,0.16)' }} />
@@ -5746,7 +5748,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
     const modelId = variant.modelId ?? variant.id;
     const siblings = getModelMembers(modelId);
     const index = siblings.findIndex((candidate) => candidate.id === variant.id);
-    const label = index >= 0 ? `Color ${index + 1}` : 'esta variante';
+    const label = index >= 0 ? (variant.name || variant.sku || 'esta variante') : 'esta variante';
     if (!window.confirm(`Se quitará ${label} del modelo, pero el producto y sus pedidos se conservarán. ¿Continuar?`)) return;
     try {
       await updateProduct(variant.id, { modelId: null, modelSortOrder: 0, isDefaultColor: false });
