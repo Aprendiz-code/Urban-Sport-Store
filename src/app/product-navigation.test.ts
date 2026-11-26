@@ -33,6 +33,8 @@ describe('storefront product navigation', () => {
     expect(productCardSource).toContain('colorsToRender.map((color)');
     expect(productCardSource).toContain('aria-label={color.name ? `Seleccionar ${color.name}` : `Seleccionar variante ${orderedColors.indexOf(color) + 1}`}');
     expect(productCardSource).toContain('aria-pressed={isSelected}');
+    expect(productCardSource).not.toContain('ring-[#1e3a8a]');
+    expect(productCardSource).toContain('focus-visible:outline-slate-700');
     expect(productCardSource).toContain("setSelectedSize((currentSize) => nextVariant.sizes.includes(currentSize) ? currentSize : '')");
     expect(productCardSource.indexOf('{requiresSize &&')).toBeLessThan(productCardSource.indexOf('{orderedColors.length > 0'));
     expect(productCardSource.indexOf('{orderedColors.length > 0')).toBeLessThan(productCardSource.indexOf('<span className="price text-sm'));
