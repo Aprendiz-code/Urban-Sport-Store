@@ -3,8 +3,10 @@ import { describe, expect, it } from 'vitest';
 
 const appSource = readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
 const gallerySource = readFileSync(new URL('./components/ProductGallery.tsx', import.meta.url), 'utf8');
+const colorSelectorStart = appSource.indexOf('function ColorSelector(');
 const cardStart = appSource.indexOf('function ProductCard(');
 const detailStart = appSource.indexOf('// ─── CATALOG PAGE', cardStart);
+const colorSelectorSource = appSource.slice(colorSelectorStart, cardStart);
 const productCardSource = appSource.slice(cardStart, detailStart);
 
 describe('storefront product navigation', () => {
@@ -34,11 +36,14 @@ describe('storefront product navigation', () => {
     expect(productCardSource).toContain('aria-label={color.name ? `Seleccionar ${color.name}` : `Seleccionar variante ${orderedColors.indexOf(color) + 1}`}');
     expect(productCardSource).toContain('aria-pressed={isSelected}');
     expect(productCardSource).not.toContain('ring-[#1e3a8a]');
-    expect(productCardSource).toContain('focus-visible:outline-slate-700');
+    expect(productCardSource).toContain('className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-transform focus-visible:scale-110 ${isSelected ? "scale-105" : "hover:scale-105"}`}');
+    expect(productCardSource).toContain('flex h-8 w-8 shrink-0');
+    expect(productCardSource).toContain('className="h-5 w-5 rounded-full border border-slate-400"');
+    expect(colorSelectorSource).toContain('h-7 w-7 rounded-full border border-slate-300 transition-transform focus-visible:scale-110');
     expect(productCardSource).toContain("setSelectedSize((currentSize) => nextVariant.sizes.includes(currentSize) ? currentSize : '')");
     expect(productCardSource.indexOf('{requiresSize &&')).toBeLessThan(productCardSource.indexOf('{orderedColors.length > 0'));
     expect(productCardSource.indexOf('{orderedColors.length > 0')).toBeLessThan(productCardSource.indexOf('<span className="price text-sm'));
-    expect(productCardSource).toContain('className="h-6 w-6 rounded-full border border-slate-400"');
+    expect(productCardSource).toContain('className="h-5 w-5 rounded-full border border-slate-400"');
     expect(productCardSource).toContain('const collapsedColorLimit = 6;');
     expect(productCardSource).toContain('`+${orderedColors.length - collapsedColorLimit}`');
     expect(productCardSource).toContain('aria-live="polite"');

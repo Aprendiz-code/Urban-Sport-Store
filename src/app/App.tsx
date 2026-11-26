@@ -472,8 +472,8 @@ function ColorSelector({ colors, selected, onSelect }: {
             aria-label={color.name ? `Seleccionar ${color.name}` : `Seleccionar variante ${index + 1}`}
             title={color.name || undefined}
             aria-pressed={isSelected}
-            className={`h-8 w-8 rounded-full border-2 transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-700 ${
-              isSelected ? "scale-110 border-slate-900" : "border-slate-300 hover:scale-105"
+            className={`h-7 w-7 rounded-full border border-slate-300 transition-transform focus-visible:scale-110 ${
+              isSelected ? "scale-105" : "hover:scale-105"
             }`}
             style={{ ...swatchStyle, boxShadow: "0 0 0 1px rgba(15,23,42,0.16)" }}
           />
@@ -734,11 +734,11 @@ function ProductCard({ product, onSelect, onAddToCart }: {
                     aria-pressed={isSelected}
                     title={color.name || undefined}
                     onClick={() => selectColor(color.productId)}
-                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-transform focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-slate-700 ${isSelected ? "scale-110" : "hover:scale-105"}`}
+                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-transform focus-visible:scale-110 ${isSelected ? "scale-105" : "hover:scale-105"}`}
                   >
                     <span
                       aria-hidden="true"
-                      className="h-6 w-6 rounded-full border border-slate-400"
+                      className="h-5 w-5 rounded-full border border-slate-400"
                       style={{ ...swatchStyle, boxShadow: "0 0 0 1px rgba(15,23,42,0.12)" }}
                     />
                   </button>
