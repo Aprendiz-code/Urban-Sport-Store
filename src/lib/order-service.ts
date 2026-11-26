@@ -260,6 +260,48 @@ export async function createWompiPaymentSession(orderId: string): Promise<{ chec
   return { checkoutUrl: checkoutUrl.toString(), expiresAt: new Date(expiresAt).toISOString() };
 }
 
+export type WompiPaymentReturnResult = {
+  paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded' | 'cancelled';
+  orderStatus: string;
+  reconciliation: 'applied' | 'duplicate' | 'stale' | 'review_required';
+};
+
+export async function verifyWompiPaymentReturn(
+  orderId: string,
+  transactionId: string,
+): Promise<WompiPaymentReturnResult> {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(orderId)
+    || !/^[A-Za-z0-9_-]{1,128}$/.test(transactionId)) {
+    throw new OrderServiceError(400, 'Los datos de retorno del pago no son válidos.');
+  }
+
+  const result = await request<unknown>(`/orders/${encodeURIComponent(orderId)}/payment-status`, {
+    method: 'POST',
+    body: JSON.stringify({ transactionId }),
+  });
+  if (!result || typeof result !== 'object') {
+    throw new OrderServiceError(503, 'No se recibió un estado de pago válido.');
+  }
+
+  const value = result as Record<string, unknown>;
+  const paymentStatuses = ['pending', 'paid', 'failed', 'refunded', 'cancelled'];
+  const orderStatuses = [
+    'pending_payment', 'pending', 'confirmed', 'processing', 'shipped',
+    'delivered', 'cancelled', 'refunded', 'paid', 'payment_review',
+  ];
+  const reconciliationStatuses = ['applied', 'duplicate', 'stale', 'review_required'];
+  if (!paymentStatuses.includes(String(value.status))
+    || !orderStatuses.includes(String(value.orderStatus))
+    || !reconciliationStatuses.includes(String(value.reconciliation))) {
+    throw new OrderServiceError(503, 'No se recibió un estado de pago válido.');
+  }
+  return {
+    paymentStatus: value.status as WompiPaymentReturnResult['paymentStatus'],
+    orderStatus: String(value.orderStatus),
+    reconciliation: value.reconciliation as WompiPaymentReturnResult['reconciliation'],
+  };
+}
+
 export async function listMyOrders(): Promise<Order[]> {
   const result = await request<unknown>('/orders', { method: 'GET' });
   const orders = result && typeof result === 'object' && 'orders' in result

@@ -5148,7 +5148,7 @@ function AdminDashboard({ onNavigate, products, productsStatus, productsError, o
                         const members = getModelMembers(modelId);
                         return (
                           <div className="space-y-2">
-                            {members.map((variant) => {
+                            {members.map((variant, index) => {
                               const label = variant.name || variant.sku || 'Variante';
                               return (
                               <div key={variant.id} className="flex flex-wrap items-center gap-3 rounded-md border border-slate-200 p-2">

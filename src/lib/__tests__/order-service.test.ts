@@ -5,7 +5,7 @@ vi.mock('../supabase-auth', () => ({
 }));
 
 import { getAccessToken } from '../supabase-auth';
-import { createPendingOrder, createShippingQuote, OrderServiceError } from '../order-service';
+import { createPendingOrder, createShippingQuote, OrderServiceError, verifyWompiPaymentReturn } from '../order-service';
 import { cancelPendingOrder, getMyOrder, listMyOrders } from '../order-service';
 import { createWompiPaymentSession } from '../order-service';
 
@@ -225,5 +225,45 @@ describe('order service', () => {
     )));
 
     await expect(createWompiPaymentSession('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')).rejects.toMatchObject({ status: 503 });
+  });
+
+  it('verifies a Wompi return through the authenticated API without trusting URL status flags', async () => {
+    vi.mocked(getAccessToken).mockResolvedValue('session-token');
+    const fetchMock = vi.fn().mockResolvedValue(new Response(
+      JSON.stringify({ ok: true, data: {
+        status: 'paid',
+        orderStatus: 'paid',
+        reconciliation: 'applied',
+      } }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    ));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(verifyWompiPaymentReturn(
+      'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      'wompi-transaction-123',
+    )).resolves.toEqual({
+      paymentStatus: 'paid',
+      orderStatus: 'paid',
+      reconciliation: 'applied',
+    });
+    const [url, options] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain('/orders/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/payment-status');
+    expect(options).toMatchObject({ method: 'POST' });
+    expect(JSON.parse(String(options.body))).toEqual({ transactionId: 'wompi-transaction-123' });
+    expect(new Headers(options.headers).get('Authorization')).toBe('Bearer session-token');
+  });
+
+  it('rejects invalid Wompi return identifiers before contacting the API', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(verifyWompiPaymentReturn('not-an-order', 'wompi-transaction-123'))
+      .rejects.toMatchObject({ status: 400 });
+    await expect(verifyWompiPaymentReturn(
+      'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      'transaction/id',
+    )).rejects.toMatchObject({ status: 400 });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
