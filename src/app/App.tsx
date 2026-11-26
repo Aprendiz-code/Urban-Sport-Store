@@ -734,7 +734,7 @@ function ProductCard({ product, onSelect, onAddToCart }: {
                     aria-pressed={isSelected}
                     title={color.name || undefined}
                     onClick={() => selectColor(color.productId)}
-                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-700 ${isSelected ? "ring-2 ring-[#1e3a8a] ring-offset-1" : "hover:bg-slate-100"}`}
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-700 ${isSelected ? "ring-2 ring-[#1e3a8a] ring-offset-1" : "hover:bg-slate-100"}`}
                   >
                     <span
                       aria-hidden="true"
